@@ -51,8 +51,10 @@ namespace avbase::base {
 
 // A thin std::mutex wrapper. The wrapper exists so that:
 //   * locks can be named and audited by tools/check_invariants.py,
-//   * the global lock-order rule (docs/04 §3.1) can be asserted in debug
-//     builds via LockOrderChecker, and
+//   * the per-thread lock-order rule (docs/04 §3.1) can be asserted in debug
+//     builds via LockOrderChecker -- NOTE this checker is thread-local (see
+//     lock.cc), so it verifies acquisition order WITHIN one thread only and
+//     cannot detect a cross-thread inversion (the classic deadlock form), and
 //   * clang's GUARDED_BY annotation has a concrete type to attach to.
 class CAPABILITY("mutex") Lock {
  public:
@@ -68,10 +70,14 @@ class CAPABILITY("mutex") Lock {
   // Exposed for std::condition_variable interop only.
   std::mutex& native() { return mutex_; }
 
-  // Debug-build verification of the single global lock order documented in
-  // docs/04 §3.1. No-op unless AVBASE_ENABLE_DCHECK is defined. Violations are
-  // reported through base/logging at FATAL severity, because a lock-order
-  // inversion in a media pipeline surfaces as an unreproducible hang.
+  // Debug-build verification of the lock-acquisition order ON THE CURRENT
+  // THREAD (the checker state in lock.cc is thread-local). No-op unless
+  // AVBASE_ENABLE_DCHECK is defined. Violations are reported through
+  // base/logging at FATAL severity, because a same-thread lock-order inversion
+  // in a media pipeline surfaces as an unreproducible hang. NOTE: a
+  // cross-thread inversion (the classic two-thread deadlock: A holds L1 wants
+  // L2, B holds L2 wants L1) is NOT detected -- keep lock ordering consistent
+  // across threads by convention.
   void AssertAcquiredInOrder();
   void RecordRelease();
 

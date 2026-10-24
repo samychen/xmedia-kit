@@ -72,12 +72,21 @@ void TaskEnvironment::FastForwardBy(TimeDelta delta) {
   // Step to each pending delayed task's ready time in order, running whatever
   // becomes due there. Stepping rather than jumping means a chain of delayed
   // tasks observes the intermediate clock values it would see in production.
+  TimeTicks last_processed;
   for (;;) {
     const TimeTicks next = queue_->GetNextReadyTime();
     if (next.is_null() || next > target) {
       break;
     }
+    // A task that keeps reposting at the current instant (zero-delay
+    // self-loop) would keep GetNextReadyTime() pinned at |next| forever, so the
+    // clock never advances toward |target| and this loop hangs. Stop stepping
+    // and leave those tasks pending rather than spinning.
+    if (!last_processed.is_null() && next == last_processed) {
+      break;
+    }
     mock_clock_->StartAt(next);
+    last_processed = next;
     if (queue_->RunAllReadyTasks(next) == 0) {
       break;
     }

@@ -21,8 +21,8 @@ std::mutex& DelegateMutex() {
   static std::mutex mutex;
   return mutex;
 }
-LoggingDelegate*& DelegateSlot() {
-  static LoggingDelegate* slot = nullptr;
+std::unique_ptr<LoggingDelegate>& DelegateSlot() {
+  static std::unique_ptr<LoggingDelegate> slot;
   return slot;
 }
 
@@ -46,8 +46,7 @@ const char* SeverityName(LogSeverity severity) {
 
 void SetDelegate(std::unique_ptr<LoggingDelegate> delegate) {
   std::lock_guard<std::mutex> lock(DelegateMutex());
-  delete DelegateSlot();
-  DelegateSlot() = delegate.release();
+  DelegateSlot() = std::move(delegate);
 }
 
 void SetMinLogLevel(LogSeverity severity) {
@@ -78,7 +77,7 @@ LogMessage::~LogMessage() {
   LoggingDelegate* delegate = nullptr;
   {
     std::lock_guard<std::mutex> lock(DelegateMutex());
-    delegate = DelegateSlot();
+    delegate = DelegateSlot().get();
   }
   if (delegate) {
     delegate->OnLogMessage(severity_, file_, line_, text);

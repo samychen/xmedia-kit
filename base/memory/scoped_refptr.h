@@ -20,7 +20,6 @@
 #define AVBASE_BASE_MEMORY_SCOPED_REFPTR_H_
 
 #include <cstddef>
-#include <functional>
 #include <type_traits>
 #include <utility>
 

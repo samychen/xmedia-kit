@@ -11,6 +11,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 
 namespace avbase::base {
@@ -29,6 +31,16 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
                                 Reply&& reply) {
   static_assert(std::is_convertible_v<TaskReturnType, ReplyArgType>,
                 "task return type must be convertible to the reply argument");
+
+  // The reply runs on the *calling sequence*, matching Chromium's
+  // PostTaskAndReplyWithResult / PostTaskAndReply: |task| executes on
+  // |task_runner| (the worker), but the result is delivered back where the
+  // async call was issued. avbase media objects are only ever touched on their
+  // own sequence (docs/04 §3), so redirecting the reply onto |task_runner|
+  // would let a different sequence reach into them. Capture the caller's
+  // sequence now, before |task| is posted and possibly starts running.
+  scoped_refptr<SequencedTaskRunner> reply_runner =
+      SequencedTaskRunner::GetCurrentDefault();
 
   // Shared slot carrying the result from the worker sequence back. Refcounted
   // so the reply still has somewhere to read from even if the poster is gone.
@@ -52,11 +64,15 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
     return false;
   }
 
-  // The reply runs on |task_runner| too. Callers that need it on their own
-  // sequence pass a runner for that sequence, matching Chromium.
   OnceClosure done([r = std::forward<Reply>(reply), slot]() mutable {
     std::move(r).Run(std::move(slot->value));
   });
+  // Reply on the captured calling sequence. Fall back to |task_runner| only
+  // when there is no current default sequence (e.g. called outside any
+  // sequence), so the result is never silently dropped.
+  if (reply_runner) {
+    return reply_runner->PostTask(from_here, std::move(done));
+  }
   return task_runner->PostTask(from_here, std::move(done));
 }
 

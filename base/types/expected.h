@@ -8,9 +8,14 @@
 // std::expected. Otherwise a minimal in-house implementation with the same
 // subset of the interface is used, so avbase builds on GCC 10-12 / Clang 14.
 //
-// IMPORTANT: avbase is built with -fno-exceptions. As in Chromium, calling
-// value() on an unexpected value terminates the program instead of throwing
-// std::bad_expected_access. Callers must branch on has_value().
+// IMPORTANT: avbase is built with -fno-exceptions. In the std::expected branch
+// (this toolchain), value() on an unexpected value throws
+// std::bad_expected_access, which is uncaught and terminates the process; the
+// in-house fallback branch CHECK-fails instead -- so under the project's build
+// flags BOTH terminate. This relies on -fno-exceptions: if the project were
+// ever built with exceptions enabled, the std branch would let
+// std::bad_expected_access propagate (catchable). Either way, callers must
+// branch on has_value() rather than relying on value() not throwing.
 
 #ifndef AVBASE_BASE_TYPES_EXPECTED_H_
 #define AVBASE_BASE_TYPES_EXPECTED_H_

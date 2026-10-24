@@ -64,8 +64,10 @@ void Lock::AssertAcquiredInOrder() {
     if (std::find(orders.begin(), orders.end(), reverse) != orders.end() &&
         std::find(orders.begin(), orders.end(), forward) == orders.end()) {
       LOG(FATAL) << "Lock order inversion detected: this Lock was acquired "
-                    "both before and after another Lock. See docs/04 §3.1 for "
-                    "the single global ordering all avbase locks must follow.";
+                    "both before and after another Lock on the SAME thread. "
+                    "See docs/04 §3.1 for the per-thread ordering avbase locks "
+                    "must follow. NOTE: a cross-thread inversion (the classic "
+                    "two-thread deadlock) is not detected by this checker.";
     }
     if (std::find(orders.begin(), orders.end(), forward) == orders.end()) {
       orders.push_back(forward);

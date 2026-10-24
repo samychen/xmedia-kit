@@ -31,13 +31,7 @@ namespace avbase::base {
 
 namespace subtle {
 
-class AdoptionHelper {
- public:
-  template <typename T>
-  static void CheckUse(const T* obj) {
-    CHECK(obj);
-  }
-};
+class AdoptionHelper {};
 
 class RefCountedBase {
  public:
@@ -90,7 +84,11 @@ class RefCountedThreadSafeBase {
 
 }  // namespace subtle
 
-// Single-sequence ref counting. No atomic overhead on AddRef/Release.
+// Single-sequence ref counting: the CONTRACT is that AddRef/Release happen on
+// one sequence, but the count is still a std::atomic<int> (acq_rel on Release),
+// so a cross-sequence caller cannot corrupt it. "Single-sequence" is a
+// perf/lifetime assumption, not a safety guarantee -- prefer
+// RefCountedThreadSafe when the count may be touched from multiple sequences.
 template <typename T>
 class RefCounted : public subtle::RefCountedBase {
  public:

@@ -51,8 +51,10 @@ class AVBASE_BASE_EXPORT Thread {
   bool Start();
   bool StartWithOptions(const Options& options);
 
-  // Requests quit and joins. Bounded by the OS join; the queue drains its
-  // already-accepted tasks first unless |flush| is false.
+  // Requests quit and joins. Bounded by the OS join. Pending tasks posted
+  // before quit are DISCARDED -- Stop() does not drain; callers that need
+  // already-queued work to finish must RunUntilIdle() (or let the owner's
+  // sequence drain) before Stop().
   void Stop();
 
   bool IsRunning() const { return running_.load(std::memory_order_acquire); }

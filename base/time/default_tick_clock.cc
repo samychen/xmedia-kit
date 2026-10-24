@@ -7,8 +7,8 @@
 namespace avbase::base {
 
 const DefaultTickClock* DefaultTickClock::GetInstance() {
-  static const DefaultTickClock* instance = new DefaultTickClock();
-  return instance;
+  static const DefaultTickClock instance;
+  return &instance;
 }
 
 }  // namespace avbase::base

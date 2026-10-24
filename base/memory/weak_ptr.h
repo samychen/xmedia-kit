@@ -139,8 +139,12 @@ class WeakPtr {
 
 // Owns the liveness flag. MUST be the last member of the owning class, so that
 // it is destroyed first and every outstanding WeakPtr is invalidated before
-// the rest of the object goes away. tools/check_invariants.py rule C19 enforces
-// this ordering.
+// the rest of the object goes away.
+//
+// NOTE: this ordering is currently enforced only by convention and code review
+// (docs/06 rule C19). tools/check_invariants.py does NOT implement the check
+// yet, so a factory placed before a later-destroyed member is a latent bug the
+// build will not catch.
 template <typename T>
 class WeakPtrFactory {
  public:
