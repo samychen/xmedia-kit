@@ -159,6 +159,9 @@ class AudioDecodePipeline {
     return total;
   }
 
+  // For tests that drive the decoder directly after a successful Initialize().
+  FFmpegAudioDecoder* decoder() { return decoder_.get(); }
+
  private:
   static DemuxerStream::DecoderBufferVector& PendingBuffers() {
     static DemuxerStream::DecoderBufferVector* buffers =
@@ -316,6 +319,25 @@ TEST_F(FFmpegAudioDecoderTest, DecodeBeforeInitializeFailsCleanly) {
   bool reset_ran = false;
   decoder.Reset(base::BindOnce([](bool* flag) { *flag = true; }, &reset_ran));
   EXPECT_TRUE(reset_ran);
+}
+
+// The Reset() closure must not run on the caller's stack once the decoder has a
+// task runner: DecoderStream::OnResetDone re-enters the stream from that
+// closure, so running it inline would re-enter from inside Reset(). This is the
+// same rule VideoDecoder follows (FFmpegVideoDecoder::Reset posts too). The
+// pre-Initialize() inline path stays as asserted above -- there is no runner to
+// post to then, and nothing in flight to re-enter.
+TEST_F(FFmpegAudioDecoderTest, ResetClosureIsPostedNotRunInline) {
+  AudioDecodePipeline pipeline(task_environment_);
+  ASSERT_TRUE(pipeline.Open(TestFile("audio_only.m4a")));
+  ASSERT_GT(pipeline.Decode(1), 0u) << "the decoder never initialized";
+
+  bool ran = false;
+  pipeline.decoder()->Reset(
+      base::BindOnce([](bool* flag) { *flag = true; }, &ran));
+  EXPECT_FALSE(ran) << "Reset() ran its closure inline";
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(ran) << "Reset() never delivered its closure";
 }
 
 TEST_F(FFmpegAudioDecoderTest, UnsupportedCodecReportsActionableError) {

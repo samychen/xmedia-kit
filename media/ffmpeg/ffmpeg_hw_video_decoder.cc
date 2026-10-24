@@ -100,16 +100,16 @@ struct FFmpegHwVideoDecoder::Context {
 FFmpegHwVideoDecoder::FFmpegHwVideoDecoder(
     FFmpegHwDecoderSpec spec,
     base::scoped_refptr<base::SequencedTaskRunner> task_runner)
-    : spec_(std::move(spec)),
-      task_runner_(task_runner),
-      ctx_(std::make_unique<Context>()),
-      pending_decode_cbs_(task_runner) {
-  CHECK(task_runner_) << "FFmpegHwVideoDecoder needs a task runner so that "
-                         "decode_cb is never run inline";
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-}
+    : media::FFmpegVideoDecoderBase(std::move(task_runner),
+                                    "FFmpegHwVideoDecoder"),
+      spec_(std::move(spec)),
+      ctx_(std::make_unique<Context>()) {}
 
 FFmpegHwVideoDecoder::~FFmpegHwVideoDecoder() = default;
+
+AVCodecContext* FFmpegHwVideoDecoder::codec_ctx() const {
+  return ctx_->codec_ctx.get();
+}
 
 bool FFmpegHwVideoDecoder::InitializeDevice() {
   if (ctx_->device_ready) {
@@ -381,85 +381,6 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
       output_cb_.Run(std::move(out));
     }
   }
-}
-
-void FFmpegHwVideoDecoder::Decode(
-    base::scoped_refptr<media::DecoderBuffer> buffer, DecodeCB decode_cb) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!decode_cb) {
-    return;
-  }
-  if (!initialized_ || !ctx_->codec_ctx) {
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            std::move(decode_cb),
-            media::DecoderStatus(media::DecoderStatus::Codes::kNotInitialized,
-                                 "Initialize() did not succeed")));
-    return;
-  }
-  pending_decode_cbs_.Push(std::move(decode_cb));
-
-  if (!buffer) {
-    pending_decode_cbs_.RunOne(media::DecoderStatus(
-        media::DecoderStatus::Codes::kDecodeError, "null buffer"));
-    return;
-  }
-
-  if (buffer->IsEndOfStream()) {
-    avcodec_send_packet(ctx_->codec_ctx.get(), nullptr);
-    if (!DecodeAvailableFrames()) {
-      pending_decode_cbs_.RunOne(media::DecoderStatus(
-          media::DecoderStatus::Codes::kDecodeError, "hw flush failed"));
-      return;
-    }
-    // All remaining requests are answered, mirroring the software decoder.
-    pending_decode_cbs_.RunAll(media::DecoderStatus());
-    return;
-  }
-
-  auto* storage = buffer->storage_as<ff::AvPacketStorage>();
-  if (!storage || !storage->raw()) {
-    pending_decode_cbs_.RunOne(media::DecoderStatus(
-        media::DecoderStatus::Codes::kDecodeError,
-        "buffer storage is not an AVPacket; a custom Demuxer must produce "
-        "AvPacketStorage for FFmpegHwVideoDecoder"));
-    return;
-  }
-
-  current_serial_ = buffer->serial();
-  const int send_ret =
-      avcodec_send_packet(ctx_->codec_ctx.get(), storage->raw());
-  if (send_ret < 0 && send_ret != AVERROR(EAGAIN)) {
-    pending_decode_cbs_.RunOne(
-        ff::ToDecoderStatus(send_ret, "avcodec_send_packet"));
-    return;
-  }
-  if (!DecodeAvailableFrames()) {
-    pending_decode_cbs_.RunOne(
-        media::DecoderStatus(media::DecoderStatus::Codes::kDecodeError,
-                             "avcodec_receive_frame failed on the hw path"));
-    return;
-  }
-  pending_decode_cbs_.RunOne(media::DecoderStatus());
-}
-
-void FFmpegHwVideoDecoder::Reset(base::OnceClosure closure) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (ctx_->codec_ctx) {
-    avcodec_flush_buffers(ctx_->codec_ctx.get());
-  }
-  // Every outstanding request is answered before |closure|, per the contract
-  // (same as the software decoder's Reset()).
-  pending_decode_cbs_.RunAll(media::DecoderStatus(
-      media::DecoderStatus::Codes::kDecodingAborted, "Reset()"));
-  if (closure) {
-    task_runner_->PostTask(FROM_HERE, std::move(closure));
-  }
-}
-
-int FFmpegHwVideoDecoder::GetMaxDecodeRequests() const {
-  return 1;
 }
 
 }  // namespace avbase::media::ffmpeg

@@ -381,7 +381,19 @@ void FFmpegAudioDecoder::Reset(base::OnceClosure closure) {
     // buffer decoded after a seek can be a pre-seek frame (bug #16).
     avcodec_flush_buffers(ctx_->codec_ctx.get());
   }
-  std::move(closure).Run();
+  if (!closure) {
+    return;
+  }
+  // Posted, never run inline: AudioDecoder shares VideoDecoder's contract, and
+  // DecoderStream::OnResetDone re-enters the stream, so running |closure| on
+  // this stack would re-enter from inside Reset(). Before a successful
+  // Initialize() there is no runner to post to -- and no Decode() in flight --
+  // so the closure is the only outstanding work and running it inline is safe.
+  if (task_runner_) {
+    task_runner_->PostTask(FROM_HERE, std::move(closure));
+  } else {
+    std::move(closure).Run();
+  }
 }
 
 }  // namespace avbase::media

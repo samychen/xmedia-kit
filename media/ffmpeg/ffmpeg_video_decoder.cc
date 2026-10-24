@@ -91,15 +91,23 @@ struct FFmpegVideoDecoder::Context {
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(
     base::scoped_refptr<base::SequencedTaskRunner> task_runner)
-    : task_runner_(task_runner),
-      ctx_(std::make_unique<Context>()),
-      pending_decode_cbs_(task_runner) {
-  CHECK(task_runner_) << "FFmpegVideoDecoder needs a task runner so that "
-                         "decode_cb is never run inline";
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-}
+    : FFmpegVideoDecoderBase(std::move(task_runner), "FFmpegVideoDecoder"),
+      ctx_(std::make_unique<Context>()) {}
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() = default;
+
+AVCodecContext* FFmpegVideoDecoder::codec_ctx() const {
+  return ctx_->codec_ctx.get();
+}
+
+void FFmpegVideoDecoder::OnEndOfStream() {
+  decoding_eos_ = true;
+}
+
+void FFmpegVideoDecoder::OnResetExtra() {
+  ctx_->converter.Reset();
+  decoding_eos_ = false;
+}
 
 DecoderStatus FFmpegVideoDecoder::OpenCodec(const VideoDecoderConfig& config,
                                             int threads) {
@@ -299,93 +307,6 @@ bool FFmpegVideoDecoder::DecodeAvailableFrames() {
       output_cb_.Run(std::move(out));
     }
   }
-}
-
-void FFmpegVideoDecoder::Decode(base::scoped_refptr<DecoderBuffer> buffer,
-                                DecodeCB decode_cb) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!decode_cb) {
-    return;
-  }
-  if (!initialized_ || !ctx_->codec_ctx) {
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(decode_cb),
-                       DecoderStatus(DecoderStatus::Codes::kNotInitialized,
-                                     "Initialize() did not succeed")));
-    return;
-  }
-  pending_decode_cbs_.Push(std::move(decode_cb));
-
-  if (!buffer) {
-    pending_decode_cbs_.RunOne(
-        DecoderStatus(DecoderStatus::Codes::kDecodeError, "null buffer"));
-    return;
-  }
-
-  if (buffer->IsEndOfStream()) {
-    // EOS: flush the decoder, emit everything still buffered, then answer every
-    // outstanding request. avcodec_send_packet(nullptr) is the documented
-    // flush.
-    avcodec_send_packet(ctx_->codec_ctx.get(), nullptr);
-    decoding_eos_ = true;
-    if (!DecodeAvailableFrames()) {
-      pending_decode_cbs_.RunAll(
-          DecoderStatus(DecoderStatus::Codes::kDecodeError, "flush failed"));
-      return;
-    }
-    pending_decode_cbs_.RunAll(DecoderStatus());
-    return;
-  }
-
-  auto* storage = buffer->storage_as<ff::AvPacketStorage>();
-  if (!storage || !storage->raw()) {
-    // A buffer that did not come from the FFmpeg demuxer. This is the type
-    // erasure boundary failing loudly rather than silently mis-decoding.
-    pending_decode_cbs_.RunOne(DecoderStatus(
-        DecoderStatus::Codes::kDecodeError,
-        "buffer storage is not an AVPacket; a custom Demuxer must produce "
-        "AvPacketStorage for FFmpegVideoDecoder"));
-    return;
-  }
-
-  current_serial_ = buffer->serial();
-  AVPacket* packet = storage->raw();
-  // avcodec_send_packet consumes the packet's reference; give it a copy so the
-  // DecoderBuffer stays valid for diagnostics and for a possible retry.
-  const int send_ret = avcodec_send_packet(ctx_->codec_ctx.get(), packet);
-  if (send_ret < 0 && send_ret != AVERROR(EAGAIN)) {
-    pending_decode_cbs_.RunOne(
-        ff::ToDecoderStatus(send_ret, "avcodec_send_packet"));
-    return;
-  }
-  if (!DecodeAvailableFrames()) {
-    pending_decode_cbs_.RunOne(DecoderStatus(DecoderStatus::Codes::kDecodeError,
-                                             "avcodec_receive_frame failed"));
-    return;
-  }
-  pending_decode_cbs_.RunOne(DecoderStatus());
-}
-
-void FFmpegVideoDecoder::Reset(base::OnceClosure closure) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (ctx_->codec_ctx) {
-    avcodec_flush_buffers(ctx_->codec_ctx.get());
-  }
-  ctx_->converter.Reset();
-  decoding_eos_ = false;
-  // Every outstanding request is answered before |closure|, per the contract.
-  pending_decode_cbs_.RunAll(
-      DecoderStatus(DecoderStatus::Codes::kDecodingAborted, "Reset()"));
-  if (closure) {
-    task_runner_->PostTask(FROM_HERE, std::move(closure));
-  }
-}
-
-int FFmpegVideoDecoder::GetMaxDecodeRequests() const {
-  // Software decoding completes inside Decode(); allowing more in flight would
-  // only reorder outputs.
-  return 1;
 }
 
 }  // namespace avbase::media

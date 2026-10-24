@@ -13,13 +13,12 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_types.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
-#include "media/ffmpeg/pending_decode_callbacks.h"
+#include "media/ffmpeg/ffmpeg_video_decoder_base.h"
 
 namespace avbase::media::ffmpeg {
 
@@ -71,7 +70,13 @@ struct FFmpegHwDecoderSpec {
 // an exception and never a crash, so the existing DecoderStream chain
 // (hardware first, this device's software tail last) absorbs a missing
 // device, an unsupported profile or a driver reset.
-class FFmpegHwVideoDecoder final : public media::VideoDecoder {
+//
+// Decode()/Reset()/GetMaxDecodeRequests() come from
+// media::FFmpegVideoDecoderBase, which holds the buffer-validation and
+// callback-draining sequence shared with the software path; this class supplies
+// the codec context and the hw frame transfer. It has no EOS/Reset bookkeeping
+// of its own, hence no overrides for the two optional hooks.
+class FFmpegHwVideoDecoder final : public media::FFmpegVideoDecoderBase {
  public:
   FFmpegHwVideoDecoder(
       FFmpegHwDecoderSpec spec,
@@ -85,10 +90,6 @@ class FFmpegHwVideoDecoder final : public media::VideoDecoder {
                   media::CdmContext* cdm_context, InitCB init_cb,
                   const OutputCB& output_cb,
                   const media::WaitingCB& waiting_cb) override;
-  void Decode(base::scoped_refptr<media::DecoderBuffer> buffer,
-              DecodeCB decode_cb) override;
-  void Reset(base::OnceClosure closure) override;
-  int GetMaxDecodeRequests() const override;
   media::VideoDecoderType GetDecoderType() const override {
     return spec_.decoder_type;
   }
@@ -99,20 +100,14 @@ class FFmpegHwVideoDecoder final : public media::VideoDecoder {
 
   bool InitializeDevice();
   bool OpenCodec(const media::VideoDecoderConfig& config);
-  bool DecodeAvailableFrames();
+
+  // media::FFmpegVideoDecoderBase:
+  AVCodecContext* codec_ctx() const override;
+  bool DecodeAvailableFrames() override;
 
   FFmpegHwDecoderSpec spec_;
-  base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unique_ptr<Context> ctx_;
-  OutputCB output_cb_;
-  media::WaitingCB waiting_cb_;
-  PendingDecodeCallbacks pending_decode_cbs_;
   media::VideoDecoderConfig config_;
-  bool initialized_{false};
-  int32_t current_serial_{0};
-  uint64_t frames_decoded_{0};
-
-  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace avbase::media::ffmpeg

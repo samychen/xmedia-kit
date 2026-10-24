@@ -8,10 +8,9 @@
 #define AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/video_decoder.h"
-#include "media/ffmpeg/pending_decode_callbacks.h"
+#include "media/ffmpeg/ffmpeg_video_decoder_base.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -24,7 +23,13 @@ namespace avbase::media {
 // are hidden behind avcodec_send_packet/receive_frame), so Decode() produces
 // every available frame before returning — but decode_cb is still posted, never
 // run inline, to honour the VideoDecoder contract.
-class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final : public VideoDecoder {
+//
+// Decode()/Reset()/GetMaxDecodeRequests() come from FFmpegVideoDecoderBase,
+// which holds the buffer-validation and callback-draining sequence shared with
+// the hardware path. This class supplies the codec context, the swscale drain,
+// and the two pieces of software-only EOS/Reset bookkeeping.
+class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final
+    : public FFmpegVideoDecoderBase {
  public:
   // |task_runner| is where decode_cb and init_cb are posted. Required.
   explicit FFmpegVideoDecoder(
@@ -38,10 +43,6 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final : public VideoDecoder {
                   CdmContext* cdm_context, InitCB init_cb,
                   const OutputCB& output_cb,
                   const WaitingCB& waiting_cb) override;
-  void Decode(base::scoped_refptr<DecoderBuffer> buffer,
-              DecodeCB decode_cb) override;
-  void Reset(base::OnceClosure closure) override;
-  int GetMaxDecodeRequests() const override;
   VideoDecoderType GetDecoderType() const override {
     return VideoDecoderType::kFFmpegVideoDecoder;
   }
@@ -59,28 +60,23 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final : public VideoDecoder {
   uint64_t conversion_failures() const { return conversion_failures_; }
 
  private:
-  // Opaque FFmpeg handles; kept out of the header (invariant C4).
+  // Opaque FFmpeg handles; kept out of the header.
   struct Context;
 
   DecoderStatus OpenCodec(const VideoDecoderConfig& config, int threads);
-  // Drains avcodec_receive_frame, converts and emits. Returns false on error.
-  bool DecodeAvailableFrames();
 
-  base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  // FFmpegVideoDecoderBase:
+  AVCodecContext* codec_ctx() const override;
+  bool DecodeAvailableFrames() override;
+  void OnEndOfStream() override;
+  void OnResetExtra() override;
+
   std::unique_ptr<Context> ctx_;
-  OutputCB output_cb_;
-  WaitingCB waiting_cb_;
-  PendingDecodeCallbacks pending_decode_cbs_;
   VideoDecoderConfig config_;
   VideoFormat preferred_format_{VideoFormat::kUnknown};
   int thread_count_{0};
-  bool initialized_{false};
   bool decoding_eos_{false};
-  int32_t current_serial_{0};
-  uint64_t frames_decoded_{0};
   uint64_t conversion_failures_{0};
-
-  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace avbase::media
