@@ -12,8 +12,10 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/task_runner_util.h"
 #include "base/test/task_environment.h"
+#include "base/threading/thread.h"
 #include "gtest/gtest.h"
 
 namespace avbase::base {
@@ -218,6 +220,55 @@ TEST(TaskRunnerUtilTest, PostTaskAndReplyWithResultDeliversTheValue) {
       BindOnce([](int* out, int v) { *out = v; }, &received))));
   queue->RunAllReadyTasks(TimeTicks::Now());
   EXPECT_EQ(received, 42);
+}
+
+// The pre-existing DeliversTheValue test only exercises the single-runner
+// fallback (no current default sequence, so the reply is posted back onto the
+// same queue it was issued from). That path runs entirely on one thread and
+// therefore does NOT cover the cross-thread hand-off. This test drives a real
+// worker thread and a separate caller sequence, and asserts both that the
+// result is delivered and that the reply runs on the calling sequence -- which
+// is what PostTaskAndReplyWithResult is documented (docs/04 §3) to do, and
+// what a data race on the result slot would break.
+TEST(TaskRunnerUtilTest, ReplyRunsOnCallingSequenceNotWorker) {
+  auto caller = MakeRefCounted<TaskQueue>();  // installed as the current default
+  Thread worker("reply-worker");
+  ASSERT_TRUE(worker.Start());
+
+  WaitableEvent work_done(WaitableEvent::ResetPolicy::kManualReset,
+                          WaitableEvent::InitialState::kNotSignaled);
+  int received = 0;
+  std::atomic<std::thread::id> reply_tid{std::thread::id{}};
+  const std::thread::id main_tid = std::this_thread::get_id();
+
+  SequencedTaskRunner::SetCurrentDefault(caller);
+  ASSERT_TRUE((PostTaskAndReplyWithResult<int, int>(
+      worker.task_runner().get(), FROM_HERE,
+      [&work_done]() {
+        work_done.Signal();
+        return 99;
+      },
+      BindOnce(
+          [](int* out, std::atomic<std::thread::id>* tid, int v) {
+            *tid = std::this_thread::get_id();
+            *out = v;
+          },
+          &received, &reply_tid))));
+  SequencedTaskRunner::SetCurrentDefault(nullptr);
+
+  // Wait until the worker has executed the work task. At that point the reply
+  // has been posted to |caller| (new behavior) -- or to |worker| (the old,
+  // data-racing bug). Either way the result is now in the slot.
+  work_done.Wait();
+  worker.Stop();
+
+  // Drive the caller sequence on the main thread. If the reply had been posted
+  // to |worker| it would never run here, so |received| would stay 0 and the
+  // reply thread id would not match the main thread.
+  caller->RunAllReadyTasks(TimeTicks::Now());
+
+  EXPECT_EQ(received, 99);
+  EXPECT_EQ(reply_tid.load(), main_tid);
 }
 
 }  // namespace
