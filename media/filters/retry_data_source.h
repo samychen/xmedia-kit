@@ -5,18 +5,14 @@
 #ifndef AVBASE_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
 #define AVBASE_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
 
-#include <atomic>
-#include <deque>
+#include <cstdint>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/synchronization/atomic_flag.h"
-#include "base/synchronization/condition_variable.h"
-#include "base/synchronization/lock.h"
 #include "base/task/task_runner.h"
-#include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
+#include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -63,33 +59,13 @@ class AVBASE_MEDIA_EXPORT RetryDataSource final : public DataSource {
   bool IsSeekable() const override;
 
  private:
-  void WorkerMain();
-
   base::scoped_refptr<DataSource> inner_;
   const Config config_;
 
-  base::AtomicFlag aborted_;
-  // The async Read queue: one worker drains (offset, size, data, runner, cb)
-  // tuples so a blocked read never occupies the caller. The retry loop for
-  // async reads runs on that worker too; its abortable sleeps end early via
-  // aborted_ + the inner source's own Abort().
-  // Default member initialisers: the struct is always aggregate-initialised
-  // today, but an uninitialised offset/size/data in a queued job is a read of
-  // garbage that only shows up as a wrong range -- give the fields values so
-  // a future default construction is safe too.
-  struct AsyncJob {
-    int64_t offset{0};
-    size_t size{0};
-    uint8_t* data{nullptr};
-    base::scoped_refptr<base::TaskRunner> runner;
-    ReadCB cb;
-  };
-
-  base::Thread worker_;
-  base::Lock pending_lock_;
-  base::ConditionVariable pending_cv_ GUARDED_BY(pending_lock_);
-  std::deque<AsyncJob> jobs_ GUARDED_BY(pending_lock_);
-  bool stopped_ GUARDED_BY(pending_lock_) = false;
+  // Shared async-Read plumbing (worker, job queue, abort flag). Declared last
+  // so inner_/config_ are constructed before its worker can run ReadBlocking.
+  // Constructed with a callback bound to ReadBlocking (the retry loop).
+  AsyncDataSourceBase async_;
 };
 
 }  // namespace avbase::media

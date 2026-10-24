@@ -1,23 +1,20 @@
-// Copyright 2026 The ijkpp Authors. All rights reserved.
+// Copyright 2026 The avbase Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef AVBASE_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
 #define AVBASE_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
 
-#include <atomic>
 #include <cstdint>
-#include <deque>
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/task/task_runner.h"
-#include "base/threading/thread.h"
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
+#include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -74,33 +71,16 @@ class AVBASE_MEDIA_EXPORT LiveDataSource final : public DataSource {
   bool IsSeekable() const override;
 
  private:
-  // Runs ReadBlocking on the worker thread for async Read(); a live read may
-  // block at the edge, and the DataSource contract forbids inline callbacks.
-  void WorkerMain();
-  ReadResult ReadBlockingImpl(int64_t offset, size_t size, uint8_t* data);
-
   mutable base::Lock lock_;
   base::ConditionVariable data_cv_ GUARDED_BY(lock_);
   std::vector<uint8_t> buffer_ GUARDED_BY(lock_);
   bool closed_ GUARDED_BY(lock_) = false;
 
-  base::AtomicFlag aborted_;
-  base::Thread worker_;
-  base::Lock job_lock_;
-  base::ConditionVariable job_cv_ GUARDED_BY(job_lock_);
-  // Default member initialisers: the struct is always aggregate-initialised
-  // today, but an uninitialised offset/size/data in a queued job is a read of
-  // garbage that only shows up as a wrong range -- give the fields values so
-  // a future default construction is safe too.
-  struct AsyncJob {
-    int64_t offset{0};
-    size_t size{0};
-    uint8_t* data{nullptr};
-    base::scoped_refptr<base::TaskRunner> runner;
-    ReadCB cb;
-  };
-  std::deque<AsyncJob> jobs_ GUARDED_BY(job_lock_);
-  bool stopped_ GUARDED_BY(job_lock_) = false;
+  // Shared async-Read plumbing (worker, job queue, abort flag). Declared last
+  // so lock_/data_cv_/buffer_ are fully constructed before its worker can run
+  // ReadBlocking. Bound to ReadBlocking directly: the live-edge wait IS the
+  // blocking read, so there is no separate "impl" method.
+  AsyncDataSourceBase async_;
 };
 
 }  // namespace avbase::media

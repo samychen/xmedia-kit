@@ -173,6 +173,12 @@ class AVBASE_MEDIA_EXPORT AvSyncController final : public TimeSource {
   const Clock& external_clock() const { return external_; }
 
  private:
+  // Maps a (resolved) master type to its clock, or nullptr for an invalid type.
+  // Shared by GetMasterClock() and master_serial() so the three-way dispatch
+  // lives in one place; ResolveMasterType() only ever yields one of the three
+  // enumerators, so nullptr is unreachable in practice.
+  const Clock* clock_for(MasterType type) const;
+
   // const because it only touches the mutable diff window; called from the
   // const ComputeAudioSampleAdjustment() on the audio sequence.
   void UpdateAudioDiff(base::TimeDelta diff) const;

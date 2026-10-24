@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/base/audio_buffer.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/decoder_config.h"
@@ -77,6 +78,10 @@ class AVBASE_MEDIA_EXPORT FFmpegAudioDecoder final : public AudioDecoder {
   ChannelLayout channel_layout_{ChannelLayout::kNone};
   int channels_{0};
   int sample_rate_{0};
+  // Captured at Initialize() time. decode_cb is posted here (never run inline)
+  // to honour the AudioDecoder contract (docs/03 §4: decode_cb is never run
+  // from within Decode()).
+  base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
 }  // namespace avbase::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The ijkpp Authors. All rights reserved.
+// Copyright 2026 The avbase Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/location.h"
 
 namespace avbase::media {
 namespace {
@@ -22,22 +21,15 @@ constexpr std::chrono::milliseconds kEdgeWaitSlice(10);
 }  // namespace
 
 LiveDataSource::LiveDataSource()
-    : data_cv_(&lock_), worker_("ijkpp-live-src"), job_cv_(&job_lock_) {
-  worker_.Start();
-  worker_.task_runner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&LiveDataSource::WorkerMain, base::Unretained(this)));
-}
+    : data_cv_(&lock_),
+      async_("avbase-live-src",
+             base::BindRepeating(&LiveDataSource::ReadBlocking,
+                                 base::Unretained(this))) {}
 
 LiveDataSource::~LiveDataSource() {
-  {
-    base::AutoLock scoped(job_lock_);
-    stopped_ = true;
-  }
-  job_cv_.Signal();
   Close();
   Abort();
-  worker_.Stop();
+  async_.StopWorker();
 }
 
 void LiveDataSource::Append(const uint8_t* data, size_t size) {
@@ -69,8 +61,8 @@ void LiveDataSource::SetHost(Host* /*host*/) {
   // the demuxer side. Kept for the contract.
 }
 
-DataSource::ReadResult
-LiveDataSource::ReadBlockingImpl(int64_t offset, size_t size, uint8_t* data) {
+DataSource::ReadResult LiveDataSource::ReadBlocking(int64_t offset, size_t size,
+                                                    uint8_t* data) {
   if (offset < 0) {
     return Err(ErrorCode::kInvalidArgument, "negative read offset",
                "offset = " + std::to_string(offset),
@@ -92,7 +84,7 @@ LiveDataSource::ReadBlockingImpl(int64_t offset, size_t size, uint8_t* data) {
       if (closed_) {
         return 0;  // EOF: the stream was finite after all.
       }
-      if (aborted_.IsSet()) {
+      if (async_.IsAborted()) {
         return Err(ErrorCode::kAborted, "the live source was aborted",
                    "offset = " + std::to_string(offset),
                    "this follows Stop(); no action needed");
@@ -104,13 +96,8 @@ LiveDataSource::ReadBlockingImpl(int64_t offset, size_t size, uint8_t* data) {
   }
 }
 
-DataSource::ReadResult LiveDataSource::ReadBlocking(int64_t offset, size_t size,
-                                                    uint8_t* data) {
-  return ReadBlockingImpl(offset, size, data);
-}
-
 void LiveDataSource::Abort() {
-  aborted_.Set();
+  async_.SetAborted();
   {
     base::AutoLock scoped(lock_);
     data_cv_.Broadcast();
@@ -138,38 +125,7 @@ bool LiveDataSource::IsSeekable() const {
 void LiveDataSource::Read(int64_t offset, size_t size, uint8_t* data,
                           base::scoped_refptr<base::TaskRunner> task_runner,
                           ReadCB read_cb) {
-  base::AutoLock scoped(job_lock_);
-  if (stopped_) {
-    task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(read_cb),
-                       Err(ErrorCode::kAborted, "the live source was torn down",
-                           {}, "no action needed")));
-    return;
-  }
-  jobs_.push_back(
-      AsyncJob{offset, size, data, std::move(task_runner), std::move(read_cb)});
-  job_cv_.Signal();
-}
-
-void LiveDataSource::WorkerMain() {
-  while (true) {
-    AsyncJob job;
-    {
-      base::AutoLock scoped(job_lock_);
-      while (jobs_.empty() && !stopped_) {
-        job_cv_.Wait();
-      }
-      if (stopped_) {
-        return;
-      }
-      job = std::move(jobs_.front());
-      jobs_.pop_front();
-    }
-    ReadResult result = ReadBlockingImpl(job.offset, job.size, job.data);
-    job.runner->PostTask(FROM_HERE,
-                         base::BindOnce(std::move(job.cb), std::move(result)));
-  }
+  async_.Read(offset, size, data, std::move(task_runner), std::move(read_cb));
 }
 
 }  // namespace avbase::media

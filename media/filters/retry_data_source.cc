@@ -8,35 +8,38 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/location.h"
-#include "base/synchronization/waitable_event.h"
-#include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 
 namespace avbase::media {
-namespace {}  // namespace
+namespace {
+
+// Validates |inner| in the member-initialiser list, i.e. BEFORE |async_| is
+// constructed. AsyncDataSourceBase starts its worker in its constructor, so a
+// CHECK in the constructor BODY would run only after a thread already exists on
+// a half-constructed object; doing it here keeps the original order
+// ("check the inner source, then start the worker").
+base::scoped_refptr<DataSource>
+CheckedInner(base::scoped_refptr<DataSource> inner) {
+  CHECK(inner) << "RetryDataSource needs an inner DataSource";
+  return inner;
+}
+
+}  // namespace
 
 RetryDataSource::RetryDataSource(base::scoped_refptr<DataSource> inner,
                                  Config config)
-    : inner_(std::move(inner)),
+    : inner_(CheckedInner(std::move(inner))),
       config_(config),
-      worker_("avbase-retry-src"),
-      pending_cv_(&pending_lock_) {
-  CHECK(inner_);
-  worker_.Start();
-  worker_.task_runner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&RetryDataSource::WorkerMain, base::Unretained(this)));
-}
+      async_("avbase-retry-src",
+             base::BindRepeating(&RetryDataSource::ReadBlocking,
+                                 base::Unretained(this))) {}
 
 RetryDataSource::~RetryDataSource() {
-  {
-    base::AutoLock scoped(pending_lock_);
-    stopped_ = true;
-  }
-  pending_cv_.Signal();
-  aborted_.Set();
+  // Unblock any in-flight retry loop (aborted_) and the inner read before the
+  // worker is joined.
+  async_.SetAborted();
   inner_->Abort();
-  worker_.Stop();
+  async_.StopWorker();
 }
 
 void RetryDataSource::SetHost(Host* host) {
@@ -60,7 +63,7 @@ bool RetryDataSource::IsSeekable() const {
 }
 
 void RetryDataSource::Abort() {
-  aborted_.Set();
+  async_.SetAborted();
   inner_->Abort();
 }
 
@@ -68,7 +71,7 @@ DataSource::ReadResult
 RetryDataSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
   int failures = 0;
   while (true) {
-    if (aborted_.IsSet()) {
+    if (async_.IsAborted()) {
       return Err(ErrorCode::kAborted, "the retry source was aborted",
                  "offset = " + std::to_string(offset),
                  "this follows Stop(); no action needed");
@@ -85,7 +88,7 @@ RetryDataSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
     const base::TimeTicks deadline =
         base::TimeTicks::Now() + config_.retry_delay;
     while (base::TimeTicks::Now() < deadline) {
-      if (aborted_.IsSet()) {
+      if (async_.IsAborted()) {
         return Err(ErrorCode::kAborted, "the retry source was aborted",
                    "offset = " + std::to_string(offset),
                    "this follows Stop(); no action needed");
@@ -98,38 +101,7 @@ RetryDataSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
 void RetryDataSource::Read(int64_t offset, size_t size, uint8_t* data,
                            base::scoped_refptr<base::TaskRunner> task_runner,
                            ReadCB read_cb) {
-  base::AutoLock scoped(pending_lock_);
-  if (stopped_) {
-    task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(read_cb), Err(ErrorCode::kAborted,
-                                               "the retry source was torn down",
-                                               {}, "no action needed")));
-    return;
-  }
-  jobs_.push_back(
-      AsyncJob{offset, size, data, std::move(task_runner), std::move(read_cb)});
-  pending_cv_.Signal();
-}
-
-void RetryDataSource::WorkerMain() {
-  while (true) {
-    AsyncJob job;
-    {
-      base::AutoLock scoped(pending_lock_);
-      while (jobs_.empty() && !stopped_) {
-        pending_cv_.Wait();
-      }
-      if (stopped_) {
-        return;
-      }
-      job = std::move(jobs_.front());
-      jobs_.pop_front();
-    }
-    ReadResult result = ReadBlocking(job.offset, job.size, job.data);
-    job.runner->PostTask(FROM_HERE,
-                         base::BindOnce(std::move(job.cb), std::move(result)));
-  }
+  async_.Read(offset, size, data, std::move(task_runner), std::move(read_cb));
 }
 
 }  // namespace avbase::media

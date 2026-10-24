@@ -61,6 +61,8 @@ void DrainWholeFrames(AudioState* st, int frame_size,
     if (!f) {
       return;
     }
+    // AVFrame.data is uint8_t*[]; av_audio_fifo_read takes void** for the same
+    // plane layout the FIFO was configured with (safe reinterpret, FFmpeg ABI).
     if (av_audio_fifo_read(st->fifo, reinterpret_cast<void**>(f->data),
                            frame_size) < frame_size) {
       return;
@@ -96,6 +98,8 @@ AvFrameToAudioBuffer(AVFrame* frame, int sample_rate, int channels) {
                                 static_cast<size_t>(channels));
   const float* src_channels[AV_NUM_DATA_POINTERS] = {};
   for (int ch = 0; ch < channels && ch < AV_NUM_DATA_POINTERS; ++ch) {
+    // AVFrame samples are float (FLTP) on this path; reinterpret the uint8_t*
+    // plane pointer to const float* (safe: same buffer, no copy).
     src_channels[ch] = reinterpret_cast<const float*>(planar ? frame->data[ch]
                                                              : frame->data[0]);
   }
@@ -117,6 +121,8 @@ AvFrameToAudioBuffer(AVFrame* frame, int sample_rate, int channels) {
   }
   // Build planar float data (F32P) for AudioBuffer.
   std::vector<uint8_t> planar_data(nb_samples_sz * channels_sz * sizeof(float));
+  // planar_data is sized as a float array; reinterpret the uint8_t* to float*
+  // (safe: same allocation, no aliasing violation).
   auto* planes = reinterpret_cast<float*>(planar_data.data());
   for (int ch = 0; ch < channels; ++ch) {
     const size_t ch_sz = static_cast<size_t>(ch);
@@ -181,6 +187,8 @@ std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
   // into the FIFO.
   auto converted = st->resampler->Push(*frame);
   for (auto& f : converted) {
+    // AVFrame.data is uint8_t*[]; av_audio_fifo_write takes void** for the same
+    // plane layout the FIFO was configured with (safe reinterpret, FFmpeg ABI).
     if (av_audio_fifo_write(st->fifo, reinterpret_cast<void**>(f->data),
                             f->nb_samples) < f->nb_samples) {
       LOG(ERROR) << "transcode: resampler FIFO overflow";
@@ -202,6 +210,8 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
     // frames; they join the FIFO so DrainWholeFrames can emit whole frames.
     auto tail = st->resampler->Flush();
     for (auto& f : tail) {
+      // AVFrame.data is uint8_t*[]; av_audio_fifo_write takes void** for the
+      // same plane layout the FIFO was configured with (safe reinterpret).
       av_audio_fifo_write(st->fifo, reinterpret_cast<void**>(f->data),
                           f->nb_samples);
     }
@@ -213,6 +223,8 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
     AVFrame* f = ScratchFrame(&st->framed, frame_size, st->out_sample_rate,
                               st->out_channels);
     if (f) {
+      // AVFrame.data is uint8_t*[]; av_audio_fifo_read takes void** for the
+      // same plane layout the FIFO was configured with (safe reinterpret).
       const int got =
           av_audio_fifo_read(st->fifo, reinterpret_cast<void**>(f->data), left);
       if (got > 0) {

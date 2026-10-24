@@ -46,7 +46,7 @@
 | `new` / `delete` | 核心代码禁止直接使用 | 用 `std::make_unique` / `base::WrapUnique` / `scoped_refptr` |
 | `malloc` / `free` | 仅允许出现在 `base/memory/allocator_shim.cc` 等白名单文件 | — |
 | `goto` | **出现次数必须为 0** | check_invariants C9 |
-| `reinterpret_cast` | 仅限 `platform/` 与 `media/filters/ffmpeg/`，且必须加注释说明安全性 | — |
+| `reinterpret_cast` | 仅限 `platform/`、`media/ffmpeg/`（FFmpeg 解码/转换 ABI）、`media/base/native_display.cc`（窗口系统句柄互操作）、`media/transcode/`（FFmpeg 编码互操作），且必须加注释说明安全性 | — |
 | C 风格转换 `(T)x` | 禁止 | `-Wold-style-cast` |
 | 裸 `T*` 表示所有权 | 禁止 | 所有权只用 `unique_ptr` / `scoped_refptr`；非拥有用 `raw_ptr<T>` 或 `T&` |
 | `using namespace` 在头文件 | 禁止 | check_invariants C14 |

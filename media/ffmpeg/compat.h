@@ -16,8 +16,8 @@
 
 #include "base/time/time.h"
 #include "media/base/decoder_status.h"
+#include "media/base/media_error.h"
 #include "media/ffmpeg/av_includes.h"
-#include "player/public/error.h"
 
 namespace avbase::media::ffmpeg {
 

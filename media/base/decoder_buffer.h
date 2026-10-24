@@ -85,9 +85,6 @@ class AVBASE_MEDIA_EXPORT DecoderBuffer
   void set_decode_timestamp(base::TimeDelta dts) { decode_timestamp_ = dts; }
   void set_duration(base::TimeDelta d) { duration_ = d; }
   void set_offset(int64_t offset) { offset_ = offset; }
-  void set_side_data(std::vector<uint8_t> side_data) {
-    side_data_ = std::move(side_data);
-  }
 
   base::TimeDelta timestamp() const { return timestamp_; }
   // Decode timestamp (AVPacket::dts). May be earlier than |timestamp| when the
@@ -102,7 +99,6 @@ class AVBASE_MEDIA_EXPORT DecoderBuffer
 
   size_t data_size() const;
   std::span<const uint8_t> data() const;
-  std::span<const uint8_t> side_data() const { return side_data_; }
   int64_t offset_in_container() const { return offset_; }
 
   DemuxerStreamType stream_type() const { return stream_type_; }
@@ -147,7 +143,6 @@ class AVBASE_MEDIA_EXPORT DecoderBuffer
                          DemuxerStreamType stream_type, int32_t stream_index);
 
   std::unique_ptr<Storage> storage_;
-  std::vector<uint8_t> side_data_;
   base::TimeDelta timestamp_{kNoTimestamp};
   base::TimeDelta decode_timestamp_{kNoTimestamp};
   base::TimeDelta duration_;

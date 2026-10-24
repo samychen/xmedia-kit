@@ -755,9 +755,9 @@ FFmpegDemuxer::ReadStep FFmpegDemuxer::ReadAndRouteOnePacket(void* ctx_raw,
   packets_demuxed_.fetch_add(1, std::memory_order_relaxed);
 
   // Backpressure: if the consumer's queue is full, wait rather than growing
-  // without bound. resume_event_ has exactly three signallers — Flush, Stop and
-  // a seek — which is what replaced ijkplayer's continue_read_thread that had
-  // to be signalled from five places (docs/01 病灶 10).
+  // without bound. resume_event_ has four signallers over five Signal() sites
+  // (Flush, Stop, two Seeks, SetActiveStream) -- one event where ijkplayer
+  // poked continue_read_thread from five call stacks (docs/01 病灶 10).
   if (stream->type() == DemuxerStreamType::kText) {
     // Bounded drop-oldest; never blocks the demux thread. Returns false only
     // on abort/closed, and the buffer going away releases the packet ref.

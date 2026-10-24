@@ -9,7 +9,9 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/compat.h"
@@ -194,6 +196,9 @@ void FFmpegAudioDecoder::Initialize(const AudioDecoderConfig& config,
                                     int32_t current_serial, InitCB init_cb,
                                     const OutputCB& output_cb,
                                     const WaitingCB& waiting_cb) {
+  // Capture the sequence so decode_cb can be posted (never run inline) to
+  // honour the AudioDecoder contract (docs/03 §4).
+  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   serial_ = current_serial;
   output_cb_ = output_cb;
   waiting_cb_ = waiting_cb;
@@ -276,14 +281,24 @@ bool FFmpegAudioDecoder::DecodeAvailableFrames(bool* drained) {
 void FFmpegAudioDecoder::Decode(base::scoped_refptr<DecoderBuffer> buffer,
                                 DecodeCB decode_cb) {
   if (!initialized_) {
-    std::move(decode_cb).Run(
-        DecoderStatus(DecoderStatus::Codes::kNotInitialized,
-                      "Decode() called before a successful Initialize()"));
+    // No task_runner_ yet (captured in Initialize()). Deliver the error inline:
+    // this only happens on a mis-used decoder before a successful Initialize(),
+    // where no Decode() is in flight to re-enter, so the "never run inline"
+    // rule (docs/03 §4) does not apply and the original early-out holds.
+    DecoderStatus status(DecoderStatus::Codes::kNotInitialized,
+                         "Decode() called before a successful Initialize()");
+    if (task_runner_) {
+      task_runner_->PostTask(FROM_HERE,
+                             base::BindOnce(std::move(decode_cb), status));
+    } else {
+      std::move(decode_cb).Run(std::move(status));
+    }
     return;
   }
   if (!buffer) {
     output_cb_.Run(AudioBuffer::CreateEOSBuffer());
-    std::move(decode_cb).Run(DecoderStatus());
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(std::move(decode_cb), DecoderStatus()));
     return;
   }
   if (buffer->IsEndOfStream()) {
@@ -295,22 +310,30 @@ void FFmpegAudioDecoder::Decode(base::scoped_refptr<DecoderBuffer> buffer,
     }
     bool drained = false;
     if (!DecodeAvailableFrames(&drained)) {
-      std::move(decode_cb).Run(
-          DecoderStatus(DecoderStatus::Codes::kDecodeError, "drain failed"));
+      task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(std::move(decode_cb),
+                         DecoderStatus(DecoderStatus::Codes::kDecodeError,
+                                       "drain failed")));
       return;
     }
     output_cb_.Run(AudioBuffer::CreateEOSBuffer());
-    std::move(decode_cb).Run(DecoderStatus());
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(std::move(decode_cb), DecoderStatus()));
     return;
   }
 
   auto* storage = buffer->storage_as<ff::AvPacketStorage>();
   if (!storage || !storage->raw()) {
     // Not an FFmpeg-backed buffer: there is nothing we can hand to libavcodec.
-    std::move(decode_cb).Run(DecoderStatus(
-        DecoderStatus::Codes::kDecodeError,
-        "DecoderBuffer is not backed by an AVPacket; a custom Demuxer must "
-        "produce AvPacketStorage for FFmpegAudioDecoder"));
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            std::move(decode_cb),
+            DecoderStatus(
+                DecoderStatus::Codes::kDecodeError,
+                "DecoderBuffer is not backed by an AVPacket; a custom Demuxer "
+                "must produce AvPacketStorage for FFmpegAudioDecoder")));
     return;
   }
   // The serial travels with the buffer, not with Initialize(): a seek bumps it
@@ -331,18 +354,25 @@ void FFmpegAudioDecoder::Decode(base::scoped_refptr<DecoderBuffer> buffer,
   if (ret < 0 && ret != AVERROR(EAGAIN)) {
     LOG(WARNING) << "[audio-dec] send_packet failed: "
                  << ff::AvErrorString(ret);
-    std::move(decode_cb).Run(DecoderStatus(
-        DecoderStatus::Codes::kDecodeError,
-        "avcodec_send_packet: " + std::string(ff::AvErrorString(ret))));
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(decode_cb),
+                       DecoderStatus(DecoderStatus::Codes::kDecodeError,
+                                     "avcodec_send_packet: " +
+                                         std::string(ff::AvErrorString(ret)))));
     return;
   }
   bool drained = false;
   if (!DecodeAvailableFrames(&drained)) {
-    std::move(decode_cb).Run(DecoderStatus(DecoderStatus::Codes::kDecodeError,
-                                           "avcodec_receive_frame failed"));
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(decode_cb),
+                       DecoderStatus(DecoderStatus::Codes::kDecodeError,
+                                     "avcodec_receive_frame failed")));
     return;
   }
-  std::move(decode_cb).Run(DecoderStatus());
+  task_runner_->PostTask(FROM_HERE,
+                         base::BindOnce(std::move(decode_cb), DecoderStatus()));
 }
 
 void FFmpegAudioDecoder::Reset(base::OnceClosure closure) {

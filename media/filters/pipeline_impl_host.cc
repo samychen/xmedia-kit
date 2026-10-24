@@ -212,7 +212,7 @@ void PipelineImpl::OnStatisticsUpdate(const PipelineStatistics& stats) {
     if (ShouldChaseToLiveEdge(behind)) {
       const base::TimeDelta target =
           LiveEdgePolicy::SuggestedTarget(edge, latency_hint_);
-      LOG(WARNING) << "ijkpp.pipeline: live chase, behind="
+      LOG(WARNING) << "avbase.pipeline: live chase, behind="
                    << behind.InMillisecondsF() << "ms, skipping to "
                    << target.InSecondsF() << "s";
       seek_in_flight_ = true;

@@ -129,21 +129,26 @@ AvSyncController::MasterType AvSyncController::ResolveMasterType() const {
   return MasterType::kExternal;
 }
 
+const Clock* AvSyncController::clock_for(MasterType type) const {
+  switch (type) {
+  case MasterType::kAudio:
+    return &audio_;
+  case MasterType::kVideo:
+    return &video_;
+  case MasterType::kExternal:
+    return &external_;
+  }
+  return nullptr;
+}
+
 // Port of get_master_clock(), including the fallback to the external clock when
 // the selected master has no valid timestamp.
 base::TimeDelta AvSyncController::GetMasterClock() const {
-  const MasterType resolved = ResolveMasterType();
+  // |value| stays default-constructed (0) if the type is invalid, matching the
+  // original switch that never assigned it in that (unreachable) case.
   base::TimeDelta value;
-  switch (resolved) {
-  case MasterType::kVideo:
-    value = video_.Get();
-    break;
-  case MasterType::kAudio:
-    value = audio_.Get();
-    break;
-  case MasterType::kExternal:
-    value = external_.Get();
-    break;
+  if (const Clock* clock = clock_for(ResolveMasterType())) {
+    value = clock->Get();
   }
   if (!media::IsNoTimestamp(value)) {
     return value;
@@ -155,13 +160,8 @@ base::TimeDelta AvSyncController::GetMasterClock() const {
 }
 
 int32_t AvSyncController::master_serial() const {
-  switch (ResolveMasterType()) {
-  case MasterType::kVideo:
-    return video_.serial();
-  case MasterType::kAudio:
-    return audio_.serial();
-  case MasterType::kExternal:
-    return external_.serial();
+  if (const Clock* clock = clock_for(ResolveMasterType())) {
+    return clock->serial();
   }
   return -1;
 }

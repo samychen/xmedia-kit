@@ -63,11 +63,6 @@ TEST(DecoderBufferTest, EosBufferCarriesNoPayload) {
   EXPECT_TRUE(IsNoTimestamp(eos->timestamp()));
 }
 
-TEST(DecoderBufferTest, SideDataIsEmptyByDefault) {
-  auto b = MakeBuffer();
-  EXPECT_TRUE(b->side_data().empty());
-}
-
 TEST(DecoderBufferTest, SerialIsMutableForDemuxerStamping) {
   auto b = MakeBuffer();
   EXPECT_EQ(b->serial(), 0);

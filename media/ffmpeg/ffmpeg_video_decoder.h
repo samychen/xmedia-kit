@@ -7,12 +7,11 @@
 #ifndef AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
 #define AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
 
-#include <deque>
-
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/video_decoder.h"
+#include "media/ffmpeg/pending_decode_callbacks.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -66,14 +65,12 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final : public VideoDecoder {
   DecoderStatus OpenCodec(const VideoDecoderConfig& config, int threads);
   // Drains avcodec_receive_frame, converts and emits. Returns false on error.
   bool DecodeAvailableFrames();
-  void RunOneDecodeCallback(DecoderStatus status);
-  void RunAllDecodeCallbacks(DecoderStatus status);
 
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unique_ptr<Context> ctx_;
   OutputCB output_cb_;
   WaitingCB waiting_cb_;
-  std::deque<DecodeCB> pending_decode_cbs_;
+  PendingDecodeCallbacks pending_decode_cbs_;
   VideoDecoderConfig config_;
   VideoFormat preferred_format_{VideoFormat::kUnknown};
   int thread_count_{0};

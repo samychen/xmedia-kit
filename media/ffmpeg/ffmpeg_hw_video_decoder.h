@@ -6,7 +6,6 @@
 #define AVBASE_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
 
 #include <cstdint>
-#include <deque>
 #include <functional>
 #include <memory>
 #include <string>
@@ -20,6 +19,7 @@
 #include "media/base/media_types.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
+#include "media/ffmpeg/pending_decode_callbacks.h"
 
 namespace avbase::media::ffmpeg {
 
@@ -100,14 +100,13 @@ class FFmpegHwVideoDecoder final : public media::VideoDecoder {
   bool InitializeDevice();
   bool OpenCodec(const media::VideoDecoderConfig& config);
   bool DecodeAvailableFrames();
-  void RunOneDecodeCallback(media::DecoderStatus status);
 
   FFmpegHwDecoderSpec spec_;
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unique_ptr<Context> ctx_;
   OutputCB output_cb_;
   media::WaitingCB waiting_cb_;
-  std::deque<DecodeCB> pending_decode_cbs_;
+  PendingDecodeCallbacks pending_decode_cbs_;
   media::VideoDecoderConfig config_;
   bool initialized_{false};
   int32_t current_serial_{0};

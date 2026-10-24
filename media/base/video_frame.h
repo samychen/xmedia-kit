@@ -139,6 +139,14 @@ class AVBASE_MEDIA_EXPORT VideoFrame
 
   base::TimeDelta timestamp() const { return timestamp_; }
   base::TimeDelta duration() const { return duration_; }
+  // Wall-clock anchor meant to be captured when the frame is produced.
+  // RESERVED, NOT WIRED: no producer sets it and no consumer reads it, so the
+  // value is always a null TimeTicks. The compositor paces with the frame's
+  // PTS, the master clock and the sink's [deadline_min, deadline_max] window
+  // instead (media/filters/legacy/video_frame_compositor.cc,
+  // BuildFrameSyncInputLocked); Chromium selects frames by this field. Kept
+  // for API parity with Chromium -- do not build scheduling logic on it
+  // without wiring the producers first. See docs/07 compositor checklist.
   base::TimeTicks reference_time() const { return reference_time_; }
   int32_t serial() const { return serial_; }
   int64_t frame_index() const { return frame_index_; }
@@ -227,7 +235,8 @@ class AVBASE_MEDIA_EXPORT VideoFrame
   int rotation_{0};
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
-  base::TimeTicks reference_time_;
+  base::TimeTicks
+      reference_time_;  // See reference_time(): reserved, never written.
   int32_t serial_{0};
   int64_t frame_index_{-1};
   std::array<uint8_t*, kMaxPlanes> planes_{nullptr, nullptr, nullptr, nullptr};
