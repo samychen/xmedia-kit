@@ -53,8 +53,11 @@ if(AVBASE_ENABLE_EGL AND TARGET avbase::platform_egl)
   avbase_configure_target(play_egl)
 endif()
 
-# base/memory 所有权与生命周期演示：纯 base，不依赖 FFmpeg/SDL/GL，常驻。
-# 作为 SDK 易用性的对照样例（docs/10 §6），也用于教学。
-add_executable(memory_demo memory_demo.cc)
-target_link_libraries(memory_demo PRIVATE avbase::base)
-avbase_configure_target(memory_demo)
+# base/* 子系统的教学/对照 demo 统一收在 examples/base/ 下，目录结构与源码树
+# base/ 对齐（examples/base/memory 对应 base/memory，依此类推）。纯 base 的 demo
+# 在此处用 add_subdirectory(base) 引入，具体目标登记在 examples/base/CMakeLists.txt。
+# 新增纯 base 的 demo 时，先建 examples/base/<subsystem>/ 子目录、把
+# <subsystem>_demo.cc 放进去，再到 examples/base/CMakeLists.txt 按既有形式登记一个
+# add_executable。需要 FFmpeg/SDL/GL 等宿主能力的 demo 仍保留在 examples/ 顶层
+# （见上方 headless / play_* 等）。
+add_subdirectory(base)

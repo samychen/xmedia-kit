@@ -6,13 +6,13 @@
 //
 // 运行方式（手动，针对已构建的 build/full；库里已含 DCHECK）：
 //   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
-//       examples/memory_demo.cc build/full/lib/libavbase_base.a \
+//       examples/base/memory/memory_demo.cc build/full/lib/libavbase_base.a \
 //       -lpthread -o /tmp/memory_demo
 //   /tmp/memory_demo
 //
 // 或通过 CMake（examples/CMakeLists.txt 已加入 memory_demo 目标）：
 //   cmake --build build/full --target memory_demo
-//   ./build/full/examples/memory_demo     # 路径取决于生成器（Ninja 下通常如此）
+//   ./build/full/examples/base/memory_demo     # 路径取决于生成器（Ninja 下通常如此）
 //
 // 覆盖四个形状：
 //   1. scoped_refptr + MakeRefCounted / WrapRefCounted / AdoptRef（三种所有权动词）
@@ -20,7 +20,7 @@
 //   3. ptr_util::WrapUnique（独占所有权）
 //   4. raw_ptr<T>（非拥有注解）
 //
-// 关键教训（见 base/memory/ref_counted.h 的 AddRef 修复）：任何有副作用的表达
+// 关键教训（见 base/memory/ref_counted.h 的 AddRef 注释）：任何有副作用的表达
 // 式都不能藏在断言参数里；这里所有计数变化都是显式语句，与 DCHECK 开关无关。
 
 #include <utility>

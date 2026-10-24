@@ -310,7 +310,7 @@ Test: media/filters/video_frame_compositor_unittest.cc (SeekAfterSerialChange)
 | `base/time/time.h` | 同名 | `Time` / `TimeTicks` / `TimeDelta` 完整实现 |
 | `base/task/sequenced_task_runner.h` | 同名 | 完整实现 |
 | `base/threading/thread.h` | 同名 | Linux 用 epoll-based message pump；其他平台首期不支持 |
-| `base/observer_list.h` | 同名 | 完整实现（含 `ScopedObservation`） |
+| `base/observer_list.h` | 同名 | `ObserverList` + `Iterator` 完整实现；`ScopedObservation` 尚未落地（见 LEARNING-base.md §部分落地） |
 | `base/check.h` / `base/logging.h` | 同名 | 精简版，`LOG()` 走 `base::LoggingDelegate` 可插拔 |
 | `base/trace_event/` | `base/trace_event/` | 默认 no-op；可接 Perfetto/Chrome tracing JSON |
 | `media::DecoderBuffer` | `media::DecoderBuffer` | 同名同语义（= ijkplayer 的 `AVPacket` 封装） |
