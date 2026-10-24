@@ -8,6 +8,11 @@ Chromium 风格分层 C++ 媒体播放器，目录即 target（`docs/06 §7.6`�
 `platform/` 只装「被宿主选中」的代码，可移植代码不进。**C28：`render/` 不得 include
 `media`/`platform`/`base`/`player/`。**
 
+**C4 只约束 `base/` `media/base/` `player/public/`；C8 只约束「`#if LIBAV*_VERSION_*`
+只出现在 `av_includes.h`」。** 「`media/ffmpeg/` 头文件里不能出现 libav 类型」是**自选风格
+不是不变量**——`struct AVCodecContext;` 前置声明那样写是合法且不必拉 libav 头的（曾把这条
+误引成 C8，写进了注释）。
+
 ## 硬规矩
 - **提交信息一律中文**（含正文）；**不写「第 N 轮」**（`docs/archive/` 例外）；机械删会
   留下没主语的句子，删完通读补主语。
