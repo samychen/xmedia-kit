@@ -19,12 +19,19 @@
 
 namespace avbase::media {
 
-// Owns the async-Read plumbing shared by LiveDataSource and RetryDataSource: a
-// worker thread that drains a queue of (offset, size, data, runner, cb) jobs
-// and posts each result back on the caller's task runner -- never inline, per
-// the DataSource contract (docs/03 §4). The two sources differed only in what
-// |blocking_read| does on the worker (live: wait at the edge; retry: loop with
-// backoff); that is the single piece each owner supplies.
+// Owns the async-Read plumbing shared by LiveDataSource, RetryDataSource and
+// UrlDataSource: a worker thread that drains a queue of (offset, size, data,
+// runner, cb) jobs and posts each result back on the caller's task runner --
+// never inline, per the DataSource contract (docs/03 §4). The three differed
+// only in what |blocking_read| does on the worker (live: wait at the edge;
+// retry: loop with backoff; url: seek-and-read through avio), which is the
+// single piece each owner supplies.
+//
+// UrlDataSource was the last to adopt this, and it is why the class exists in
+// this shape: its hand-written copy started its std::thread lazily under a
+// `if (!worker_)` test taken outside the queue lock, so two concurrent Read()
+// calls could each start a thread and strand one unjoined. Here the worker is
+// started once, in the constructor, so that window cannot open.
 //
 // COMPOSITION, NOT INHERITANCE: an owner holds one of these as a member,
 // constructs it with a thread name and a repeating callback bound to its own

@@ -81,6 +81,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
@@ -336,6 +337,16 @@ class AVBASE_MEDIA_EXPORT VideoRendererImpl final
   // not calling Read() while the compositor's pending deque is deep. This is
   // the watermark that replaces ffplay's frame_queue_signal() blocking wait.
   size_t max_pending_frames_{0};
+
+  // C19: LAST member, so it is destroyed first and every outstanding handle is
+  // already dead while the rest of the object is still tearing down. Two
+  // sequences post INTO this class -- S3 (the decode pump re-arming itself) and
+  // S6 (Render() waking the pump after the compositor freed room) -- and both
+  // can outlive the destructor. Note this is the video side's counterpart of
+  // AudioRendererImpl's factory: the audio pump was bound weakly after a
+  // teardown crash, and the video pump kept its Unretained() binding with no
+  // test to catch the same shape.
+  base::WeakPtrFactory<VideoRendererImpl> weak_factory_{this};
 };
 
 }  // namespace avbase::media

@@ -211,8 +211,8 @@ FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合
 | 2 | `media/base/data_source.h:76-84` | 注释**指向规则**（回指 `base/memory/ref_counted.h`），而不是复述结论 |
 | 3 | `media/filters/decoder_stream.cc:256-261` | 写明并发修复「防的是什么数据竞争」——初稿直接绑回调被 sequence checker 抓到，且不是形式主义 |
 | 4 | `media/filters/decoder_stream.cc:374-383` | 性能/正确性取舍**附实测数据**（89/93 批次剩 7 个 buffer），不附直觉 |
-| 5 | `media/filters/video_renderer_impl.cc:149-156` | 写清「**测试为什么没抓到**」比写清"修了什么"更有价值 |
-| 6 | `media/filters/video_renderer_impl.cc:166-170` | 显式记录「故意没做的事」（`NOT paused_ = false`）及其后果 |
+| 5 | `media/filters/video_renderer_impl.cc:168-171` | 写清「**测试为什么没抓到**」比写清"修了什么"更有价值 |
+| 6 | `media/filters/video_renderer_impl.cc:181-185` | 显式记录「故意没做的事」（`NOT paused_ = false`）及其后果 |
 | 7 | `media/base/video_frame.h:130-136` | 陷阱型 API 的注释要描述**失败长什么样** |
 | 8 | `media/ffmpeg/av_includes.h:5-13,96-103` | 供应商边界收成**一个文件**；自带的替代函数用 `avbase_` 前缀标记 |
 | 9 | `media/filters/audio_renderer_algorithm.cc:17-23` | 移植的阈值注明「取自 Chromium 哪个标识符、抓取日期」，并声明不是凭记忆抄的 |
@@ -299,13 +299,13 @@ STYLE §7 要求成员用 `GUARDED_BY()` 让 `-Wthread-safety` 真正生效 —�
 ### T5 · `serial` 是裸 `int32_t`
 
 seek 世代号以 `int32_t` 出现在 `video_frame.h:143/188/201`、`decoder_buffer.h:113`、
-`demuxer_stream.h:70`、`decoder_stream.cc:315`、`video_renderer_impl.cc:157-160`。
+`demuxer_stream.h:70`、`decoder_stream.cc:315`、`video_renderer_impl.cc:172-175`。
 它带比较语义（`serial() != serial_`），是完整的领域概念。给一个 `class Serial`，
 比较只能走它的接口；否则 `serial + 1`、`serial > 5` 这类无意义运算编译得通。
 
 ### T6 · 消息链
 
-`video_renderer_impl.cc:157` 与 `:232` 都是
+`video_renderer_impl.cc:172` 与 `:247` 都是
 `decoder_stream_.demuxer_stream()->serial()` —— VideoRendererImpl 借道
 DecoderStream 去问 DemuxerStream。`a.b().c()` 是**耦合声明**：调用方不该知道这条
 路径。让 DecoderStream 暴露一个 `current_serial()`。
@@ -506,12 +506,12 @@ STYLE §1：`std::shared_ptr` 不推荐，用 `scoped_refptr`。
 
 **Primitive Obsession — `int32_t serial`**：seek 世代号以裸 `int32_t` 出现在
 `video_frame.h:143/188/201`、`decoder_buffer.h:113`、`demuxer_stream.h:70`、
-`decoder_stream.cc:315`、`video_renderer_impl.cc:157-160`。它带比较语义
+`decoder_stream.cc:315`、`video_renderer_impl.cc:172-175`。它带比较语义
 （`serial() != serial_`），是完整领域概念。
 **初学者该学到什么**：给「世代号」一个小类型 `class Serial`，比较只能走它的接口；
 否则 `serial + 1`、`serial > 5` 这类无意义运算编译得通。
 
-**Message Chains — `video_renderer_impl.cc:157,232`**：
+**Message Chains — `video_renderer_impl.cc:172,247`**：
 `decoder_stream_.demuxer_stream()->serial()`，VideoRendererImpl 借道 DecoderStream
 去问 DemuxerStream。
 **初学者该学到什么**：`a.b().c()` 是耦合声明——调用方不该知道这条路径；让

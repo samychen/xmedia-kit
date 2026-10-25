@@ -5,20 +5,15 @@
 #ifndef AVBASE_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
 #define AVBASE_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
 
-#include <atomic>
-#include <condition_variable>
-#include <deque>
-#include <functional>
-#include <memory>
+#include <cstdint>
 #include <mutex>
 #include <string>
-#include <thread>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/synchronization/lock.h"
 #include "base/task/task_runner.h"
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
+#include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
 struct AVIOContext;
@@ -34,9 +29,9 @@ namespace avbase::media::ffmpeg {
 // RetryDataSource was implemented, tested, and wired to nothing.
 //
 // LIFETIME/THREADING: ReadBlocking runs on the demuxer's thread and may block
-// for the network duration; Abort() flips an atomic that the avio interrupt
-// callback observes, so a blocked read returns AVERROR_EXIT promptly (Δ15).
-// The async Read() runs on a private worker like RetryDataSource's: the
+// for the network duration; Abort() flips the shared abort flag that the avio
+// interrupt callback observes, so a blocked read returns AVERROR_EXIT promptly
+// (Δ15). The async Read() runs on a private worker like RetryDataSource's: the
 // callback is posted to |task_runner|, never inline.
 class AVBASE_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
  public:
@@ -59,9 +54,7 @@ class AVBASE_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
 
   // Observed by the avio interrupt callback (registered at open). Public
   // only because the callback is a file-local free function.
-  bool IsAbortedForInterrupt() const {
-    return aborted_.load(std::memory_order_relaxed);
-  }
+  bool IsAbortedForInterrupt() const { return async_.IsAborted(); }
 
  private:
   // Opens the AVIOContext on first use (the demuxer opens its probe on its
@@ -73,19 +66,17 @@ class AVBASE_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
   const std::string uri_;
   mutable std::mutex lock_;
   AVIOContext* avio_ = nullptr;  // GUARDED_BY(lock_) for the pointer itself.
-  std::atomic<bool> aborted_{false};
-  bool size_known_ = false;  // GUARDED_BY(lock_)
-  int64_t size_ = -1;        // GUARDED_BY(lock_)
-  bool seekable_ = false;    // GUARDED_BY(lock_)
-  // The async-read machinery: one lazily created worker draining a job
-  // queue, so Read()'s callback is posted (never inline) while the blocking
-  // avio call happens off the caller's thread.
-  void WorkerMain();
-  std::mutex pending_lock_;
-  std::condition_variable pending_cv_;
-  std::deque<avbase::base::OnceClosure> pending_jobs_;
-  bool worker_shutdown_ = false;
-  std::unique_ptr<std::thread> worker_;
+  bool size_known_ = false;      // GUARDED_BY(lock_)
+  int64_t size_ = -1;            // GUARDED_BY(lock_)
+  bool seekable_ = false;        // GUARDED_BY(lock_)
+
+  // Shared async-Read plumbing (worker, job queue, abort flag). Declared last
+  // so lock_/avio_ are fully constructed before its worker can run
+  // ReadBlocking, and bound to ReadBlocking directly: a URL read has no
+  // separate "wait at the edge" half to keep apart. This replaced a third
+  // hand-written copy of the same worker loop -- see async_data_source_base.h
+  // for what the three now share.
+  AsyncDataSourceBase async_;
 };
 
 }  // namespace avbase::media::ffmpeg

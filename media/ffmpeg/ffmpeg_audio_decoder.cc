@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
@@ -199,6 +200,14 @@ void FFmpegAudioDecoder::Initialize(const AudioDecoderConfig& config,
   // Capture the sequence so decode_cb can be posted (never run inline) to
   // honour the AudioDecoder contract (docs/03 §4).
   task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  // The same requirement the video base states in its constructor, checked
+  // here because this decoder captures its runner at Initialize() instead of
+  // taking one: GetCurrentDefault() returns null on a thread with no default
+  // runner bound, and every Decode() below posts decode_cb. Without the check
+  // that failure is silent -- Decode() falls back to running the callback
+  // inline, which is exactly the reentrancy docs/03 §4 forbids.
+  CHECK(task_runner_) << "FFmpegAudioDecoder needs a sequenced task runner to "
+                         "post decode_cb (it must never run inline)";
   serial_ = current_serial;
   output_cb_ = output_cb;
   waiting_cb_ = waiting_cb;

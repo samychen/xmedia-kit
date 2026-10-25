@@ -4,12 +4,11 @@
 
 #include "media/ffmpeg/url_data_source.h"
 
-#include <deque>
+#include <mutex>
+#include <string>
 #include <utility>
 
-#include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/location.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
@@ -37,18 +36,18 @@ media::MediaError ReadError(int av_error, const std::string& uri) {
 
 }  // namespace
 
-UrlDataSource::UrlDataSource(std::string uri) : uri_(std::move(uri)) {}
+UrlDataSource::UrlDataSource(std::string uri)
+    : uri_(std::move(uri)),
+      async_("avbase-url-src", base::BindRepeating(&UrlDataSource::ReadBlocking,
+                                                   base::Unretained(this))) {}
 
 UrlDataSource::~UrlDataSource() {
+  // Unblock the in-flight avio call first (the interrupt callback polls the
+  // abort flag), then join the worker, then close the context -- the reverse
+  // of opening, and the same order LiveDataSource/RetryDataSource use through
+  // the shared base.
   Abort();
-  {
-    std::scoped_lock scoped(pending_lock_);
-    worker_shutdown_ = true;
-  }
-  pending_cv_.notify_all();
-  if (worker_ && worker_->joinable()) {
-    worker_->join();
-  }
+  async_.StopWorker();
   std::scoped_lock scoped(lock_);
   CloseLocked();
 }
@@ -99,7 +98,7 @@ UrlDataSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
     return 0;
   }
   std::scoped_lock scoped(lock_);
-  if (aborted_.load(std::memory_order_relaxed)) {
+  if (async_.IsAborted()) {
     return base::unexpected(media::MediaError(
         media::ErrorCode::kAborted, "the network source was aborted",
         "offset = " + std::to_string(offset),
@@ -116,7 +115,7 @@ UrlDataSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
   }
   size_t total = 0;
   while (total < size) {
-    if (aborted_.load(std::memory_order_relaxed)) {
+    if (async_.IsAborted()) {
       return base::unexpected(media::MediaError(
           media::ErrorCode::kAborted, "the network source was aborted",
           "offset = " + std::to_string(offset + static_cast<int64_t>(total)),
@@ -141,47 +140,22 @@ void UrlDataSource::Read(int64_t offset, size_t size, uint8_t* data,
   // The DataSource contract says the callback is never run inline: the job
   // (blocking avio call included) runs on the worker, and only the RESULT is
   // posted to |task_runner|.
-  if (!worker_) {
-    worker_ = std::make_unique<std::thread>([this] { WorkerMain(); });
-  }
-  {
-    std::scoped_lock scoped(pending_lock_);
-    pending_jobs_.push_back(avbase::base::BindOnce(
-        [](UrlDataSource* self, int64_t offset, size_t size, uint8_t* data,
-           base::scoped_refptr<base::TaskRunner> runner,
-           media::DataSource::ReadCB cb) {
-          media::DataSource::ReadResult result =
-              self->ReadBlocking(offset, size, data);
-          runner->PostTask(FROM_HERE, avbase::base::BindOnce(
-                                          std::move(cb), std::move(result)));
-        },
-        base::Unretained(this), offset, size, data, std::move(task_runner),
-        std::move(read_cb)));
-  }
-  pending_cv_.notify_one();
-}
-
-void UrlDataSource::WorkerMain() {
-  for (;;) {
-    avbase::base::OnceClosure job;
-    {
-      std::unique_lock lock(pending_lock_);
-      pending_cv_.wait(
-          lock, [this] { return worker_shutdown_ || !pending_jobs_.empty(); });
-      if (worker_shutdown_ && pending_jobs_.empty()) {
-        return;
-      }
-      job = std::move(pending_jobs_.front());
-      pending_jobs_.pop_front();
-    }
-    job();
-  }
+  //
+  // The hand-written loop this replaced created its std::thread lazily under a
+  // `if (!worker_)` test taken OUTSIDE the queue lock, so two concurrent
+  // Read() calls could each start a thread and strand one of them unjoined for
+  // the process's lifetime. The shared base starts its worker in its
+  // constructor, so that window does not exist.
+  async_.Read(offset, size, data, std::move(task_runner), std::move(read_cb));
 }
 
 void UrlDataSource::Abort() {
-  aborted_.store(true, std::memory_order_relaxed);
-  // Waking the interrupt callback is enough for ReadBlocking; the async
-  // worker sees the same flag at the top of its next job.
+  // One flag, owned by the shared base, serving all three readers: the avio
+  // interrupt callback (via IsAbortedForInterrupt, so a blocked connect or
+  // read returns promptly), ReadBlocking's own guard, and the base's
+  // "torn down" reply for reads queued after this point. A second copy here
+  // is what the previous version kept, and two flags can disagree.
+  async_.SetAborted();
 }
 
 bool UrlDataSource::GetSize(int64_t* size_out) {

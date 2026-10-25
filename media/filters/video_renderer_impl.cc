@@ -41,9 +41,17 @@ VideoRendererImpl::VideoRendererImpl(
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
-  // Stop the sink before the compositor is destroyed: after Stop() returns the
-  // sink guarantees no further Render() calls, and Render() is the only thing
-  // that touches the compositor from another sequence.
+  // Kill the handles FIRST. The pump re-arms itself onto S3 and Render() kicks
+  // it from S6, so a task naming this object can still be queued when the
+  // destructor starts; bound weakly it becomes a no-op, bound with Unretained
+  // it ran on freed memory (the .ips reports showed the abort inside the
+  // compositor's lock, taken by the second member PumpDecoder touched).
+  weak_factory_.InvalidateWeakPtrs();
+  // Then stop the sink, which closes the OTHER direction: after Stop() returns
+  // no new Render() arrives, so nothing new is posted from S6 while the
+  // members below are destroyed. The old comment claimed Render() was "the
+  // only thing that touches the compositor from another sequence" -- that was
+  // wrong, and the queued pump task is what made it wrong.
   if (sink_) {
     sink_->Stop();
   }
@@ -112,6 +120,13 @@ void VideoRendererImpl::Initialize(DemuxerStream* stream,
   } else {
     ranked = factories_;
   }
+  // These two bindings stay Unretained, and the difference from the pump's is
+  // not an oversight: both callbacks are owned and POSTED by decoder_stream_, a
+  // member. DecoderStream's own deliveries are weak-bound (decoder_stream.cc),
+  // so if this object dies, the stream dies with it and every queued delivery
+  // is cancelled before it can name the owner: a member's liveness is
+  // strictly implied by the owner's. The pump's tasks differ -- they are
+  // posted straight to task_runner_ by this class, with nothing in between.
   decoder_stream_.set_event_cb(base::BindRepeating(
       &VideoRendererImpl::OnDecoderStreamEvent, base::Unretained(this)));
   decoder_stream_.Initialize(
@@ -341,11 +356,19 @@ size_t VideoRendererImpl::frames_pending() const {
 // ---- S3: decode pump -------------------------------------------------------
 
 void VideoRendererImpl::PumpDecoder() {
+  // |stopping_| is answered before any other member is touched. This is NOT
+  // the defence against a use-after-free -- reading the flag would be one too,
+  // and the WeakPtr binding is what makes that impossible. What it fixes is the
+  // live case: a stopped renderer still called into the compositor, taking a
+  // lock (and picking the paused-gate answer) for a generation Stop() had
+  // already abandoned.
+  if (stopping_) {
+    return;
+  }
   // A paused renderer owes the display one frame after a flush, and that is all
   // a paused pump may read for: Flush() empties the queue.
   const bool owing_a_refresh = compositor_.refresh_pending();
-  if (stopping_ || read_outstanding_ || ended_ ||
-      (paused_ && !owing_a_refresh)) {
+  if (read_outstanding_ || ended_ || (paused_ && !owing_a_refresh)) {
     return;
   }
   // Back-pressure without a blocking wait. ffplay blocks its video thread on
@@ -356,9 +379,16 @@ void VideoRendererImpl::PumpDecoder() {
     return;
   }
   read_outstanding_ = true;
+  // Weak-bound on purpose, exactly as AudioRendererImpl::PumpDecoder is: the
+  // reply hop back into this object can be the LAST task in a chain that
+  // outlives a teardown decision, and the pump self-post scheduled by
+  // OnDecoderOutput must not name a freed object. The audio side was fixed
+  // after a teardown crash in the text leg; the video side kept Unretained with
+  // no test shaped to catch it, which is why this survived until now.
   decoder_stream_.Read(base::BindOnce(
-      &VideoRendererImpl::OnDecoderOutput, base::Unretained(this),
-      base::BindOnce(&VideoRendererImpl::PumpDecoder, base::Unretained(this))));
+      &VideoRendererImpl::OnDecoderOutput, weak_factory_.GetWeakPtr(),
+      base::BindOnce(&VideoRendererImpl::PumpDecoder,
+                     weak_factory_.GetWeakPtr())));
 }
 
 void VideoRendererImpl::OnDecoderOutput(base::OnceClosure pump_again,
@@ -438,61 +468,6 @@ void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
     // "4K is smooth until the driver resets".
     LOG(WARNING) << "avbase.vdec: " << GetDecoderStreamEventName(event)
                  << " -> " << decoder_stream_.GetDisplayName();
-  }
-}
-
-// ---- S6: the sink's render callback ---------------------------------------
-
-base::scoped_refptr<VideoFrame>
-VideoRendererImpl::Render(base::TimeTicks deadline_min,
-                          base::TimeTicks deadline_max) {
-  // The whole body is one locked call into the compositor. Nothing here may
-  // block, allocate or call back into Player: this runs on the sink's render
-  // sequence, which for the SDL2 backend is the window's event loop (docs/04
-  // §1, S6) -- stalling it freezes input handling as well as video.
-  const size_t pending_before = compositor_.frames_pending();
-  base::scoped_refptr<VideoFrame> frame =
-      compositor_.Render(deadline_min, deadline_max);
-  // Feed the video clock from here, on S6: this is the one sequence that knows
-  // a frame actually left for the display, which mirrors ffplay setting
-  // vidclk inside video_refresh(). A null frame means "repeat the previous
-  // one", and repeating must not move the clock.
-  if (frame && frame_presented_cb_) {
-    frame_presented_cb_.Run(frame->timestamp(), frame->serial());
-  }
-  // Consumer wake-up for the decode pump (counterpart of ffplay's
-  // frame_queue_signal): the pump stops at compositor back-pressure, so it must
-  // be re-armed whenever the compositor *freed room* -- a present OR a drop --
-  // not only on a present. The original `if (frame)` alone let the pump starve
-  // when the compositor drained by dropping frames (e.g. the fps cap): a drop
-  // returns null and never re-armed PumpDecoder, so buffered decoder output
-  // was never drained, the decoder stream jammed at its watermark, and a file
-  // that played to its end never reached kCompleted. A hold/repeat leaves the
-  // pending count unchanged, so it correctly does NOT re-arm (this is what
-  // distinguishes the fix from the "re-arm whenever not full" variant, which
-  // over-reads and drops a frame the test expects to see presented).
-  // Posted to S3; PumpDecoder re-checks every condition there, so a spurious
-  // kick is a cheap no-op.
-  if (compositor_.frames_pending() < pending_before) {
-    task_runner_->PostTask(FROM_HERE,
-                           base::BindOnce(&VideoRendererImpl::PumpDecoder,
-                                          base::Unretained(this)));
-  }
-  return frame;
-}
-
-void VideoRendererImpl::OnFrameSubmitFailure() {
-  // Counted rather than retried: a present failure is almost always a surface
-  // that went away (resize, minimise, compositor restart), and the next
-  // Render() will be asked for the right frame anyway. Retrying here would
-  // present a frame whose deadline has already passed. base/logging.h has no
-  // LOG_EVERY_N (the first draft used it), so the rate-limiting is a plain
-  // counter. It must be rate-limited somehow: this runs on the render sequence
-  // at display rate, so an unthrottled LOG(WARNING) is ~60 lines/second for as
-  // long as the surface is broken.
-  const uint64_t n = submit_failures_.fetch_add(1) + 1;
-  if (n == 1 || n % 100 == 0) {
-    LOG(WARNING) << "avbase.vout: frame submit failed (" << n << " times)";
   }
 }
 

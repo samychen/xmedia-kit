@@ -562,5 +562,40 @@ TEST_F(VideoRendererImplTest, FatalDecodeErrorReachesThePipeline) {
       << "a terminal decode error must not be reported as end of stream";
 }
 
+// The destructor's half of the threading contract, and the shape of the crash
+// that took a while to see: Render() re-arms the decode pump whenever it frees
+// room in the compositor, and that post lands on this sequence -- where the
+// destructor may already have run. Bound with Unretained (the old binding) the
+// queued kick called PumpDecoder on a freed object and took the compositor's
+// lock, aborting with EINVAL from std::mutex::lock in roughly one of four
+// single-process runs. ctest could not see it: it splits every case into its
+// own process, and the two .ips reports it did leave pointed at PumpDecoder's
+// first statement.
+//
+// Queuing the kick and THEN destroying is the whole test -- no second thread
+// and no timing. The failure mode is a crash under a build that checks memory
+// (DEBUG/ASan), which is why there is nothing to assert at the end: reaching it
+// is the assertion.
+TEST_F(VideoRendererImplTest, KickQueuedByRenderIsInertAfterDestruction) {
+  ScriptBuffers(/*buffers=*/4);
+  CreateRenderer();
+  ASSERT_TRUE(init_done_);
+  StartPlaying(/*serial=*/0);
+
+  env_.FastForwardBy(kFrameInterval);
+  // A frame leaving the compositor is what makes Render() post the kick, so a
+  // presented frame is this test's guard against passing vacuously.
+  ASSERT_EQ(sink_->PullFrames(/*max_frames=*/1), 1)
+      << "nothing was presented, so no kick was queued and this case would "
+         "exercise nothing";
+  ASSERT_GT(renderer_->frames_pending(), 0u)
+      << "no work was left behind the kick, so an inert kick proves nothing";
+
+  // Deliberately NOT RunUntilIdle() here: the kick is still queued, which is
+  // exactly the state the crash was in.
+  renderer_.reset();
+  env_.RunUntilIdle();
+}
+
 }  // namespace
 }  // namespace avbase::media

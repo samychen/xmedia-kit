@@ -63,8 +63,10 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoderBase : public VideoDecoder {
   virtual bool DecodeAvailableFrames() = 0;
 
   // Called right after the EOS flush packet is sent and before draining. The
-  // software decoder records the flush so a repeated EOS is a no-op; the
-  // hardware path has nothing to record.
+  // software decoder sets its EOS flag here; the hardware path has nothing to
+  // record. A repeated EOS is harmless either way: it only re-sends the flush,
+  // which both paths treat as "already drained" because avcodec_receive_frame
+  // returns AVERROR_EOF.
   virtual void OnEndOfStream() {}
 
   // Called from Reset() once the codec context is flushed, before the pending
