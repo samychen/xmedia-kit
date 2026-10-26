@@ -9,34 +9,15 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "media/base/audio_parameters.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 
 namespace avbase::media {
 namespace {
 
 namespace ff = ::avbase::media::ffmpeg;
-
-AVSampleFormat ToAvSampleFormat(SampleFormat format) {
-  switch (format) {
-  case SampleFormat::kU8:
-    return AV_SAMPLE_FMT_U8;
-  case SampleFormat::kS16:
-    return AV_SAMPLE_FMT_S16;
-  case SampleFormat::kS32:
-    return AV_SAMPLE_FMT_S32;
-  case SampleFormat::kF32:
-    return AV_SAMPLE_FMT_FLT;
-  case SampleFormat::kS16P:
-    return AV_SAMPLE_FMT_S16P;
-  case SampleFormat::kS32P:
-    return AV_SAMPLE_FMT_S32P;
-  case SampleFormat::kF32P:
-    return AV_SAMPLE_FMT_FLTP;
-  default:
-    return AV_SAMPLE_FMT_NONE;
-  }
-}
 
 const char* ToChannelLayoutName(int channels) {
   switch (channels) {
@@ -47,27 +28,6 @@ const char* ToChannelLayoutName(int channels) {
   default:
     return nullptr;
   }
-}
-
-int BytesPerSample(SampleFormat format) {
-  switch (format) {
-  case SampleFormat::kU8:
-    return 1;
-  case SampleFormat::kS16:
-  case SampleFormat::kS16P:
-    return 2;
-  case SampleFormat::kS32:
-  case SampleFormat::kF32:
-  case SampleFormat::kF32P:
-    return 4;
-  default:
-    return 0;
-  }
-}
-
-bool IsPlanar(SampleFormat format) {
-  return format == SampleFormat::kS16P || format == SampleFormat::kS32P ||
-         format == SampleFormat::kF32P;
 }
 
 }  // namespace
@@ -127,7 +87,7 @@ bool FFmpegAudioFilter::Initialize(const std::string& graph, int sample_rate,
   const std::string args =
       "time_base=1/" + std::to_string(sample_rate) +
       ":sample_rate=" + std::to_string(sample_rate) +
-      ":sample_fmt=" + av_get_sample_fmt_name(ToAvSampleFormat(kFormat)) +
+      ":sample_fmt=" + av_get_sample_fmt_name(ff::ToAvSampleFormat(kFormat)) +
       ":channel_layout=" + layout_name;
   if (avfilter_graph_create_filter(&c->src, buffersrc, "in", args.c_str(),
                                    nullptr, c->graph) < 0) {
@@ -142,7 +102,7 @@ bool FFmpegAudioFilter::Initialize(const std::string& graph, int sample_rate,
     return false;
   }
   // Constrain the output to the input format.
-  const AVSampleFormat out_fmts[] = {ToAvSampleFormat(kFormat),
+  const AVSampleFormat out_fmts[] = {ff::ToAvSampleFormat(kFormat),
                                      AV_SAMPLE_FMT_NONE};
   const int64_t out_rates[] = {sample_rate, -1};
   if (av_opt_set_int_list(c->sink, "sample_fmts", out_fmts, AV_SAMPLE_FMT_NONE,
@@ -196,8 +156,8 @@ bool FFmpegAudioFilter::Process(
   if (!ctx_ || !out) {
     return false;
   }
-  const int bytes = BytesPerSample(ctx_->format);
-  const bool planar = IsPlanar(ctx_->format);
+  const int bytes = SampleFormatBytesPerChannel(ctx_->format);
+  const bool planar = SampleFormatIsPlanar(ctx_->format);
   // M14: one conversion path for every frame the graph emits. The drain
   // loop used to count samples and DROP them, so a graph with internal
   // latency (e.g. a resampler) lost its tail audio at EOS.
@@ -263,7 +223,7 @@ bool FFmpegAudioFilter::Process(
     // ff::MakeFrame CHECKs internally; no failure mode. The FramePtr frees
     // the view on every exit path below.
     ff::FramePtr frame = ff::MakeFrame();
-    frame->format = ToAvSampleFormat(ctx_->format);
+    frame->format = ff::ToAvSampleFormat(ctx_->format);
     frame->sample_rate = ctx_->sample_rate;
     frame->nb_samples = in->frame_count();
     av_channel_layout_default(&frame->ch_layout, ctx_->channels);

@@ -42,6 +42,11 @@ AVBASE_MEDIA_EXPORT const char* GetSampleFormatName(SampleFormat format);
 AVBASE_MEDIA_EXPORT const char* GetChannelLayoutName(ChannelLayout layout);
 AVBASE_MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
 AVBASE_MEDIA_EXPORT int SampleFormatBytesPerChannel(SampleFormat format);
+// True for the planar (P-suffixed) formats. This is a property of the format
+// itself, so it belongs next to the byte count rather than being re-derived
+// per consumer: the FFmpeg layer kept two private copies that had to stay in
+// step with each other and with this file.
+AVBASE_MEDIA_EXPORT bool SampleFormatIsPlanar(SampleFormat format);
 
 // Decodes one sample at |src| into a float in [-1, 1]. Returns 0 for unknown
 // formats rather than trapping: a malformed stream must degrade to silence, not

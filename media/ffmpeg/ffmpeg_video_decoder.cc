@@ -17,6 +17,7 @@
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/color_space_bridge.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/video_convert.h"
 
 namespace avbase::media {
@@ -24,61 +25,10 @@ namespace {
 
 namespace ff = ::avbase::media::ffmpeg;
 
-// Maps an avbase VideoFormat onto an FFmpeg pixel format.
-AVPixelFormat ToAvPixelFormat(VideoFormat format) {
-  switch (format) {
-  case VideoFormat::kI420:
-  case VideoFormat::kYV12:
-    return AV_PIX_FMT_YUV420P;  // Plane order differs.
-  case VideoFormat::kNV12:
-    return AV_PIX_FMT_NV12;
-  case VideoFormat::kNV21:
-    return AV_PIX_FMT_NV21;
-  case VideoFormat::kARGB:
-    return AV_PIX_FMT_0RGB32;
-  case VideoFormat::kRGB24:
-    return AV_PIX_FMT_RGB24;
-  case VideoFormat::kRGB565:
-    return AV_PIX_FMT_RGB565LE;
-  case VideoFormat::kP010:
-    return AV_PIX_FMT_P010LE;
-  case VideoFormat::kYUY2:
-  case VideoFormat::kYUV420P10:
-  case VideoFormat::kUnknown:
-    break;
-  }
-  return AV_PIX_FMT_NONE;
-}
-
 // Keeps the decoder's own format when it is already CPU-mappable, so the common
 // case (yuv420p source, no requested override) needs no swscale at all.
-VideoFormat FromAvPixelFormat(AVPixelFormat format) {
-  switch (format) {
-  case AV_PIX_FMT_YUV420P:
-    return VideoFormat::kI420;
-  case AV_PIX_FMT_NV12:
-    return VideoFormat::kNV12;
-  case AV_PIX_FMT_NV21:
-    return VideoFormat::kNV21;
-  case AV_PIX_FMT_0RGB32:
-  case AV_PIX_FMT_ARGB:
-    return VideoFormat::kARGB;
-  case AV_PIX_FMT_RGB24:
-    return VideoFormat::kRGB24;
-  case AV_PIX_FMT_RGB565LE:
-    return VideoFormat::kRGB565;
-  case AV_PIX_FMT_P010LE:
-    return VideoFormat::kP010;
-  case AV_PIX_FMT_YUV422P:
-  case AV_PIX_FMT_YUV444P:
-    return VideoFormat::kI420;  // Needs conversion.
-  default:
-    return VideoFormat::kUnknown;
-  }
-}
-
 bool NeedsConversion(AVPixelFormat src, VideoFormat dst) {
-  return ToAvPixelFormat(dst) != src;
+  return ff::ToAvPixelFormat(dst) != src;
 }
 
 }  // namespace
@@ -215,7 +165,7 @@ bool FFmpegVideoDecoder::DecodeAvailableFrames() {
     const auto src_format = static_cast<AVPixelFormat>(frame->format);
     VideoFormat dst_format = preferred_format_;
     if (dst_format == VideoFormat::kUnknown) {
-      dst_format = FromAvPixelFormat(src_format);
+      dst_format = ff::FromAvPixelFormat(src_format, VideoFormat::kUnknown);
     }
     if (dst_format == VideoFormat::kUnknown) {
       dst_format = VideoFormat::kI420;  // Always convertible.
@@ -227,7 +177,7 @@ bool FFmpegVideoDecoder::DecodeAvailableFrames() {
       // Configure() is a no-op while the geometry and formats are unchanged;
       // it rebuilds the fallback context only when they move.
       if (!ctx_->converter.Configure(width, height, src_format, width, height,
-                                     ToAvPixelFormat(dst_format))) {
+                                     ff::ToAvPixelFormat(dst_format))) {
         ++conversion_failures_;
         av_frame_unref(frame);
         return false;

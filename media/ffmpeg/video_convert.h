@@ -23,14 +23,8 @@
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
-#include "media/media_export.h"
 
 namespace avbase::media::ffmpeg {
-
-// The VideoFormat -> AVPixelFormat table, shared by every FFmpeg-side
-// consumer of avbase frames (was a private helper of the video decoder).
-AVBASE_MEDIA_EXPORT AVPixelFormat
-AvPixelFormatFromVideoFormat(media::VideoFormat format);
 
 // Converts one video frame per call. Configure() pins the geometry; Convert()
 // fills caller-owned destination planes (AVFrame data/linesize convention:

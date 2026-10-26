@@ -24,16 +24,13 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/data_source_io.h"
 #include "media/ffmpeg/ffmpeg_demuxer_configs.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/log_bridge.h"
 
 namespace avbase::media {
 namespace {
 
 namespace ff = ::avbase::media::ffmpeg;
-
-AVFormatContext* Ctx(void* raw) {
-  return static_cast<AVFormatContext*>(raw);
-}
 
 StreamKind ToStreamKind(AVMediaType type) {
   switch (type) {
@@ -230,7 +227,7 @@ FFmpegDemuxer::~FFmpegDemuxer() {
   // The demux thread has been joined, so nothing can touch the format context
   // any more and it is safe to release it here.
   if (format_ctx_raw_) {
-    AVFormatContext* ctx = Ctx(format_ctx_raw_);
+    AVFormatContext* ctx = ff::AsFormatContext(format_ctx_raw_);
     avformat_close_input(&ctx);
     format_ctx_raw_ = nullptr;
   }
@@ -597,7 +594,7 @@ void FFmpegDemuxer::AddStream(void* av_stream_raw, uint32_t index,
 }
 
 void FFmpegDemuxer::BuildMediaInfo() {
-  AVFormatContext* ctx = Ctx(format_ctx_raw_);
+  AVFormatContext* ctx = ff::AsFormatContext(format_ctx_raw_);
   media_info_ = MediaInfo{};
   media_info_.uri = ctx->url ? ctx->url : "";
   media_info_.format_name =
@@ -663,7 +660,7 @@ void FFmpegDemuxer::OnOpened(Status status, InitializeCB init_cb) {
 
 FFmpegDemuxer::ReadStep FFmpegDemuxer::ReadAndRouteOnePacket(void* ctx_raw,
                                                              void* packet_raw) {
-  AVFormatContext* ctx = Ctx(ctx_raw);
+  AVFormatContext* ctx = ff::AsFormatContext(ctx_raw);
   AVPacket* packet = static_cast<AVPacket*>(packet_raw);
   const int ret = av_read_frame(ctx, packet);
   if (ret < 0) {
@@ -794,7 +791,7 @@ FFmpegDemuxer::ReadStep FFmpegDemuxer::ReadAndRouteOnePacket(void* ctx_raw,
 void FFmpegDemuxer::DemuxLoop() {
   // Runs on "avbase-demux": the only sequence allowed to block on I/O
   // (docs/04 §2.1, decision D3).
-  AVFormatContext* ctx = Ctx(format_ctx_raw_);
+  AVFormatContext* ctx = ff::AsFormatContext(format_ctx_raw_);
   if (!ctx) {
     base::AutoLock scoped(loop_lock_);
     loop_state_ = LoopState::kGone;

@@ -26,6 +26,11 @@ Chromium 风格分层 C++ 媒体播放器，目录即 target（`docs/06 §7.6`�
 - **怀疑产品 bug 前先跑 `tools/check_binary_freshness.py`**：两次「bug 不存在」都是旧二进制
   诊断出来的（硬解卡死、ctest 736 vs 784）。它除「二进制 vs 链接的库」外还比「源码 vs
   二进制」，`--binary` 可收窄到单个可执行文件（`bench_render.sh` 只问 play_glfw）。
+- **`cpplint` 门禁只扫 `.cc`**（`git ls-files 'base/*.cc' 'media/*.cc' …`）。把 `.h` 也塞
+  进去会炸 8 条 `build/header_guard`（cpplint 要路径派生的 `MEDIA_…`），而全树统一用
+  `AVBASE_` 前缀 —— 连存量 `audio_parameters.h` 都报，说明是口径错不是代码错。
+- 本机 shell 是 **zsh，未引用变量不按空白分词**：`cmd $files` 会把整串名单当成一个参数
+  （`cpplint` 报 `Can't open for reading`）。要 `xargs cmd < file`。
 
 ## 宿主 / Qt 目标
 - 宿主目标必须调 `avbase_configure_abi_definitions()`：DCHECK 开关改变 `VideoFrame` 布局

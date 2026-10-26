@@ -12,7 +12,7 @@
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
-#include "media/ffmpeg/video_convert.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 
 namespace avbase::media {
 
@@ -34,7 +34,7 @@ FFmpegVideoFilter::~FFmpegVideoFilter() {
 
 bool FFmpegVideoFilter::Initialize(const std::string& graph, VideoFormat format,
                                    const Size& coded_size) {
-  const AVPixelFormat pix = media::ffmpeg::AvPixelFormatFromVideoFormat(format);
+  const AVPixelFormat pix = media::ffmpeg::ToAvPixelFormat(format);
   if (pix == AV_PIX_FMT_NONE || coded_size.width <= 0 ||
       coded_size.height <= 0) {
     LOG(ERROR) << "video filter: unsupported frame format "
@@ -161,7 +161,7 @@ bool FFmpegVideoFilter::Process(base::scoped_refptr<VideoFrame> in,
   // ff::MakeFrame CHECKs internally; no failure mode. The FramePtr frees the
   // view on every exit path below.
   media::ffmpeg::FramePtr frame = media::ffmpeg::MakeFrame();
-  frame->format = media::ffmpeg::AvPixelFormatFromVideoFormat(ctx_->format);
+  frame->format = media::ffmpeg::ToAvPixelFormat(ctx_->format);
   frame->width = ctx_->coded_size.width;
   frame->height = ctx_->coded_size.height;
   // M15: the graph runs at time_base=1/90000 (see the buffersrc args) but

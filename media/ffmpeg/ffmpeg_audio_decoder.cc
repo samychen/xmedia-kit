@@ -13,9 +13,11 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
+#include "media/base/audio_parameters.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 
 namespace ff = ::avbase::media::ffmpeg;
 
@@ -61,29 +63,6 @@ media::ChannelLayout ChannelLayoutFromMask(uint64_t mask, int channels) {
   }
 }
 
-int BytesPerSample(SampleFormat format) {
-  switch (format) {
-  case SampleFormat::kU8:
-    return 1;
-  case SampleFormat::kS16:
-  case SampleFormat::kS16P:
-    return 2;
-  case SampleFormat::kS32:
-  case SampleFormat::kS32P:
-  case SampleFormat::kF32:
-  case SampleFormat::kF32P:
-    return 4;
-  case SampleFormat::kUnknown:
-    return 0;
-  }
-  return 0;
-}
-
-bool IsPlanarFormat(SampleFormat format) {
-  return format == SampleFormat::kS16P || format == SampleFormat::kS32P ||
-         format == SampleFormat::kF32P;
-}
-
 // Copies an AVFrame's samples into one contiguous buffer. Planar frames are
 // concatenated channel by channel, matching AudioBuffer::channel_data()'s
 // assumption that the payload is channels * (frame_count * bytes_per_sample).
@@ -93,14 +72,14 @@ bool IsPlanarFormat(SampleFormat format) {
 // real sample bytes are taken.
 std::vector<uint8_t> CopyFrameData(const AVFrame* frame, SampleFormat format,
                                    int channels) {
-  const int bps = BytesPerSample(format);
+  const int bps = SampleFormatBytesPerChannel(format);
   if (bps == 0 || channels <= 0 || frame->nb_samples <= 0) {
     return {};
   }
   const size_t per_channel =
       static_cast<size_t>(frame->nb_samples) * static_cast<size_t>(bps);
   std::vector<uint8_t> out;
-  if (IsPlanarFormat(format)) {
+  if (SampleFormatIsPlanar(format)) {
     out.resize(per_channel * static_cast<size_t>(channels));
     for (int ch = 0; ch < channels; ++ch) {
       if (!frame->extended_data[ch]) {
@@ -117,27 +96,6 @@ std::vector<uint8_t> CopyFrameData(const AVFrame* frame, SampleFormat format,
     std::memcpy(out.data(), frame->extended_data[0], out.size());
   }
   return out;
-}
-
-SampleFormat SampleFormatFromAV(int av_format, SampleFormat fallback) {
-  switch (av_format) {
-  case AV_SAMPLE_FMT_U8:
-    return SampleFormat::kU8;
-  case AV_SAMPLE_FMT_S16:
-    return SampleFormat::kS16;
-  case AV_SAMPLE_FMT_S32:
-    return SampleFormat::kS32;
-  case AV_SAMPLE_FMT_FLT:
-    return SampleFormat::kF32;
-  case AV_SAMPLE_FMT_S16P:
-    return SampleFormat::kS16P;
-  case AV_SAMPLE_FMT_S32P:
-    return SampleFormat::kS32P;
-  case AV_SAMPLE_FMT_FLTP:
-    return SampleFormat::kF32P;
-  default:
-    return fallback;
-  }
 }
 
 }  // namespace
@@ -182,7 +140,8 @@ DecoderStatus FFmpegAudioDecoder::OpenCodec(const AudioDecoderConfig& config) {
   }
   // The decoder's own output format is authoritative: many codecs (AAC in
   // particular) decode to FLTP regardless of what the container advertised.
-  sample_format_ = SampleFormatFromAV(codec_ctx->sample_fmt, sample_format_);
+  sample_format_ =
+      ff::FromAvSampleFormat(codec_ctx->sample_fmt, sample_format_);
   channels_ = ff::ChannelCount(codec_ctx);
   sample_rate_ = codec_ctx->sample_rate;
   if (channels_ > 0) {

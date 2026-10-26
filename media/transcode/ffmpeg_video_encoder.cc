@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/video_convert.h"
 
 namespace avbase::media {
@@ -149,7 +150,7 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
 
   // The frames coming in are avbase's decode output: I420 (limited range).
   // Normalize to the encoder's input format through the shared converter.
-  c->in_fmt = ff::AvPixelFormatFromVideoFormat(VideoFormat::kI420);
+  c->in_fmt = ff::ToAvPixelFormat(VideoFormat::kI420);
   if (!c->converter.Configure(params.width, params.height, c->in_fmt,
                               params.width, params.height, c->dst_fmt)) {
     LOG(ERROR) << "video encoder: conversion setup failed";

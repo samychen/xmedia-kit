@@ -198,7 +198,8 @@ class AVBASE_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
   };
   // One iteration of the read/backpressure step.
   // void* rather than AVFormatContext*/AVPacket*: no libav* type may appear in
-  // a media/ header (invariant C4). The .cc casts via its local Ctx() helper.
+  // a media/ header (invariant C4). The .cc casts via ffmpeg::AsFormatContext()
+  // (ffmpeg_util.h).
   ReadStep ReadAndRouteOnePacket(void* ctx, void* packet);
   void HandleSeekRequestOnDemuxThread(const SeekRequest& request);
   void BuildMediaInfo();

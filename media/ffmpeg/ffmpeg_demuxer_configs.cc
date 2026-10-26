@@ -14,6 +14,7 @@ extern "C" {
 #include "media/base/decoder_config.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 
 namespace avbase::media {
 
@@ -97,32 +98,13 @@ AudioDecoderConfig MakeAudioDecoderConfig(const AVStream* stream) {
                                 : ChannelLayout::kNone;
     break;
   }
-  switch (par->format) {
-  case AV_SAMPLE_FMT_U8:
-    config.sample_format = SampleFormat::kU8;
-    break;
-  case AV_SAMPLE_FMT_S16:
-    config.sample_format = SampleFormat::kS16;
-    break;
-  case AV_SAMPLE_FMT_S32:
-    config.sample_format = SampleFormat::kS32;
-    break;
-  case AV_SAMPLE_FMT_FLT:
-    config.sample_format = SampleFormat::kF32;
-    break;
-  case AV_SAMPLE_FMT_S16P:
-    config.sample_format = SampleFormat::kS16P;
-    break;
-  case AV_SAMPLE_FMT_S32P:
-    config.sample_format = SampleFormat::kS32P;
-    break;
-  case AV_SAMPLE_FMT_FLTP:
-    config.sample_format = SampleFormat::kF32P;
-    break;
-  default:
-    config.sample_format = SampleFormat::kUnknown;
-    break;
-  }
+  // A container that declares no sample format lands on kUnknown, which is the
+  // documented "source did not say" value -- not a guess at a real one.
+  // AVCodecParameters::format is an int that carries either a pixel or a sample
+  // format depending on codec_type, so it needs the cast the video decoder
+  // applies to AVFrame::format.
+  config.sample_format = ff::FromAvSampleFormat(
+      static_cast<AVSampleFormat>(par->format), SampleFormat::kUnknown);
   config.bit_rate = par->bit_rate > 0 ? par->bit_rate : 0;
   config.codec_delay_frames = par->initial_padding;
   config.seek_preroll_frames = par->seek_preroll;

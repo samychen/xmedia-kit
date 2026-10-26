@@ -34,20 +34,17 @@
 #include "media/base/media_log.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 
 namespace avbase::media {
 namespace {
 
 namespace ff = ::avbase::media::ffmpeg;
 
-AVFormatContext* Ctx(void* raw) {
-  return static_cast<AVFormatContext*>(raw);
-}
-
 }  // namespace
 
 void FFmpegDemuxer::HandleSeekRequestOnDemuxThread(const SeekRequest& request) {
-  AVFormatContext* ctx = Ctx(format_ctx_raw_);
+  AVFormatContext* ctx = ff::AsFormatContext(format_ctx_raw_);
   if (!ctx) {
     CompleteSeek(request.request_id,
                  Err(ErrorCode::kInvalidState, "demuxer is not open", {},

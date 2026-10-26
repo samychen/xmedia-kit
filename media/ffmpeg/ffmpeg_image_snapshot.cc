@@ -14,6 +14,7 @@
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/video_convert.h"
 
 namespace avbase::media {
@@ -84,8 +85,7 @@ Status WriteJpegSnapshot(const VideoFrame& frame, const std::string& path) {
   // video_convert's default -- snapshots of HD content with an explicit
   // BT.709 tag keep their matrix).
   ff::VideoConverter converter;
-  if (!converter.Configure(width, height,
-                           ff::AvPixelFormatFromVideoFormat(frame.format()),
+  if (!converter.Configure(width, height, ff::ToAvPixelFormat(frame.format()),
                            width, height, AV_PIX_FMT_YUV420P)) {
     return base::unexpected(
         MediaError(ErrorCode::kInvalidArgument,
@@ -96,7 +96,7 @@ Status WriteJpegSnapshot(const VideoFrame& frame, const std::string& path) {
   ff::FramePtr src = ff::MakeFrame();
   src->width = width;
   src->height = height;
-  src->format = ff::AvPixelFormatFromVideoFormat(frame.format());
+  src->format = ff::ToAvPixelFormat(frame.format());
   switch (frame.color_space().matrix) {
   case media::ColorMatrix::kBT709:
     src->colorspace = AVCOL_SPC_BT709;

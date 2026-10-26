@@ -102,6 +102,11 @@ int SampleFormatBytesPerChannel(SampleFormat format) {
   return 0;
 }
 
+bool SampleFormatIsPlanar(SampleFormat format) {
+  return format == SampleFormat::kS16P || format == SampleFormat::kS32P ||
+         format == SampleFormat::kF32P;
+}
+
 float DecodeSample(const uint8_t* src, SampleFormat format) {
   if (!src) {
     return 0.0f;
