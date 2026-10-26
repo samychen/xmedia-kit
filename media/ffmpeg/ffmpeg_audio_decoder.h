@@ -71,7 +71,6 @@ class AVBASE_MEDIA_EXPORT FFmpegAudioDecoder final : public AudioDecoder {
 
   std::unique_ptr<Context> ctx_;
   OutputCB output_cb_;
-  WaitingCB waiting_cb_;
   bool initialized_{false};
   int32_t serial_{0};
   SampleFormat sample_format_{SampleFormat::kUnknown};

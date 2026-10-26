@@ -54,6 +54,12 @@ class AVBASE_MEDIA_EXPORT VideoDecoder {
   //  4) |init_cb| MAY run before this method returns.
   // |low_delay| forbids queueing beyond what reordering requires;
   // initialization fails if the decoder cannot comply.
+  //
+  // |waiting_cb| is kept for signature parity with Chromium, but no backend
+  // calls it: FFmpeg discards input until the next IDR inside
+  // avcodec_send_packet, so "waiting for a key frame" never becomes a state the
+  // caller could act on. DecoderStream passes an empty callback for the same
+  // reason (its back-pressure comes from Read(), not from decoder stalls).
   virtual void Initialize(const VideoDecoderConfig& config, bool low_delay,
                           CdmContext* cdm_context, InitCB init_cb,
                           const OutputCB& output_cb,

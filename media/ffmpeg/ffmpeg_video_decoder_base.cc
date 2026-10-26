@@ -57,9 +57,11 @@ void FFmpegVideoDecoderBase::Decode(base::scoped_refptr<DecoderBuffer> buffer,
   if (buffer->IsEndOfStream()) {
     // EOS: flush the decoder, emit everything still buffered, then answer every
     // outstanding request. avcodec_send_packet(nullptr) is the documented
-    // flush.
+    // flush. There is no EOS flag to keep on the side: a repeated EOS is
+    // harmless because it only re-sends the flush, and both decoders treat the
+    // second one as "already drained" -- avcodec_receive_frame returns
+    // AVERROR_EOF.
     avcodec_send_packet(ctx, nullptr);
-    OnEndOfStream();
     if (!DecodeAvailableFrames()) {
       // RunAll, not RunOne: a failed flush leaves the decoder unusable, so a
       // second waiter would never hear back.

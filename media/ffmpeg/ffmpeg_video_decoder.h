@@ -68,14 +68,12 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final
   // FFmpegVideoDecoderBase:
   AVCodecContext* codec_ctx() const override;
   bool DecodeAvailableFrames() override;
-  void OnEndOfStream() override;
   void OnResetExtra() override;
 
   std::unique_ptr<Context> ctx_;
   VideoDecoderConfig config_;
   VideoFormat preferred_format_{VideoFormat::kUnknown};
   int thread_count_{0};
-  bool decoding_eos_{false};
   uint64_t conversion_failures_{0};
 };
 

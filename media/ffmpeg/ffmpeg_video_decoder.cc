@@ -50,13 +50,8 @@ AVCodecContext* FFmpegVideoDecoder::codec_ctx() const {
   return ctx_->codec_ctx.get();
 }
 
-void FFmpegVideoDecoder::OnEndOfStream() {
-  decoding_eos_ = true;
-}
-
 void FFmpegVideoDecoder::OnResetExtra() {
   ctx_->converter.Reset();
-  decoding_eos_ = false;
 }
 
 DecoderStatus FFmpegVideoDecoder::OpenCodec(const VideoDecoderConfig& config,
@@ -117,10 +112,9 @@ DecoderStatus FFmpegVideoDecoder::OpenCodec(const VideoDecoderConfig& config,
 void FFmpegVideoDecoder::Initialize(const VideoDecoderConfig& config,
                                     bool /*low_delay*/, CdmContext* /*cdm*/,
                                     InitCB init_cb, const OutputCB& output_cb,
-                                    const WaitingCB& waiting_cb) {
+                                    const WaitingCB& /*waiting_cb*/) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   output_cb_ = output_cb;
-  waiting_cb_ = waiting_cb;
   config_ = config;
   ctx_ = std::make_unique<Context>();
 

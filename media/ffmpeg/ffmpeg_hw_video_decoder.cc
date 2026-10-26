@@ -218,10 +218,9 @@ void FFmpegHwVideoDecoder::Initialize(const media::VideoDecoderConfig& config,
                                       bool /*low_delay*/,
                                       media::CdmContext* /*cdm*/,
                                       InitCB init_cb, const OutputCB& output_cb,
-                                      const media::WaitingCB& waiting_cb) {
+                                      const media::WaitingCB& /*waiting_cb*/) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   output_cb_ = output_cb;
-  waiting_cb_ = waiting_cb;
   config_ = config;
   ctx_ = std::make_unique<Context>();
 

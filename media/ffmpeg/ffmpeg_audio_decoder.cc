@@ -155,7 +155,7 @@ void FFmpegAudioDecoder::Initialize(const AudioDecoderConfig& config,
                                     bool /*has_pending_clear*/,
                                     int32_t current_serial, InitCB init_cb,
                                     const OutputCB& output_cb,
-                                    const WaitingCB& waiting_cb) {
+                                    const WaitingCB& /*waiting_cb*/) {
   // Capture the sequence so decode_cb can be posted (never run inline) to
   // honour the AudioDecoder contract (docs/03 §4).
   task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
@@ -169,7 +169,6 @@ void FFmpegAudioDecoder::Initialize(const AudioDecoderConfig& config,
                          "post decode_cb (it must never run inline)";
   serial_ = current_serial;
   output_cb_ = output_cb;
-  waiting_cb_ = waiting_cb;
   initialized_ = false;
   ctx_.reset();
   sample_format_ = config.sample_format;

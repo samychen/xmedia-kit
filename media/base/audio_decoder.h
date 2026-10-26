@@ -44,6 +44,10 @@ class AVBASE_MEDIA_EXPORT AudioDecoder {
   // ijkplayer's audio path flushes by bumping a serial (ffplay's
   // `is->audioq.serial`), and without it a DecoderStream cannot distinguish a
   // stale buffer from a live one after a flush.
+  //
+  // |waiting_cb| is part of the signature shared with VideoDecoder; FFmpeg
+  // audio has no stall state to report (a bad packet is an error, not a wait),
+  // so no backend calls it.
   virtual void Initialize(const AudioDecoderConfig& config,
                           bool has_pending_clear, int32_t current_serial,
                           InitCB init_cb, const OutputCB& output_cb,
