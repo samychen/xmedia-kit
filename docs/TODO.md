@@ -46,8 +46,8 @@
 `tools/option_map.py` 的 63 个 spec key 生成）。所以「已配置」指的是注册表里的条目；其余
 54 个 spec key 从未进过构建，属「未接线」而非「构建内死选项」。
 
-**2026-10-17 现状：9 个 key 全部接通，构建内死选项为 0**（3 个原生效 + 4 个 buffer key
-接回 + 2 个渲染/seek key 接回）。
+**2026-10-26 现状：10 个 key 全部接通，构建内死选项为 0**（3 个原生效 + 4 个 buffer key
+接回 + 2 个渲染/seek key 接回 + `volume` 补回，见下表末行）。
 
 | key | 写入字段 | 读取者 |
 |---|---|---|
@@ -60,6 +60,7 @@
 | `min-frames` | `buffer.min_frames` | `PipelineImpl` 预缓冲门控的包数下限 |
 | `nodisp` | `render.disable_video_output` | `DefaultRendererFactory::Deps::disable_video_output` → 选 `NullVideoSink` |
 | `enable-accurate-seek` | `seek.accurate` | `PlayerImpl::SeekTo` 对 `SeekMode::kAccurate` 的否决位 |
+| `volume` | `audio.startup_volume` | `PlayerImpl` 构造函数用它初始化运行时音量（`volume_`），`PrepareAsync` 就绪后再推给音频腿。**2026-10-26 补**：此前这个 key 不在注册表（`SetOption` 报 `unknown option key`），而 `audio.startup_volume` 除范围校验外无任何读取者——宿主配置的音量被静默丢弃。不足在「构造时播种」而不是「运行期设置」：`startup_volume` 只生效一次 |
 
 后 4 个 buffer key 早前因「`BufferController` 从不读 `config.buffer.*`」被判为静默 no-op 并
 移除；把 `BufferConfig` 真正接进三条下游后重新注册，语义对齐 ijkplayer：
@@ -94,7 +95,7 @@ FORMAT/CODEC 透传项。它们的 `PlayerConfig` 字段同样多数无人读；
 不要只加注册表条目。
 
 > 处置原则（沿用 TODO 原意）：注册表条目要么有下游读取者（生效），要么移除并让 `SetOption`
-> 报错。不保留「接受但不做事」的 key。这 9 个 key 全部是照这条原则收的尾：先写读取者，
+> 报错。不保留「接受但不做事」的 key。这 10 个 key 全部是照这条原则收的尾：先写读取者，
 > 再把 key 注册回来 —— 顺序反了就会得到「能读能写但什么都不影响」的假选项。
 
 ---

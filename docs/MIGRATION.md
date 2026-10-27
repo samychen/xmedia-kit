@@ -202,11 +202,21 @@ Player、`~Player()` 前 Flush 保证收到最后的 `kStateChanged{to=kStopped}
 ### Δ5 `min-frames` 默认 5 —— 🟢
 - 实况：✅ `player_config.h:67 size_t min_frames{5}`，与原版一致。
 
-### Δ6 音量范围 0..1 —— 🟠
+### Δ6 音量范围 0..1 —— 🟢
 - 实况：✅ `startup_volume{1.0}`（double，0..1）；`SetVolume(double)` 注释
-  `[0.0, 1.0]`；registry 对旧字符串 key 做 0..100 → 0..1 换算。
-- 动作：把 `ijkmp_set_volume(mp, 80)` 改成 `SetVolume(0.8)` 或保持
-  `SetOption(kPlayer, "volume", 80)`。
+  `[0.0, 1.0]`；registry 对旧字符串 key 做 0..100 → 0..1 换算，
+  `SetOption(kPlayer, "volume", 80)` 与 `SetInt(..., 80)` 都得到 0.8，
+  传 `0.8`（double）也接受。
+- **2026-10-26 更正**：这句"registry 换算"曾经是不成立的——注册表里没有
+  `volume` 这个 key，`SetOption(kPlayer, "volume", 80)` 返回
+  `kInvalidArgument / unknown option key`，而宿主如果只配置
+  `config.audio.startup_volume`，那个值除了一次范围校验之外**没有任何读取者**，
+  永远到不了音频设备。两处都已修（`player/option_registry.cc` 增加条目、
+  `PlayerImpl` 构造函数用它初始化运行时音量），并有单测钉住。
+- 动作：把 `ijkmp_set_volume(mp, 80)` 改成 `SetVolume(0.8)`，或在 `Build()`
+  之前 `SetOption(kPlayer, "volume", 80)` / `config.audio.startup_volume = 0.8`。
+  注意启动值与运行期值是两件事：`startup_volume` 只在建对象时播种一次，
+  之后 `SetVolume()` 说了算。
 
 ### Δ7 `GetDuration()` 语义 —— 🟢
 - 实况：✅ `is_live()` 在 `media/base/media_info.h:62`；直播零时长。
