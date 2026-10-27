@@ -15,8 +15,8 @@
 //
 // 手动编译（无需 CMake，链接 base 静态库）：
 //   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
-//       examples/base/threading/threading_demo.cc build/full/lib/libavbase_base.a \
-//       -lpthread -o /tmp/threading_demo
+//       examples/base/threading/threading_demo.cc
+//       build/full/lib/libavbase_base.a \ -lpthread -o /tmp/threading_demo
 //
 // 通过 CMake 构建：
 //   cmake --build build/full --target threading_demo

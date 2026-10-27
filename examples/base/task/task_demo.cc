@@ -29,9 +29,11 @@
 //     LOG(INFO) 默认就写到 stderr，无需任何额外设置。
 //   * 若把 demo 逻辑搬进 tests/unit 单测再跑，注意 ctest 默认只在测试「失败时」
 //     才吐出 stderr，通过的测试日志会被缓冲而“看似没打”。此时要么直接跑
-//     build/full/bin/<name>_unittests --gtest_filter=...，要么 ctest --output-on-failure。
+//     build/full/bin/<name>_unittests --gtest_filter=...，要么 ctest
+//     --output-on-failure。
 //   * DLOG(INFO) 仅在 DCHECK 开启（debug / AVBASE_ENABLE_DCHECK）时打印，
-//     release 构建整段塌空；VLOG(n) 默认关闭，需先 base::logging::SetMinVLogLevel(n)。
+//     release 构建整段塌空；VLOG(n) 默认关闭，需先
+//     base::logging::SetMinVLogLevel(n)。
 //
 // 说明：为了让延迟调度、排序、FastForward 语义「确定可复现」，本 demo 用一个
 // 受控的 ManualClock 取代真实时钟（这正对应 Chromium 的 SimpleTestTickClock /
@@ -54,6 +56,7 @@
 #include "base/task/task_queue.h"
 #include "base/task/task_runner.h"
 #include "base/task/task_runner_util.h"
+#include "base/threading/thread.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 
@@ -61,8 +64,9 @@ namespace base = avbase::base;
 
 // ---------------------------------------------------------------------------
 // ManualClock —— 受控单调时钟，仅用于本 demo 的确定性驱动。
-// 真实代码用 DefaultTickClock；测试用 SimpleTestTickClock（在 base/test/，属测试
-// 支持库，examples 不依赖）。这里自己实现一个，语义一致：NowTicks() 返回我们手动
+// 真实代码用 DefaultTickClock；测试用 SimpleTestTickClock（在
+// base/test/，属测试 支持库，examples
+// 不依赖）。这里自己实现一个，语义一致：NowTicks() 返回我们手动
 // 推进的时间，PostDelayedTask 据此计算 ready_time。
 // ---------------------------------------------------------------------------
 class ManualClock : public base::TickClock {
@@ -100,8 +104,8 @@ static void Part1_PostAndOrder() {
   // (a) 顺序投递 5 个任务，它们会按投递顺序一个接一个串行执行。
   std::vector<int> order;
   for (int i = 0; i < 5; ++i) {
-    CHECK(queue->PostTask(FROM_HERE,
-                          base::BindOnce([&order, i]() { order.push_back(i); })));
+    CHECK(queue->PostTask(
+        FROM_HERE, base::BindOnce([&order, i]() { order.push_back(i); })));
   }
   LOG(INFO) << "(a) 投递 5 个任务后 GetPendingTaskCount() = "
             << queue->GetPendingTaskCount();
@@ -181,8 +185,9 @@ static void Part2_Delayed() {
                       base::BindOnce([&order3]() { order3.push_back(1); }),
                       base::Milliseconds(10));
   c3.Advance(base::Milliseconds(20));  // 延迟任务已到期
-  q3->PostTask(FROM_HERE,
-               base::BindOnce([&order3]() { order3.push_back(2); }));  // 后投的即时
+  q3->PostTask(FROM_HERE, base::BindOnce([&order3]() {
+                 order3.push_back(2);
+               }));  // 后投的即时
   q3->RunAllReadyTasks(c3.now());
   LOG(INFO) << "(e) 已到期延迟任务(1)不被后投即时任务(2)超车，顺序: "
             << Join(order3);
@@ -200,8 +205,9 @@ static void Part3_Diagnostics() {
   queue->BindToCurrentSequence();  // 当前线程现在就是这个 queue 的序列
 
   // (a) RunsTasksInCurrentSequence()：是否在「本 queue 运行的序列」上调用。
-  LOG(INFO) << "(a) BindToCurrentSequence 后，主线程 RunsTasksInCurrentSequence() = "
-            << queue->RunsTasksInCurrentSequence();
+  LOG(INFO)
+      << "(a) BindToCurrentSequence 后，主线程 RunsTasksInCurrentSequence() = "
+      << queue->RunsTasksInCurrentSequence();
 
   // (b) GetNextReadyTime()：最早就绪时间；空队列返回 null。
   LOG(INFO) << "(b) 空队列 GetNextReadyTime().is_null() = "
@@ -210,14 +216,14 @@ static void Part3_Diagnostics() {
   queue->PostDelayedTask(FROM_HERE, base::DoNothing(), base::Milliseconds(100));
   bool reports_earliest =
       (queue->GetNextReadyTime() == clock.now() + base::Milliseconds(100));
-  LOG(INFO) << "(c) GetNextReadyTime() 报告最早到期项(100ms) = " << reports_earliest;
+  LOG(INFO) << "(c) GetNextReadyTime() 报告最早到期项(100ms) = "
+            << reports_earliest;
 
   // (d) 在任务体内部调用 RunsTasksInCurrentSequence() 同样为 true——这是「当前
   //     序列」判定的典型用途：一个对象要区分「我在自己的序列上被调用」vs
   //     「别人跨序列调我」。
   bool inside = false;
-  queue->PostTask(FROM_HERE,
-                  base::BindOnce([&queue, &inside]() {
+  queue->PostTask(FROM_HERE, base::BindOnce([&queue, &inside]() {
                     inside = queue->RunsTasksInCurrentSequence();
                   }));
   queue->RunAllReadyTasks(clock.now());
@@ -246,9 +252,8 @@ static void Part4_ClearAndCycleRule() {
   queue->Clear();
   size_t after_clear = queue->RunAllReadyTasks(clock.now());
   LOG(INFO) << "(b) Clear() 后 GetPendingTaskCount() = "
-            << queue->GetPendingTaskCount()
-            << "，RunAllReadyTasks 返回 " << after_clear
-            << "（runs 仍为 " << runs << "，未执行任务被丢弃）";
+            << queue->GetPendingTaskCount() << "，RunAllReadyTasks 返回 "
+            << after_clear << "（runs 仍为 " << runs << "，未执行任务被丢弃）";
 
   // (c)(d)(e) RULE（task_queue.h 明示）：一个任务绝不能再持有所属 TaskQueue 的
   //     scoped_refptr——队列拥有任务，这是引用环，队列永不析构，LeakSanitizer 会
@@ -261,11 +266,13 @@ static void Part4_ClearAndCycleRule() {
   cyc->BindToCurrentSequence();
 
   struct Reposter {
-    base::scoped_refptr<base::TaskQueue> q;  // 错误写法：task 持有所属队列的引用
+    base::scoped_refptr<base::TaskQueue>
+        q;  // 错误写法：task 持有所属队列的引用
     int* n;
     void operator()() {
       if (++(*n) < 5) {
-        // 每次重投都带一份 q 的引用；延迟 1ms 让它在本次 RunAllReadyTasks 之外残留
+        // 每次重投都带一份 q 的引用；延迟 1ms 让它在本次 RunAllReadyTasks
+        // 之外残留
         q->PostDelayedTask(FROM_HERE, base::BindOnce(Reposter{*this}),
                            base::Milliseconds(1));
       }
@@ -274,9 +281,11 @@ static void Part4_ClearAndCycleRule() {
   int n = 0;
   cyc->PostTask(FROM_HERE, base::BindOnce(Reposter{cyc, &n}));
   cyc->RunAllReadyTasks(cc.now());  // 跑首轮，重投的延迟任务残留并持有 cyc 引用
-  LOG(INFO) << "(c) RULE 演示：reposting 的 pending 持有 cyc 引用，GetPendingTaskCount() = "
+  LOG(INFO) << "(c) RULE 演示：reposting 的 pending 持有 cyc "
+               "引用，GetPendingTaskCount() = "
             << cyc->GetPendingTaskCount();
-  LOG(INFO) << "(d) 若不处理，cyc 因引用环永不析构 -> 泄漏。正确做法：丢引用前 Clear()。";
+  LOG(INFO) << "(d) 若不处理，cyc 因引用环永不析构 -> 泄漏。正确做法：丢引用前 "
+               "Clear()。";
   cyc->Clear();  // 破环：丢弃所有 pending（连同它们持有的 cyc 引用）
   LOG(INFO) << "(e) Clear() 破环后 GetPendingTaskCount() = "
             << cyc->GetPendingTaskCount() << "（随后 cyc 析构不再泄漏）";
@@ -286,7 +295,8 @@ static void Part4_ClearAndCycleRule() {
 // Part 5 — PostTaskAndReplyWithResult（task_runner_util）
 // ===========================================================================
 static void Part5_ReplyWithResult() {
-  LOG(INFO) << "===== Part 5: PostTaskAndReplyWithResult（task_runner_util）=====";
+  LOG(INFO)
+      << "===== Part 5: PostTaskAndReplyWithResult（task_runner_util）=====";
 
   auto queue = base::MakeRefCounted<base::TaskQueue>();
   ManualClock clock(base::TimeTicks::FromMicroseconds(1'000'000));
@@ -294,7 +304,8 @@ static void Part5_ReplyWithResult() {
   queue->BindToCurrentSequence();
 
   // (a)(b) 在 runner 上跑一个返回值的任务，并把结果通过 reply 回传——无需手搓
-  //        两个回调。注意 task 与 reply 都跑在同一个 runner（此处即调用方序列）。
+  //        两个回调。注意 task 与 reply 都跑在同一个
+  //        runner（此处即调用方序列）。
   int received = 0;
   bool ok = base::PostTaskAndReplyWithResult<int, int>(
       queue.get(), FROM_HERE, []() { return 42; },
@@ -311,8 +322,8 @@ static void Part5_ReplyWithResult() {
   bool rejected = !base::PostTaskAndReplyWithResult<int, int>(
       q2.get(), FROM_HERE, []() { return 1; },
       base::BindOnce([](int* out, int v) { *out = v; }, &ignored));
-  LOG(INFO) << "(c) runner 已 Quit 时返回 false（reply 不会运行） = " << rejected
-            << "，ignored 仍为 " << ignored;
+  LOG(INFO) << "(c) runner 已 Quit 时返回 false（reply 不会运行） = "
+            << rejected << "，ignored 仍为 " << ignored;
 }
 
 // ===========================================================================
@@ -321,16 +332,18 @@ static void Part5_ReplyWithResult() {
 static void Part6_RealRunLoop() {
   LOG(INFO) << "===== Part 6: 真实多线程 Run()/Quit()（生产路径）=====";
 
-  auto queue = base::MakeRefCounted<base::TaskQueue>();
+  // base::Thread 就是「一条专享线程 + 它自己的 TaskQueue」：线程体跑
+  // queue->Run()，Stop() 内部 Quit()+join。用它是 C30 / docs/10 §12 V7 的
+  // 要求，也正是生产路径的写法（宿主没有理由自己 new 一条裸线程）。
+  base::Thread runner("avbase-demo-runner");
+  CHECK(runner.Start());
+  base::TaskQueue* queue = runner.queue();
   std::atomic<int> executed{0};
-  // 后台线程调 Run()：阻塞消费，直到别的线程（或某个任务）调 Quit()。
-  std::thread runner([&queue]() { queue->Run(); });
 
   // (a) 主线程跨线程投递 100 个任务；PostTask 是线程安全的。
   for (int i = 0; i < 100; ++i) {
     while (!queue->PostTask(
-        FROM_HERE,
-        base::BindOnce([&executed]() { executed.fetch_add(1); }))) {
+        FROM_HERE, base::BindOnce([&executed]() { executed.fetch_add(1); }))) {
       std::this_thread::yield();  // runner 关闭后才会失败，这里正常不会进
     }
   }
@@ -340,14 +353,14 @@ static void Part6_RealRunLoop() {
   LOG(INFO) << "(a) 后台线程 Run() 消费了 " << executed.load()
             << " 个跨线程投递的任务";
 
-  // (b) Quit() 线程安全：唤醒 Run() 并使其返回。之后再 PostTask 一律返回 false——
+  // (b) Quit() 线程安全：唤醒 Run() 并使其返回。之后再 PostTask 一律返回
+  // false——
   //     这正是「调用方得知目标序列已消失」的机制。
   queue->Quit();
-  runner.join();
+  runner.Stop();
   bool after_quit = queue->PostTask(FROM_HERE, base::BindOnce([]() {}));
   LOG(INFO) << "(b) Quit() 后 IsQuitting() = " << queue->IsQuitting()
-            << "，PostTask 返回 " << after_quit
-            << "（false = 目标序列已消失）";
+            << "，PostTask 返回 " << after_quit << "（false = 目标序列已消失）";
 }
 
 // ===========================================================================
@@ -372,7 +385,8 @@ static void Part7_DefaultRunner() {
   auto got = base::SequencedTaskRunner::GetCurrentDefault();
   LOG(INFO) << "(c) GetCurrentDefault() 非空 = " << (got.get() != nullptr);
 
-  // (d) SingleThreadTaskRunner 只是 SequencedTaskRunner 的类型别名：avbase 在类型
+  // (d) SingleThreadTaskRunner 只是 SequencedTaskRunner 的类型别名：avbase
+  // 在类型
   //     层面不区分「序列」与「线程」，因为这里每个序列在构造上都是单线程的。
   static_assert(
       std::is_same_v<base::SingleThreadTaskRunner, base::SequencedTaskRunner>,

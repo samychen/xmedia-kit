@@ -36,9 +36,9 @@ class AdoptionHelper {};
 class RefCountedBase {
  public:
   void AddRef() const {
-    // 增量必须是无条件语句，不能藏在 DCHECK 参数里：DCHECK 关闭时 DCHECK_GE(a, b)
-    // 展开成 DCHECK(true)，会连同 fetch_add 一起被编译掉，导致引用计数永不 +1、
-    // 所有 RefCounted 对象在 release 构建里泄漏且永不析构。
+    // 增量必须是无条件语句，不能藏在 DCHECK 参数里：DCHECK 关闭时 DCHECK_GE(a,
+    // b) 展开成 DCHECK(true)，会连同 fetch_add 一起被编译掉，导致引用计数永不
+    // +1、 所有 RefCounted 对象在 release 构建里泄漏且永不析构。
     ref_count_.fetch_add(1, std::memory_order_relaxed);
     DCHECK_GE(ref_count_.load(std::memory_order_relaxed), 1);
   }

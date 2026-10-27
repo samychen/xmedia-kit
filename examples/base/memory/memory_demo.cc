@@ -12,10 +12,12 @@
 //
 // 或通过 CMake（examples/CMakeLists.txt 已加入 memory_demo 目标）：
 //   cmake --build build/full --target memory_demo
-//   ./build/full/examples/base/memory_demo     # 路径取决于生成器（Ninja 下通常如此）
+//   ./build/full/examples/base/memory_demo     # 路径取决于生成器（Ninja
+//   下通常如此）
 //
 // 覆盖四个形状：
-//   1. scoped_refptr + MakeRefCounted / WrapRefCounted / AdoptRef（三种所有权动词）
+//   1. scoped_refptr + MakeRefCounted / WrapRefCounted /
+//   AdoptRef（三种所有权动词）
 //   2. WeakPtr / WeakPtrFactory（跨序列安全 —— avbase 最重要的安全机制）
 //   3. ptr_util::WrapUnique（独占所有权）
 //   4. raw_ptr<T>（非拥有注解）
@@ -34,7 +36,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 
-using namespace avbase;  // 示例而非 SDK：base/ 与 media/ 直接以 base:: / media:: 引用
+using namespace avbase;  // 示例而非 SDK：base/ 与 media/ 直接以 base:: /
+                         // media:: 引用
 
 namespace {
 
@@ -46,9 +49,7 @@ class Foo : public base::RefCountedThreadSafe<Foo> {
   Foo() { LOG(INFO) << "[Foo] 构造"; }
   // 暴露内部计数，便于在 demo 里观察引用变化（真实代码一般不放这个方法）。
   int use_count() const { return ref_count(); }
-  void Do() const {
-    LOG(INFO) << "[Foo::Do] 存活，use_count=" << use_count();
-  }
+  void Do() const { LOG(INFO) << "[Foo::Do] 存活，use_count=" << use_count(); }
 
  private:
   // 析构设为 private 并授权给 RefCountedThreadSafe<Foo>：这样禁止在栈上或
@@ -88,7 +89,8 @@ void Part1_ScopedRefPtr() {
 
   // (a) MakeRefCounted —— 创造，持有唯一引用（计数 0 -> 1）
   auto a = base::MakeRefCounted<Foo>();
-  LOG(INFO) << "(a) MakeRefCounted            a->use_count() = " << a->use_count();
+  LOG(INFO) << "(a) MakeRefCounted            a->use_count() = "
+            << a->use_count();
 
   // (b) 拷贝 scoped_refptr —— 共享（+1）
   base::scoped_refptr<Foo> b = a;
@@ -166,8 +168,7 @@ void Part4_RawPtr() {
   auto foo = base::MakeRefCounted<Foo>();
   base::raw_ptr<Foo> rp = foo.get();  // 仅注解“我不拥有”，运行时等同 T*
   LOG(INFO) << "(a) raw_ptr 解引用：rp->use_count() = " << rp->use_count();
-  LOG(INFO) << "(b) raw_ptr 转 bool 判空："
-            << (rp ? "非空" : "空");
+  LOG(INFO) << "(b) raw_ptr 转 bool 判空：" << (rp ? "非空" : "空");
   rp = nullptr;
   LOG(INFO) << "(c) 置空后判空：" << (rp ? "非空" : "空");
 }

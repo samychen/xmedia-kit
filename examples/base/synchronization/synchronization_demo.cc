@@ -28,15 +28,20 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
-#include <thread>
+#include <memory>
+#include <string>
 #include <vector>
 
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/atomic_sequence_number.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/task_runner.h"
+#include "base/threading/thread.h"
 
 using namespace avbase;  // 示例而非 SDK：base/ 直接以 base:: 引用
 
@@ -58,17 +63,34 @@ void DemoLock() {
   base::Lock lock;
   std::atomic<int> counter{0};
 
-  // 8 个线程各自自增 1000 次，靠 AutoLock 保护临界区，结果应为 8000（无竞态）。
-  std::vector<std::thread> ts;
+  // 8 条线程各自自增 1000 次，靠 AutoLock 保护临界区，结果应为 8000（无竞态）。
+  // 用 base::Thread 而不是裸 std::thread：示例是宿主会照抄的模板，而裸线程
+  // 没有任务队列、没有有界 Stop()、没有 sequence checker（不变量 C30、
+  // docs/10 §12 V7）。这里也顺带演示「N 条专享线程 = N 条 sequence」。
+  std::vector<std::unique_ptr<base::Thread>> ts;
   for (int i = 0; i < 8; ++i) {
-    ts.emplace_back([&lock, &counter] {
-      for (int k = 0; k < 1000; ++k) {
-        base::AutoLock autolock(lock);  // 构造 Acquire + 顺序检查
-        counter.fetch_add(1);           // 临界区
-      }                                 // 析构 Release + RecordRelease
-    });
+    ts.push_back(
+        std::make_unique<base::Thread>("avbase-lock-" + std::to_string(i)));
+    base::Thread* t = ts.back().get();
+    CHECK(t->Start());
+    t->task_runner()->PostTask(FROM_HERE, base::BindOnce([&lock, &counter] {
+                                 for (int k = 0; k < 1000; ++k) {
+                                   base::AutoLock autolock(
+                                       lock);  // 构造 Acquire + 顺序检查
+                                   counter.fetch_add(1);  // 临界区
+                                 }  // 析构 Release + RecordRelease
+                               }));
   }
-  for (auto& t : ts) t.join();
+  // Stop() 会丢弃未执行的 pending；为保证 8×1000 全部跑完，先各自排一个
+  // 计数任务确认到齐，再 Stop()（Stop 语义在 threading_demo (e2) 有专述）。
+  for (auto& t : ts) {
+    base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
+    t->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&base::WaitableEvent::Signal, base::Unretained(&done)));
+    done.Wait();
+    t->Stop();
+  }
 
   LOG(INFO) << "  (a) 8×1000 自增受 AutoLock 保护，counter = " << counter.load()
             << " (应为 8000，无竞态)";
@@ -109,7 +131,8 @@ void DemoLock() {
 //       · 否则把 forward=(outer,this) 记进 ObservedOrder（若还没记录过）。
 //     最后把 this push 进 HeldStack。
 //
-//  4) Lock::RecordRelease() —— 释放时把 this 从 HeldStack 抹掉（lock.cc:77-79），
+//  4) Lock::RecordRelease() —— 释放时把 this 从 HeldStack
+//  抹掉（lock.cc:77-79），
 //     使“已释放的锁”不再参与后续的顺序对照。AutoLock 析构在 Release() 之后
 //     调它（lock.h:90-93）。
 //
@@ -135,7 +158,8 @@ void DemoLockOrder() {
 // ----------------------------------------------------------------------
 // ConditionVariable（condition_variable.h:18）必须绑一把 base::Lock（不是裸
 // std::mutex），这样锁顺序检查器仍能看见它。Wait() 要求调用者已持有锁，它
-// 在等待期间 adopt 这把锁并释放、被唤醒后重新持有（condition_variable.h:28-32）。
+// 在等待期间 adopt
+// 这把锁并释放、被唤醒后重新持有（condition_variable.h:28-32）。
 // 这正好解决了“持锁状态下要等条件、又不想一直占着锁”的矛盾。
 
 void DemoConditionVariable() {
@@ -145,25 +169,40 @@ void DemoConditionVariable() {
   int consumed = 0;
   constexpr int kTotal = 5;
 
-  // 消费者：kTotal 个线程各等一次广播后消费一次
-  std::vector<std::thread> consumers;
+  // 消费者：kTotal 条线程各等一次广播后消费一次（base::Thread 见 (a)）
+  std::vector<std::unique_ptr<base::Thread>> consumers;
+  std::vector<std::unique_ptr<base::WaitableEvent>> finished;
   for (int i = 0; i < kTotal; ++i) {
-    consumers.emplace_back([&] {
-      base::AutoLock l(lock);
-      while (consumed >= produced)  // 没东西可吃就等（兼防虚假唤醒）
-        cv.Wait();                  // 持有 lock → 释放等待 → 唤醒重持
-      ++consumed;
-    });
+    consumers.push_back(
+        std::make_unique<base::Thread>("avbase-cv-" + std::to_string(i)));
+    base::Thread* t = consumers.back().get();
+    CHECK(t->Start());
+    finished.push_back(std::make_unique<base::WaitableEvent>(
+        base::WaitableEvent::ResetPolicy::kManualReset));
+    base::WaitableEvent* out = finished.back().get();
+    t->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce([&lock, &cv, &produced, &consumed, out] {
+          base::AutoLock l(lock);
+          while (consumed >= produced)
+            cv.Wait();  // 释放等待→重持
+          ++consumed;
+          out->Signal();
+        }));
   }
 
   // 生产者：主线程持锁生产 kTotal 个后 Broadcast 唤醒所有消费者
   {
     base::AutoLock l(lock);
-    for (int i = 0; i < kTotal; ++i) ++produced;
+    for (int i = 0; i < kTotal; ++i)
+      ++produced;
     cv.Broadcast();  // 唤醒所有等待的消费者（notify_all）
   }
 
-  for (auto& t : consumers) t.join();
+  // 等等到每个消费者真的消费完再 Stop，否则 Stop() 会丢弃未跑的任务。
+  for (size_t i = 0; i < consumers.size(); ++i) {
+    finished[i]->Wait();
+    consumers[i]->Stop();
+  }
   LOG(INFO) << "  (c) 生产者产出 " << produced << "，消费者共消费 " << consumed
             << " (应为 " << kTotal << "，等待期间锁被正确释放/重持)";
 }
@@ -183,27 +222,30 @@ void DemoAtomicFlag() {
   base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
   std::atomic<int> work{0};
 
-  std::thread worker([&] {
-    started.Signal();  // 先就位，让主线程确认已进入循环
-    // 可被中断的工作循环：每次迭代检查取消标志
-    while (!stop.IsSet()) {
-      work.fetch_add(1);
-    }
-    done.Signal();  // 通知主线程已退出
-  });
+  base::Thread worker("avbase-flag");
+  CHECK(worker.Start());
+  worker.task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([&started, &stop, &work, &done] {
+        started.Signal();  // 先就位，让主线程确认已进入循环
+        // 可被中断的工作循环：每次迭代检查取消标志
+        while (!stop.IsSet()) {
+          work.fetch_add(1);
+        }
+        done.Signal();  // 通知主线程已退出
+      }));
 
-  started.Wait();   // 等 worker 进入循环（避免主线程抢先 Set 导致 work=0）
-  stop.Set();       // 取消 worker
-  done.Wait();      // 精确等 worker 真正退出（而非 sleep 猜）
-  worker.join();
+  started.Wait();  // 等 worker 进入循环（避免主线程抢先 Set 导致 work=0）
+  stop.Set();   // 取消 worker
+  done.Wait();  // 精确等 worker 真正退出（而非 sleep 猜）
+  worker.Stop();
 
   LOG(INFO) << "  (d) AtomicFlag 取消生效：worker 在 IsSet() 后退出，work = "
             << work.load();
 
   // Reset 演示：seek 前清掉中断标志，使后续读取能继续
   base::AtomicFlag interrupt;
-  interrupt.Set();                 // 上次 seek 设置的中断
-  interrupt.Reset();               // seek 前清除
+  interrupt.Set();    // 上次 seek 设置的中断
+  interrupt.Reset();  // seek 前清除
   LOG(INFO) << "  (d) Reset() 后 IsSet() = " << interrupt.IsSet()
             << " (应为 0，下一次读取可继续)";
 }
@@ -220,28 +262,43 @@ void DemoAtomicSequenceNumber() {
   std::vector<int> ids;
   base::Lock ids_lock;
 
-  // 模拟 4 个线程各自取若干 request id
-  std::vector<std::thread> ts;
+  // 模拟 4 条线程各自取若干 request id（base::Thread 见 (a)）
+  std::vector<std::unique_ptr<base::Thread>> ts;
   for (int i = 0; i < 4; ++i) {
-    ts.emplace_back([&] {
-      for (int k = 0; k < 100; ++k) {
-        int id = serial.GetNext();  // 原子递增，全局唯一
-        base::AutoLock l(ids_lock);
-        ids.push_back(id);
-      }
-    });
+    ts.push_back(
+        std::make_unique<base::Thread>("avbase-serial-" + std::to_string(i)));
+    base::Thread* t = ts.back().get();
+    CHECK(t->Start());
+    t->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce([&serial, &ids, &ids_lock] {
+          for (int k = 0; k < 100; ++k) {
+            int id = serial.GetNext();  // 原子递增，全局唯一
+            base::AutoLock l(ids_lock);
+            ids.push_back(id);
+          }
+        }));
   }
-  for (auto& t : ts) t.join();
+  // 同 (a)：Stop() 不 drain，先确认 400 次都跑完再停。
+  for (auto& t : ts) {
+    base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
+    t->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&base::WaitableEvent::Signal, base::Unretained(&done)));
+    done.Wait();
+    t->Stop();
+  }
 
   // 验证：400 个 id 排序后应恰好是 1..400 无重复
   std::sort(ids.begin(), ids.end());
   bool unique = true;
   for (size_t i = 0; i < ids.size(); ++i)
-    if (ids[i] != static_cast<int>(i) + 1) { unique = false; break; }
+    if (ids[i] != static_cast<int>(i) + 1) {
+      unique = false;
+      break;
+    }
 
   LOG(INFO) << "  (e) 400 个并发 GetNext() 结果唯一且连续 = "
-            << (unique ? "true" : "false")
-            << "，当前 Get() = " << serial.Get();
+            << (unique ? "true" : "false") << "，当前 Get() = " << serial.Get();
 }
 
 }  // namespace

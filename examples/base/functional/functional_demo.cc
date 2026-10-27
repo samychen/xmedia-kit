@@ -36,7 +36,9 @@ namespace {
 
 // ---- 一些被绑定的目标 ----
 
-int FreeAdd(int a, int b) { return a + b; }
+int FreeAdd(int a, int b) {
+  return a + b;
+}
 
 void TakeString(std::string sink, std::string* observed) {
   *observed = std::move(sink);
@@ -76,7 +78,8 @@ class Receiver {
 
 // ===========================================================================
 void Part1_OnceCallback() {
-  LOG(INFO) << "========== 第 1 部分：OnceCallback（move-only，一次消费）==========";
+  LOG(INFO)
+      << "========== 第 1 部分：OnceCallback（move-only，一次消费）==========";
 
   // (a) 默认是 null
   base::OnceClosure cb;
@@ -110,7 +113,8 @@ void Part1_OnceCallback() {
 }
 
 void Part2_RepeatingCallback() {
-  LOG(INFO) << "========== 第 2 部分：RepeatingCallback（可拷贝，多次执行）==========";
+  LOG(INFO) << "========== 第 2 "
+               "部分：RepeatingCallback（可拷贝，多次执行）==========";
 
   // (a) 可 Run 多次，拷贝共享同一份绑定状态
   int total = 0;
@@ -138,7 +142,8 @@ void Part2_RepeatingCallback() {
 }
 
 void Part3_BindOnce() {
-  LOG(INFO) << "========== 第 3 部分：BindOnce（绑定自由函数 / lambda / 成员）==========";
+  LOG(INFO) << "========== 第 3 部分：BindOnce（绑定自由函数 / lambda / "
+               "成员）==========";
 
   // (a) 自由函数：参数全绑定 -> 闭包无需参数
   base::OnceCallback<int()> sum = base::BindOnce(&FreeAdd, 20, 22);
@@ -168,27 +173,34 @@ void Part3_BindOnce() {
   //     （bind.h:37-43），unwrap 时原样返回（bind.h:123）—— 不增引用计数、不建
   //     WeakPtr、对生命周期零影响。它与 (d) 「运行时完全一样」（都传裸 C* 当
   //     this、零保活），区别只在意图表达：Unretained 把「这里没保活、危险」写在
-  //     代码表面，而裸指针把这点藏起来，将来改成异步执行照样编译却变 use-after-free。
-  //     何时用：能从结构上证明目标比回调活得久（绑 this 且回调只在其存活期内触发，
-  //     或本例栈对象同步 Run）。何时绝不能用：回调会逃逸到目标可能已死处
+  //     代码表面，而裸指针把这点藏起来，将来改成异步执行照样编译却变
+  //     use-after-free。 何时用：能从结构上证明目标比回调活得久（绑 this
+  //     且回调只在其存活期内触发， 或本例栈对象同步
+  //     Run）。何时绝不能用：回调会逃逸到目标可能已死处
   //     （task/timer/跨线程/延迟）—— 必须改用 (g) WeakPtr。
   base::BindOnce(&Plain::Note, base::Unretained(&plain), 3).Run();
-  LOG(INFO) << "(e) Unretained 接收者 Plain::Note(3) -> plain.last=" << plain.last;
+  LOG(INFO) << "(e) Unretained 接收者 Plain::Note(3) -> plain.last="
+            << plain.last;
 
   // (f) 成员函数 + scoped_refptr 接收者：主动保活（与 (e) 相反）
   //     BindState 把绑定参数「按值」存入 std::tuple（bind.h:244），注释明说
-  //     scoped_refptr/WeakPtr 接收者按值存储以让绑定对象保持存活（bind.h:247-249）。
-  //     故 BindState 自己持有一份 scoped_refptr，与 t 共享同一引用计数：
+  //     scoped_refptr/WeakPtr
+  //     接收者按值存储以让绑定对象保持存活（bind.h:247-249）。 故 BindState
+  //     自己持有一份 scoped_refptr，与 t 共享同一引用计数：
   //       MakeRefCounted   -> 计数 1（t 持有）
   //       绑进 BindState   -> 计数 2（按值存了一份）
   //       t 离开作用域     -> 计数 1，但 BindState 还持有一份 -> Target 不析构
-  //       note_cb.Run()    -> Target 活着，安全（unwrap 取 p.get() 当 this，bind.h:132）
-  //       note_cb 被消费   -> BindState 析构 -> 引用释放 -> 计数 0 -> Target 才 delete
-  //     对比：(e) 零保活，目标可能已死时是你的 bug；(f) 钉住目标让它真执行；(g) 零
-  //     保活但有 WeakPtr 守卫，目标死了自动变 no-op。何时用：想把引用计数对象绑进
-  //     延后/异步回调且「确实要用到它」（如把一帧 VideoFrame 绑进解码完成回调）。
+  //       note_cb.Run()    -> Target 活着，安全（unwrap 取 p.get() 当
+  //       this，bind.h:132） note_cb 被消费   -> BindState 析构 -> 引用释放 ->
+  //       计数 0 -> Target 才 delete
+  //     对比：(e) 零保活，目标可能已死时是你的 bug；(f) 钉住目标让它真执行；(g)
+  //     零 保活但有 WeakPtr 守卫，目标死了自动变
+  //     no-op。何时用：想把引用计数对象绑进
+  //     延后/异步回调且「确实要用到它」（如把一帧 VideoFrame
+  //     绑进解码完成回调）。
   //     代价：目标生命周期被回调延长，会推迟析构。前提：目标本身得是引用计数类型
-  //     （RefCounted/RefCountedThreadSafe），故用 MakeRefCounted<Target>() 而非 Plain。
+  //     （RefCounted/RefCountedThreadSafe），故用 MakeRefCounted<Target>() 而非
+  //     Plain。
   base::OnceClosure note_cb;
   {
     auto t = base::MakeRefCounted<Target>();
@@ -196,13 +208,15 @@ void Part3_BindOnce() {
     // t 在此离开作用域，但 note_cb 内部仍持有一份引用 -> Target 仍存活
   }
   std::move(note_cb).Run();  // 安全：Target 还没析构
-  LOG(INFO) << "(f) scoped_refptr 接收者让目标活过局部作用域（Target 析构在其后发生）";
+  LOG(INFO) << "(f) scoped_refptr 接收者让目标活过局部作用域（Target "
+               "析构在其后发生）";
 
   // (g) 成员函数 + WeakPtr 接收者：目标析构后回调自动变 no-op（核心安全机制）
   base::OnceClosure inert;
   {
     Receiver alive;
-    base::BindOnce(&Receiver::Ping, alive.GetWeakPtr(), 1).Run();  // 存活 -> 执行
+    base::BindOnce(&Receiver::Ping, alive.GetWeakPtr(), 1)
+        .Run();  // 存活 -> 执行
     inert = base::BindOnce(&Receiver::Ping, alive.GetWeakPtr(), 2);  // 延迟执行
   }  // alive 析构：WeakPtrFactory 先把 WeakPtr 失效
   LOG(INFO) << "(g) 目标已死再 Run 绑定的回调 ->";
@@ -218,7 +232,8 @@ void Part3_BindOnce() {
 }
 
 void Part4_BindRepeating() {
-  LOG(INFO) << "========== 第 4 部分：BindRepeating（可重复，绑定值不被移动）==========";
+  LOG(INFO) << "========== 第 4 "
+               "部分：BindRepeating（可重复，绑定值不被移动）==========";
 
   // (a) 多次执行
   int total = 0;
@@ -232,8 +247,8 @@ void Part4_BindRepeating() {
   std::string first, second;
   take.Run(&first);
   take.Run(&second);
-  LOG(INFO) << "(b) 值类型存活于多次 Run：first=\"" << first
-            << "\" second=\"" << second << "\"";
+  LOG(INFO) << "(b) 值类型存活于多次 Run：first=\"" << first << "\" second=\""
+            << second << "\"";
 
   // (c) 返回值
   auto plus1 = base::BindRepeating(&FreeAdd, 1);
@@ -243,7 +258,8 @@ void Part4_BindRepeating() {
 void Part5_Helpers() {
   LOG(INFO) << "========== 第 5 部分：callback_helpers ==========";
 
-  // (a) DoNothing 返回“可执行的空闭包”，不是 null —— 因此 std::move(cb).Run() 永远安全
+  // (a) DoNothing 返回“可执行的空闭包”，不是 null —— 因此 std::move(cb).Run()
+  // 永远安全
   base::OnceClosure dn = base::DoNothing();
   LOG(INFO) << "(a) DoNothing is_null=" << dn.is_null() << "（可安全 Run）";
   std::move(dn).Run();

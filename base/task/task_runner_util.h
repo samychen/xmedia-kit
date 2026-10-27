@@ -89,8 +89,9 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
 
   // Cross-sequence: run the task on the worker, then post the reply to the
   // caller's sequence from inside the worker so the hand-off is synchronized.
-  OnceClosure work([t = std::forward<Task>(task), r = std::forward<Reply>(reply),
-                    reply_runner, slot, from_here]() mutable {
+  OnceClosure work([t = std::forward<Task>(task),
+                    r = std::forward<Reply>(reply), reply_runner, slot,
+                    from_here]() mutable {
     slot->value = std::move(t)();
     OnceClosure done([r = std::move(r), slot]() mutable {
       std::move(r).Run(std::move(slot->value));

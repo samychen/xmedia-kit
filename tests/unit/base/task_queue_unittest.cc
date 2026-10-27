@@ -231,7 +231,8 @@ TEST(TaskRunnerUtilTest, PostTaskAndReplyWithResultDeliversTheValue) {
 // is what PostTaskAndReplyWithResult is documented (docs/04 §3) to do, and
 // what a data race on the result slot would break.
 TEST(TaskRunnerUtilTest, ReplyRunsOnCallingSequenceNotWorker) {
-  auto caller = MakeRefCounted<TaskQueue>();  // installed as the current default
+  auto caller =
+      MakeRefCounted<TaskQueue>();  // installed as the current default
   Thread worker("reply-worker");
   ASSERT_TRUE(worker.Start());
 
