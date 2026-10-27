@@ -594,6 +594,13 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
     checker. std::this_thread::sleep_for is NOT matched: the substring
     "std::thread" does not occur in "std::this_thread", so the waiting loops
     the examples legitimately use are untouched.
+
+    The rule matches THREAD CREATION, not the word: `std::thread::id` is a type
+    an example may name while talking to base::Thread (GetThreadId(), comparing
+    two ids) and none of that spawns anything. The lookahead `(?!::)` keeps
+    `std::thread worker(...)` and `std::vector<std::thread>` while letting
+    `std::thread::id` through -- before it, three of threading_demo.cc's lines
+    were reported for merely holding an id.
     """
     # C29: no other module's export macro in the public facade.
     export_re = re.compile(r"\bAVBASE_([A-Z][A-Z0-9]*)_EXPORT\b")
@@ -625,7 +632,7 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
             # punishes the honest comment trains people to delete it.
             code = re.sub(r'"(?:\\.|[^"\\])*"', '""', line)
             code = re.sub(r"//.*$", "", code)
-            if re.search(r"\bstd::thread\b", code):
+            if re.search(r"\bstd::thread\b(?!::)", code):
                 report.add("C30", path, i,
                            "std::thread in an example — use base::Thread, "
                            "which carries a task queue and a bounded Stop() "
