@@ -106,7 +106,6 @@ class LiveCueExpiryTest : public ::testing::Test {
     live_ = std::make_unique<test::SyntheticLiveDemuxer>(spec, nullptr);
 
     pipeline_ = std::make_unique<PipelineImpl>();
-    pipeline_->SetTickClock(&tick_clock_);
     pipeline_->SetClock(av_sync_);
     pipeline_->SetLiveCueMaxAge(window);
     pipeline_->Start(MakeSingleSource(std::move(live_)),

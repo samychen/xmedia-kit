@@ -308,7 +308,6 @@ Status PlayerImpl::PrepareAsync() {
   // of PrepareAsync uses this local handle instead of the member.
   auto pipeline = std::make_shared<media::PipelineImpl>();
   SetPipeline(pipeline);
-  pipeline->SetTickClock(deps_->tick_clock.get());
   pipeline->SetClock(av_sync);
   // The pipeline is the only layer that learns the source is live (from the
   // demuxer), so the cue-age window travels here and the policy is decided

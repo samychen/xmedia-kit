@@ -66,10 +66,8 @@ class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
   // parallel to the demuxer vector passed to Start(): descriptor[i] opens
   // sources_[i]. A single-source Start passes a one-element vector, which
   // reproduces the old single-descriptor path exactly (docs/14 stage 3).
-  // |clock| must outlive the pipeline (Player::Impl owns it via Deps).
   void SetSource(std::vector<DataSourceDescriptor> sources,
                  DemuxerOptions options);
-  void SetTickClock(const base::TickClock* clock);
   // Self-initiated live-edge fast-forward (docs/12 §2.1): when a live
   // source's playhead falls further behind the edge than the latency hint,
   // the pipeline drops its buffers and skips to the edge. Not a demuxer
@@ -80,6 +78,13 @@ class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
   // The shared clock controller; the facade constructs it per playback and
   // hands the same instance to the renderer factory, so the master clock has
   // exactly one owner chain and GetMediaTime() survives renderer teardown.
+  //
+  // This is also the pipeline's ONLY clock injection point, which is why there
+  // is no SetTickClock() beside it: the injectable TickClock reaches the media
+  // clocks THROUGH AvSyncController (it holds it as `wall_` and hands it to
+  // audio_/video_/external_), and those are where NowTicks() is actually
+  // called. A PipelineImpl member holding the same pointer would be a second,
+  // unused copy of the fact -- exactly what docs/TODO §2 says not to keep.
   void SetClock(std::shared_ptr<AvSyncController> av_sync);
 
   // How far behind the media clock a text cue may be on a LIVE source before
@@ -214,7 +219,6 @@ class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
   // SetSource() is called.
   std::vector<DataSourceDescriptor> descriptors_;
   DemuxerOptions options_;
-  base::raw_ptr<const base::TickClock> tick_clock_ = nullptr;
   base::scoped_refptr<base::SequencedTaskRunner> media_runner_;
   base::raw_ptr<Client> client_ = nullptr;
   base::raw_ptr<RendererFactory> renderer_factory_ = nullptr;

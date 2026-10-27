@@ -229,7 +229,6 @@ class PipelineTestFixture : public ::testing::Test {
     renderer_factory_ = std::make_unique<DefaultRendererFactory>(deps);
 
     pipeline_ = std::make_unique<PipelineImpl>();
-    pipeline_->SetTickClock(&tick_clock_);
     pipeline_->SetClock(av_sync_);
   }
 

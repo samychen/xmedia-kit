@@ -36,10 +36,6 @@ void PipelineImpl::SetSource(std::vector<DataSourceDescriptor> sources,
   options_ = std::move(options);
 }
 
-void PipelineImpl::SetTickClock(const base::TickClock* clock) {
-  tick_clock_ = clock ? clock : base::DefaultTickClock::GetInstance();
-}
-
 void PipelineImpl::SetClock(std::shared_ptr<AvSyncController> av_sync) {
   av_sync_ = std::move(av_sync);
 }
