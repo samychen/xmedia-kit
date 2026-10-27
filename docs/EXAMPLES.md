@@ -1,8 +1,14 @@
 # EXAMPLES · `examples/` 逐文件说明
 
-> 更新：**2026-10-23**。9 个受版本控制的文件，**6 个可执行目标**：5 个是给人读的
-> 例子，第 6 个（`doc_snippets`）是 [COOKBOOK.md](COOKBOOK.md) 里代码块的可编译形式，
-> 它不是 demo 而是一道门禁，所以放在 §6 单独说。
+> 更新：**2026-10-26**。15 个受版本控制的文件，**11 个可执行目标**：10 个是给人读的
+> 例子（顶层 5 个宿主例子 + `base/` 下 5 个基础库教学 demo），第 11 个
+> （`doc_snippets`）是 [COOKBOOK.md](COOKBOOK.md) 里代码块的可编译形式，它不是 demo
+> 而是一道门禁，所以放在 §6 单独说。
+>
+> `base/` 那 5 个 demo 是 2026-10-24 加入的（`memory` / `functional` / `task` /
+> `threading` / `synchronization`）：`base/` 是宿主唯一会直接照抄的一层，所以它
+> 值得有自己的教学例子。它们只链接 `avbase::base`，不需要 FFmpeg/SDL/GL，因此在
+> `no-ffmpeg` 预设下也构建。
 > 姊妹篇：[TOOLS.md](TOOLS.md)（`tools/` 逐文件说明）。
 >
 > 这个目录是**一把尺子，不是一批 demo**：[10 §6](10-SDK易用性设计.md) 把「最短出画
@@ -16,7 +22,7 @@
 
 | 文件 | 目标 | 构建开关 | 行数 |
 |---|---|---|---|
-| `CMakeLists.txt` | — | — | 54 |
+| `CMakeLists.txt` | — | — | 63 |
 | `headless.cc` | `headless` | `AVBASE_ENABLE_FFMPEG` | 156 |
 | `play_sdl2.cc` | `play_sdl2` | `AVBASE_ENABLE_FFMPEG` **且** `AVBASE_ENABLE_SDL2` | 161 |
 | `play_glfw.cc` | `play_glfw` | `AVBASE_ENABLE_GLFW` **且**找到 glfw3 | 352 |
@@ -25,6 +31,12 @@
 | `doc_snippets/cookbook_smoke.cc` | `doc_snippets` | `AVBASE_ENABLE_FFMPEG` | 241 |
 | `sdl2_demo.h` | （头文件，被 `play_sdl2` 用） | — | 390 |
 | `scene_demo.h` | （头文件，被 GL 宿主例子用） | — | 237 |
+| `base/CMakeLists.txt` | — | — | 46 |
+| `base/memory/memory_demo.cc` | `memory_demo` | 无（纯 base） | 186 |
+| `base/functional/functional_demo.cc` | `functional_demo` | 无（纯 base） | 303 |
+| `base/task/task_demo.cc` | `task_demo` | 无（纯 base） | 414 |
+| `base/threading/threading_demo.cc` | `threading_demo` | 无（纯 base） | 367 |
+| `base/synchronization/synchronization_demo.cc` | `synchronization_demo` | 无（纯 base） | 315 |
 
 **源清单是逐个列出的，不是 glob**（[06 §7.6](06-CMake工程与构建体系.md)）：五个可执行
 文件同在一个目录、却分属四组不同的开关，**目录成员 ≠ 目标成员**，glob 表达不了。
@@ -127,7 +139,31 @@ surface** 让例子自包含、不依赖窗口系统。
 cmake --build build/ffmpeg --target doc_snippets
 ```
 
-## 7. 两个头文件：宿主策略不属于库
+## 7. `base/` 下的五个教学 demo
+
+它们不是「另一个播放器例子」，而是**基础库的阅读辅助**：`base/` 是宿主唯一会直接
+照抄的一层（宿主不自造 `WeakPtr`，它用 avbase 的），所以这一层值得有能跑的说明书。
+共同约定：只链接 `avbase::base`，不需要 FFmpeg/SDL/GL，因此在 `no-ffmpeg` 预设下也
+构建；都用 `base::WaitableEvent` 或 `ManualClock` 做**确定性**驱动，不靠 `sleep` 猜时间。
+
+| 目标 | 覆盖 | 为什么值得单独跑一遍 |
+|---|---|---|
+| `memory_demo`（186 行） | `scoped_refptr` 的三种所有权动词（`MakeRefCounted` / `WrapRefCounted` / `AdoptRef`）、`WeakPtr`/`WeakPtrFactory`、`ptr_util::WrapUnique`、`raw_ptr<T>` | 引用计数最贵的两个错是「`AdoptRef` 接 `new`」（计数从 0 减到 -1，永不析构）和「把有副作用的表达式藏在 `DCHECK` 参数里」（release 下整段被编译掉）。两个都在这里现场演示 |
+| `functional_demo`（303 行） | `OnceCallback` / `RepeatingCallback` / `BindOnce` / `BindRepeating` / `callback_helpers`（`DoNothing`、`ScopedClosureRunner`），四种接收者（裸指针、`Unretained`、`scoped_refptr`、`WeakPtr`） | 「绑定 `WeakPtr` 后目标析构，回调自动变 no-op」是 avbase 从结构上消灭 UAF 的核心机制，看一次比读十遍注释有效 |
+| `task_demo`（414 行） | `TaskRunner::PostTask/PostDelayedTask`、`SequencedTaskRunner` 的顺序保证、`TaskQueue` 的 `Run`/`Quit`/`Clear`/诊断 API、`PostTaskAndReplyWithResult` | 两处**会咬人**的语义在这里被钉住：延迟任务按 `(ready_time, sequence_number)` 排序（已到期的不被后投的即时任务超车），以及「任务持有自己队列的 `scoped_refptr`」= 引用环 = 队列永不析构（Part 4 现场制造再 `Clear()` 化解） |
+| `threading_demo`（367 行） | `Thread`（`Start`/`Stop`、提前投递、`GetThreadId`、`Options` 与三档优先级）、`platform_thread` 的 `SetName`/`GetName`、`SequenceChecker` | `Stop()` **不 drain**：未执行的 pending 会被丢弃（与 Chromium `Thread::Stop` 默认 drain 不同）。要优雅关闭必须先等到 in-flight 完成 —— 这条在 (e2) 段用 100 个任务实测，不是口头约定 |
+| `synchronization_demo`（315 行） | `Lock`/`AutoLock`/`AutoUnlock`、`ConditionVariable`、`AtomicFlag`（含 `Reset`）、`AtomicSequenceNumber`，以及 `lock.cc` 的死锁顺序检查器 | (b) 段逐方法讲 `HeldStack`/`ObservedOrder`/`AssertAcquiredInOrder`/`RecordRelease`：(a,b) 顺序合法，(b,a) 会 `LOG(FATAL)`。这是 `docs/04 §3.1` 单一全局锁顺序在 debug 构建里的执行点 |
+
+它们**同时是 C30 的样板**：这五个 demo 里所有并发都用 `base::Thread`，
+没有一个裸 `std::thread` —— 例子是宿主会照抄的模板，抄走的必须是 SDK 的线程词汇。
+
+```bash
+cmake --build build/no-ffmpeg --target memory_demo functional_demo task_demo \
+    threading_demo synchronization_demo
+./build/no-ffmpeg/bin/task_demo      # 其余四个同理，直接看 [INFO] 输出
+```
+
+## 8. 两个头文件：宿主策略不属于库
 
 | 文件 | 装什么 | 为什么在 `examples/` |
 |---|---|---|
@@ -138,17 +174,25 @@ cmake --build build/ffmpeg --target doc_snippets
 
 ---
 
-## 8. 三条压在这个目录上的规则
+## 9. 四条压在这个目录上的规则
 
 | 规则 | 内容 | 谁执行 |
 |---|---|---|
 | C30 | 不许起裸 `std::thread`——例子是宿主抄的模板，所以它必须说 SDK 的线程词汇（`base::Thread`） | `check_invariants.py` |
 | C1 | 单文件 500 行（连注释） | `check_invariants.py` |
 | §12 约束 | 验收例子的主文件 < 300 行（G13：clone 到第一帧 15 分钟） | 人工；`sdl2_demo.h` 头注释记录了这条约束当初是怎么把 play_sdl2 压回去的 |
+| C23 | 80 列棘轮（`tools/column_baseline.txt` 只降不升） | `check_invariants.py` |
+
+**C30 的判据是「起线程」，不是「出现 `std::thread` 这个词」**：`std::thread::id` 是
+`Thread::GetThreadId()` 的返回类型，比较两个 id 什么也没创建，所以门禁带
+`(?!::)` 前瞻把它放过。2026-10-26 之前这条规则用的是裸 `\bstd::thread\b`，
+把 `threading_demo.cc` 里三处「拿 id」误报成了「起裸线程」；同一轮里
+`base/` 那五个 demo 的 5 处真违规（`std::thread` / `std::vector<std::thread>`）
+已全部改成 `base::Thread`。
 
 ---
 
-## 9. 跑一遍
+## 10. 跑一遍
 
 ```bash
 # 最短：不需要窗口系统

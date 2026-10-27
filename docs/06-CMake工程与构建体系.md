@@ -1202,7 +1202,7 @@ endif()
 | job | 证明的命题 |
 |---|---|
 | `quick` | **G2**：只有 C++20 编译器（无 FFmpeg/X11/SDL2）也能编译核心、全过测试，且门禁通过 |
-| `ffmpeg` | 发行版 FFmpeg 可用（**A14**：不 vendor、不 patch），FFmpeg 层可编译、585 用例全过 |
+| `ffmpeg` | 发行版 FFmpeg 可用（**A14**：不 vendor、不 patch），FFmpeg 层可编译、770 用例全过 |
 | `e2e-headless` | 端到端：5 个样本真实播到 kCompleted；`--seek` 走通；损坏文件**以可操作错误失败**且退出码正确 |
 | `sdl2-build` | SDL2 后端在 Linux（发行版 SDL2 + 音频栈）上可编译可链接 |
 | `strict` | Debug + DCHECK + 严格告警 + `-Werror` 覆盖含 FFmpeg 的整棵树（clang；GCC 半边等 `-Wuseless-cast` 实测，理由见 job 注释） |

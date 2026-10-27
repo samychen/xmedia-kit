@@ -55,7 +55,7 @@ ctest --preset no-ffmpeg --output-on-failure
 ```
 
 这条验证设计目标 **G2**：核心只用一个 C++20 编译器就能构建并通过测试。
-预期 **468 个用例全绿**（不含需要 FFmpeg 的那部分）。用例数会随改动增长，
+预期 **635 个用例全绿**（不含需要 FFmpeg 的那部分）。用例数会随改动增长，
 最新值以 [PROGRESS.md](PROGRESS.md) 为准。
 
 ### 3.2 带真实媒体的完整测试
@@ -175,7 +175,7 @@ CI job 守护）。需要 Homebrew 安装依赖：
 brew install sdl2 ffmpeg cmake ninja
 cmake --preset macos-sdl2
 cmake --build --preset macos-sdl2
-ctest --preset macos-sdl2 --output-on-failure     # 预期 588 用例全绿
+ctest --preset macos-sdl2 --output-on-failure     # 预期 842 用例全绿
 ```
 
 `macos-sdl2` 产出 `play_sdl2` 真窗口二进制（`otool -L` 确认链接 `libSDL2-2.0.0` +

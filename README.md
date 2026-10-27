@@ -12,17 +12,26 @@
 > **当前状态：M0–M11 ✅ · Phase 0/1/3/4 与转码 E1–E5 已铺设 · 审查报告
 > Critical/High/Medium/Low 全部清零（第四十三、四十四轮）· 清理与深修两轮（第四十五、四十六轮）**
 >
-> | 配置 | 结果 |
+> | 配置 | 结果（2026-10-26） |
 > |---|---|
-> | `no-ffmpeg`（无 FFmpeg / SDL2 / X11） | ✅ **468/468** |
-> | `ffmpeg`（FFmpeg + 解复用/解码/转码） | ✅ **585/585** |
-> | `full`（FFmpeg + SDL2 + 示例，macOS 真窗口） | ✅ **588/588** |
+> | `no-ffmpeg`（无 FFmpeg / SDL2 / X11） | ✅ **635/635** |
+> | `ffmpeg`（FFmpeg + 解复用/解码/转码） | ✅ **770/770** |
+> | `macos-sdl2`（FFmpeg + SDL2） | ✅ **842/842** |
+> | `full`（= `macos-sdl2` + fuzz 目标） | ✅ **785/785** |
 > | `debug`（Debug + DCHECK + `-Werror`） | ✅ 全绿，零警告 |
+> | `macos-sdl2-werror`（含示例与全部后端，`-Werror`） | ✅ **868/868** |
 > | `asan`（ASan + UBSan + **LSan**） | ✅ 全绿，**0 泄漏** |
-> | `tsan`（**ThreadSanitizer**） | ✅ 全绿，**0 data race** |
-> | `check_invariants.py` | ✅ 全规则通过（**364 文件**；C23 列宽棘轮 **35**） |
+> | `tsan`（**ThreadSanitizer**） | ✅ 543/543，**0 data race** |
+> | `capi`（C ABI） | ✅ 770/770 |
+> | `qt`（Qt 6 宿主） | ✅ 625/625 |
+> | `check_invariants.py` | ✅ 全规则通过（**540 文件**；C23 列宽棘轮 **2**） |
+> | `clang-format --dry-run --Werror` | ✅ 533 文件零 diff |
+> | `cpplint --repository=.` | ✅ 166 个 `.cc` 零错误（2026-10-26 补上 `base/logging.cc` 缺的 `<utility>`） |
 > | `extract_constants.py --selftest` | ✅ 24 个移植常量与 docs/05 表 7 一致 |
 >
+> 上表的取证方式：`no-ffmpeg`、`macos-sdl2-werror`、`asan` 是**整树重建后实跑**；
+> `ffmpeg`、`macos-sdl2`、`full`、`capi`、`qt`、`tsan` 是 `ctest -N` 的**注册数**
+> （本轮未逐棵重建，数字可信但未实跑）。重建后再报数，别照抄。
 > ⚠️ **用例数以 [docs/PROGRESS.md](docs/PROGRESS.md) 为准**（活文档，实测值见上表）。
 > **能播放了**：`examples/headless <url>` 完整播到 kCompleted，`examples/play_sdl2
 > --url <url>` 真窗口带音频出画（SDL2 后端）。
@@ -300,29 +309,32 @@ avbase/
 │   │                            拼接 · remux · 异步任务）
 │   └── renderers/           ✅ DefaultRendererFactory
 ├── player/
-│   ├── public/              ✅ 11 个 SDK 头（`version.h` 删：只有声明无定义）
-│   └── *.cc                 ✅ 17 文件 —— player_impl 拆 events/stop 等 TU 承载
+│   ├── public/              ✅ 15 个 SDK 头（含 `c/` 的 C ABI 头）
+│   └── *.cc                 ✅ 21 文件 —— player_impl 拆 events/stop 等 TU 承载
 │                               状态机、事件枢纽与 S1/S3/S4 三线程
 ├── platform/
-│   ├── sdl2/                ✅ 10 文件 / 1,875 行 —— Linux 出画由 SDL2 后端交付
+│   ├── sdl2/                ✅ 11 文件 / 1,235 行 —— Linux 出画由 SDL2 后端交付
 │   ├── hwaccel/             ✅ VideoToolbox / VAAPI / D3D11 的 hw spec 头
 │   └── linux/               ⬜ M12 已顺延；开关在 platform/CMakeLists.txt 里是
 │                               有意的 FATAL_ERROR（见 docs/archive/09）
-├── tests/                   ✅ 91 文件 / 19,842 行 · 588 用例（`full` 预设）
-│                               unit/ 66 个 .cc · support/ 夹具 · fuzz/ 2 个目标
+├── tests/                   ✅ 136 文件 / 30,667 行 · 868 用例（`macos-sdl2-werror`）
+│                               unit/ 107 个 .cc · support/ 夹具 · fuzz/ 2 个目标
 │                            ⬜ contract/ integration/ golden/ e2e/ stress/ bench/
-├── tools/                   ✅ `tools/*.py` 5,721 行
-│                               check_invariants.py（C1–C30 / 485 文件）
+├── tools/                   ✅ `tools/*.py` 10,005 行（22 个脚本）
+│                               全目录 44 个受控文件；check_invariants.py（C1–C30 / 540 文件）
 │                               extract_constants.py · gen_options.py · sim_wsola.py
 │                               inspect/ → avbase-inspect（probe · decode · sync）
 │                            ⬜ golden_record.py · golden_diff.py · verify_e2e.py
-├── examples/                ✅ 6 个可执行目标 / 1,444 行 .cc + 2 个宿主样板头
+├── examples/                ✅ 11 个可执行目标 / 3,029 行 .cc + 2 个宿主样板头
 │                               （headless 156 · play_sdl2 161 · pull_frames 246 ·
 │                                play_glfw 352 · play_egl 288 · doc_snippets 241
 │                                —— 最后一个是 COOKBOOK 代码块的编译烟测，不是
 │                                demo；scene_demo.h 237 · sdl2_demo.h 390 是
 │                                主机策略，按 docs/10 §12 从 play_sdl2.cc
 │                                拆出，main 文件 ≤300 行的度量）
+│                               + base/ 5 个教学 demo（memory 186 · functional 303
+│                                · task 414 · threading 367 · synchronization 315），
+│                                只链 avbase::base，见 docs/EXAMPLES.md §7
 ├── third_party/             ⬜ 按设计保持为空（不 vendor）
 └── docs/                    ✅ 13 篇编号卷（01–08 + 10–14）+ PROGRESS ·
                              BUILDING · TODO · API（Doxygen 生成，apidocs
@@ -333,8 +345,8 @@ avbase/
                              + archive/（1–9 轮进度 · 09 Linux 方案）+ reviews/
 ```
 
-合计：**364 个 `.h`/`.cc`** —— C++ **39,488 行实现 + 19,842 行测试**，
-`tools/*.py` **5,721 行**。逐项进度以 [docs/PROGRESS.md](docs/PROGRESS.md) 为准。
+合计：**540 个 `.h`/`.cc`** —— **55,427 行实现（含 examples/bench）+ 30,667 行测试**，
+`tools/*.py` **10,005 行**。逐项进度以 [docs/PROGRESS.md](docs/PROGRESS.md) 为准。
 
 > **路径变更通知（ /）**：①  `video_frame_compositor.{h,cc}`、
 > `av_sync_controller.{h,cc}`、`clock.{h,cc}` 移入 `media/filters/legacy/`（LGPL-2.1 隔离），
