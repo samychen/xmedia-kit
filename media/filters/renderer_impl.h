@@ -250,8 +250,8 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   // renderer_impl_unittest.cc reported the direct version as a data race.
   void PostVideoInitialized(int source_index, PipelineStatus status);
   void PostAudioInitialized(PipelineStatus status);
-  // Runtime audio-track switch (Phase 4). Runs on S1; |settings| carries what
-  // the outgoing renderer had, captured on S4 during teardown.
+  // Runtime audio-track switch (Phase 4). Runs on S1; |settings| is what the
+  // replacement inherits (see the capture site).
   struct SwitchedAudioSettings {
     float volume;
     bool muted;
@@ -479,8 +479,8 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   // not exist. Recording it here means the flag is not silently dropped, and
   // the gap is one line to close later.
   bool render_muted_audio_{true};
-  double playback_rate_{1.0};
-  float volume_{1.0f};
+  double playback_rate_{1.0};        // switch-authoritative, like volume_ below
+  std::atomic<float> volume_{1.0f};  // switch-authoritative; any-thread setter
   // The pipeline's init callback, held from Initialize() until both
   // sub-renderers report. The first draft passed it through the video path's
   // callback; when video finished before audio, the closure died in the

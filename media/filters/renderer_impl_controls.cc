@@ -207,6 +207,9 @@ void RendererImpl::SetPlaybackRate(double playback_rate) {
 
 void RendererImpl::SetVolume(float volume) {
   volume_ = volume;
+  // Stored unconditionally, including while there is no audio leg: the value
+  // is what an audio-track switch re-applies to the replacement renderer, and
+  // a host may legitimately set the volume before any audio exists.
   if (audio_) {
     deps_.audio_task_runner->PostTask(
         FROM_HERE, base::BindOnce(&AudioRendererImpl::SetVolume,

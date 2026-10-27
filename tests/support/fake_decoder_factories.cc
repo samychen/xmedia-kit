@@ -75,11 +75,22 @@ void FakeAudioDecoder::Decode(base::scoped_refptr<DecoderBuffer> buffer,
     return;
   }
   const int32_t serial = buffer->serial();
+  // The payload is a raw byte buffer reinterpreted as f32 by the renderer, so
+  // the sample value is written through a float view rather than by packing
+  // bytes by hand. 0 stays the default (silence).
+  const size_t float_count = static_cast<size_t>(kFramesPerBuffer) * kChannels;
+  std::vector<uint8_t> data(float_count * sizeof(float), 0);
+  if (behaviour_.audio_sample_value != 0.0f) {
+    float* samples = reinterpret_cast<float*>(data.data());
+    for (size_t i = 0; i < float_count; ++i) {
+      samples[i] = behaviour_.audio_sample_value;
+    }
+  }
   for (int i = 0; i < behaviour_.outputs_per_buffer; ++i) {
     output_cb_.Run(AudioBuffer::Create(
         SampleFormat::kF32P, ChannelLayout::kStereo, kChannels, kSampleRate,
         kFramesPerBuffer, base::Milliseconds(i), base::Microseconds(21333),
-        serial, std::vector<uint8_t>(kFramesPerBuffer * 4 * kChannels, 0)));
+        serial, data));
   }
   std::move(decode_cb).Run(DecoderStatus());
 }

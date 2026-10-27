@@ -70,6 +70,12 @@ struct FakeDecoderBehaviour {
   // Negative means never change, which is every existing suite's assumption.
   int geometry_change_after{-1};
   Size second_coded_size{640, 480};
+  // Audio only: the sample value every emitted AudioBuffer carries. 0 (the
+  // default) is deliberate silence, which is all most suites need -- they
+  // assert on counts, timestamps and flow. A non-zero value is for the one
+  // question silence cannot answer: whether the render path's gain was
+  // applied, since `muted ? 0 : volume` scales the samples themselves.
+  float audio_sample_value{0.0f};
 };
 
 class FakeAudioDecoder final : public AudioDecoder {

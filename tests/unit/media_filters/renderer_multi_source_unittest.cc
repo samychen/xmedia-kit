@@ -25,8 +25,10 @@
 
 #include "media/filters/renderer_impl.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -289,11 +291,28 @@ class RendererMultiSourceTest : public ::testing::Test {
       audio_bus_ = AudioBus::Create(2, kFramesPerBuffer);
     }
     const int frames = audio_sink_->PullPeriod(audio_bus_.get());
+    last_period_peak_ = 0.0f;
     if (frames > 0) {
       ++audio_periods_with_data_;
+      // The render path applies `muted ? 0 : volume` to the samples, so the
+      // peak a period carries IS the gain in force. Recording it here is what
+      // turns "the volume survived a switch" into an assertion about output
+      // rather than about a setter having been called.
+      const float* samples = audio_bus_->channel(0);
+      for (int f = 0; f < audio_bus_->frames(); ++f) {
+        last_period_peak_ = std::max(last_period_peak_, std::abs(samples[f]));
+      }
     }
     return frames;
   }
+
+  // True when this period actually carried signal (not just frames of
+  // silence), which is the gate "audio reached the device at all".
+  bool PullOnePeriodWithSignal() {
+    return PullAudioPeriod() > 0 && last_period_peak_ > 0.0f;
+  }
+  bool SawSignalInLastPeriod() const { return last_period_peak_ > 0.0f; }
+  float LastPeriodPeak() const { return last_period_peak_; }
 
   // Same bounded drain as renderer_impl_unittest.cc's: run what is ready,
   // then destroy. The weak-bound S1 hops make a tick still in flight inert
@@ -328,6 +347,8 @@ class RendererMultiSourceTest : public ::testing::Test {
   std::shared_ptr<test::FakeVideoSinkFactory> extra_factory_;
   std::shared_ptr<test::SourceAwareVideoSinkFactory> source_aware_factory_;
   base::scoped_refptr<test::FakeAudioSink> audio_sink_;
+  // Peak of the most recent non-empty audio period; see PullAudioPeriod().
+  float last_period_peak_ = 0.0f;
   test::FakeMediaResource resource_;
   std::vector<std::unique_ptr<test::FakeDemuxerStream>> video_streams_;
   std::vector<std::unique_ptr<test::FakeDemuxerStream>> audio_streams_;
@@ -498,6 +519,139 @@ TEST_F(RendererMultiSourceTest, SwitchingToAnotherSourcesVideoTrackIsRefused) {
   EXPECT_TRUE(WaitFor([this, frames_before] {
     return host_sink_->frames().size() > frames_before;
   })) << "source 0's leg stopped presenting after a refused switch";
+}
+
+// A successful audio-track switch must carry the user's volume across.
+//
+// WHY THIS TEST EXISTS. The switch builds a BRAND-NEW AudioRendererImpl, which
+// starts at its own defaults (volume 1.0), so whatever the user set has to be
+// carried across explicitly. This test is the BASELINE case: the outgoing
+// renderer had already received the value, so it passes both before and after
+// the fix -- it is here so that a future change which stops carrying the
+// volume at all still fails somewhere. The case the old code actually got
+// wrong is the sibling below (a volume set before the audio leg existed), and
+// that one is red without the fix.
+//
+// The observable is the samples themselves: the render path scales by
+// `muted ? 0 : volume` (audio_renderer_impl_render.cc), so a low peak proves
+// the replacement inherited the VALUE, not merely that a setter was called.
+TEST_F(RendererMultiSourceTest, AnAudioTrackSwitchKeepsTheUsersVolume) {
+  // Unit-amplitude samples: the render path scales them by the gain in force,
+  // so the peak a period carries reports that gain. Silence (the default)
+  // would make every gain look identical.
+  behaviour_.audio_sample_value = 1.0f;
+  SetTwoSources();
+  ScriptBuffers(/*buffers=*/60);
+  CreateRenderer();
+  Initialize();
+  ASSERT_TRUE(WaitFor([this] { return init_done_; }));
+  ASSERT_EQ(init_status_, PipelineStatus::kOk);
+  renderer_->StartPlayingFrom(base::TimeDelta());
+  ASSERT_TRUE(WaitFor([this] { return audio_streams_[0]->read_count() > 0; }));
+
+  // 0.25 is far from both extremes, so neither "silent" nor "unscaled" can
+  // pass by accident. Set while the outgoing renderer is live, which is the
+  // ordinary case; the pre-audio-leg case is covered by the sibling below.
+  renderer_->SetVolume(0.25f);
+  for (int i = 0; i < 300; ++i) {
+    PumpSinks();
+    if (PullOnePeriodWithSignal()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(SawSignalInLastPeriod()) << "no audio was rendered at all";
+
+  // A DIFFERENT audio stream for SOURCE 0. Replacing the slot rather than
+  // adding a second source is what makes this the legal path: the switch
+  // machinery covers source 0's alternates, and a stream from another source
+  // is refused by the §4.2 guard (the test below pins that).
+  auto replacement = std::make_unique<test::FakeDemuxerStream>(
+      DemuxerStreamType::kAudio, test::MakeValidAudioConfig(),
+      test::MakeValidVideoConfig());
+  replacement->set_stream_index(99);
+  for (int i = 0; i < 60; ++i) {
+    replacement->AppendBuffer(
+        test::MakeDataBuffer(DemuxerStreamType::kAudio, replacement->serial()));
+  }
+  DemuxerStream* replacement_raw = replacement.get();
+  resource_.set_stream(0, DemuxerStreamType::kAudio, replacement_raw);
+  audio_streams_.push_back(std::move(replacement));
+
+  bool switch_done = false;
+  renderer_->OnTracksChanged(
+      DemuxerStreamType::kAudio, replacement_raw,
+      base::BindOnce([](bool* flag) { *flag = true; }, &switch_done),
+      /*source_id=*/0);
+  ASSERT_TRUE(WaitFor([&switch_done] { return switch_done; }));
+  ASSERT_FALSE(client_.Has("error")) << client_.last_error().ToString();
+  ASSERT_EQ(audio_factory_->create_calls(), 2)
+      << "the switch did not build a replacement audio renderer, so this test "
+         "would be measuring the old one";
+
+  // Pull the replacement until it produces, then judge the gain it applied.
+  float observed = 0.0f;
+  for (int i = 0; i < 400; ++i) {
+    if (PullOnePeriodWithSignal()) {
+      observed = LastPeriodPeak();
+      break;
+    }
+  }
+  ASSERT_GT(observed, 0.0f) << "the replacement renderer produced no samples";
+  // 0.25 gain: an unscaled (or reset-to-1.0) buffer peaks near 1.0.
+  EXPECT_LE(observed, 0.3f)
+      << "the audio-track switch reset the user's volume (peak " << observed
+      << "); the replacement renderer did not inherit SetVolume(0.25)";
+}
+
+// The pre-audio-leg case: a host may set the volume before any audio exists
+// (SetVolume is legal from the moment the renderer is constructed). That value
+// must be the one a later switch carries forward -- reading it off `audio_`
+// would find the renderer's own default of 1.0 instead.
+TEST_F(RendererMultiSourceTest, AVolumeSetBeforeAnyAudioSurvivesTheSwitch) {
+  behaviour_.audio_sample_value = 1.0f;
+  SetTwoSources();
+  ScriptBuffers(/*buffers=*/60);
+  CreateRenderer();
+  // Set BEFORE Initialize() builds the audio leg.
+  renderer_->SetVolume(0.25f);
+  Initialize();
+  ASSERT_TRUE(WaitFor([this] { return init_done_; }));
+  ASSERT_EQ(init_status_, PipelineStatus::kOk);
+  renderer_->StartPlayingFrom(base::TimeDelta());
+  ASSERT_TRUE(WaitFor([this] { return audio_streams_[0]->read_count() > 0; }));
+
+  auto replacement = std::make_unique<test::FakeDemuxerStream>(
+      DemuxerStreamType::kAudio, test::MakeValidAudioConfig(),
+      test::MakeValidVideoConfig());
+  replacement->set_stream_index(98);
+  for (int i = 0; i < 60; ++i) {
+    replacement->AppendBuffer(
+        test::MakeDataBuffer(DemuxerStreamType::kAudio, replacement->serial()));
+  }
+  DemuxerStream* replacement_raw = replacement.get();
+  resource_.set_stream(0, DemuxerStreamType::kAudio, replacement_raw);
+  audio_streams_.push_back(std::move(replacement));
+
+  bool switch_done = false;
+  renderer_->OnTracksChanged(
+      DemuxerStreamType::kAudio, replacement_raw,
+      base::BindOnce([](bool* flag) { *flag = true; }, &switch_done),
+      /*source_id=*/0);
+  ASSERT_TRUE(WaitFor([&switch_done] { return switch_done; }));
+  ASSERT_FALSE(client_.Has("error")) << client_.last_error().ToString();
+
+  float observed = 0.0f;
+  for (int i = 0; i < 400; ++i) {
+    if (PullOnePeriodWithSignal()) {
+      observed = LastPeriodPeak();
+      break;
+    }
+  }
+  ASSERT_GT(observed, 0.0f) << "the replacement renderer produced no samples";
+  EXPECT_LE(observed, 0.3f)
+      << "a volume set before the audio leg existed was lost across the switch "
+         "(peak "
+      << observed << ")";
 }
 
 // The same guard on the audio side (§4.2): the audio leg belongs to source

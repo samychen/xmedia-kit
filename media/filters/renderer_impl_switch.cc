@@ -196,15 +196,19 @@ void RendererImpl::SwitchAudioRenderer(DemuxerStream* new_stream,
   if (resume_at == kNoTimestamp || resume_at < base::TimeDelta()) {
     resume_at = start_time_;
   }
-  // Capture the user-facing settings on the sequence that mutates them (the
-  // atomics would also make an S1 read data-race-free, but the values must be
-  // taken BEFORE the outgoing renderer dies, and the teardown below runs on
-  // S4 -- capture there).
-  // The settings are atomics on AudioRendererImpl, so reading them here (S1)
-  // is data-race-free; they must be captured before the object is handed to
-  // its teardown task.
-  const SwitchedAudioSettings settings{audio_->volume(), audio_->muted(),
-                                       audio_->playback_rate(),
+  // Capture the user-facing settings for the replacement to inherit. Volume
+  // and rate come from RendererImpl's own copies, NOT from `audio_`:
+  // AudioRendererImpl starts at its own defaults (volume 1.0, rate 1.0) and
+  // only learns otherwise once a posted setter runs, so reading `audio_`
+  // loses both a SetVolume() issued before the audio leg existed and any
+  // setter still sitting in S4's queue. Either miss resets the user's volume
+  // to 1.0 and the rate to 1x on switch -- the rate case is the louder one,
+  // because the master clock keeps running at the old rate.
+  // The other two are read from `audio_` on purpose: this build has no
+  // RendererImpl-level mute or preserves-pitch setter, so the renderer is the
+  // only holder of those values and it must be read before it dies.
+  const SwitchedAudioSettings settings{volume_.load(), audio_->muted(),
+                                       playback_rate_,
                                        audio_->preserves_pitch()};
   // NO blocking here: S4's pending decoder replies are delivered through the
   // media runner, so waiting on S4 from S1 deadlocks (the first draft did
