@@ -17,6 +17,21 @@ const OptionRegistry& Registry() {
 // BufferController / the demuxer queue / the PipelineImpl gate. These tests pin
 // that the string keys now reach the typed fields (and back).
 
+TEST(OptionRegistryGetFrameModeTest, SetsFieldAndDefaultsFalse) {
+  PlayerConfig config;
+  EXPECT_FALSE(config.get_frame_mode);
+  EXPECT_TRUE(
+      Registry()
+          .SetString(&config, OptionCategory::kPlayer, "get-frame-mode", "1")
+          .has_value());
+  EXPECT_TRUE(config.get_frame_mode);
+  EXPECT_TRUE(
+      Registry()
+          .SetInt(&config, OptionCategory::kPlayer, "get-frame-mode", 0)
+          .has_value());
+  EXPECT_FALSE(config.get_frame_mode);
+}
+
 TEST(OptionRegistryBufferTest, PacketBufferingSetsEnabled) {
   PlayerConfig config;
   // ijkplayer passes "0"/"1"; accept both int and string forms.

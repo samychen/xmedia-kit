@@ -110,6 +110,27 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
   // NullVideoSink in discard mode), and enable-accurate-seek is the veto
   // PlayerImpl::SeekTo consults before honouring SeekMode::kAccurate.
 
+  // get-frame-mode: ijkplayer's "decode, don't render" thumbnail mode. The
+  // avbase effect is the same render.disable_video_output flag nodisp drives
+  // -- the video leg keeps decoding and feeding the compositor (so
+  // Player::TakeSnapshot works headlessly), nothing reaches a window -- but
+  // it is a separate KEY because the intent differs: nodisp says "I have no
+  // screen", get-frame-mode says "I want the frames, not the screen".
+  e.push_back(
+      {"get-frame-mode", P, Type::kBool, "get_frame_mode",
+       [](PlayerConfig* c, const OptionValue& v) -> Status {
+         const std::optional<bool> b = ParseBoolOption(v);
+         if (!b)
+           return TypeMismatch("get-frame-mode", "a boolean (1/0)");
+         c->get_frame_mode = *b;
+         return OkStatus();
+       },
+       [](const PlayerConfig& c) -> OptionValue {
+         return c.get_frame_mode;
+       },
+       "thumbnail mode: decode without displaying; grab frames via "
+       "Player::TakeSnapshot (ijkplayer get-frame-mode)"});
+
   e.push_back(
       {"nodisp", P, Type::kBool, "render.disable_video_output",
        [](PlayerConfig* c, const OptionValue& v) -> Status {

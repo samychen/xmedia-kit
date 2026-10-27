@@ -204,6 +204,20 @@ if(AVBASE_ENABLE_FFMPEG)
       AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
   target_include_directories(media_transcode_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
+
+  # ---- player + FFmpeg: the opt-in transcode entry on the Player API
+  # surface (avbase_player_transcode). Its own binary for the same reason as
+  # media_transcode_unittests -- and because unit/player/ stays globbed into
+  # player_unittests, which must keep linking without the transcode target.
+  file(GLOB AVBASE_PLAYER_FFMPEG_UNITTEST_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/unit/player_ffmpeg/*.cc")
+  avbase_add_unittest(player_ffmpeg_unittests
+      SOURCES ${AVBASE_PLAYER_FFMPEG_UNITTEST_SOURCES}
+      DEPS avbase::player_transcode avbase::base_test_support)
+  target_compile_definitions(player_ffmpeg_unittests PRIVATE
+      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+  target_include_directories(player_ffmpeg_unittests SYSTEM PRIVATE
+      ${FFmpeg_INCLUDE_DIRS})
 endif()
 endif()
 

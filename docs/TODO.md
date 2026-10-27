@@ -25,14 +25,20 @@
 > 开不起来。入口判据在 `gate_local --jobs e2e` 与 CI 的 `e2e-headless`：默认
 > 转码要 verified、`--vcodec copy` 要 verified、`--no-video` 要 verified、
 > trim 后时长 < 2 s、**不存在的编码器必须失败并列出本构建真有的编码器**
-> （静默回退会让它 exit 0——突变已验证这条会红）。仍未做：`Player` 上的入口、
-> 录制（播放侧落盘）、推流。
+> （静默回退会让它 exit 0——突变已验证这条会红）。
+>
+> **Player 上的入口已补（2026-10-28）**：`player/public/player_transcode.h`
+> 的 `TranscodeMedia` / `PlayerTranscoder`——opt-in 目标
+> `avbase_player_transcode`（playback 构建不付编码器成本，D11 保持），应用
+> PlayerConfig 的 -vn/-an 语义（`video.disabled`/`audio.disabled` 剥流），
+> 判据 `player_ffmpeg_unittests` 两条（copy 转码 round-trip、-an 剥流断言）。
+> 仍未做：录制（播放侧落盘）、推流。
 
 | 能力 | 现状 |
 |---|---|
 | 录制（播放侧落盘） | ❌ 无。仅 `media/transcode/` 离线转码（输入是文件） |
 | 推流 / RTMP publish | ❌ 无。`rtmp` 仅作**输入**协议 |
-| 缩略图 / seek preview | ❌ 无。`get_frame_mode` 未接线（config 与 DRAFT `.inc` 有，构建注册表无，media 零命中——见 §2） |
+| 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。seek preview 的批量取帧（按时间窗返回 N 帧）仍无，需在 TranscodeJob 之上加一个 preview 任务 |
 | HDR / tone mapping | ❌ 无。`hdr_tone_mapping` 在 media/render 零命中；`kHdrUnsupported` 从未 emit |
 | PBO 上传 | ❌ 未实现。`render_perf_stats.h` 的 `kPbo` 是**预留枚举**——抄 MediaComponent 的 `UploadPath` 词汇表时一并搬过来的，本树从未有生产者（名字/JSON/单测都齐，唯独没有赋值点）。它是软解时代的中间态：只把 1080p 那 8.2 ms 的同步拷贝**搬出渲染线程**，字节数一点没少（每帧 3.1 MB 照样过总线）；能零拷贝的平台上多余，没零拷贝的平台上应直接做 [12 §1](12-剩余工作清单.md) 的 3.1/3.2。见 [07 §11.3](07-测试策略与可观测性.md) |
 | 真色彩管理 | ❌ 无。仅 YUV→RGB 矩阵，无 gamut/EOTF/ICC/HDR→SDR |
