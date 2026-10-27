@@ -155,5 +155,49 @@ TEST(OptionRegistrySeekTest, NonBooleanValueIsRejected) {
       << "a rejected value must leave the config untouched";
 }
 
+// "volume" was the one key docs/05 table 4 and MIGRATION Δ6 documented as
+// "已接通（registry 换算）" while the registry had no entry for it at all:
+// SetOption(kPlayer, "volume", 80) returned kInvalidArgument/"unknown option
+// key". These pin the conversion in both directions and the rejection path.
+TEST(OptionRegistryAudioTest, VolumeConvertsIjkPercentToFraction) {
+  PlayerConfig config;
+  EXPECT_TRUE(Registry()
+                  .SetInt(&config, OptionCategory::kPlayer, "volume", 80)
+                  .has_value());
+  EXPECT_DOUBLE_EQ(config.audio.startup_volume, 0.8);
+  // The boundaries, in the unit the old key used.
+  EXPECT_TRUE(Registry()
+                  .SetInt(&config, OptionCategory::kPlayer, "volume", 0)
+                  .has_value());
+  EXPECT_DOUBLE_EQ(config.audio.startup_volume, 0.0);
+  EXPECT_TRUE(Registry()
+                  .SetInt(&config, OptionCategory::kPlayer, "volume", 100)
+                  .has_value());
+  EXPECT_DOUBLE_EQ(config.audio.startup_volume, 1.0);
+}
+
+TEST(OptionRegistryAudioTest, VolumeAcceptsAnAlreadyFractionalDouble) {
+  PlayerConfig config;
+  EXPECT_TRUE(Registry()
+                  .SetDouble(&config, OptionCategory::kPlayer, "volume", 0.35)
+                  .has_value());
+  EXPECT_DOUBLE_EQ(config.audio.startup_volume, 0.35);
+}
+
+TEST(OptionRegistryAudioTest, VolumeOutOfRangeIsRejectedAndLeavesTheField) {
+  PlayerConfig config;
+  config.audio.startup_volume = 0.5;
+  EXPECT_FALSE(Registry()
+                   .SetInt(&config, OptionCategory::kPlayer, "volume", 140)
+                   .has_value());
+  // 2.0 is out of range for the fraction form even though it would be a legal
+  // percent -- the type says which unit the caller meant.
+  EXPECT_FALSE(Registry()
+                   .SetDouble(&config, OptionCategory::kPlayer, "volume", 2.0)
+                   .has_value());
+  EXPECT_DOUBLE_EQ(config.audio.startup_volume, 0.5)
+      << "a rejected value must leave the config untouched";
+}
+
 }  // namespace
 }  // namespace avbase

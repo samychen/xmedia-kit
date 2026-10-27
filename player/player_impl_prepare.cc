@@ -445,8 +445,7 @@ Status PlayerImpl::PrepareSync(base::TimeDelta timeout) {
 
 void PlayerImpl::OnPipelineReady() {
   // Snapshot everything the frozen query surface promises, then publish
-  // kPrepared once. Runs on the media sequence; the state lock is brief and
-  // never held while anything else is taken.
+  // kPrepared once. Runs on the media sequence; the state lock is brief.
   {
     base::AutoLock scoped(state_lock_);
     if (prepared_handled_) {
@@ -469,6 +468,10 @@ void PlayerImpl::OnPipelineReady() {
       video_rotation_ = v->rotation;
     }
   }
+  // Push the stored gain onto the fresh graph: ApplyGain() is a no-op before
+  // this point (no pipeline yet), so a volume set between SetDataSource() and
+  // Prepare() would otherwise never reach the sink.
+  ApplyGain();
   PreparedPayload payload;
   payload.media_info = info;
   event_hub_.Post(EventType::kPrepared, std::move(payload), GetMediaTime());
@@ -480,17 +483,14 @@ void PlayerImpl::OnPipelineReady() {
   // (a state_lock_ transition plus a PostTask), so there is nothing to gain
   // from signalling first.
   //
-  // Honest caveat, because the first version of this comment overclaimed: the
-  // old order was NOT reliably observable as a bug. Signal() holds the
-  // WaitableEvent mutex and the waiter needs that same mutex, so the autostart
-  // had already won in 20/20 measured runs even with the signal first
-  // (see tests/unit/player/prepare_autostart_unittest.cc). The reorder is
-  // therefore a correctness-by-construction change, not a visible-bug fix --
-  // which is exactly why the old comment could sit here claiming the opposite
-  // of what the code did. The ordering that DOES matter for consumers is the
-  // two PostStateChanged calls above: kPreparing->kPrepared is published
-  // before any kStarted, so an event consumer never sees a start before the
-  // prepare it belongs to.
+  // Caveat, so this comment does not overclaim again (the first version did):
+  // the old order was NOT reliably observable as a bug. Signal() holds the
+  // WaitableEvent mutex the waiter needs, so the autostart won in 20/20
+  // measured runs even with the signal first
+  // (tests/unit/player/prepare_autostart_unittest.cc). This is therefore
+  // correctness by construction, not a visible-bug fix. What DOES matter for
+  // consumers is the two PostStateChanged calls above: kPreparing->kPrepared
+  // precedes any kStarted, so nobody sees a start before its prepare.
   if (config_.start_on_prepared) {
     Start();
   }

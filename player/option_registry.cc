@@ -15,88 +15,15 @@
 #include <optional>
 #include <utility>
 
+#include "player/option_value_parsing.h"
+
 namespace avbase {
-namespace {
 
-// Edit distance used for the "did you mean" hint. ijkplayer silently ignores
-// an unknown key, which is why a typo'd option can ship unnoticed (Δ2).
-int Levenshtein(std::string_view a, std::string_view b) {
-  if (a.empty())
-    return static_cast<int>(b.size());
-  if (b.empty())
-    return static_cast<int>(a.size());
-  std::vector<int> prev(b.size() + 1), cur(b.size() + 1);
-  for (size_t j = 0; j <= b.size(); ++j)
-    prev[j] = static_cast<int>(j);
-  for (size_t i = 1; i <= a.size(); ++i) {
-    cur[0] = static_cast<int>(i);
-    for (size_t j = 1; j <= b.size(); ++j) {
-      const int cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
-      cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost});
-    }
-    prev.swap(cur);
-  }
-  return prev[b.size()];
-}
-
-base::unexpected<MediaError> UnknownKey(std::string_view key,
-                                        std::string_view suggestion) {
-  std::string detail("key = \"");
-  detail.append(key);
-  detail.push_back('"');
-  if (!suggestion.empty()) {
-    detail.append("\n           did you mean \"");
-    detail.append(suggestion);
-    detail.append("\"?");
-  }
-  return Err(ErrorCode::kInvalidArgument, "unknown option key", detail,
-             "call OptionRegistry::GetInstance().Describe() for the full list, "
-             "or use the typed PlayerConfig field instead");
-}
-
-base::unexpected<MediaError> OutOfRange(std::string_view key,
-                                        const std::string& got,
-                                        const std::string& allowed) {
-  std::string detail("key = \"");
-  detail.append(key);
-  detail.append("\"   value = ").append(got);
-  detail.append("\n           allowed = ").append(allowed);
-  return Err(ErrorCode::kInvalidArgument, "option value out of range", detail,
-             "clamp the value, or remove the override and use the default");
-}
-
-base::unexpected<MediaError> TypeMismatch(std::string_view key,
-                                          const std::string& expected) {
-  std::string detail("key = \"");
-  detail.append(key);
-  detail.append("\" expects ").append(expected);
-  return Err(ErrorCode::kInvalidArgument, "option type mismatch", detail,
-             "pass the value with the matching type");
-}
-
-// ijkplayer exposes booleans as "1"/"0" (or true/false) and accepts them from
-// int- and string-typed setters. Parse any of those so a migrated call site
-// works regardless of which typed entry point it uses. Returns nullopt for an
-// unrecognized string, so the caller can raise a type-mismatch error.
-std::optional<bool> ParseBoolOption(const OptionValue& v) {
-  if (const bool* b = std::get_if<bool>(&v)) {
-    return *b;
-  }
-  if (const int64_t* i = std::get_if<int64_t>(&v)) {
-    return *i != 0;
-  }
-  if (const std::string* s = std::get_if<std::string>(&v)) {
-    if (*s == "1" || *s == "true" || *s == "on" || *s == "yes") {
-      return true;
-    }
-    if (*s == "0" || *s == "false" || *s == "off" || *s == "no" || s->empty()) {
-      return false;
-    }
-  }
-  return std::nullopt;
-}
-
-}  // namespace
+using option_internal::Levenshtein;
+using option_internal::OutOfRange;
+using option_internal::ParseBoolOption;
+using option_internal::TypeMismatch;
+using option_internal::UnknownKey;
 
 // Definition of the Pimpl declared in option_registry.h.
 struct OptionRegistry::Impl {
@@ -275,6 +202,39 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
        },
        [](const PlayerConfig& c) -> OptionValue { return c.buffer.unlimited; },
        "unlimited demuxer packet buffer (ijkplayer infbuf)"});
+
+  // The startup gain, in ijkplayer's own unit (Δ6): the old string key carries
+  // 0..100 and the config field is 0..1, so the conversion lives here, at the
+  // boundary where the outside vocabulary is translated -- docs/05 table 4 and
+  // docs/MIGRATION.md Δ6 both promise exactly this. It was missing: "volume"
+  // was documented as "已接通（registry 换算）" while the registry had no such
+  // entry, so SetOption(kPlayer, "volume", 80) returned kInvalidArgument /
+  // "unknown option key" and the migration table told hosts the opposite.
+  //
+  // Integer 0..100 AND double 0..1 are both accepted: ijkplayer hosts pass an
+  // int, while a ported call site is more likely to have a fraction already.
+  e.push_back(
+      {"volume", P, Type::kDouble, "audio.startup_volume",
+       [](PlayerConfig* c, const OptionValue& v) -> Status {
+         double fraction = 0.0;
+         if (const int64_t* i = std::get_if<int64_t>(&v)) {
+           if (*i < 0 || *i > 100)
+             return OutOfRange("volume", std::to_string(*i), "[0, 100]");
+           fraction = static_cast<double>(*i) / 100.0;
+         } else if (const double* d = std::get_if<double>(&v)) {
+           if (*d < 0.0 || *d > 1.0)
+             return OutOfRange("volume", std::to_string(*d), "[0.0, 1.0]");
+           fraction = *d;
+         } else {
+           return TypeMismatch("volume", "an integer 0..100 or a double 0..1");
+         }
+         c->audio.startup_volume = fraction;
+         return OkStatus();
+       },
+       [](const PlayerConfig& c) -> OptionValue {
+         return c.audio.startup_volume;
+       },
+       "startup volume: ijkplayer's 0..100 becomes 0.0..1.0 (Δ6)"});
 }
 
 OptionRegistry::~OptionRegistry() = default;

@@ -106,5 +106,26 @@ TEST(PlaybackStatsJsonTest, TheJsonCarriesTheDisplayLayersCounters) {
   EXPECT_NE(empty.find("\"frames_submit_failures\":0"), std::string::npos);
 }
 
+// audio.startup_volume used to be validated and then never read: it was a
+// config field with a comment pointing at ijkplayer's "volume" key and no code
+// on the other end. The seed now lives in PlayerImpl's constructor, so the
+// observable statement is "the level a host configured is the level volume()
+// reports before it ever calls SetVolume()".
+TEST(PlayerStartupVolumeTest, ConfigValueBecomesTheRuntimeVolume) {
+  PlayerConfig config;
+  config.audio.startup_volume = 0.25;
+  PlayerImpl impl(config, nullptr);
+  EXPECT_DOUBLE_EQ(impl.volume(), 0.25);
+}
+
+TEST(PlayerStartupVolumeTest, SetVolumeStillWinsOverTheConfiguredSeed) {
+  PlayerConfig config;
+  config.audio.startup_volume = 0.25;
+  PlayerImpl impl(config, nullptr);
+  impl.SetVolume(0.9);
+  EXPECT_DOUBLE_EQ(impl.volume(), 0.9)
+      << "the configured seed must not re-apply over a later SetVolume()";
+}
+
 }  // namespace
 }  // namespace avbase
