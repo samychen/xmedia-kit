@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <utility>
 
 namespace avbase::base::logging {
 namespace {
