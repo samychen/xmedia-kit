@@ -29,6 +29,20 @@ Chromium 风格分层 C++ 媒体播放器，目录即 target（`docs/06 §7.6`�
 - **`cpplint` 门禁只扫 `.cc`**（`git ls-files 'base/*.cc' 'media/*.cc' …`）。把 `.h` 也塞
   进去会炸 8 条 `build/header_guard`（cpplint 要路径派生的 `MEDIA_…`），而全树统一用
   `AVBASE_` 前缀 —— 连存量 `audio_parameters.h` 都报，说明是口径错不是代码错。
+- **clang-format 按显示宽度折中文注释（2 列/字），C23 数的是码点**：一行 60 码点 / 82 显示
+  列，C23 放过而 clang-format 必折。**「format 干净」不证明「C23 干净」，两个都要跑。**
+- **clang-format 只对 `*.cc/*.h/*.c` 跑**（`.md` 会把 `Multi-Source` 改成 `Multi - Source`，
+  `.py` 会把 shebang 改成 `#!/ usr / bin / env python3` 并拆掉 `"""` → 直接语法错）。
+- **C1 是棘轮**：`LINE_LIMIT_ALLOWLIST` 的数字只能降；`option_registry.cc` 的上限是 **394**
+  不是 500。加注释顶破时，只压自己新加的那几行，或抽真接缝。
+- **`Thread::Stop()` 不 drain**：把 demo/测试从裸线程改成 `base::Thread` 时，要先
+  `PostTask` 一个 `WaitableEvent::Signal` 再 `Wait()`，否则 `Stop()` 会丢掉还没跑的工作。
+- **时钟注入只有一条路**：`SetClock(AvSyncController)` → `wall_` → 三个媒体 `Clock` 的
+  `NowTicks()`。`PipelineImpl` **没有**、也不该有 `SetTickClock`（那条只写不读，2026-10-26 删）。
+- **只写字段先问「谁本该读它」**，别先问「能不能删」。`RendererImpl::volume_` 的答案是
+  "音轨切换本该读它" → 于是它同时是冗余**和**一个真 bug（切轨把音量/倍速重置成 1.0/1x，
+  因为旧代码从即将销毁的 `audio_` 上取用户设置）。倍速/音量这类"当前用户设置"必须由
+  存活最久的那一层持有，不能从可能没收到它的下家身上读。
 - 本机 shell 是 **zsh，未引用变量不按空白分词**：`cmd $files` 会把整串名单当成一个参数
   （`cpplint` 报 `Can't open for reading`）。要 `xargs cmd < file`。
 
