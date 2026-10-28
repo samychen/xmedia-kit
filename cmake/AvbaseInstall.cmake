@@ -40,6 +40,13 @@ set(AVBASE_EXPORT_LIBS avbase_base avbase_media avbase_gl avbase_player)
 if(TARGET avbase_ffmpeg)
   list(APPEND AVBASE_EXPORT_LIBS avbase_ffmpeg)
 endif()
+# Same reason avbase_ffmpeg joins: avbase_player links it PUBLIC when
+# AVBASE_ENABLE_CURL is on, so the export set must name it. CURL needs no
+# module shipped along -- CMake has had a built-in FindCURL providing
+# CURL::libcurl since 3.17, which is above this project's 3.20 floor.
+if(TARGET avbase_curl)
+  list(APPEND AVBASE_EXPORT_LIBS avbase_curl)
+endif()
 # EXPORT_NAME makes the installed surface identical to the in-tree aliases:
 # a consumer writes avbase::player, exactly what the examples and the docs
 # use. Without it the export would be avbase::avbase_player -- the target's
@@ -48,7 +55,8 @@ endif()
 # (CMake keeps the last value for every target), it warns and exports one
 # name five times.
 foreach(pair "avbase_base;base" "avbase_media;media" "avbase_gl;gl"
-              "avbase_player;player" "avbase_ffmpeg;ffmpeg")
+              "avbase_player;player" "avbase_ffmpeg;ffmpeg"
+              "avbase_curl;curl")
   list(GET pair 0 _target)
   list(GET pair 1 _export_name)
   if(TARGET ${_target})

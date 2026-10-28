@@ -1,7 +1,6 @@
 // Copyright 2026 The avbase Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
 // PlayerImpl's preparing half: SetDataSource, CreateDemuxer,
 // PrepareAsync/PrepareSync and the ready snapshot (OnPipelineReady).
 // player_impl.cc keeps construction and the transport controls; the split is
@@ -32,9 +31,9 @@
 #include "media/ffmpeg/ffmpeg_audio_filter.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_video_filter.h"
-#include "media/ffmpeg/url_data_source.h"
 #endif
 #include "player/scene_internal.h"
+#include "player/source_wrapping.h"
 
 namespace avbase {
 namespace {
@@ -63,54 +62,6 @@ Status ErrState(std::string_view api, PlayerState state) {
 }  // namespace
 
 namespace {
-
-// Production retry wiring (docs/12 §2.5 GAP closed): http(s) URIs leave
-// FFmpeg's protocol layer and enter the DataSource bridge as an avio-backed
-// UrlDataSource wrapped in RetryDataSource. The protocol layer's own reconnect
-// only covers mid-stream errors; a reset during connect or a hard reset
-// mid-transfer surfaces as a read error HERE, and the retry decorator is what
-// turns it into a fresh connection. rtmp/rtsp/srt stay on the protocol layer
-// (streaming semantics the bridge does not model). |out_retry| is filled only
-// when |track| is set -- the main source keeps its decorator named for
-// diagnostics / ReconnectNow, while secondary sources keep theirs alive inside
-// the wrapped descriptor's |custom| and need no separate handle.
-media::DataSourceDescriptor
-WrapRetry(const media::DataSourceDescriptor& descriptor, const NetConfig& net,
-          bool track, base::scoped_refptr<media::RetryDataSource>* out_retry) {
-#if AVBASE_ENABLE_FFMPEG
-  if (descriptor.kind == media::DataSourceDescriptor::Kind::kUri &&
-      (descriptor.uri.starts_with("http://") ||
-       descriptor.uri.starts_with("https://")) &&
-      net.reconnect) {
-    auto url_source =
-        base::MakeRefCounted<media::ffmpeg::UrlDataSource>(descriptor.uri);
-    auto retry = base::MakeRefCounted<media::RetryDataSource>(
-        std::move(url_source),
-        media::RetryDataSource::Config{net.reconnect_max_retries,
-                                       net.reconnect_delay});
-    // Named BEFORE the descriptor takes ownership, never after: moving
-    // |retry| into FromSource() below leaves it null, and a ReconnectNow()
-    // that holds an empty handle fails silently -- which is what an ordering
-    // this subtle deserves a warning about. (Found by clang-tidy's
-    // bugprone-use-after-move; no test had noticed.)
-    if (track && out_retry) {
-      *out_retry = retry;
-    }
-    // Keep the URI for logs and MediaInfo: the hop below replaces the
-    // descriptor with a URI-less bridge, and source_.uri is guarded by
-    // state_lock_, so the copy arrives from |descriptor| instead.
-    auto wrapped = media::DataSourceDescriptor::FromSource(std::move(retry));
-    wrapped.uri = descriptor.uri;
-    return wrapped;
-  }
-  return descriptor;
-#else
-  (void)net;
-  (void)track;
-  (void)out_retry;
-  return descriptor;
-#endif
-}
 
 }  // namespace
 
@@ -259,11 +210,13 @@ Status PlayerImpl::PrepareAsync() {
   {
     base::AutoLock scoped(state_lock_);
     descriptors[0] =
-        WrapRetry(descriptors[0], config_.net, /*track=*/true, &retry_source_);
+        player_internal::WrapRetry(descriptors[0], config_.net,
+                                   /*track=*/true, &retry_source_);
   }
   for (size_t i = 1; i < descriptors.size(); ++i) {
     descriptors[i] =
-        WrapRetry(descriptors[i], config_.net, /*track=*/false, nullptr);
+        player_internal::WrapRetry(descriptors[i], config_.net,
+                                   /*track=*/false, nullptr);
   }
   // One demuxer per descriptor, same order: the main reads source_, each
   // secondary from its descriptor.

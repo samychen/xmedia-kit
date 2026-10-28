@@ -28,6 +28,13 @@ if(@AVBASE_WITH_FFMPEG@)
   find_dependency(Libyuv)
 endif()
 
+# Same freeze for the curl transport: a build with AVBASE_ENABLE_CURL=ON
+# exported avbase_curl, and CMake's built-in FindCURL satisfies it.
+set(AVBASE_WITH_CURL "@AVBASE_ENABLE_CURL@")
+if(AVBASE_WITH_CURL)
+  find_dependency(CURL)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/avbaseTargets.cmake")
 
 check_required_components(avbase)

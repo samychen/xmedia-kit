@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 option(AVBASE_ENABLE_FFMPEG       "Build the FFmpeg demuxer/decoder adapters" OFF)
+# The libcurl HTTP(S) data source (media/curl). Opt-in like FFmpeg: a host
+# that is happy with the avio-backed UrlDataSource never pays for libcurl.
+option(AVBASE_ENABLE_CURL         "Build the libcurl HTTP(S) data source"     OFF)
 option(AVBASE_ENABLE_SDL2         "Build the SDL2 video/audio backend"        OFF)
 option(AVBASE_ENABLE_QT           "Build the Qt GL backend (needs Qt 6.4+)"  OFF)
 option(AVBASE_ENABLE_LINUX_NATIVE "Build the native Linux GL/X11/Wayland backend" OFF)

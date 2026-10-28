@@ -19,6 +19,12 @@ target_link_libraries(avbase_player PUBLIC avbase::media)
 if(AVBASE_ENABLE_FFMPEG)
   target_link_libraries(avbase_player PUBLIC avbase::ffmpeg)
 endif()
+# The curl transport is opt-in exactly like FFmpeg: WrapRetry() instantiates
+# media::curl::CurlDataSource only when the build has it AND the config asks
+# for it (NetConfig::prefer_curl), so the default avio path never changes.
+if(AVBASE_ENABLE_CURL)
+  target_link_libraries(avbase_player PUBLIC avbase::curl)
+endif()
 target_compile_definitions(avbase_player PRIVATE AVBASE_PLAYER_IMPLEMENTATION=1)
 avbase_configure_target(avbase_player)
 
@@ -27,6 +33,9 @@ add_library(avbase::avbase ALIAS avbase)
 target_link_libraries(avbase INTERFACE avbase::player)
 if(AVBASE_ENABLE_FFMPEG)
   target_link_libraries(avbase INTERFACE avbase::ffmpeg)
+endif()
+if(AVBASE_ENABLE_CURL)
+  target_link_libraries(avbase INTERFACE avbase::curl)
 endif()
 if(AVBASE_ENABLE_SDL2)
   target_link_libraries(avbase INTERFACE avbase::platform_sdl2)

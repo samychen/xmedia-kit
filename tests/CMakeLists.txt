@@ -169,6 +169,19 @@ if(AVBASE_ENABLE_GLFW)
   endif()
 endif()
 
+# ---- media + curl: the libcurl HTTP(S) data source, opt-in with the
+# AVBASE_ENABLE_CURL build. The suites drive a real loopback HTTP server
+# (tests/support/local_http_server.h) so the Range/keep-alive/abort semantics
+# are observed through actual sockets.
+if(AVBASE_ENABLE_CURL)
+  file(GLOB AVBASE_MEDIA_CURL_UNITTEST_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_curl/*.cc")
+  avbase_add_unittest(media_curl_unittests
+      SOURCES ${AVBASE_MEDIA_CURL_UNITTEST_SOURCES}
+      DEPS avbase::curl avbase::media_test_support
+           avbase::base_test_support)
+endif()
+
 # ---- media + FFmpeg: real containers, labelled needs-ffmpeg so the
 # no-ffmpeg gate (design goal G2) skips them.
 if(AVBASE_ENABLE_FFMPEG)

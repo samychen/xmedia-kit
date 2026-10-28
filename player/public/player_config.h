@@ -179,6 +179,13 @@ struct AVBASE_PLAYER_EXPORT NetConfig {
   bool dns_cache_clear{false};  // "dns_cache_clear"
   std::string user_agent;
   std::map<std::string, std::string> headers;
+  // Route http(s) through the libcurl-backed CurlDataSource instead of the
+  // avio-backed UrlDataSource (CicadaPlayer parity: pinned DNS answers,
+  // forced IPv4/IPv6, a proxy, and a low-speed watchdog; user_agent/headers
+  // above apply to both transports). Needs a build with
+  // -DAVBASE_ENABLE_CURL=ON; silently ignored otherwise, which is the honest
+  // behaviour for a config tuned for a build that no longer has the option.
+  bool prefer_curl{false};
   // Zero means "do not chase the live edge".
   base::TimeDelta live_max_latency;
 
