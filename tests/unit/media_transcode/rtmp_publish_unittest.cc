@@ -73,5 +73,56 @@ TEST(RtmpPublishTest, MissingFormatForNetworkUrlFailsActionably) {
   ASSERT_FALSE(status);
 }
 
+// Recording is a duration-bounded read of the source. The bound is the whole
+// contract: a "record 2 seconds" that quietly writes the full 40-second input
+// is not a near miss, it fills the disk. Asserted on the OUTPUT's duration
+// because the packet loop's own counter is what would be wrong.
+TEST(RtmpPublishTest, DurationBoundedCaptureStopsAtTheLimit) {
+  TranscodeParams params;
+  params.output_path = testing::TempDir() + "record_3s.mp4";
+  params.duration_seconds = 3.0;
+  params.video_codec.codec = "copy";
+  params.audio_codec.codec = "copy";
+  // A 40 s source: the limit has to actually cut it, not be satisfied by EOF.
+  const Status status = Transcode(TestFile("long_lowbr_40s.mp4"), params);
+  ASSERT_TRUE(status) << status.error().ToString();
+
+  // Re-open and measure. The muxer's "OK" says nothing about how much it wrote.
+  base::test::TaskEnvironment env;
+  class Host final : public Demuxer::Host {
+   public:
+    void SetDuration(base::TimeDelta) override {}
+    void OnBufferedTimeUpdate(base::TimeDelta, base::TimeDelta) override {}
+    void OnDemuxerError(MediaError) override {}
+  } host;
+  auto media_log = base::MakeRefCounted<MediaLog>();
+  FFmpegDemuxer demuxer(media_log);
+  Status opened = base::unexpected(
+      MediaError(ErrorCode::kNotImplemented, "not run", "", ""));
+  bool done = false;
+  demuxer.Initialize(DataSourceDescriptor::FromUri(params.output_path), {},
+                     &host, env.GetMainThreadTaskRunnerRef(),
+                     base::BindOnce(
+                         [](Status* out, bool* flag, Status s) {
+                           *out = std::move(s);
+                           *flag = true;
+                         },
+                         &opened, &done));
+  for (int i = 0; i < 2000 && !done; ++i) {
+    env.RunUntilIdle();
+    if (!done) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  }
+  ASSERT_TRUE(opened) << opened.error().ToString();
+  const base::TimeDelta got = demuxer.media_info().duration;
+  EXPECT_GE(got, base::Seconds(2.5)) << "cut too early: " << got.InSecondsF();
+  EXPECT_LE(got, base::Seconds(4.0))
+      << "the 3 s limit did not stop a 40 s source: " << got.InSecondsF()
+      << " s written";
+  demuxer.Stop();
+  std::remove(params.output_path.c_str());
+}
+
 }  // namespace
 }  // namespace avbase::media

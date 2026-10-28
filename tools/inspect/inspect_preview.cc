@@ -16,6 +16,7 @@
 
 #include <cerrno>
 #include <cinttypes>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -42,7 +43,7 @@ bool ParseInt(const char* text, int* out) {
   }
   errno = 0;
   char* end = nullptr;
-  const long parsed = strtol(text, &end, 10);
+  const int64_t parsed = strtoll(text, &end, 10);
   // strtol accepts leading whitespace and a sign; neither is a frame count.
   if (end == text || *end != '\0' || errno == ERANGE || parsed <= 0 ||
       parsed > 100000) {

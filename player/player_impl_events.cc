@@ -430,4 +430,30 @@ Status PlayerImpl::TakeSnapshot(base::TimeDelta at,
 #endif  // !AVBASE_ENABLE_FFMPEG
 }
 
+// kHdrUnsupported had no producer at all until 2026-10-28: the event type, its
+// string spelling, its payload struct and its C ABI entry all existed, and
+// nothing ever posted it -- because the flag it reads
+// (MediaInfo::StreamInfo::has_hdr_metadata) had no writer either. A host that
+// waited for it waited forever, and every test stayed green because none of
+// them asserted the event fires.
+//
+// Posted BEFORE kPrepared on purpose: the point of the event is to let a host
+// change what it does when the source becomes ready. Errored sources never get
+// here (the prepare callback returns earlier), so it cannot fire for a source
+// that never opened.
+void PlayerImpl::PostHdrUnsupportedIfNeeded(const media::MediaInfo& info) {
+  const media::StreamInfo* video =
+      info.FindStream(info.FirstStreamOfKind(media::StreamKind::kVideo));
+  if (video == nullptr || !video->has_hdr_metadata) {
+    return;
+  }
+  HdrUnsupportedPayload payload;
+  // The container's own spelling, so a host can tell PQ from HLG (and Dolby
+  // Vision's base layer from a plain BT.2020 SDR stream) without parsing the
+  // file again.
+  payload.transfer = video->color_transfer;
+  event_hub_.Post(EventType::kHdrUnsupported, std::move(payload),
+                  GetMediaTime());
+}
+
 }  // namespace avbase

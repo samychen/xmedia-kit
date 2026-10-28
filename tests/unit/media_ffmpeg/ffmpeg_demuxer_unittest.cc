@@ -496,5 +496,36 @@ TEST_F(FFmpegDemuxerTest, StageEventsAreLogged) {
   EXPECT_TRUE(saw_stream_info);
 }
 
+// HDR detection. This field had NO writer in the tree: it existed on both
+// MediaInfo::StreamInfo and VideoDecoderConfig, it fed the colour-space
+// fallback table's HDR rows, and it was false for every file ever opened --
+// so the HDR half of that table was unreachable and kHdrUnsupported had no
+// producer. The assertion is therefore not "the flag parses" but "a PQ source
+// is reported as HDR and an SDR one is not": one direction alone would pass
+// with a hardcoded `true`.
+TEST_F(FFmpegDemuxerTest, HdrTransferIsReportedOnTheStream) {
+  ASSERT_TRUE(Open(TestFile("hdr_pq_320x240_1s.mp4"))) << "open failed";
+  const MediaInfo& info = demuxer_->media_info();
+  const StreamInfo* video =
+      info.FindStream(info.FirstStreamOfKind(StreamKind::kVideo));
+  ASSERT_NE(video, nullptr);
+  EXPECT_TRUE(video->has_hdr_metadata)
+      << "a PQ (smpte2084) source was not reported as HDR";
+  // The curve is carried by name so a host can tell PQ from HLG.
+  EXPECT_EQ(video->color_transfer, "smpte2084");
+}
+
+TEST_F(FFmpegDemuxerTest, SdrSourceIsNotReportedAsHdr) {
+  ASSERT_TRUE(Open(TestFile("small_h264_aac_3s.mp4")));
+  const MediaInfo& info = demuxer_->media_info();
+  const StreamInfo* video =
+      info.FindStream(info.FirstStreamOfKind(StreamKind::kVideo));
+  ASSERT_NE(video, nullptr);
+  // The other direction: BT.709 SDR must not be swept up by the same rule.
+  EXPECT_FALSE(video->has_hdr_metadata)
+      << "an SDR source was reported as HDR (transfer=" << video->color_transfer
+      << ")";
+}
+
 }  // namespace
 }  // namespace avbase::media

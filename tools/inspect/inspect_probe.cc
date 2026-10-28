@@ -32,7 +32,11 @@ void PrintVideoStream(const StreamInfo& s) {
     printf("      rotation     : %d\n", s.rotation);
   }
   if (s.has_hdr_metadata) {
-    printf("      hdr          : yes\n");
+    printf("      hdr          : yes");
+    if (!s.color_transfer.empty()) {
+      printf(" (transfer=%s)", s.color_transfer.c_str());
+    }
+    printf("\n");
   }
 }
 

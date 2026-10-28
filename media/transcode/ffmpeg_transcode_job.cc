@@ -308,8 +308,12 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
     // packet that carries a timestamp, so a slow open does not become a
     // burst of catch-up frames. Sleeping here rather than after the write
     // means the muxer is handed packets at the rate the peer can take them.
-    if (params.realtime && total_duration > 0.0 && !paced_anchor_set &&
-        pkt_us >= 0) {
+    //
+    // Not gated on total_duration: a LIVE source has none (duration <= 0), and
+    // that is precisely the case that needs pacing -- recording a live stream
+    // as fast as the socket delivers would still be "realtime" by accident
+    // today, but publishing one to a peer that cannot buffer would not be.
+    if (params.realtime && !paced_anchor_set && pkt_us >= 0) {
       pace_anchor_us = pkt_us;
       pace_anchor_wall = std::chrono::steady_clock::now();
       paced_anchor_set = true;

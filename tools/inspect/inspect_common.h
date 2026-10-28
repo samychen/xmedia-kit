@@ -105,6 +105,7 @@ int RunSync(const Options& opts);
 int RunTranscode(int argc, char** argv);
 int RunPreview(int argc, char** argv);
 int RunPublish(int argc, char** argv);
+int RunRecord(int argc, char** argv);
 
 }  // namespace avbase
 

@@ -474,6 +474,7 @@ void PlayerImpl::OnPipelineReady() {
   // this point (no pipeline yet), so a volume set between SetDataSource() and
   // Prepare() would otherwise never reach the sink.
   ApplyGain();
+  PostHdrUnsupportedIfNeeded(info);
   PreparedPayload payload;
   payload.media_info = info;
   event_hub_.Post(EventType::kPrepared, std::move(payload), GetMediaTime());

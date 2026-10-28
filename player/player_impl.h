@@ -173,6 +173,11 @@ class PlayerImpl final : public media::Pipeline::Client {
   // OnBufferingStateChange(kHaveMetadata); snapshot media info and publish
   // kPrepared (then auto-start if configured).
   void OnPipelineReady();
+  // Posts kHdrUnsupported when the opened source's video stream declares a
+  // PQ/HLG transfer (or Dolby Vision / HDR10+ dynamic metadata). Split out of
+  // OnPipelineReady for the 500-line ceiling and because it is one decision
+  // with one reason, not part of "the snapshot is ready".
+  void PostHdrUnsupportedIfNeeded(const media::MediaInfo& info);
   void OnMediaSeekDone(int64_t request_id, base::TimeDelta requested);
 
   // ---- accurate seek (M9, player/seek_controller.cc + events TU) ----------

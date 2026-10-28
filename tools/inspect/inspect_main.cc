@@ -37,6 +37,10 @@ int main(int argc, char** argv) {
     avbase::media::ffmpeg::InstallLogBridge();
     return avbase::RunPublish(argc - 1, argv + 1);
   }
+  if (argc > 1 && std::string(argv[1]) == "record") {
+    avbase::media::ffmpeg::InstallLogBridge();
+    return avbase::RunRecord(argc - 1, argv + 1);
+  }
   avbase::Options opts;
   if (!avbase::ParseArgs(argc, argv, &opts)) {
     return 1;

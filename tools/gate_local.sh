@@ -420,6 +420,39 @@ job_e2e() {
       echo "skip preview 10-bit source (no ffmpeg CLI / no libx264 10-bit)"
     fi
 
+    # record: a bounded capture must actually stop at the limit. The gate
+    # feeds it a 40 s file with --duration 3 and measures the OUTPUT: a
+    # recorder that ignores the limit fills the disk, and every exit-code-only
+    # check stays green while it does.
+    if "$inspect" record tests/testdata/long_lowbr_40s.mp4 \
+        -o "$tc/rec.mp4" --duration 3 >"$log" 2>&1; then
+      recdur=$(ffprobe -v error -show_entries format=duration \
+                 -of default=nw=1:nk=1 "$tc/rec.mp4" 2>/dev/null || echo 0)
+      if awk -v d="$recdur" 'BEGIN {exit !(d > 2.5 && d < 4.0)}'; then
+        echo "ok   record --duration 3 -> ${recdur}s written"
+      else
+        echo "FAIL record --duration 3 wrote ${recdur}s (expected ~3)"; fail=1
+      fi
+    else
+      echo "FAIL record --duration 3"; fail=1
+    fi
+
+    # HDR detection: the flag had no writer until 2026-10-28, so probe said
+    # "no" for every file and nothing noticed. Both directions are checked --
+    # a probe that always says yes would pass the first half alone.
+    if "$inspect" probe tests/testdata/hdr_pq_320x240_1s.mp4 2>/dev/null \
+        | grep -q "hdr *: yes"; then
+      echo "ok   probe HDR PQ source -> hdr: yes"
+    else
+      echo "FAIL probe did not report a PQ source as HDR"; fail=1
+    fi
+    if "$inspect" probe tests/testdata/small_h264_aac_3s.mp4 2>/dev/null \
+        | grep -q "hdr *: yes"; then
+      echo "FAIL probe reported an SDR source as HDR"; fail=1
+    else
+      echo "ok   probe SDR source -> no hdr line"
+    fi
+
     # publish: the RTMP half, against a real peer (ffmpeg's own listener), with
     # pacing asserted in both directions. Skipped (not failed) when the ffmpeg
     # CLI is missing: that is an environment gap, not a regression.

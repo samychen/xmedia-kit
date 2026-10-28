@@ -557,8 +557,7 @@ void FFmpegDemuxer::AddStream(void* av_stream_raw, uint32_t index,
       (av_stream->duration > 0 && av_stream->time_base.den > 0)
           ? ff::ToTimeDelta(av_stream->duration, av_stream->time_base)
           : media_info_.duration;
-  info.bit_rate =
-      av_stream->codecpar->bit_rate > 0 ? av_stream->codecpar->bit_rate : 0;
+  info.bit_rate = std::max<int64_t>(0, av_stream->codecpar->bit_rate);
   if (type == DemuxerStreamType::kVideo) {
     info.coded_size = video_config.coded_size;
     info.natural_size = video_config.natural_size;
@@ -569,6 +568,10 @@ void FFmpegDemuxer::AddStream(void* av_stream_raw, uint32_t index,
     const char* pix = av_get_pix_fmt_name(
         static_cast<AVPixelFormat>(av_stream->codecpar->format));
     info.pixel_format = pix ? pix : "";
+    // HDR: had no writer before this, so it was false for every file.
+    info.has_hdr_metadata = video_config.has_hdr_metadata;
+    const char* trc = av_color_transfer_name(av_stream->codecpar->color_trc);
+    info.color_transfer = trc ? trc : "";
   } else if (type == DemuxerStreamType::kAudio) {
     info.sample_rate = audio_config.sample_rate;
     info.channels = audio_config.channels;

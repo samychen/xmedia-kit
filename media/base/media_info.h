@@ -40,7 +40,17 @@ struct AVBASE_MEDIA_EXPORT StreamInfo {
   media::Rational avg_frame_rate{0, 1};
   int rotation{0};
   std::string pixel_format;
+  // True when the video stream's transfer characteristics are PQ (ST 2084) or
+  // HLG (ARIB STD-B67), or the stream carries Dolby Vision / HDR10+ dynamic
+  // metadata. The renderer has no tone mapping (docs/TODO §1), so a host that
+  // cares can warn, tint, or refuse -- but it needs to be TOLD, which is what
+  // kHdrUnsupported is for.
   bool has_hdr_metadata{false};
+  // FFmpeg's name for the transfer characteristic ("smpte2084", "arib-std-b67",
+  // "bt709", ...). Carried next to the flag because "HDR" is not one thing:
+  // PQ and HLG need different treatment, and a host showing a warning wants to
+  // name the actual curve rather than say "HDR".
+  std::string color_transfer;
 
   // Audio only.
   int sample_rate{0};
