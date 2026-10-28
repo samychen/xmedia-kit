@@ -261,6 +261,20 @@ LayerContentMode GlScene::content_mode(LayerId id) const {
   return layer ? layer->content_mode : LayerContentMode::kStretch;
 }
 
+bool GlScene::SetLayerMirror(LayerId id, bool mirror) {
+  Layer* layer = Find(id);
+  if (!layer) {
+    return false;
+  }
+  layer->mirror = mirror;
+  return true;
+}
+
+bool GlScene::mirror(LayerId id) const {
+  const Layer* layer = Find(id);
+  return layer ? layer->mirror : false;
+}
+
 bool GlScene::SetBackgroundColor(float r, float g, float b, float a) {
   // Rejected rather than clamped; a cleared alpha outside [0,1] would produce
   // a target nobody can reason about rather than a diagnosable call.
@@ -385,8 +399,26 @@ void GlScene::Compose(int dst_width, int dst_height) {
     LayerRotationToCosSin(
         layer.rotation_override.value_or(layer.frame_rotation), cos_sin);
     program->SetVec2("uRotation", cos_sin[0], cos_sin[1]);
-    program->SetVec4("uSrcRect", layer.source_rect[0], layer.source_rect[1],
-                     layer.source_rect[2], layer.source_rect[3]);
+    // kCrop and mirror reshape only the SOURCE region at draw time: the
+    // layer state stays what the caller set, so toggling either is one
+    // flag flip with no re-upload.
+    std::array<float, 4> src = layer.source_rect;
+    if (layer.content_mode == LayerContentMode::kCrop && layer.video) {
+      const float dst_aspect =
+          dst_height > 0 && dst_width > 0
+              ? (rect[2] * static_cast<float>(dst_width)) /
+                    (rect[3] * static_cast<float>(dst_height))
+              : 1.0f;
+      const float region_aspect =
+          layer.video->source_aspect() * (src[2] / std::max(src[3], 1e-6f));
+      src = CoverSourceRect(src, dst_aspect, region_aspect);
+    }
+    if (layer.mirror) {
+      // A negative width walks the source right-to-left: the flip the
+      // uSrcRect contract gives us for free (uv = xy + pos*zw).
+      src = {src[0] + src[2], src[1], -src[2], src[3]};
+    }
+    program->SetVec4("uSrcRect", src[0], src[1], src[2], src[3]);
     layer.video->Bind(*program, layer.opacity);
     quad_->Draw();
   }

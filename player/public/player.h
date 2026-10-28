@@ -24,6 +24,7 @@
 #include "player/public/player_config.h"
 #include "player/public/player_event.h"
 #include "player/public/player_export.h"
+#include "player/public/scene.h"
 
 namespace avbase {
 namespace media {
@@ -209,6 +210,29 @@ class AVBASE_PLAYER_EXPORT Player {
   // Which thread, blocking? Caller's thread; immediate. Failure? An
   // unknown id is kInvalidArgument.
   Status SelectExternalSubtitle(int track_id, bool selected);
+  // ---- picture presentation (cicada-port T7; the SetRotateMode /
+  // SetMirrorMode / SetScaleMode / SetVideoBackgroundColor quartet) --------
+  // What does it do? Forces the main video's rotation for display
+  // (CicadaPlayer's SetRotateMode), on top of whatever the container
+  // metadata says. 0 clears the override.
+  // Which thread, blocking? Caller's thread; immediate. Not legal in every
+  // state? Any state; the next presented frame shows it. Failure? A
+  // rotation outside {0, 90, 180, 270} is kInvalidArgument.
+  Status SetRotateMode(int degrees);
+  // What does it do? Mirrors the main video horizontally (CicadaPlayer's
+  // SetMirrorMode).
+  // Which thread, blocking? Caller's thread; immediate. Failure? None.
+  Status SetMirrorMode(bool mirror);
+  // What does it do? Chooses how the video fills the output (CicadaPlayer's
+  // SetScaleMode): kFit letterboxes, kCrop fills by centre-cropping,
+  // kStretch fills by stretching.
+  // Which thread, blocking? Caller's thread; immediate. Failure? None.
+  Status SetScaleMode(SceneContentMode mode);
+  // What does it do? Sets the colour the composition clears to where no
+  // video covers it (CicadaPlayer's SetVideoBackgroundColor), in [0,1] RGBA.
+  // Which thread, blocking? Caller's thread; immediate. Failure? A
+  // non-finite component is kInvalidArgument.
+  Status SetVideoBackgroundColor(float r, float g, float b, float a);
   // What does it do? Shifts a track's cues by |delay| (CicadaPlayer's
   // setStreamDelayTime; negative moves the track earlier).
   // Which thread, blocking? Caller's thread; immediate. Failure? Unknown

@@ -47,6 +47,9 @@ enum class SceneContentMode {
   // background on whichever axis is longer: the letterbox a player puts
   // around a clip whose shape is not the window's.
   kFit,
+  // Covers the rect completely (CicadaPlayer's SCALE_MODE_CROP): the
+  // source is centre-cropped to the rect's shape; no background shows.
+  kCrop,
 };
 
 // A layer in a scene: where the composition draws one picture.
@@ -106,6 +109,9 @@ class AVBASE_PLAYER_EXPORT SceneLayer {
   // Errors: none -- a bad mode returns false.
   // Side effects: applies from the next composited frame.
   bool SetContentMode(SceneContentMode mode);
+  // Horizontal mirror (CicadaPlayer's SetMirrorMode); flips the shown
+  // source region left-right at draw time.
+  bool SetMirrorMode(bool mirror);
 
   // The angle this layer is drawn at, after the frame's own rotation and any
   // override have been combined.
@@ -322,6 +328,17 @@ class AVBASE_PLAYER_EXPORT Scene {
   // "what is behind everything" has one answer for the whole composition.
   bool SetBackgroundColor(float r, float g, float b, float a);
 
+  // CicadaPlayer's SetRotateMode / SetMirrorMode / SetScaleMode (cicada-port
+  // T7): persistent presentation state for the MAIN layer, applied by
+  // Present() before the update callback runs -- so it survives a host that
+  // installs its own placement hook, and a host can still override per
+  // frame. nullopt = leave that axis as it is.
+  // Thread safety: any thread; takes the scene lock.
+  // Errors: an out-of-ladder rotation is rejected (0/90/180/270 only).
+  // Side effects: next presented frame shows the new modes.
+  void SetMainLayerModes(std::optional<int> rotation, bool mirror,
+                         std::optional<SceneContentMode> content);
+
   // ---- Diagnostics ------------------------------------------------------
 
   // One line saying whether this scene can do anything right now, and why not
@@ -371,6 +388,10 @@ class AVBASE_PLAYER_EXPORT Scene {
   SceneUpdateCallback hook_ GUARDED_BY(lock_);
   std::array<float, 4> background_ GUARDED_BY(lock_){0.f, 0.f, 0.f, 1.f};
   bool background_set_ GUARDED_BY(lock_){false};
+  // CicadaPlayer's main-layer presentation modes (cicada-port T7).
+  std::optional<int> main_rotation_ GUARDED_BY(lock_);
+  bool main_mirror_ GUARDED_BY(lock_){false};
+  std::optional<SceneContentMode> main_content_ GUARDED_BY(lock_);
   media::GlSceneEngine* engine_ GUARDED_BY(lock_){nullptr};
 };
 

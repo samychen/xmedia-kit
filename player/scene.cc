@@ -128,9 +128,23 @@ bool SceneLayer::SetContentMode(SceneContentMode mode) {
   if (!valid()) {
     return false;
   }
-  return frame_->scene()->SetLayerContentMode(
-      id_, mode == SceneContentMode::kFit ? media::LayerContentMode::kFit
-                                          : media::LayerContentMode::kStretch);
+  media::LayerContentMode gl_mode = media::LayerContentMode::kStretch;
+  switch (mode) {
+  case SceneContentMode::kFit:
+    gl_mode = media::LayerContentMode::kFit;
+    break;
+  case SceneContentMode::kCrop:
+    gl_mode = media::LayerContentMode::kCrop;
+    break;
+  case SceneContentMode::kStretch:
+    gl_mode = media::LayerContentMode::kStretch;
+    break;
+  }
+  return frame_->scene()->SetLayerContentMode(id_, gl_mode);
+}
+
+bool SceneLayer::SetMirrorMode(bool mirror) {
+  return valid() && frame_->scene()->SetLayerMirror(id_, mirror);
 }
 
 int SceneLayer::rotation() const {
@@ -205,6 +219,15 @@ std::shared_ptr<SceneSource> Scene::FindSource(std::string_view name) const {
 size_t Scene::source_count() const {
   base::AutoLock scoped(lock_);
   return sources_.size();
+}
+
+void Scene::SetMainLayerModes(std::optional<int> rotation, bool mirror,
+                              std::optional<SceneContentMode> content) {
+  base::AutoLock scoped(lock_);
+  main_rotation_ = rotation;
+  main_mirror_ = mirror;
+  main_content_ = content;
+  InstallHookLocked();
 }
 
 void Scene::SetUpdateCallback(SceneUpdateCallback callback) {
@@ -344,6 +367,21 @@ void Scene::RunHook(Scene* self, media::GlPresenter& presenter,
   }
   SceneFrame callback_frame;
   callback_frame.Begin(&gl_scene, &presenter, timing, main_layer);
+  // CicadaPlayer's rotate/mirror/scale land on the main layer before the
+  // hook: the player's persistent presentation state, overridable per
+  // frame by a host that knows better.
+  {
+    base::AutoLock scoped(self->lock_);
+    if (self->main_rotation_.has_value()) {
+      callback_frame.main_layer().SetRotation(*self->main_rotation_);
+    }
+    if (self->main_mirror_) {
+      callback_frame.main_layer().SetMirrorMode(true);
+    }
+    if (self->main_content_.has_value()) {
+      callback_frame.main_layer().SetContentMode(*self->main_content_);
+    }
+  }
   hook.Run(callback_frame, frame);
   callback_frame.End();
 }

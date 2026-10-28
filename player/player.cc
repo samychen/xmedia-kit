@@ -114,6 +114,22 @@ Result<int> Player::AddExternalSubtitle(std::string_view uri,
   return impl_->core.AddExternalSubtitle(uri, delay);
 }
 
+Status Player::SetRotateMode(int degrees) {
+  return impl_->core.SetRotateMode(degrees);
+}
+
+Status Player::SetMirrorMode(bool mirror) {
+  return impl_->core.SetMirrorMode(mirror);
+}
+
+Status Player::SetScaleMode(SceneContentMode mode) {
+  return impl_->core.SetScaleMode(mode);
+}
+
+Status Player::SetVideoBackgroundColor(float r, float g, float b, float a) {
+  return impl_->core.SetVideoBackgroundColor(r, g, b, a);
+}
+
 Status Player::SelectExternalSubtitle(int track_id, bool selected) {
   return impl_->core.SelectExternalSubtitle(track_id, selected);
 }

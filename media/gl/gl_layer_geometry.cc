@@ -70,4 +70,19 @@ float SourceAspectOf(const VideoFrame& frame) {
   return static_cast<float>((stored_w * sample) / stored_h);
 }
 
+std::array<float, 4> CoverSourceRect(const std::array<float, 4>& src,
+                                     float dst_aspect, float region_aspect) {
+  if (dst_aspect <= 0.0f || region_aspect <= 0.0f) {
+    return src;
+  }
+  if (region_aspect > dst_aspect) {
+    // The region is wider than the target: crop the width, keep the centre.
+    const float keep = src[2] * (dst_aspect / region_aspect);
+    return {src[0] + (src[2] - keep) * 0.5f, src[1], keep, src[3]};
+  }
+  // The region is taller: crop the height, keep the centre.
+  const float keep_h = src[3] * (region_aspect / dst_aspect);
+  return {src[0], src[1] + (src[3] - keep_h) * 0.5f, src[2], keep_h};
+}
+
 }  // namespace avbase::media

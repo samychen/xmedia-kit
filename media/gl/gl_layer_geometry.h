@@ -47,6 +47,16 @@ AVBASE_MEDIA_EXPORT void LayerRotationToCosSin(int degrees, float* out_cos_sin);
 // offsets and w/h are fractions of the half-extent), and the difference is
 // worth a function rather than a comment at each call site: the two agree at
 // the full-target case and diverge everywhere else.
+// Centre-crops |src| (normalised source region) to the shape |dst_aspect|
+// demands -- the cover-fit geometry behind LayerContentMode::kCrop
+// (CicadaPlayer's SCALE_MODE_CROP): the region keeps its centre and loses
+// its longer axis, so the drawn result is full-bleed and undistorted.
+// |region_aspect| is the aspect ratio of the region as displayed (the
+// picture's own aspect already folded in). Pure: no GL, no frame.
+AVBASE_MEDIA_EXPORT std::array<float, 4>
+CoverSourceRect(const std::array<float, 4>& src, float dst_aspect,
+                float region_aspect);
+
 AVBASE_MEDIA_EXPORT void NormalisedRectToUvRect(float x, float y, float w,
                                                 float h, float* out_rect);
 

@@ -94,6 +94,49 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
   media_log_ = base::MakeRefCounted<media::MediaLog>();
 }
 
+Status PlayerImpl::SetRotateMode(int degrees) {
+  if (degrees != 0 && degrees != 90 && degrees != 180 && degrees != 270) {
+    return base::unexpected(MediaError::Of(
+        ErrorCode::kInvalidArgument, "the rotation is not a quarter turn",
+        "degrees = " + std::to_string(degrees),
+        "use 0, 90, 180 or 270; 0 clears the override"));
+  }
+  base::AutoLock scoped(state_lock_);
+  rotate_mode_ = degrees;
+  scene_.SetMainLayerModes(degrees == 0 ? std::nullopt
+                                        : std::optional<int>(degrees),
+                           mirror_mode_, scale_mode_);
+  return OkStatus();
+}
+
+Status PlayerImpl::SetMirrorMode(bool mirror) {
+  base::AutoLock scoped(state_lock_);
+  mirror_mode_ = mirror;
+  scene_.SetMainLayerModes(rotate_mode_ > 0 ? std::optional<int>(rotate_mode_)
+                                            : std::nullopt,
+                           mirror, scale_mode_);
+  return OkStatus();
+}
+
+Status PlayerImpl::SetScaleMode(SceneContentMode mode) {
+  base::AutoLock scoped(state_lock_);
+  scale_mode_ = mode;
+  scene_.SetMainLayerModes(rotate_mode_ > 0 ? std::optional<int>(rotate_mode_)
+                                            : std::nullopt,
+                           mirror_mode_, mode);
+  return OkStatus();
+}
+
+Status PlayerImpl::SetVideoBackgroundColor(float r, float g, float b, float a) {
+  if (!scene_.SetBackgroundColor(r, g, b, a)) {
+    return base::unexpected(MediaError::Of(
+        ErrorCode::kInvalidArgument, "the background colour is not finite",
+        "components must be in [0,1]",
+        "clamp the colour before handing it over"));
+  }
+  return OkStatus();
+}
+
 PlayerImpl::~PlayerImpl() {
   external_text_ticking_ = false;  // stop the external-subtitle ticker first
   StopSync(config_.shutdown_timeout);

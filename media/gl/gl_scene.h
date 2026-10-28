@@ -37,6 +37,10 @@ enum class LayerContentMode {
   // whichever axis is longer: the letterbox a player puts around a clip whose
   // shape is not the window's.
   kFit,
+  // Covers the rect completely (CicadaPlayer's SCALE_MODE_CROP): the source
+  // is centre-cropped to the rect's shape so nothing but source pixels is
+  // discarded, and no background shows.
+  kCrop,
 };
 
 // A stack of video layers drawn in z order into whatever target is bound.
@@ -168,6 +172,7 @@ class AVBASE_MEDIA_EXPORT GlScene {
 
   // How the picture is fitted into |rect|; see LayerContentMode.
   bool SetLayerContentMode(LayerId id, LayerContentMode mode);
+  bool SetLayerMirror(LayerId id, bool mirror);
 
   // The colour the composition is cleared to before the layers are drawn, in
   // [0,1] RGBA -- what an uncovered part of the target looks like. Opaque
@@ -231,6 +236,7 @@ class AVBASE_MEDIA_EXPORT GlScene {
   // back what it set without having to sample the composed pixels.
   const std::array<float, 4>& source_rect(LayerId id) const;
   LayerContentMode content_mode(LayerId id) const;
+  bool mirror(LayerId id) const;
   const std::array<float, 4>& background_color() const { return background_; }
 
  private:
@@ -245,6 +251,9 @@ class AVBASE_MEDIA_EXPORT GlScene {
     std::array<float, 4> source_rect{0.0f, 0.0f, 1.0f, 1.0f};
     // How the picture is fitted into |rect|; see LayerContentMode.
     LayerContentMode content_mode{LayerContentMode::kStretch};
+    // Horizontal mirror (CicadaPlayer's SetMirrorMode): the shown source
+    // region is flipped left-right at draw time.
+    bool mirror{false};
     // nullopt follows the frame's own rotation; see SetLayerRotation.
     std::optional<int> rotation_override;
     // The rotation the last frame uploaded here carried. It has to be captured

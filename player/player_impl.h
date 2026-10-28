@@ -70,6 +70,12 @@ class PlayerImpl final : public media::Pipeline::Client {
   // parses and registers a local .srt/.vtt file; the cue ticker (media
   // thread, 100 ms) emits due cues as kTimedText while started.
   Result<int> AddExternalSubtitle(std::string_view uri, base::TimeDelta delay);
+  // Picture presentation (cicada-port T7): the stored modes ride
+  // Scene::SetMainLayerModes, applied by Present before any host hook.
+  Status SetRotateMode(int degrees);
+  Status SetMirrorMode(bool mirror);
+  Status SetScaleMode(SceneContentMode mode);
+  Status SetVideoBackgroundColor(float r, float g, float b, float a);
   Status SelectExternalSubtitle(int track_id, bool selected);
   Status SetExternalSubtitleDelay(int track_id, base::TimeDelta delay);
   Status RemoveExternalSubtitle(int track_id);
@@ -327,8 +333,14 @@ class PlayerImpl final : public media::Pipeline::Client {
       external_tracks_ GUARDED_BY(state_lock_);
   int next_external_track_id_ GUARDED_BY(state_lock_) = 1;
   bool external_text_ticking_ = false;
+  // CicadaPlayer's picture modes (cicada-port T7). rotate_ -1 = follow the
+  // container; scale_ nullopt = leave the scene default.
+  int rotate_mode_ GUARDED_BY(state_lock_){-1};
+  bool mirror_mode_ GUARDED_BY(state_lock_){false};
+  std::optional<SceneContentMode> scale_mode_ GUARDED_BY(state_lock_);
   base::TimeDelta external_text_last_tick_ GUARDED_BY(state_lock_);
-  // Signalled from the media sequence when prepare reaches a verdict (ready
+  // CicadaPlayer's picture modes (cicada-port T7). rotate_ -1 = follow the
+  // container; scale_ nullopt = leave the scene default.
   // or error), which is what PrepareSync waits on.
   base::WaitableEvent prepared_event_;
   bool prepared_handled_ GUARDED_BY(state_lock_) = false;
