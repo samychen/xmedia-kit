@@ -109,6 +109,23 @@ void Player::SetMuted(bool muted) {
 void Player::SetLoopCount(int count) {
   impl_->core.SetLoopCount(count);
 }
+Result<int> Player::AddExternalSubtitle(std::string_view uri,
+                                        base::TimeDelta delay) {
+  return impl_->core.AddExternalSubtitle(uri, delay);
+}
+
+Status Player::SelectExternalSubtitle(int track_id, bool selected) {
+  return impl_->core.SelectExternalSubtitle(track_id, selected);
+}
+
+Status Player::SetExternalSubtitleDelay(int track_id, base::TimeDelta delay) {
+  return impl_->core.SetExternalSubtitleDelay(track_id, delay);
+}
+
+Status Player::RemoveExternalSubtitle(int track_id) {
+  return impl_->core.RemoveExternalSubtitle(track_id);
+}
+
 Status Player::SelectTrack(media::DemuxerStreamType type, int stream_index) {
   // Asynchronous by nature: this returns once the request is accepted, and
   // the outcome arrives as kTrackChanged (or kError) on the event handler.

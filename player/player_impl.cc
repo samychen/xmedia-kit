@@ -95,6 +95,7 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
 }
 
 PlayerImpl::~PlayerImpl() {
+  external_text_ticking_ = false;  // stop the external-subtitle ticker first
   StopSync(config_.shutdown_timeout);
   event_hub_.Shutdown(config_.shutdown_timeout);
   media_thread_.Stop();

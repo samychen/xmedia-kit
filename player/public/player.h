@@ -192,6 +192,32 @@ class AVBASE_PLAYER_EXPORT Player {
   // Errors: kTrackNotFound for an index the media does not have.
   // Side effects: emits kTrackChanged; decoders are rebuilt lazily.
   Status SelectTrack(media::DemuxerStreamType type, int stream_index);
+  // ---- external subtitles (cicada-port T6; the addExtSubtitle /
+  // selectExtSubtitle / setStreamDelay trio) ------------------------------
+  // What does it do? Registers a local .srt or .vtt file as an extra text
+  // track alongside anything the container carried, and starts the cue
+  // ticker that emits due lines as kTimedText events while playing.
+  // Which thread, blocking? Caller's thread; blocks for the file read and
+  // parse -- external subtitle files are small local text, so the window
+  // is single-digit milliseconds. Not legal in every state? Any state;
+  // cues only fire while started. Failure? An unopenable/unparseable file
+  // is a structured error; a duplicate uri is allowed and gets a new id.
+  // Returns the track id the other methods take.
+  Result<int> AddExternalSubtitle(std::string_view uri,
+                                  base::TimeDelta delay = base::TimeDelta());
+  // What does it do? Turns a registered external track's cues on/off.
+  // Which thread, blocking? Caller's thread; immediate. Failure? An
+  // unknown id is kInvalidArgument.
+  Status SelectExternalSubtitle(int track_id, bool selected);
+  // What does it do? Shifts a track's cues by |delay| (CicadaPlayer's
+  // setStreamDelayTime; negative moves the track earlier).
+  // Which thread, blocking? Caller's thread; immediate. Failure? Unknown
+  // id is kInvalidArgument.
+  Status SetExternalSubtitleDelay(int track_id, base::TimeDelta delay);
+  // What does it do? Unregisters a track and stops its cues.
+  // Which thread, blocking? Caller's thread; immediate. Failure? Unknown
+  // id is kInvalidArgument.
+  Status RemoveExternalSubtitle(int track_id);
   // May be called while playing. Pass a null display to render nowhere while
   // keeping audio (useful for background playback).
   // Errors: none.

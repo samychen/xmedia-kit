@@ -16,6 +16,7 @@
 #include "media/base/data_source_descriptor.h"
 #include "media/base/media_info.h"
 #include "media/base/pipeline.h"
+#include "media/filters/external_text_track.h"
 #include "media/filters/pipeline_impl.h"
 #include "media/filters/retry_data_source.h"
 #include "media/renderers/default_renderer_factory.h"
@@ -65,6 +66,14 @@ class PlayerImpl final : public media::Pipeline::Client {
   // kError event when the handover failed). Only kAudio is wired; kText and
   // kVideo return kNotImplemented with the reason.
   Status SelectTrack(media::DemuxerStreamType type, int stream_index);
+  // External subtitles (cicada-port T6; player_impl_subtitles.cc). Add
+  // parses and registers a local .srt/.vtt file; the cue ticker (media
+  // thread, 100 ms) emits due cues as kTimedText while started.
+  Result<int> AddExternalSubtitle(std::string_view uri, base::TimeDelta delay);
+  Status SelectExternalSubtitle(int track_id, bool selected);
+  Status SetExternalSubtitleDelay(int track_id, base::TimeDelta delay);
+  Status RemoveExternalSubtitle(int track_id);
+  void ExternalTextTick();
   void SetVideoSurface(base::scoped_refptr<NativeDisplay> display);
 
   // ---- Control -------------------------------------------------------------
@@ -310,6 +319,15 @@ class PlayerImpl final : public media::Pipeline::Client {
   // ---- state ---------------------------------------------------------------
   mutable base::Lock state_lock_;
   PlayerStateMachine machine_ GUARDED_BY(state_lock_);
+
+  // External subtitle tracks (guarded by state_lock_). The tick flag is
+  // the ticker's lifetime: ~PlayerImpl clears it BEFORE media_thread_Stop
+  // so the chain does not touch a half-destroyed player.
+  std::vector<media::ExternalTextTrack>
+      external_tracks_ GUARDED_BY(state_lock_);
+  int next_external_track_id_ GUARDED_BY(state_lock_) = 1;
+  bool external_text_ticking_ = false;
+  base::TimeDelta external_text_last_tick_ GUARDED_BY(state_lock_);
   // Signalled from the media sequence when prepare reaches a verdict (ready
   // or error), which is what PrepareSync waits on.
   base::WaitableEvent prepared_event_;
