@@ -27,6 +27,8 @@
 #include "media/base/media_error.h"
 #include "media/base/media_info.h"
 #include "media/ffmpeg/hls_m3u8_parser.h"
+#include "media/filters/abr_algorithm.h"
+#include "media/filters/abr_bandwidth_estimator.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -144,6 +146,14 @@ class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   void OnStreamRead(SegmentStream* stream, uint32_t count,
                     DemuxerStream::ReadCB read_cb, DemuxerStream::Status status,
                     DemuxerStream::DecoderBufferVector buffers);
+  // ABR (T4): the decision is made mid-segment with a real buffer signal
+  // and executed at the boundary, which fetches the target rung's playlist
+  // before its first segment.
+  void MaybeDecideSwitch();
+  void AdvanceAfterBoundary(OpenCompletion completion);
+  void StartVariantSwitch(int variant_index, OpenCompletion completion);
+  void OnVariantSwitchLoaded(int variant_index, bool ok, std::string body);
+  int RungForVariant(int variant_index) const;
   void OpenSegment(size_t index, OpenCompletion completion);
   void OnSegmentOpened(size_t index, OpenCompletion completion, Status status);
   void OnInnerSegmentInitialized(std::unique_ptr<FFmpegDemuxer> inner,
@@ -210,6 +220,19 @@ class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   // The completion carried across the worker hop (FetchSegmentOnWorker has
   // no return path; OnSegmentBytesReady picks it up on the media sequence).
   OpenCompletion open_completion_;
+
+  // ---- ABR state (inactive without a master playlist) ----------------------
+  // The master's variants sorted ascending by bandwidth; |active_rung_| is
+  // the position in that ladder of the playlist currently being served.
+  std::vector<hls::Variant> abr_ladder_;       // ascending by bandwidth
+  std::vector<hls::Variant> master_variants_;  // master order
+  int active_variant_ = -1;  // index into the MASTER's variant list
+  int active_rung_ = -1;     // index into |abr_ladder_|
+  int active_variant_pending_ = -1;
+  int pending_switch_rung_ = -1;
+  bool switch_decided_ = false;
+  AbrBandwidthEstimator abr_estimator_;
+  std::unique_ptr<AbrAlgoStrategy> abr_algo_;
   // The open segment's bytes. MemoryDataSource does NOT copy, and the inner
   // demux thread keeps reading them for the whole segment's life, so the
   // buffer must outlive |inner_|; it is replaced only after CloseInner().

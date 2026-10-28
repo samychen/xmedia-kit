@@ -69,6 +69,9 @@ struct AVBASE_MEDIA_EXPORT Variant {
   std::string resolution;
   std::string name;  // NAME attribute, may be empty
   std::string uri;   // resolved against the MASTER playlist URL
+  // Not a spec attribute: the demuxer's ABR ladder tags each Variant with
+  // its position in the master's list so a switch can name the URI.
+  int variant_index{0};
 };
 
 struct AVBASE_MEDIA_EXPORT Rendition {

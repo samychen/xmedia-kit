@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-18T06:44:54.970104+00:00",
-  "generated_by_commit": "28b514098147337e80e3ec0c9267fe3e17bdb3de",
+  "generated_at": "2026-10-28T18:13:56.265190+00:00",
+  "generated_by_commit": "b0ed0205d793d9e81b5d21fc122fa289e5b01565",
   "schema": 1,
   "symbols": {
     "C:avbase_c_version": {
@@ -586,6 +586,15 @@
       "qualified": "avbase::ToLegacyEvent",
       "sigs": [
         "bool\u001f(const PlayerEvent&, LegacyEvent*)\u001f"
+      ]
+    },
+    "F:avbase::TranscodeMedia": {
+      "is_virtual": false,
+      "kind": "function",
+      "lang": "cpp",
+      "qualified": "avbase::TranscodeMedia",
+      "sigs": [
+        "PlayerStatus\u001f(const std::string&, const media::TranscodeParams&, media::TranscodeProgressCB, const media::TranscodeCancelToken*)\u001f"
       ]
     },
     "F:avbase::ValidateConfig": {
@@ -1241,6 +1250,15 @@
         "Status\u001f(const PlayerConfig&)\u001f"
       ]
     },
+    "M:avbase::Player::audio_decoder_name": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::Player::audio_decoder_name",
+      "sigs": [
+        "std::string\u001f()\u001fC"
+      ]
+    },
     "M:avbase::Player::config": {
       "is_virtual": false,
       "kind": "method",
@@ -1248,6 +1266,15 @@
       "qualified": "avbase::Player::config",
       "sigs": [
         "const PlayerConfig&\u001f()\u001fC"
+      ]
+    },
+    "M:avbase::Player::decoder_fallback_count": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::Player::decoder_fallback_count",
+      "sigs": [
+        "int\u001f()\u001fC"
       ]
     },
     "M:avbase::Player::is_live": {
@@ -1311,6 +1338,24 @@
       "qualified": "avbase::Player::video_coded_size",
       "sigs": [
         "media::Size\u001f()\u001fC"
+      ]
+    },
+    "M:avbase::Player::video_decoder_name": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::Player::video_decoder_name",
+      "sigs": [
+        "std::string\u001f()\u001fC"
+      ]
+    },
+    "M:avbase::Player::video_decoder_opaque": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::Player::video_decoder_opaque",
+      "sigs": [
+        "bool\u001f()\u001fC"
       ]
     },
     "M:avbase::Player::video_natural_size": {
@@ -1494,6 +1539,53 @@
       "sigs": [
         "\u001f(const PlayerObserver&)\u001f",
         "~\u001f()\u001f"
+      ]
+    },
+    "M:avbase::PlayerTranscoder::Cancel": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::PlayerTranscoder::Cancel",
+      "sigs": [
+        "void\u001f()\u001f"
+      ]
+    },
+    "M:avbase::PlayerTranscoder::IsRunning": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::PlayerTranscoder::IsRunning",
+      "sigs": [
+        "bool\u001f()\u001fC"
+      ]
+    },
+    "M:avbase::PlayerTranscoder::PlayerTranscoder": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::PlayerTranscoder::PlayerTranscoder",
+      "sigs": [
+        "explicit\u001f(const PlayerConfig&)\u001f",
+        "\u001f(const PlayerTranscoder&)\u001f",
+        "~\u001f()\u001f"
+      ]
+    },
+    "M:avbase::PlayerTranscoder::Start": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::PlayerTranscoder::Start",
+      "sigs": [
+        "bool\u001f(const std::string&, const media::TranscodeParams&, media::TranscodeProgressCB, media::TranscodeDoneCB)\u001f"
+      ]
+    },
+    "M:avbase::PlayerTranscoder::Wait": {
+      "is_virtual": false,
+      "kind": "method",
+      "lang": "cpp",
+      "qualified": "avbase::PlayerTranscoder::Wait",
+      "sigs": [
+        "void\u001f()\u001f"
       ]
     },
     "M:avbase::Scene::AddSource": {

@@ -62,9 +62,7 @@ Status ErrState(std::string_view api, PlayerState state) {
 
 }  // namespace
 
-namespace {
-
-}  // namespace
+namespace {}  // namespace
 
 std::unique_ptr<media::Demuxer> PlayerImpl::CreateDemuxer() {
   base::AutoLock scoped(state_lock_);
@@ -194,6 +192,8 @@ Status PlayerImpl::PrepareAsync() {
   options.reconnect_delay = config_.net.reconnect_delay;
   options.user_agent = config_.net.user_agent;
   options.headers = config_.net.headers;
+  options.abr_enabled = config_.abr.enabled;
+  options.abr_initial_bandwidth_bps = config_.abr.initial_bandwidth_bps;
   options.extra_options = config_.extra_format_options;
 
   // docs/14 stage 3: build the descriptor + demuxer list. Index 0 is this

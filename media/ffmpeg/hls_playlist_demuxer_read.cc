@@ -23,6 +23,119 @@ namespace avbase::media {
 // ---- the read path
 // ------------------------------------------------------------
 
+void HlsPlaylistDemuxer::AdvanceAfterBoundary(OpenCompletion completion) {
+  // The boundary executor: run a stored ABR switch first (fetch the target
+  // rung's playlist), then open the next segment of whatever playlist is
+  // active.
+  if (pending_switch_rung_ >= 0 && pending_switch_rung_ != active_rung_) {
+    const int variant_index = abr_ladder_[pending_switch_rung_].variant_index;
+    pending_switch_rung_ = -1;
+    StartVariantSwitch(variant_index, std::move(completion));
+    return;
+  }
+  pending_switch_rung_ = -1;
+  OpenSegment(cursor_ + 1, std::move(completion));
+}
+
+void HlsPlaylistDemuxer::MaybeDecideSwitch() {
+  if (!options_.abr_enabled || abr_ladder_.empty() || switch_decided_ ||
+      inner_ == nullptr) {
+    return;
+  }
+  // One decision per segment, taken while the segment is still playing (so
+  // the buffer signal is real); executed at the boundary.
+  base::TimeDelta buffered;
+  for (const auto& [type, stream] : inner_streams_) {
+    buffered = std::max(buffered, stream->buffered_duration());
+  }
+  AbrInput input;
+  input.estimated_bandwidth_bps = abr_estimator_.bits_per_second();
+  input.variant_bandwidths_bps.reserve(abr_ladder_.size());
+  for (const auto& variant : abr_ladder_) {
+    input.variant_bandwidths_bps.push_back(variant.bandwidth);
+  }
+  input.current_index = std::max(active_rung_, 0);
+  input.current_variant_bandwidth_bps =
+      abr_ladder_[input.current_index].bandwidth;
+  // The segment itself is the buffer capacity proxy: the inner demuxer
+  // queues at most one segment ahead. Decide only once the queue holds at
+  // least half the segment -- the first read after a boundary sees a nearly
+  // empty queue (the inner demuxer is still filling), and a decision taken
+  // there would always panic to the floor and never climb.
+  if (cursor_ >= playlist_.segments.size()) {
+    return;
+  }
+  input.buffer_capacity = playlist_.segments[cursor_].duration;
+  input.buffered_duration = buffered;
+  if (input.buffer_capacity <= base::TimeDelta() ||
+      buffered.InMicroseconds() * 2 < input.buffer_capacity.InMicroseconds()) {
+    return;  // not enough signal yet; decide on a later read
+  }
+  const AbrDecision decision = abr_algo_->Decide(input);
+  switch_decided_ = true;
+  if (decision.target_index != active_rung_ && decision.target_index >= 0 &&
+      decision.target_index < static_cast<int>(abr_ladder_.size())) {
+    pending_switch_rung_ = decision.target_index;
+  }
+}
+
+void HlsPlaylistDemuxer::StartVariantSwitch(int variant_index,
+                                            OpenCompletion completion) {
+  // Fetch the target rung's media playlist; OnVariantSwitchLoaded replaces
+  // the active segments and opens the aligned segment index. The ladder is
+  // assumed aligned across rungs (same segment count and durations), which
+  // is what every real ladder ships -- CicadaPlayer aligns by sequence
+  // number to the same effect.
+  open_in_flight_ = true;
+  active_variant_pending_ = variant_index;
+  worker_.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &HlsPlaylistDemuxer::FetchUrlOnWorker, base::Unretained(this),
+          abr_ladder_.empty()
+              ? std::string()
+              : master_variants_[static_cast<size_t>(variant_index)].uri,
+          base::BindOnce(&HlsPlaylistDemuxer::OnVariantSwitchLoaded,
+                         base::Unretained(this), variant_index)));
+}
+
+void HlsPlaylistDemuxer::OnVariantSwitchLoaded(int variant_index, bool ok,
+                                               std::string body) {
+  if (stopped_.load()) {
+    return;
+  }
+  if (!ok) {
+    // Stay on the current rung rather than failing playback for an ABR
+    // upgrade; the next boundary tries again.
+    open_in_flight_ = false;
+    auto pending = std::move(pending_reads_);
+    pending_reads_.clear();
+    for (auto& pending_read : pending) {
+      ReadFromStream(pending_read.stream, pending_read.count,
+                     std::move(pending_read.read_cb));
+    }
+    return;
+  }
+  auto parsed = hls::ParseM3U8(body, master_variants_[variant_index].uri);
+  if (parsed.has_value() && !parsed->segments.empty()) {
+    playlist_ = std::move(*parsed);
+    active_variant_ = variant_index;
+    active_rung_ = RungForVariant(variant_index);
+    stats_.variant_switches++;
+  }
+  open_in_flight_ = false;
+  OpenSegment(cursor_ + 1, OpenCompletion());
+}
+
+int HlsPlaylistDemuxer::RungForVariant(int variant_index) const {
+  for (int i = 0; i < static_cast<int>(abr_ladder_.size()); ++i) {
+    if (abr_ladder_[i].variant_index == variant_index) {
+      return i;
+    }
+  }
+  return 0;
+}
+
 void HlsPlaylistDemuxer::ReadFromStream(SegmentStream* stream, uint32_t count,
                                         DemuxerStream::ReadCB read_cb) {
   if (stopped_.load()) {
@@ -38,7 +151,7 @@ void HlsPlaylistDemuxer::ReadFromStream(SegmentStream* stream, uint32_t count,
     // The segment is drained: advance to the next one with this read
     // queued; OnSegmentOpened re-issues it (or answers EOS).
     pending_reads_.push_back({stream, count, std::move(read_cb)});
-    OpenSegment(cursor_ + 1, OpenCompletion());
+    AdvanceAfterBoundary(OpenCompletion());
     return;
   }
   inner_it->second->Read(count,
@@ -69,9 +182,10 @@ void HlsPlaylistDemuxer::OnStreamRead(
       return;
     }
     pending_reads_.push_back({stream, count, std::move(read_cb)});
-    OpenSegment(cursor_ + 1, OpenCompletion());
+    AdvanceAfterBoundary(OpenCompletion());
     return;
   }
+  MaybeDecideSwitch();
   for (auto& buffer : buffers) {
     if (buffer->has_valid_timestamp()) {
       if (!segment_delta_set_) {

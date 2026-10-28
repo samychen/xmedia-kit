@@ -98,6 +98,7 @@ void HlsPlaylistDemuxer::OpenSegment(size_t index, OpenCompletion completion) {
   open_in_flight_ = true;
   segment_delta_ = base::TimeDelta();
   segment_delta_set_ = false;
+  switch_decided_ = false;  // one ABR decision per segment
   if (index >= playlist_.segments.size()) {
     // Past the end: the natural-EOF shape. Nothing is fetched.
     cursor_ = index;
@@ -225,6 +226,12 @@ void HlsPlaylistDemuxer::OnSegmentBytesReady(
     return;
   }
   open_segment_bytes_ = std::move(*bytes_or_error);
+  // ABR sample: the whole-file fetch of this segment over its playback
+  // duration is the throughput observation the estimator consumes.
+  if (options_.abr_enabled && index < playlist_.segments.size()) {
+    abr_estimator_.OnSample(open_segment_bytes_.size(),
+                            playlist_.segments[index].duration);
+  }
   auto inner = std::make_unique<FFmpegDemuxer>(media_log_, limits_);
   auto memory = base::MakeRefCounted<MemoryDataSource>(
       open_segment_bytes_.data(), open_segment_bytes_.size());

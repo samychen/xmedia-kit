@@ -192,6 +192,15 @@ struct AVBASE_PLAYER_EXPORT NetConfig {
   friend bool operator==(const NetConfig&, const NetConfig&) = default;
 };
 
+// ABR (cicada-port T4, CicadaPlayer's EnableAbr/SetDefaultBandWidth): only
+// meaningful for multi-variant playlists; a single media playlist ignores it.
+struct AVBASE_PLAYER_EXPORT AbrConfig {
+  bool enabled{false};               // "enable-abr"
+  int64_t initial_bandwidth_bps{0};  // "default-bandwidth"; 0 = highest rung
+
+  friend bool operator==(const AbrConfig&, const AbrConfig&) = default;
+};
+
 struct AVBASE_PLAYER_EXPORT DataSourceConfig {
   bool enable_cache{false};  // ijkio master switch (M18)
   std::string cache_dir;
@@ -222,6 +231,7 @@ struct AVBASE_PLAYER_EXPORT PlayerConfig {
   AudioConfig audio;
   SubtitleConfig subtitle;
   NetConfig net;
+  AbrConfig abr;
   DataSourceConfig data_source;
   RenderConfig render;
 

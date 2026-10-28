@@ -173,6 +173,56 @@ TEST_F(HlsPlaylistDemuxerTest, SeekLandsInTheRequestedSegment) {
   }
 }
 
+TEST_F(HlsPlaylistDemuxerTest, AbrClimbsTheLadderAtABoundary) {
+  // The master ladder is 30k/60k; the segments are ~15 KB per 1 s, so the
+  // estimator lands around 120 kbps -- enough for the 2x headroom over the
+  // top rung. Starting rung (initial bandwidth 10k) is the floor; the first
+  // boundary must carry the session to the top.
+  demuxer_ =
+      std::make_unique<HlsPlaylistDemuxer>(media_log_, BufferQueueLimits());
+  DemuxerOptions options;
+  options.abr_enabled = true;
+  options.abr_initial_bandwidth_bps = 10000;
+  Status result = Err(ErrorCode::kNotImplemented, "not run", {}, {});
+  bool done = false;
+  demuxer_->Initialize(
+      DataSourceDescriptor::FromUri("file://" + TestFile("hls/master.m3u8")),
+      options, &host_, task_environment_.GetMainThreadTaskRunnerRef(),
+      base::BindOnce(
+          [](Status* out, bool* flag, Status s) {
+            *out = std::move(s);
+            *flag = true;
+          },
+          &result, &done));
+  ASSERT_TRUE(
+      PumpUntil([&done] { return done; }, 4000, std::chrono::milliseconds(5)));
+  ASSERT_TRUE(result.has_value()) << result.error().summary();
+
+  DemuxerStream* video = demuxer_->GetStream(DemuxerStreamType::kVideo);
+  ASSERT_NE(video, nullptr);
+  base::TimeDelta previous;
+  int reads = 0;
+  while (reads++ < 500) {
+    ReadResult_ one = ReadOne(video);
+    ASSERT_EQ(one.status, DemuxerStream::Status::kOk);
+    ASSERT_FALSE(one.buffers.empty());
+    if (one.buffers.back()->IsEndOfStream()) {
+      break;
+    }
+    for (const auto& buffer : one.buffers) {
+      if (buffer->has_valid_timestamp()) {
+        EXPECT_GE(buffer->timestamp(), previous)
+            << "timeline went backwards across the variant switch";
+        previous = buffer->timestamp();
+      }
+    }
+  }
+  // The climb is the whole point: at least one rung switch at a boundary,
+  // on a timeline that never went backwards.
+  EXPECT_GE(demuxer_->GetStats().variant_switches, 1u);
+  EXPECT_GE(previous, base::Seconds(1));
+}
+
 TEST_F(HlsPlaylistDemuxerTest, RejectsAPlaylistUrlThatIsNotM3U8) {
   Status status = Open(TestFile("hls/seg0.ts"));
   ASSERT_FALSE(status.has_value());

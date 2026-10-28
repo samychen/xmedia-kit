@@ -43,6 +43,11 @@ struct AVBASE_MEDIA_EXPORT DemuxerOptions {
   bool dns_cache_clear{false};
   std::string user_agent;
   std::map<std::string, std::string> headers;
+  // ABR (cicada-port T4): a multi-variant playlist (HLS master) switches
+  // rungs at segment boundaries when this is on. |initial_bandwidth_bps|
+  // picks the starting rung (0 = the highest advertised).
+  bool abr_enabled{false};
+  int64_t abr_initial_bandwidth_bps{0};
   // Verbatim AVDictionary passthrough (PlayerConfig::extra_format_options).
   std::map<std::string, std::string> extra_options;
 };
@@ -56,6 +61,9 @@ struct AVBASE_MEDIA_EXPORT DemuxerStats {
   uint64_t seek_count{0};
   base::TimeDelta last_seek_duration;
   uint64_t interrupt_count{0};
+  // ABR: how many times the demuxer moved to a different rung of a
+  // multi-variant ladder (0 for single-playlist sources).
+  uint64_t variant_switches{0};
 };
 
 class AVBASE_MEDIA_EXPORT Demuxer : public MediaResource {

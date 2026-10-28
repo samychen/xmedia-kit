@@ -127,14 +127,35 @@ void HlsPlaylistDemuxer::OnPlaylistFetched(InitializeCB init_cb, bool ok,
   }
   playlist_ = std::move(*parsed);
   if (playlist_.is_master) {
-    // CicadaPlayer's starting rule too: the highest advertised bandwidth.
-    // ABR (T4) replaces this pick at runtime.
-    auto best =
-        std::max_element(playlist_.variants.begin(), playlist_.variants.end(),
-                         [](const hls::Variant& a, const hls::Variant& b) {
-                           return a.bandwidth < b.bandwidth;
-                         });
-    const std::string variant_url = best->uri;
+    // The ABR ladder: the master's variants sorted ascending by bandwidth.
+    abr_ladder_.clear();
+    for (int i = 0; i < static_cast<int>(playlist_.variants.size()); ++i) {
+      abr_ladder_.push_back(playlist_.variants[i]);
+      abr_ladder_.back().variant_index = i;
+    }
+    std::sort(abr_ladder_.begin(), abr_ladder_.end(),
+              [](const hls::Variant& a, const hls::Variant& b) {
+                return a.bandwidth < b.bandwidth;
+              });
+    master_variants_ = playlist_.variants;
+    // Starting rung: CicadaPlayer's SetDefaultBandWidth semantics -- the
+    // highest rung the initial estimate affords; without an estimate the
+    // highest advertised (the old rule).
+    int start = static_cast<int>(abr_ladder_.size()) - 1;
+    if (options_.abr_enabled && options_.abr_initial_bandwidth_bps > 0) {
+      start = 0;
+      for (int i = 0; i < static_cast<int>(abr_ladder_.size()); ++i) {
+        if (abr_ladder_[i].bandwidth <= options_.abr_initial_bandwidth_bps) {
+          start = i;
+        }
+      }
+    }
+    active_variant_ = abr_ladder_[start].variant_index;
+    active_rung_ = start;
+    if (options_.abr_enabled) {
+      abr_algo_ = std::make_unique<AbrBufferAlgoStrategy>();
+    }
+    const std::string variant_url = master_variants_[active_variant_].uri;
     worker_.task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&HlsPlaylistDemuxer::FetchUrlOnWorker,
