@@ -544,7 +544,9 @@ configure_flags() {
 --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,extract_extradata
 --enable-muxer=null,mp4,matroska,adts,image2,flv
 --enable-filter=null,volume,aformat,anull,abuffer,abuffersink,buffer,buffersink,hflip,format
+--enable-filter=zscale,tonemap,scale,settb,setpts,trim
 --enable-avfilter
+--enable-libzimg
 --enable-swresample
 --enable-swscale
 $(hwaccel_flags)

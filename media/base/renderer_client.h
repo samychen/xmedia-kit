@@ -230,6 +230,33 @@ class AVBASE_MEDIA_EXPORT RendererClient {
   // Default no-op so clients that do not care never see it.
   virtual void OnTimedText(const TimedTextCue& /*cue*/) {}
 
+  // A decoder was chosen for one leg. Fires once per leg per initialization
+  // (so again after a mid-stream re-init), and only for the decoder that
+  // actually opened -- factories that declined the config are capability
+  // negotiation, not events.
+  //
+  // Why the owner needs this: the decoder name exists nowhere else in the
+  // public surface. Without it a host cannot say "playing with VideoToolbox"
+  // or fall back to a different policy when hardware decode is unavailable,
+  // and Player::GetPlaybackStats() reports throughput with no attribution.
+  // Default no-op so existing clients keep compiling.
+  virtual void OnDecoderOpened(DemuxerStreamType type,
+                               const std::string& decoder_name,
+                               bool outputs_opaque_surface) {}
+
+  // A decoder that was TRIED and failed (initialize error, or a working one
+  // that started failing) was replaced by the next candidate. |from| is the
+  // one that lost, |to| the one now in use (empty when every candidate is
+  // exhausted, which is also reported through OnError).
+  //
+  // This is a recovery, not an error -- but it is the difference between
+  // "4K is smooth" and "4K is smooth until the driver resets", so it must be
+  // observable rather than a log line. Default no-op.
+  virtual void OnDecoderFallback(DemuxerStreamType type,
+                                 const std::string& from_decoder,
+                                 const std::string& to_decoder,
+                                 const std::string& reason) {}
+
   // Audio output device switched, or the attempt failed. No caller until
   // media/audio/ exists (M7); see gap 2 in the file header.
   virtual void OnAudioOutputDeviceChanged(const std::string& device_id,

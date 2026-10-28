@@ -241,6 +241,21 @@ class AVBASE_PLAYER_EXPORT Player {
   // Clockwise rotation the host must apply, in degrees.
   // Errors: none. Side effects: none.
   int video_rotation() const;
+  // Name of the decoder the video leg opened, or empty before it opens.
+  // Errors: none. Side effects: none.
+  std::string video_decoder_name() const;
+  // Name of the decoder the audio leg opened, or empty.
+  // Errors: none. Side effects: none.
+  std::string audio_decoder_name() const;
+  // True when the video decoder hands back frames in device memory, so a host
+  // planning a zero-copy upload can skip the CPU path entirely. False for
+  // software decode and before the leg opens.
+  // Errors: none. Side effects: none.
+  bool video_decoder_opaque() const;
+  // How many times the video decoder was replaced mid-session (a hardware to
+  // software fallback counts once).
+  // Errors: none. Side effects: none.
+  int decoder_fallback_count() const;
   // Effective rate, after clamping.
   // Errors: none. Side effects: none.
   double playback_rate() const;

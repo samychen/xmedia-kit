@@ -199,6 +199,16 @@ class AVBASE_MEDIA_EXPORT AudioRendererImpl final
     error_cb_ = std::move(cb);
   }
 
+  // Decoder identity and fallbacks, forwarded to the owner. Same shape as the
+  // video leg's; see video_renderer_impl.h for why the names live here rather
+  // than in the event enum.
+  using DecoderEventCB = base::RepeatingCallback<void(
+      DemuxerStreamType, const std::string&, const std::string&,
+      const std::string&, bool)>;
+  void SetDecoderEventCB(DecoderEventCB cb) {
+    decoder_event_cb_ = std::move(cb);
+  }
+
   // Callable from any thread; all four are atomics because the device thread
   // reads them inside Render() and must not take a lock to do it.
   void SetVolume(float volume);
@@ -296,6 +306,7 @@ class AVBASE_MEDIA_EXPORT AudioRendererImpl final
   base::RepeatingClosure ended_cb_;
   // Terminal decode errors hop through this to RendererImpl::ReportError.
   base::RepeatingCallback<void(MediaError)> error_cb_;
+  DecoderEventCB decoder_event_cb_;
 
   // ---- shared with S7; handoff_lock_ guards all four ----
   mutable base::Lock handoff_lock_;

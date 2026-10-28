@@ -23,6 +23,7 @@
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/tone_map.h"
 
 namespace avbase::media::ffmpeg {
 
@@ -64,6 +65,10 @@ class VideoConverter {
                  const int dst_linesize[4]);
   bool ConvertSws(const AVFrame& src, uint8_t* const dst_data[4],
                   const int dst_linesize[4]);
+  // HDR -> SDR through ToneMapper; falls back to sws when the build has no
+  // tonemap filter, and says so once.
+  bool ConvertHdr(const AVFrame& src, uint8_t* const dst_data[4],
+                  const int dst_linesize[4]);
 
   int src_w_{0};
   int src_h_{0};
@@ -75,6 +80,19 @@ class VideoConverter {
 
   // Lazily built by Configure(); kept across frames for the fallback path.
   SwsPtr sws_;
+
+  // HDR tone mapping state. The transfer/geometry are tracked here because the
+  // graph must be rebuilt when a stream switches between PQ and HLG (or when
+  // the resolution changes mid-stream), and Configure() cannot see the frame's
+  // colour description.
+  ToneMapper tone_mapper_;
+  int tone_mapper_transfer_{0};
+  int tone_mapper_width_{0};
+  int tone_mapper_height_{0};
+  // Hable with a mild desaturation: the ffmpeg filter's default desat=2.0 is
+  // aggressive enough to grey out skin tones.
+  ToneMapCurve tone_mapper_curve_{ToneMapCurve::kHable};
+  double tone_mapper_desat_{0.5};
 };
 
 }  // namespace avbase::media::ffmpeg

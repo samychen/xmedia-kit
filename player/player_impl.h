@@ -85,6 +85,10 @@ class PlayerImpl final : public media::Pipeline::Client {
   media::Size video_natural_size() const;
   media::Size video_coded_size() const;
   int video_rotation() const;
+  std::string video_decoder_name() const;
+  std::string audio_decoder_name() const;
+  bool video_decoder_opaque() const;
+  int decoder_fallback_count() const;
   double playback_rate() const { return playback_rate_.load(); }
   double volume() const { return volume_.load(); }
   bool muted() const { return muted_.load(); }
@@ -168,6 +172,13 @@ class PlayerImpl final : public media::Pipeline::Client {
   void OnStatisticsUpdate(const media::PipelineStatistics& stats) override;
   void OnTimedText(const media::TimedTextCue& cue) override;
   void OnVideoConfigChange(const media::VideoDecoderConfig& config) override;
+  void OnDecoderOpened(media::DemuxerStreamType type,
+                       const std::string& decoder_name,
+                       bool outputs_opaque_surface) override;
+  void OnDecoderFallback(media::DemuxerStreamType type,
+                         const std::string& from_decoder,
+                         const std::string& to_decoder,
+                         const std::string& reason) override;
 
   // The ready signal arrives as the pipeline's first
   // OnBufferingStateChange(kHaveMetadata); snapshot media info and publish
@@ -337,6 +348,13 @@ class PlayerImpl final : public media::Pipeline::Client {
   media::Size video_natural_size_ GUARDED_BY(snapshot_lock_);
   int video_rotation_ GUARDED_BY(snapshot_lock_) = 0;
   bool is_live_ GUARDED_BY(snapshot_lock_) = false;
+  // Which decoder each leg ended up with, and whether its frames live in
+  // device memory. Durable copies of what kDecoderOpened reported, so a host
+  // that asks after playback started still gets an answer.
+  std::string video_decoder_name_ GUARDED_BY(snapshot_lock_);
+  std::string audio_decoder_name_ GUARDED_BY(snapshot_lock_);
+  bool video_decoder_opaque_ GUARDED_BY(snapshot_lock_) = false;
+  int decoder_fallback_count_ GUARDED_BY(snapshot_lock_) = 0;
 
   // Seek bookkeeping: the media layer reports a bare completion, the facade
   // matches it to the request id and runs the user's callback on the event

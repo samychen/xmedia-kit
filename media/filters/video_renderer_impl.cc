@@ -462,13 +462,36 @@ void VideoRendererImpl::ReportEndedOnce() {
 void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
   if (event == DecoderStreamEvent::kNoDecoderAvailable) {
     LOG(ERROR) << "avbase.vdec: every video decoder candidate failed";
-  } else {
-    // Δ12: a hardware-to-software fallback is a recovery, not an error, but it
-    // must be visible -- it is the difference between "4K is smooth" and
-    // "4K is smooth until the driver resets".
-    LOG(WARNING) << "avbase.vdec: " << GetDecoderStreamEventName(event)
-                 << " -> " << decoder_stream_.GetDisplayName();
+    return;
   }
+  if (!decoder_event_cb_) {
+    return;
+  }
+  if (event == DecoderStreamEvent::kDecoderOpened) {
+    // The name existed only in a LOG(INFO) line before this. A host cannot
+    // parse its way to "VideoToolbox is in use", and the opaque-surface flag
+    // decides whether frames can ever be handed to a zero-copy uploader.
+    LOG(INFO) << "avbase.vdec: decoder opened -> "
+              << decoder_stream_.GetDisplayName();
+    // Argument order matters: the callback is (type, from, to, reason,
+    // opaque), and an "opened" report has no |from|. Putting the name in the
+    // |from| slot made every open look like a fallback FROM the decoder that
+    // had just succeeded, with an empty destination -- which is what the
+    // first version did, and what the event test caught.
+    decoder_event_cb_.Run(DemuxerStreamType::kVideo, std::string(),
+                          decoder_stream_.GetOpenedDecoderName(), std::string(),
+                          decoder_stream_.OpensOpaqueSurface());
+    return;
+  }
+  // A fallback: a hardware-to-software switch is a recovery, not an error, but
+  // it must be visible -- it is the difference between "4K is smooth" and
+  // "4K is smooth until the driver resets".
+  LOG(WARNING) << "avbase.vdec: " << GetDecoderStreamEventName(event) << " -> "
+               << decoder_stream_.GetDisplayName();
+  decoder_event_cb_.Run(DemuxerStreamType::kVideo,
+                        decoder_stream_.failed_decoder(),
+                        decoder_stream_.GetOpenedDecoderName(),
+                        GetDecoderStreamEventName(event), false);
 }
 
 }  // namespace avbase::media

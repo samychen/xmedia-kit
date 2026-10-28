@@ -14,6 +14,8 @@
 
 #include "media/filters/audio_renderer_impl.h"
 
+#include <string>
+
 #include <algorithm>
 #include <utility>
 
@@ -431,11 +433,28 @@ void AudioRendererImpl::OnDecoderOutput(
 void AudioRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
   if (event == DecoderStreamEvent::kNoDecoderAvailable) {
     LOG(ERROR) << "avbase.adec: every audio decoder candidate failed";
-  } else {
-    // Δ12: a fallback is not an error, but it must be observable.
-    LOG(WARNING) << "avbase.adec: " << GetDecoderStreamEventName(event)
-                 << " -> " << decoder_stream_.GetDisplayName();
+    return;
   }
+  if (!decoder_event_cb_) {
+    return;
+  }
+  if (event == DecoderStreamEvent::kDecoderOpened) {
+    LOG(INFO) << "avbase.adec: decoder opened -> "
+              << decoder_stream_.GetDisplayName();
+    // Audio frames are always CPU-readable, so the opaque flag is false here
+    // -- stated rather than guessed; see the trait.
+    decoder_event_cb_.Run(DemuxerStreamType::kAudio, std::string(),
+                          decoder_stream_.GetOpenedDecoderName(), std::string(),
+                          false);
+    return;
+  }
+  // A fallback is not an error, but it must be observable.
+  LOG(WARNING) << "avbase.adec: " << GetDecoderStreamEventName(event) << " -> "
+               << decoder_stream_.GetDisplayName();
+  decoder_event_cb_.Run(DemuxerStreamType::kAudio,
+                        decoder_stream_.failed_decoder(),
+                        decoder_stream_.GetOpenedDecoderName(),
+                        GetDecoderStreamEventName(event), false);
 }
 
 }  // namespace avbase::media

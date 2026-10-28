@@ -228,6 +228,11 @@ void RendererImpl::WireVideoCallbacks(int source_index) {
   }
   v->SetErrorCB(base::BindRepeating(&RendererImpl::ReportError,
                                     weak_factory_.GetWeakPtr()));
+  // Unretained, unlike ReportError's binding: ForwardDecoderEvent is entered
+  // from S3/S4, and a WeakPtrFactory refuses to hand out a pointer bound to a
+  // different sequence (it CHECKs on dereference, which aborted every prepare).
+  v->SetDecoderEventCB(base::BindRepeating(&RendererImpl::ForwardDecoderEvent,
+                                           base::Unretained(this)));
 }
 
 void RendererImpl::WireAudioCallbacks() {
@@ -235,6 +240,36 @@ void RendererImpl::WireAudioCallbacks() {
                                            base::Unretained(this)));
   audio_->SetErrorCB(base::BindRepeating(&RendererImpl::ReportError,
                                          weak_factory_.GetWeakPtr()));
+  // Unretained for the same reason as the video leg's: ForwardDecoderEvent is
+  // entered from S3/S4, and a WeakPtrFactory will not hand out a pointer on a
+  // sequence other than its own.
+  audio_->SetDecoderEventCB(base::BindRepeating(
+      &RendererImpl::ForwardDecoderEvent, base::Unretained(this)));
+}
+
+void RendererImpl::ForwardDecoderEvent(DemuxerStreamType type,
+                                       const std::string& from,
+                                       const std::string& to,
+                                       const std::string& reason,
+                                       bool outputs_opaque_surface) {
+  // Same hop as ReportError: the sub-renderers run on S3/S4, the pipeline
+  // client on S1. Copied rather than moved because the caller's strings are
+  // its own state (the DecoderStream keeps failed_decoder_ for exactly this).
+  deps_.media_task_runner->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](RendererImpl* self, DemuxerStreamType t, std::string f,
+                        std::string to_name, std::string why, bool opaque) {
+                       if (!self->client_) {
+                         return;
+                       }
+                       if (f.empty()) {
+                         self->client_->OnDecoderOpened(t, to_name, opaque);
+                       } else {
+                         self->client_->OnDecoderFallback(t, f, to_name, why);
+                       }
+                     },
+                     base::Unretained(this), type, from, to, reason,
+                     outputs_opaque_surface));
 }
 
 }  // namespace avbase::media

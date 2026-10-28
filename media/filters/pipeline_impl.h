@@ -205,6 +205,12 @@ class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
   void OnWaiting(WaitingReason reason) override;
   void OnDurationChange(base::TimeDelta duration) override;
   void OnStatisticsUpdate(const PipelineStatistics& stats) override;
+  void OnDecoderOpened(DemuxerStreamType type, const std::string& decoder_name,
+                       bool outputs_opaque_surface) override;
+  void OnDecoderFallback(DemuxerStreamType type,
+                         const std::string& from_decoder,
+                         const std::string& to_decoder,
+                         const std::string& reason) override;
   void OnVideoConfigChange(const VideoDecoderConfig& config) override;
   void OnTimedText(const TimedTextCue& cue) override;
   // RendererClient-only hooks (Pipeline::Client has neither): the device

@@ -187,6 +187,27 @@ void PipelineImpl::OnDurationChange(base::TimeDelta duration) {
   client_->OnDurationChange(duration);
 }
 
+void PipelineImpl::OnDecoderOpened(DemuxerStreamType type,
+                                   const std::string& decoder_name,
+                                   bool outputs_opaque_surface) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Already on the media sequence: RendererImpl hops here before calling, so
+  // no second hop is needed to reach the client.
+  if (client_) {
+    client_->OnDecoderOpened(type, decoder_name, outputs_opaque_surface);
+  }
+}
+
+void PipelineImpl::OnDecoderFallback(DemuxerStreamType type,
+                                     const std::string& from_decoder,
+                                     const std::string& to_decoder,
+                                     const std::string& reason) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (client_) {
+    client_->OnDecoderFallback(type, from_decoder, to_decoder, reason);
+  }
+}
+
 void PipelineImpl::OnStatisticsUpdate(const PipelineStatistics& stats) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Composite byte/seek counters are pipeline-level facts (the container, not

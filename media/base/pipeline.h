@@ -109,6 +109,16 @@ class AVBASE_MEDIA_EXPORT Pipeline {
     virtual void OnWaiting(WaitingReason reason) = 0;
     virtual void OnStatisticsUpdate(const PipelineStatistics& stats) = 0;
     virtual void OnVideoConfigChange(const VideoDecoderConfig& config) = 0;
+    // Which decoder is in use, and when one was replaced. Default no-ops so a
+    // client that does not care (the pipeline's own tests, tools) compiles
+    // unchanged; PlayerImpl overrides both to raise the player events.
+    virtual void OnDecoderOpened(DemuxerStreamType type,
+                                 const std::string& decoder_name,
+                                 bool outputs_opaque_surface) {}
+    virtual void OnDecoderFallback(DemuxerStreamType type,
+                                   const std::string& from_decoder,
+                                   const std::string& to_decoder,
+                                   const std::string& reason) {}
     virtual void OnTimedText(const media::TimedTextCue& /*cue*/) {}
 
    protected:

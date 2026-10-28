@@ -195,6 +195,17 @@ class AVBASE_MEDIA_EXPORT VideoRendererImpl final
     error_cb_ = std::move(cb);
   }
 
+  // Decoder identity and fallbacks, lifted out of the decode leg so the host
+  // can finally see them. Same shape as SetErrorCB: RendererImpl injects this
+  // and forwards to its RendererClient, which is what makes
+  // EventType::kDecoderOpened / kDecoderFallback reachable at all.
+  using DecoderEventCB = base::RepeatingCallback<void(
+      DemuxerStreamType, const std::string&, const std::string&,
+      const std::string&, bool)>;
+  void SetDecoderEventCB(DecoderEventCB cb) {
+    decoder_event_cb_ = std::move(cb);
+  }
+
   void StartPlayingFrom(base::TimeDelta time);
   void Flush(int32_t serial, base::OnceClosure closure);
   void Stop();
@@ -327,6 +338,7 @@ class AVBASE_MEDIA_EXPORT VideoRendererImpl final
   // H2: injected via SetErrorCB; invoked on the decode sequence when the
   // decoder stream reports a terminal (non-aborted) failure.
   base::RepeatingCallback<void(MediaError)> error_cb_;
+  DecoderEventCB decoder_event_cb_;
   int32_t serial_{0};
   // Written on the sink's render sequence (S6), read only for logging, so
   // relaxed is enough: it rate-limits a message and nothing depends on its

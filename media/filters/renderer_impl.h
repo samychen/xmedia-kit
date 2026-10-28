@@ -1,28 +1,23 @@
 // Copyright 2026 The avbase Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
 // Mirrors Chromium's `media/filters/renderer_impl.h` (BSD-3-Clause) in role:
 // the composition root that turns a MediaResource into audio and video output
 // and owns the clock.
-//
 // STATUS: IN THE BUILD (promoted from DRAFT, tenth round)
 // PROMOTED into the build in the tenth round, after a full compile and test
 // run (docs/PROGRESS.md §3l). Any wording below saying this file has never
 // been compiled, or is excluded from every CMake target, is HISTORICAL: it
 // describes the state when the file was written and is kept so the reasoning
 // behind each gap list stays readable. The gap lists themselves are still
-// open unless a later note says otherwise.
-// (milestone M7, docs/08 §2).
+// open unless a later note says otherwise. (milestone M7, docs/08 §2).
 // Written without a compiler; never built or run. Excluded from every CMake
 // target on purpose.
-//
 // WHAT IT REPLACES. In ijkplayer this role is played by the whole of
 // ff_ffplay.c: `read_thread()` plus the ~200-field VideoState that every thread
 // mutates. Here it is one class that owns two sub-renderers and one clock, and
 // whose only cross-sequence traffic is a periodic clock push and the two sinks'
 // callbacks. docs/01 defect #2 is the god-struct; this is the answer to it.
-//
 // ---------------------------------------------------------------------------
 // GAPS -- close these before this file leaves DRAFT
 // ---------------------------------------------------------------------------
@@ -96,7 +91,6 @@
 namespace avbase::media {
 
 // Owns the two sub-renderers and the clock; implements media::Renderer.
-//
 // THREADING. Lives on the media sequence (S1, docs/04 §1). It creates and
 // drives VideoRendererImpl (S3) and AudioRendererImpl (S4) by posting to their
 // own runners, and never touches their internals from here. The one thing that
@@ -307,7 +301,6 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   void CreateSubRenderers(const std::vector<SourceStreams>& sources);
   // Applies every deps_ setting that lives INSIDE a VideoRendererImpl to |v|:
   // the filter graph, the decoder preference and the two pacing caps.
-  //
   // Must be called at BOTH sites that construct one (initial start and the
   // mid-flight track switch): a switch throws the old renderer away and
   // builds a fresh one -- new compositor, new filter stage -- and none of
@@ -321,12 +314,16 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   void PushMasterClock();
   void PushStatistics();
   void ReportError(MediaError error);
+  // Lifts a sub-renderer's decoder report to the client. |from| is the decoder
+  // that lost (empty for an "opened" report), |to| the one in use.
+  void ForwardDecoderEvent(DemuxerStreamType type, const std::string& from,
+                           const std::string& to, const std::string& reason,
+                           bool opaque);
   // The callback wiring shared by both construction sites of each
   // sub-renderer; requires |video_renderers_| / |audio_| to be non-null.
-  // Takes the source index because two of the three video callbacks are
-  // source-specific (docs/14 stage 1): the ended hop carries the index, and
-  // the frame-presented hook is wired ONLY for source 0 -- the master video
-  // clock stays a source-0 concept until stage 2.
+  // Takes the source index because two video callbacks are source-specific
+  // (docs/14 stage 1): the frame-presented hook is wired ONLY for source 0 --
+  // the master video clock stays a source-0 concept until stage 2.
   void WireVideoCallbacks(int source_index);
   void WireAudioCallbacks();
   // Runs (on the media sequence, via a hop) the pipeline's init callback with

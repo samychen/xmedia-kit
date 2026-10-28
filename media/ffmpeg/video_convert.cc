@@ -4,8 +4,11 @@
 
 #include "media/ffmpeg/video_convert.h"
 
+#include <libavutil/mastering_display_metadata.h>
+
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/tone_map.h"
 
 #if defined(AVBASE_HAVE_LIBYUV)
 #include <libyuv.h>
@@ -97,10 +100,68 @@ bool VideoConverter::Convert(const AVFrame& src, uint8_t* const dst_data[4],
       src.format != src_format_) {
     return false;
   }
+  // HDR goes FIRST, before both fast paths. libyuv's YUV->RGB kernels are
+  // hard-wired to BT.601 and sws has no transfer-function notion at all, so
+  // either one turns a PQ source into a dim, desaturated picture -- and it
+  // does so silently, with the right geometry and the right timestamps. An
+  // 8-bit SDR source never enters this branch, so the common path pays one
+  // comparison for it.
+  if (IsHdrTransfer(static_cast<int>(src.color_trc))) {
+    return ConvertHdr(src, dst_data, dst_linesize);
+  }
   if (TryLibyuv(src, dst_data, dst_linesize)) {
     return true;
   }
   return ConvertSws(src, dst_data, dst_linesize);
+}
+
+bool VideoConverter::ConvertHdr(const AVFrame& src, uint8_t* const dst_data[4],
+                                const int dst_linesize[4]) {
+  // The frame's own peak luminance, when the container recorded it. 0 means
+  // "no mastering-display metadata", and ToneMapper then lets zscale use the
+  // transfer function's default rather than inventing a number.
+  double peak = 0.0;
+  // Side data, not a struct member: AVFrame carries it as an
+  // AV_FRAME_DATA_MASTERING_DISPLAY_METADATA entry, and accessing it through a
+  // member was the first draft's mistake (no such member exists).
+  if (const AVFrameSideData* sd = av_frame_get_side_data(
+          &src, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA)) {
+    if (sd->data != nullptr && sd->size >= sizeof(AVMasteringDisplayMetadata)) {
+      const auto* meta =
+          reinterpret_cast<const AVMasteringDisplayMetadata*>(sd->data);
+      // max_luminance is in units of 0.0001 cd/m^2.
+      const double max_lum =
+          static_cast<double>(meta->max_luminance.num) /
+          static_cast<double>(
+              meta->max_luminance.den == 0 ? 1 : meta->max_luminance.den) /
+          10000.0;
+      if (max_lum > 0.0) {
+        peak = max_lum;
+      }
+    }
+  }
+  if (!tone_mapper_.Configured() ||
+      tone_mapper_transfer_ != static_cast<int>(src.color_trc) ||
+      tone_mapper_width_ != src.width || tone_mapper_height_ != src.height) {
+    if (!tone_mapper_.Configure(src.width, src.height,
+                                static_cast<int>(src.color_trc),
+                                tone_mapper_curve_, peak, tone_mapper_desat_)) {
+      // No zimg/tonemap in this build, or an unsupported pair: fall back to
+      // sws so the picture still appears, and say once why it looks wrong.
+      static bool warned = false;
+      if (!warned) {
+        warned = true;
+        LOG(WARNING) << "video convert: HDR source without tone mapping "
+                        "(this FFmpeg build lacks zscale/tonemap); the "
+                        "picture will be dark and undersaturated";
+      }
+      return ConvertSws(src, dst_data, dst_linesize);
+    }
+    tone_mapper_transfer_ = static_cast<int>(src.color_trc);
+    tone_mapper_width_ = src.width;
+    tone_mapper_height_ = src.height;
+  }
+  return tone_mapper_.Process(src, dst_data, dst_linesize);
 }
 
 bool VideoConverter::TryLibyuv(const AVFrame& src, uint8_t* const dst_data[4],

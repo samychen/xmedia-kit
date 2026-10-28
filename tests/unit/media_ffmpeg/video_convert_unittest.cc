@@ -5,6 +5,7 @@
 #include "media/ffmpeg/video_convert.h"
 
 #include <cstdlib>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -198,6 +199,100 @@ TEST(VideoConverterTest, ConfigureChangeRebuildsFallback) {
   EXPECT_TRUE(converter.Configured());
   converter.Reset();
   EXPECT_FALSE(converter.Configured());
+}
+
+// Tone mapping: the difference between "an HDR file plays" and "an HDR file
+// plays correctly". Before this, a PQ source went through sws like any other
+// frame: right geometry, right timestamps, right duration, and a picture at
+// roughly half the brightness it should have (measured on the committed
+// fixture: average luma 122 naive vs 235 tone mapped, where a correct Hable
+// curve lands near 226).
+//
+// The assertion is LUMINANCE, not "it did not crash", because every cheap
+// check passes on the broken path.
+TEST(VideoConverterToneMapTest, PqSourceIsMappedBrighterThanTheNaivePath) {
+  if (!ToneMapper::IsAvailable()) {
+    GTEST_SKIP() << "this FFmpeg build has no zscale/tonemap filter";
+  }
+  // A flat mid-grey PQ frame: the tonemapper's job on a uniform frame is a
+  // single value out, which makes the comparison unambiguous.
+  FramePtr src(av_frame_alloc());
+  src->width = 64;
+  src->height = 48;
+  src->format = AV_PIX_FMT_YUV420P10LE;
+  src->colorspace = AVCOL_SPC_BT2020_NCL;
+  src->color_primaries = AVCOL_PRI_BT2020;
+  src->color_trc = AVCOL_TRC_SMPTE2084;
+  src->color_range = AVCOL_RANGE_MPEG;
+  ASSERT_EQ(av_frame_get_buffer(src.get(), 32), 0);
+  // PQ code 0.58 (10-bit 594) is roughly 100 cd/m^2 -- a normal exposure.
+  for (int y = 0; y < src->height; ++y) {
+    auto* row =
+        reinterpret_cast<uint16_t*>(src->data[0] + y * src->linesize[0]);
+    for (int x = 0; x < src->width; ++x) {
+      row[x] = 594;
+    }
+  }
+  for (int p = 1; p <= 2; ++p) {
+    for (int y = 0; y < src->height / 2; ++y) {
+      auto* row =
+          reinterpret_cast<uint16_t*>(src->data[p] + y * src->linesize[p]);
+      for (int x = 0; x < src->width / 2; ++x) {
+        row[x] = 512;  // neutral chroma
+      }
+    }
+  }
+
+  // Destination buffers, same shape as a real caller's.
+  std::vector<uint8_t> y_plane(static_cast<size_t>(kWidth) * kHeight);
+  std::vector<uint8_t> u_plane(static_cast<size_t>(kWidth / 2) * (kHeight / 2));
+  std::vector<uint8_t> v_plane(static_cast<size_t>(kWidth / 2) * (kHeight / 2));
+  uint8_t* dst[4] = {y_plane.data(), u_plane.data(), v_plane.data(), nullptr};
+  int dst_stride[4] = {kWidth, kWidth / 2, kWidth / 2, 0};
+
+  VideoConverter converter;
+  ASSERT_TRUE(converter.Configure(64, 48, AV_PIX_FMT_YUV420P10LE, kWidth,
+                                  kHeight, AV_PIX_FMT_YUV420P));
+  ASSERT_TRUE(converter.Convert(*src, dst, dst_stride));
+  // Measured against the NAIVE path on the same frame, not against a guessed
+  // constant. A constant was the first version and it did not discriminate:
+  // the plain sws route also lands above 120 for this input, so disabling the
+  // tonemapper entirely still passed. What separates the two is the direction
+  // and the size of the shift.
+  std::vector<uint8_t> ny(kWidth * kHeight), nu((kWidth / 2) * (kHeight / 2)),
+      nv((kWidth / 2) * (kHeight / 2));
+  uint8_t* ndst[4] = {ny.data(), nu.data(), nv.data(), nullptr};
+  int nstride[4] = {kWidth, kWidth / 2, kWidth / 2, 0};
+  // AVCOL_TRC_UNSPECIFIED makes the converter treat it as SDR, which is
+  // exactly the naive path this asserts against.
+  FramePtr sdr_view(av_frame_alloc());
+  ASSERT_EQ(av_frame_ref(sdr_view.get(), src.get()), 0);
+  sdr_view->color_trc = AVCOL_TRC_UNSPECIFIED;
+  VideoConverter naive;
+  ASSERT_TRUE(naive.Configure(64, 48, AV_PIX_FMT_YUV420P10LE, kWidth, kHeight,
+                              AV_PIX_FMT_YUV420P));
+  ASSERT_TRUE(naive.Convert(*sdr_view, ndst, nstride));
+  const int mapped = y_plane[0];
+  const int unmapped = ny[0];
+  EXPECT_GT(mapped, unmapped + 10)
+      << "tone mapped " << mapped << " vs naive " << unmapped
+      << ": the tone mapper did not change the picture";
+  // ...and it must not be clipped to white either: a tonemapper that saturates
+  // is as wrong as one that does nothing.
+  EXPECT_LT(mapped, 250) << "PQ frame clipped to white";
+}
+
+// The other direction, and the one that makes the first assertion meaningful:
+// SDR content must NOT go through the tonemapper. Running a tonemapper over
+// BT.709 crushes its blacks, and a rule keyed on bit depth instead of transfer
+// would do exactly that to every 10-bit SDR file.
+TEST(VideoConverterToneMapTest, SdrContentIsNotToneMapped) {
+  EXPECT_FALSE(IsHdrTransfer(AVCOL_TRC_BT709));
+  EXPECT_FALSE(IsHdrTransfer(AVCOL_TRC_UNSPECIFIED));
+  EXPECT_FALSE(IsHdrTransfer(AVCOL_TRC_SMPTE170M));
+  // The two HDR curves, which are the only ones that may be mapped.
+  EXPECT_TRUE(IsHdrTransfer(AVCOL_TRC_SMPTE2084));
+  EXPECT_TRUE(IsHdrTransfer(AVCOL_TRC_ARIB_STD_B67));
 }
 
 }  // namespace

@@ -47,6 +47,10 @@ namespace avbase::media {
 // observable (behaviour difference Δ12).
 enum class DecoderStreamEvent {
   kNone = 0,
+  // A decoder opened successfully. No payload here: the renderer reads the
+  // name and opaque flag from the stream itself (GetOpenedDecoderName /
+  // OpensOpaqueSurface), because Notify() carries the kind only.
+  kDecoderOpened,
   // A factory's decoder failed to initialize and the next candidate was used.
   kDecoderFallbackOnInit,
   // A working decoder started failing and was replaced.
@@ -87,6 +91,13 @@ struct AVBASE_MEDIA_EXPORT VideoDecoderStreamTraits {
   static std::string DecoderName(DecoderType* decoder) {
     return decoder ? std::string(decoder->name()) : std::string();
   }
+  // Whether the frames this decoder hands back live in device memory. Read
+  // from the factory capability rather than guessed from the codec: the same
+  // H.264 config is opaque under VideoToolbox and CPU-readable under the
+  // software decoder, and a host sizing its own upload path needs the truth.
+  static bool OutputsOpaqueSurface(FactoryType* factory) {
+    return factory && factory->GetCapability().outputs_opaque_surface;
+  }
 };
 
 struct AVBASE_MEDIA_EXPORT AudioDecoderStreamTraits {
@@ -116,6 +127,11 @@ struct AVBASE_MEDIA_EXPORT AudioDecoderStreamTraits {
   static std::string DecoderName(DecoderType* decoder) {
     return decoder ? decoder->GetDisplayName() : std::string();
   }
+  static std::string FactoryName(FactoryType* factory) {
+    return factory ? std::string(factory->name()) : std::string();
+  }
+  // Audio frames are always CPU-readable host memory.
+  static bool OutputsOpaqueSurface(FactoryType*) { return false; }
 };
 
 // Owns one decoder plus the queues on either side of it, and drives the
@@ -171,6 +187,22 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
   // completes a decoder, and "which picture is it now" is answered by the
   // config, not by anything the renderer kept a copy of.
   const ConfigType& config() const { return config_; }
+
+  // The decoder that is currently open, or empty. Lets the renderer turn
+  // kDecoderOpened into an owner callback without the event enum carrying a
+  // payload it has no room for.
+  std::string GetOpenedDecoderName() const {
+    return Traits::DecoderName(decoder_.get());
+  }
+  // True when this leg's frames live in device memory (hardware decode that
+  // never comes back to the CPU). Asked of the FACTORY that produced the
+  // decoder, because the codec alone does not decide it.
+  bool OpensOpaqueSurface() const {
+    return Traits::OutputsOpaqueSurface(active_factory_.get());
+  }
+  // What the last failed candidate was called; empty when the current decoder
+  // is the first one tried. Read for kDecoderFallbackOnInit.
+  const std::string& failed_decoder() const { return failed_decoder_; }
 
   // Delivers one decoded output, or a status explaining why there is none.
   // Exactly one Read may be outstanding at a time.
@@ -233,6 +265,16 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
   ConfigType config_;
   std::vector<base::scoped_refptr<FactoryType>> factories_;
   size_t next_factory_ = 0;
+  // The factory whose decoder is currently OPENED. Kept because the fallback
+  // report needs to name the one that lost; factories_[next_factory_ - 1] is
+  // the one that was just tried, which is not the same thing once a candidate
+  // has been rejected for being unable to initialize.
+  base::scoped_refptr<FactoryType> active_factory_;
+  // Name of the decoder that most recently failed to initialize. Read by the
+  // renderer when it turns kDecoderFallbackOnInit into an owner callback: the
+  // event kind alone cannot carry it, and by then decoder_ already points at
+  // the replacement (or at nothing).
+  std::string failed_decoder_;
   std::unique_ptr<DecoderType> decoder_;
   EventCB event_cb_;
 

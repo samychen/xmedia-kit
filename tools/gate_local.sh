@@ -420,6 +420,35 @@ job_e2e() {
       echo "skip preview 10-bit source (no ffmpeg CLI / no libx264 10-bit)"
     fi
 
+    # HDR tone mapping: the picture must be BRIGHTER than the naive path,
+    # measured. "It transcoded" is not the assertion -- an HDR source went
+    # through sws for months with correct geometry, timestamps and duration and
+    # a picture at half the brightness. The unit test pins the pixel values
+    # (video_convert_unittest, VideoConverterToneMapTest); this pins that the
+    # CLI path reaches the same converter and lands in the documented range.
+    # The fixture is 10-bit PQ, so the measurement is taken on the transcode's
+    # own 8-bit output rather than on the source.
+    if command -v ffmpeg >/dev/null 2>&1 &&
+        "$inspect" transcode tests/testdata/hdr_pq_320x240_1s.mp4 \
+          -o "$tc/hdr.mp4" >"$log" 2>&1; then
+      hrluma=$(ffmpeg -hide_banner -i "$tc/hdr.mp4" -frames:v 1 \
+                 -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG" \
+                 -f null - 2>&1 |
+               sed -n 's/.*YAVG=\([0-9.]*\).*/\1/p' | head -1)
+      # The fixture's PQ content maps to near-white after a correct Hable
+      # curve (measured 235 on the preview path, 255 through mjpeg's full
+      # range); without tone mapping it lands near 122. 150 separates them
+      # with room on both sides.
+      if awk -v y="$hrluma" 'BEGIN {exit !(y > 150)}'; then
+        echo "ok   HDR PQ tone mapped -> avg luma $hrluma"
+      else
+        echo "FAIL HDR PQ not tone mapped (avg luma ${hrluma:-none}, want >150)"
+        fail=1
+      fi
+    else
+      echo "skip HDR tone mapping (no ffmpeg CLI or transcode failed)"
+    fi
+
     # record: a bounded capture must actually stop at the limit. The gate
     # feeds it a 40 s file with --duration 3 and measures the OUTPUT: a
     # recorder that ignores the limit fills the disk, and every exit-code-only

@@ -299,9 +299,20 @@ TEST_F(DecoderStreamTest, FallsBackWhenFirstFactoryDeclinesTheConfig) {
   auto decoder_stream = std::make_unique<AudioDecoderStream>(runner_);
   std::vector<DecoderStreamEvent> events;
   decoder_stream->set_event_cb(
-      base::BindRepeating([](std::vector<DecoderStreamEvent>* sink,
-                             DecoderStreamEvent e) { sink->push_back(e); },
-                          &events));
+      // Only the FALLBACK events, deliberately. kDecoderOpened now fires on
+      // every successful open (it is what carries the decoder's name to the
+      // owner), and these tests are about which failures are reported --
+      // counting every event would make them assert "an open happened", which
+      // is not what they are named for.
+      base::BindRepeating(
+          [](std::vector<DecoderStreamEvent>* sink, DecoderStreamEvent e) {
+            if (e == DecoderStreamEvent::kDecoderFallbackOnInit ||
+                e == DecoderStreamEvent::kDecoderFallbackOnDecodeError ||
+                e == DecoderStreamEvent::kNoDecoderAvailable) {
+              sink->push_back(e);
+            }
+          },
+          &events));
   bool init_done = false;
   DecoderStatus init_status;
   decoder_stream->Initialize(
@@ -341,9 +352,20 @@ TEST_F(DecoderStreamTest, FallsBackAndReportsEventWhenDecoderInitFails) {
   auto decoder_stream = std::make_unique<AudioDecoderStream>(runner_);
   std::vector<DecoderStreamEvent> events;
   decoder_stream->set_event_cb(
-      base::BindRepeating([](std::vector<DecoderStreamEvent>* sink,
-                             DecoderStreamEvent e) { sink->push_back(e); },
-                          &events));
+      // Only the FALLBACK events, deliberately. kDecoderOpened now fires on
+      // every successful open (it is what carries the decoder's name to the
+      // owner), and these tests are about which failures are reported --
+      // counting every event would make them assert "an open happened", which
+      // is not what they are named for.
+      base::BindRepeating(
+          [](std::vector<DecoderStreamEvent>* sink, DecoderStreamEvent e) {
+            if (e == DecoderStreamEvent::kDecoderFallbackOnInit ||
+                e == DecoderStreamEvent::kDecoderFallbackOnDecodeError ||
+                e == DecoderStreamEvent::kNoDecoderAvailable) {
+              sink->push_back(e);
+            }
+          },
+          &events));
   bool init_done = false;
   DecoderStatus init_status;
   decoder_stream->Initialize(
@@ -379,9 +401,20 @@ TEST_F(DecoderStreamTest, ReportsNoDecoderAvailableWhenEveryFactoryFails) {
   auto decoder_stream = std::make_unique<AudioDecoderStream>(runner_);
   std::vector<DecoderStreamEvent> events;
   decoder_stream->set_event_cb(
-      base::BindRepeating([](std::vector<DecoderStreamEvent>* sink,
-                             DecoderStreamEvent e) { sink->push_back(e); },
-                          &events));
+      // Only the FALLBACK events, deliberately. kDecoderOpened now fires on
+      // every successful open (it is what carries the decoder's name to the
+      // owner), and these tests are about which failures are reported --
+      // counting every event would make them assert "an open happened", which
+      // is not what they are named for.
+      base::BindRepeating(
+          [](std::vector<DecoderStreamEvent>* sink, DecoderStreamEvent e) {
+            if (e == DecoderStreamEvent::kDecoderFallbackOnInit ||
+                e == DecoderStreamEvent::kDecoderFallbackOnDecodeError ||
+                e == DecoderStreamEvent::kNoDecoderAvailable) {
+              sink->push_back(e);
+            }
+          },
+          &events));
   bool init_done = false;
   DecoderStatus init_status;
   decoder_stream->Initialize(
@@ -544,9 +577,20 @@ TEST_F(DecoderStreamTest, DecodeErrorsAreCountedAndEventuallyStopTheStream) {
   auto decoder_stream = std::make_unique<AudioDecoderStream>(runner_);
   std::vector<DecoderStreamEvent> events;
   decoder_stream->set_event_cb(
-      base::BindRepeating([](std::vector<DecoderStreamEvent>* sink,
-                             DecoderStreamEvent e) { sink->push_back(e); },
-                          &events));
+      // Only the FALLBACK events, deliberately. kDecoderOpened now fires on
+      // every successful open (it is what carries the decoder's name to the
+      // owner), and these tests are about which failures are reported --
+      // counting every event would make them assert "an open happened", which
+      // is not what they are named for.
+      base::BindRepeating(
+          [](std::vector<DecoderStreamEvent>* sink, DecoderStreamEvent e) {
+            if (e == DecoderStreamEvent::kDecoderFallbackOnInit ||
+                e == DecoderStreamEvent::kDecoderFallbackOnDecodeError ||
+                e == DecoderStreamEvent::kNoDecoderAvailable) {
+              sink->push_back(e);
+            }
+          },
+          &events));
   bool init_done = false;
   decoder_stream->Initialize(
       &stream, AudioDecoderConfig(), std::move(factories),

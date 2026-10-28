@@ -11,6 +11,7 @@
 
 #include "player/public/player.h"
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -169,6 +170,18 @@ media::Size Player::video_coded_size() const {
 }
 int Player::video_rotation() const {
   return impl_->core.video_rotation();
+}
+std::string Player::video_decoder_name() const {
+  return impl_->core.video_decoder_name();
+}
+std::string Player::audio_decoder_name() const {
+  return impl_->core.audio_decoder_name();
+}
+bool Player::video_decoder_opaque() const {
+  return impl_->core.video_decoder_opaque();
+}
+int Player::decoder_fallback_count() const {
+  return impl_->core.decoder_fallback_count();
 }
 double Player::playback_rate() const {
   return impl_->core.playback_rate();
