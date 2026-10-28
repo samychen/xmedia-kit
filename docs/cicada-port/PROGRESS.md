@@ -3,13 +3,14 @@
 > 活文档。恢复执行协议见 [PLAN.md](PLAN.md) §2：接手者读本表，从第一个未完成任务继续。
 > 状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
 
-**当前整体状态**：T1 进行中。
+**当前整体状态**：T1 完成，T2 进行中。
 
 ---
 
 ## 任务状态
 
-- [~] **T1 自研 HTTP(S) 网络数据源**（media/net + FindCurl + 单测） since: 2026-10-28 23:50
+- [x] **T1 自研 HTTP(S) 网络数据源**（media/net + FindCurl + 单测）
+- [~] **T2 缓存层**（media/cache：slice 内存缓存 + 文件级边播边缓存装饰器） since: 2026-10-29 00:40
 - [ ] **T2 缓存层**（media/cache：slice 内存缓存 + 文件级边播边缓存装饰器）
 - [ ] **T3 HLS 播放列表 demuxer**（media/hls：m3u8 parser / AES-128 / hls_stream / hls_demuxer）
 - [ ] **T4 ABR**（media/abr：带宽估计 + 缓冲水位算法 + 与 HLS 集成）
@@ -23,7 +24,7 @@
 
 | 任务 | 完成时间 | 证据（构建/测试命令与结果、关键文件） |
 |---|---|---|
-| — | — | — |
+| T1 自研 HTTP(S) 网络数据源 | 2026-10-29 00:35 | `media/curl/curl_data_source.{h,cc}`（独立 target `avbase::curl`，`AVBASE_ENABLE_CURL` 开关）；接线 `player/source_wrapping.{h,cc}`（自 player_impl_prepare.cc 按 C1 拆出）+ `NetConfig::prefer_curl`；测试基建 `tests/support/local_http_server.{h,cc}` + 9 个单测 `tests/unit/media_curl/`。`ctest build/cicada-port` **833/833 通过**；no-ffmpeg 构建不受影响；`check_invariants` 全过。提交：feature/cicada-port |
 
 ## 交接备注
 

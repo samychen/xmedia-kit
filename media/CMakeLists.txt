@@ -123,3 +123,25 @@ if(AVBASE_ENABLE_FFMPEG)
       ${FFmpeg_INCLUDE_DIRS})
   avbase_configure_target(avbase_transcode)
 endif()
+
+# media/curl — the libcurl-backed HTTP(S) data source, the port of
+# CicadaPlayer's curl_data_source (pinned DNS, forced IPv4/6, custom headers,
+# proxy, low-speed watchdog). Its own target because it links CURL::libcurl:
+# avbase_media must stay vendor-free (G2), and the dependency earns the
+# target, the target earns the directory (docs/06 §7.6) -- the same shape as
+# avbase_ffmpeg above. Nothing in media/ or player/ links it implicitly; the
+# player facade does so when AVBASE_ENABLE_CURL is on.
+if(AVBASE_ENABLE_CURL)
+  find_package(CURL REQUIRED)
+  file(GLOB AVBASE_CURL_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/curl/*.cc")
+  add_library(avbase_curl ${AVBASE_CURL_SOURCES})
+  add_library(avbase::curl ALIAS avbase_curl)
+  target_include_directories(avbase_curl PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+  target_link_libraries(avbase_curl
+      PUBLIC  avbase::media
+      PRIVATE CURL::libcurl)
+  target_compile_definitions(avbase_curl PRIVATE AVBASE_CURL_IMPLEMENTATION=1)
+  avbase_configure_target(avbase_curl)
+endif()

@@ -12,6 +12,7 @@
 #if AVBASE_ENABLE_FFMPEG
 #include "media/ffmpeg/url_data_source.h"
 #endif
+#include "media/filters/file_cache_data_source.h"
 #include "media/filters/retry_data_source.h"
 
 namespace avbase {
@@ -81,6 +82,30 @@ WrapRetry(const media::DataSourceDescriptor& descriptor, const NetConfig& net,
   (void)out_retry;
   return descriptor;
 #endif
+}
+
+media::DataSourceDescriptor
+WrapCache(const media::DataSourceDescriptor& descriptor,
+          const DataSourceConfig& config) {
+  // Only URIs can key a cache file; a memory buffer or fd has nothing stable
+  // to hash, and only descriptors that already carry a custom source (the
+  // retry-wrapped URI sources) have something to wrap -- a bare kUri still
+  // belongs to the protocol layer.
+  if (!config.enable_cache || config.cache_dir.empty() ||
+      descriptor.uri.empty() ||
+      (descriptor.kind != media::DataSourceDescriptor::Kind::kUri &&
+       descriptor.kind !=
+           media::DataSourceDescriptor::Kind::kCustomSource) ||
+      descriptor.custom == nullptr) {
+    return descriptor;
+  }
+  auto cached = base::MakeRefCounted<media::FileCacheDataSource>(
+      descriptor.custom,
+      media::FileCacheDataSource::Config{descriptor.uri, config.cache_dir,
+                                         config.cache_max_bytes});
+  auto wrapped = media::DataSourceDescriptor::FromSource(std::move(cached));
+  wrapped.uri = descriptor.uri;
+  return wrapped;
 }
 
 }  // namespace player_internal

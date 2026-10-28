@@ -31,6 +31,17 @@ media::DataSourceDescriptor
 WrapRetry(const media::DataSourceDescriptor& descriptor, const NetConfig& net,
           bool track, base::scoped_refptr<media::RetryDataSource>* out_retry);
 
+// Play-through caching, also split out for C1: when
+// DataSourceConfig::enable_cache is on, every descriptor that carries a URI
+// gets a FileCacheDataSource around its (already retry-wrapped) source --
+// bytes the demuxer pulls are appended to a local file, and a later session
+// with the same URI serves that prefix from disk without touching the
+// network. Descriptors without a URI (memory buffers, fds) have nothing to
+// key a cache file on and pass through untouched.
+media::DataSourceDescriptor WrapCache(
+    const media::DataSourceDescriptor& descriptor,
+    const DataSourceConfig& config);
+
 }  // namespace player_internal
 }  // namespace avbase
 

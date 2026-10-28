@@ -209,14 +209,18 @@ Status PlayerImpl::PrepareAsync() {
   // before the descriptor list existed.
   {
     base::AutoLock scoped(state_lock_);
-    descriptors[0] =
+    // Cache outside retry: a served-from-disk read must not spend a retry
+    // attempt, and a failed inner read below the mark must not either.
+    descriptors[0] = player_internal::WrapCache(
         player_internal::WrapRetry(descriptors[0], config_.net,
-                                   /*track=*/true, &retry_source_);
+                                   /*track=*/true, &retry_source_),
+        config_.data_source);
   }
   for (size_t i = 1; i < descriptors.size(); ++i) {
-    descriptors[i] =
+    descriptors[i] = player_internal::WrapCache(
         player_internal::WrapRetry(descriptors[i], config_.net,
-                                   /*track=*/false, nullptr);
+                                   /*track=*/false, nullptr),
+        config_.data_source);
   }
   // One demuxer per descriptor, same order: the main reads source_, each
   // secondary from its descriptor.
