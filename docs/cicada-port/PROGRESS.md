@@ -3,7 +3,7 @@
 > 活文档。恢复执行协议见 [PLAN.md](PLAN.md) §2：接手者读本表，从第一个未完成任务继续。
 > 状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
 
-**当前整体状态**：T6 完成，T7 进行中。
+**当前整体状态**：T7 完成，T8 进行中。
 
 ---
 
@@ -15,7 +15,8 @@
 - [x] **T4 ABR**（估计器 + 缓冲水位算法 + HLS 边界切换集成）
 - [x] **T5 DRM/密钥抽象**（KeyProvider 接口 + ClearKey + 端到端解密测试）
 - [x] **T6 外挂字幕**（SRT/VTT 解析 + Player API + ticker 发 cue）
-- [~] **T7 画面控制**（rotate/mirror/scale：player API + scene） since: 2026-10-29 03:55
+- [x] **T7 画面控制**（kCrop/mirror 进 GlScene + Scene 主层持久模式 + Player 四件套 API）
+- [~] **T8 直播增强 + DASH MPD 延伸**（UTC 事件 + mpd_parser 基线） since: 2026-10-29 04:15
 - [ ] **T6 外挂字幕**（media/text：SRT/VTT 解析 + 加载 API + cue 调度）
 - [ ] **T7 画面控制**（rotate/mirror/scale：player API + GL sink）
 - [ ] **T8 直播增强 + DASH MPD 延伸**（追帧配置 + UTC 事件 + mpd_parser）
@@ -31,6 +32,8 @@
 | T5 DRM/密钥抽象 | 2026-10-29 03:30 | `media/base/key_provider.h` 接口 + `media/ffmpeg/clear_key_provider.*` 默认实现 + `Deps::key_provider` 注入 + HLS EXT-X-KEY 路由。testdata/hls/enc 为 openssl 加密的真实 TS 段。871/871 ctest 通过；invariants 全过。提交：feature/cicada-port |
 
 | T6 外挂字幕 | 2026-10-29 03:55 | `media/filters/{srt,webvtt}_parser.*` + `external_text_track.*`（纯逻辑 7 单测）；`Player::{Add,Select,Set delay,Remove}ExternalSubtitle` + PlayerImpl 100ms ticker（`player_impl_subtitles.cc`）+ player 级 e2e。879/879 ctest 通过；invariants 全过。提交：feature/cicada-port |
+
+| T7 画面控制 | 2026-10-29 04:15 | `LayerContentMode::kCrop` + `GlScene::SetLayerMirror` + `CoverSourceRect` 纯几何（4 单测）+ `Scene::SetMainLayerModes`（Present 时主层应用，host hook 仍可覆写）+ `Player::{SetRotateMode,SetMirrorMode,SetScaleMode,SetVideoBackgroundColor}`。883/883 ctest 通过；invariants 全过。提交：feature/cicada-port |
 
 ## 交接备注
 
