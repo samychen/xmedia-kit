@@ -54,6 +54,10 @@
 | M13 发布 0.1.0 | 🔵 | 文档七份 + apidocs 门禁 ✅；V9 注释覆盖率 / V10 API 兼容 / 微基准 **8 项**（新增 `BM_DecoderBufferQueue_PushPop` / `BM_DecoderBuffer_MoveConstruct` / `BM_VideoFrame_RefCountChurn`，已进基线） / 端到端 CPU 判据 / golden diff 件 / cpack TGZ / vcpkg port 均已完成并入门禁。剩：golden **录制**基线（需 ijkplayer 原版）、依赖解码器的 4 项 `BM_*`（需开 FFmpeg 的 bench 变体）、`conan` 实跑（本机 pip 装不上，网络不可达）、`cpack -G DEB` 待 Linux 机、vcpkg 未提交 registry。**渲染 CPU 的机器判据不做**：`tools/bench_render.sh` 要 ffmpeg CLI 与真实 display，本机两者都没有 |
 | M14–M18 | ⏳ | VAAPI+HDR / Android / iOS / `ijkio` 缓存（后置增量） |
 | 产品化能力（Android/iOS/Web/Unity/UE/Flutter/…） | ❌ | 全部未做，见 [TODO](TODO.md) |
+| HDR 检测与上报 | ✅ | `has_hdr_metadata` 此前只读不写（对每个文件都是 false），`kHdrUnsupported` 零生产者。现按传输特性判定（PQ/HLG + Dolby Vision/HDR10+ 动态元数据），经 `StreamInfo` 上浮，在 `kPrepared` 之前发事件并带 `transfer` 名。双向判据 + 突变验证 |
+| `kRotationChanged` | ✅ | 与 HDR 同类（值在 `video_rotation_` 里、事件零生产者）。现在源声明旋转时才发；测的是「事件值与 `video_rotation()` 必须一致」。角度是顺时针（270 = 90 逆时针 matrix），已核对 `gl_layer_geometry.cc` 的 CLOCKWISE 表 |
+| 读源录制 | ✅ | `avbase-inspect record`，copy 优先，`--duration` 有界；判据量输出时长（40 s 源配 `--duration 3` 必须约 3 s）。**播放侧取包录制未做** |
+| `kDecoderOpened` / `kDecoderFallback` | ❌ | 仍零生产者，已登记。解码器名只在日志里，补上报通道是接口设计 |
 | 转码链的像素正确性 | ✅ | 10-bit / NV12 源此前转码「成功」但画面损坏（muxer OK、时长对、退出码 0，SSIM 0.035）；`AvFrameToVideoFrame` 改为按源格式分派（I420 走逐平面快路径，其余走 `ff::VideoConverter`），修后 SSIM 0.883。两条测试钉像素值，突变验过 |
 | 决策项 | — | LL-HLS 自研 vs 接受 ~3s、M12 原生后端是否启动、版权主体、golden 基线锁版本，见 [12-剩余工作清单](12-剩余工作清单.md) §6 |
 
