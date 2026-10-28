@@ -152,5 +152,89 @@ TEST(AvFrameToVideoFrameTest, HonoursTheGivenTimeBase) {
   EXPECT_EQ(vf2->timestamp(), base::Seconds(1));
 }
 
+// A decoder is not obliged to hand back 8-bit I420: a 10-bit source packs one
+// sample into two bytes, so the width-byte-per-row copy this function used to
+// do read only every other sample and left the rest of the picture black.
+// The transcode of a real 10-bit file looked "successful" (muxer OK, file
+// re-opens, right duration) while the picture was a bright banded mess --
+// SSIM 0.035 against the source. This test pins the pixel VALUES, which is
+// the only way to see it: geometry and timestamps were never wrong.
+TEST(AvFrameToVideoFrameTest, ConvertsTenBitSourceToEightBitI420) {
+  ff::FramePtr frame(av_frame_alloc());
+  frame->format = AV_PIX_FMT_YUV420P10LE;
+  frame->width = 4;
+  frame->height = 4;
+  ASSERT_EQ(av_frame_get_buffer(frame.get(), 32), 0);
+  // 10-bit white in the Y plane (1023) and neutral chroma (512). A 16-bit
+  // little-endian sample 0x03FF is bytes FF 03; taking only "width" bytes per
+  // row kept the FF and dropped the 03, producing 0xFF = 255 in 8-bit --
+  // which HAPPENS to look white. So the assertion that discriminates is not
+  // "is it white" but "is the mid-grey plane mid-grey": the old code read
+  // chroma at half the real stride and produced 0xFF there too.
+  auto* y = reinterpret_cast<uint16_t*>(frame->data[0]);
+  for (int r = 0; r < 4; ++r) {
+    for (int c = 0; c < 4; ++c) {
+      y[(static_cast<size_t>(r) * static_cast<size_t>(frame->linesize[0]) / 2) +
+        static_cast<size_t>(c)] = 1023;
+    }
+  }
+  for (int p = 1; p <= 2; ++p) {
+    auto* plane = reinterpret_cast<uint16_t*>(frame->data[p]);
+    for (int r = 0; r < 2; ++r) {
+      for (int c = 0; c < 2; ++c) {
+        plane[(static_cast<size_t>(r) *
+                   static_cast<size_t>(frame->linesize[p]) / 2) +
+              static_cast<size_t>(c)] = 512;
+      }
+    }
+  }
+  frame->pts = 0;
+  frame->duration = 1;
+
+  auto vf = AvFrameToVideoFrame(frame.get(), 4, 4, AVRational{1, 10});
+  ASSERT_TRUE(vf);
+  // 10-bit 1023 -> 8-bit 255 (limited range is stretched by the converter's
+  // sws path; the point is that it is bright, not that it is exact).
+  EXPECT_GE(vf->visible_data(VideoFrame::kYPlane)[0], 235);
+  // Neutral chroma 512 must land near 128. The old copy produced 255 here,
+  // i.e. a violently saturated picture, which is exactly what the real
+  // 10-bit transcode showed.
+  const int u = vf->visible_data(VideoFrame::kUPlane)[0];
+  const int v = vf->visible_data(VideoFrame::kVPlane)[0];
+  EXPECT_NEAR(u, 128, 24) << "U plane came out " << u;
+  EXPECT_NEAR(v, 128, 24) << "V plane came out " << v;
+}
+
+// NV12 has ONE interleaved chroma plane: data[2] is null. The old code read
+// data[2] unconditionally, so the V plane was whatever the null-safe memcpy
+// left behind -- a colour-shifted picture that still had the right size and
+// the right timestamps.
+TEST(AvFrameToVideoFrameTest, ConvertsNv12SourceToEightBitI420) {
+  ff::FramePtr frame(av_frame_alloc());
+  frame->format = AV_PIX_FMT_NV12;
+  frame->width = 4;
+  frame->height = 4;
+  ASSERT_EQ(av_frame_get_buffer(frame.get(), 32), 0);
+  ASSERT_EQ(frame->data[2], nullptr)
+      << "NV12 must have exactly two planes; the test premise is wrong";
+  for (int r = 0; r < 4; ++r) {
+    memset(frame->data[0] + static_cast<ptrdiff_t>(r) * frame->linesize[0], 200,
+           4);
+  }
+  // Interleaved U,V pairs: every byte 128 is neutral.
+  for (int r = 0; r < 2; ++r) {
+    memset(frame->data[1] + static_cast<ptrdiff_t>(r) * frame->linesize[1], 128,
+           4);
+  }
+  frame->pts = 0;
+  frame->duration = 1;
+
+  auto vf = AvFrameToVideoFrame(frame.get(), 4, 4, AVRational{1, 10});
+  ASSERT_TRUE(vf);
+  EXPECT_NEAR(vf->visible_data(VideoFrame::kYPlane)[0], 200, 8);
+  EXPECT_NEAR(vf->visible_data(VideoFrame::kUPlane)[0], 128, 8);
+  EXPECT_NEAR(vf->visible_data(VideoFrame::kVPlane)[0], 128, 8);
+}
+
 }  // namespace
 }  // namespace avbase::media

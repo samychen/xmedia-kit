@@ -224,7 +224,8 @@ Status Concat(const ConcatParams& params) {
 
   // --- Open output muxer ---
   FFmpegEncodeMuxer muxer;
-  if (!muxer.Open(params.output_path, params.muxer_options)) {
+  if (!muxer.Open(params.output_path, params.output_format,
+                  params.muxer_options)) {
     return Err(ErrorCode::kSourceOpenFailed, "concat: cannot open output",
                params.output_path, {});
   }

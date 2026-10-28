@@ -15,6 +15,7 @@
 #include "media/base/decoder_config.h"  // VideoCodecFromName
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/video_convert.h"
 
 namespace avbase::media {
 namespace {
@@ -79,6 +80,9 @@ void AvFrameDeleter::operator()(AVFrame* p) const {
 base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
                                                     int height,
                                                     AVRational pts_time_base) {
+  if (!frame || width <= 0 || height <= 0) {
+    return nullptr;
+  }
   const Size size{width, height};
   // ff::ToTimeDelta maps AV_NOPTS_VALUE to kNoTimestamp (the trap recorded in
   // this header) instead of leaking a raw rescale of the sentinel, matching
@@ -92,28 +96,64 @@ base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
   if (!vf) {
     return nullptr;
   }
-  // Copy Y plane.
-  auto y_span = vf->mutable_data(VideoFrame::kYPlane);
-  for (int y = 0; y < height; ++y) {
-    std::memcpy(y_span.data() +
-                    static_cast<size_t>(y) * static_cast<size_t>(width),
-                frame->data[0] + static_cast<ptrdiff_t>(y) * frame->linesize[0],
-                static_cast<size_t>(width));
+
+  const AVPixelFormat src_format =
+      static_cast<AVPixelFormat>(frame->format);
+  // A plain I420 source is the common case and needs no conversion: copying
+  // plane by plane is both cheaper and allocation-light (swscale would do the
+  // same work with more overhead). Everything else goes through the shared
+  // converter, because "the decoder returned 8-bit I420" is an assumption the
+  // container never promised: 10-bit sources pack one sample into TWO bytes
+  // (so a width-byte memcpy reads half a frame's worth of samples and leaves
+  // the rest of the output black) and NV12 has a single interleaved chroma
+  // plane (so data[2] is null and the V plane comes out garbage). Both used
+  // to reach this function; the first produced a bright banded artifact, the
+  // second a null-safe-but-wrong picture.
+  if (src_format == AV_PIX_FMT_YUV420P) {
+    // Copy Y plane.
+    auto y_span = vf->mutable_data(VideoFrame::kYPlane);
+    for (int y = 0; y < height; ++y) {
+      std::memcpy(y_span.data() +
+                      static_cast<size_t>(y) * static_cast<size_t>(width),
+                  frame->data[0] + static_cast<ptrdiff_t>(y) * frame->linesize[0],
+                  static_cast<size_t>(width));
+    }
+    // Copy U/V planes (half width/height for I420).
+    const int uv_w = width / 2;
+    const int uv_h = height / 2;
+    auto u_span = vf->mutable_data(VideoFrame::kUPlane);
+    auto v_span = vf->mutable_data(VideoFrame::kVPlane);
+    for (int y = 0; y < uv_h; ++y) {
+      std::memcpy(u_span.data() +
+                      static_cast<size_t>(y) * static_cast<size_t>(uv_w),
+                  frame->data[1] + static_cast<ptrdiff_t>(y) * frame->linesize[1],
+                  static_cast<size_t>(uv_w));
+      std::memcpy(v_span.data() +
+                      static_cast<size_t>(y) * static_cast<size_t>(uv_w),
+                  frame->data[2] + static_cast<ptrdiff_t>(y) * frame->linesize[2],
+                  static_cast<size_t>(uv_w));
+    }
+    return vf;
   }
-  // Copy U/V planes (half width/height for I420).
-  const int uv_w = width / 2;
-  const int uv_h = height / 2;
-  auto u_span = vf->mutable_data(VideoFrame::kUPlane);
-  auto v_span = vf->mutable_data(VideoFrame::kVPlane);
-  for (int y = 0; y < uv_h; ++y) {
-    std::memcpy(u_span.data() +
-                    static_cast<size_t>(y) * static_cast<size_t>(uv_w),
-                frame->data[1] + static_cast<ptrdiff_t>(y) * frame->linesize[1],
-                static_cast<size_t>(uv_w));
-    std::memcpy(v_span.data() +
-                    static_cast<size_t>(y) * static_cast<size_t>(uv_w),
-                frame->data[2] + static_cast<ptrdiff_t>(y) * frame->linesize[2],
-                static_cast<size_t>(uv_w));
+
+  ff::VideoConverter converter;
+  if (!converter.Configure(width, height, src_format, vf->coded_size().width,
+                           vf->coded_size().height, AV_PIX_FMT_YUV420P)) {
+    LOG(ERROR) << "transcode: cannot convert pixel format "
+               << av_get_pix_fmt_name(src_format) << " to yuv420p";
+    return nullptr;
+  }
+  uint8_t* dst[4] = {nullptr, nullptr, nullptr, nullptr};
+  int dst_stride[4] = {0, 0, 0, 0};
+  for (int p = 0; p < 3; ++p) {
+    const auto plane = static_cast<VideoFrame::Plane>(p);
+    dst[p] = vf->mutable_data(plane).data();
+    dst_stride[p] = vf->stride(plane);
+  }
+  if (!converter.Convert(*frame, dst, dst_stride)) {
+    LOG(ERROR) << "transcode: pixel conversion failed for "
+               << av_get_pix_fmt_name(src_format);
+    return nullptr;
   }
   return vf;
 }

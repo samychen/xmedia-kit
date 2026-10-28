@@ -46,7 +46,10 @@ namespace avbase::media {
 // encode happens for copy streams — packets go straight to the muxer.
 struct AVBASE_MEDIA_EXPORT TranscodeParams {
   // Output path; the container follows the extension (mp4/mkv/adts...).
+  // Network outputs (rtmp://...) carry no extension: set |output_format|
+  // explicitly ("flv" for RTMP) or the muxer open fails.
   std::string output_path;
+  std::string output_format;
 
   // Trim window. start_time = 0 means from the beginning. duration = 0
   // means to end of file.

@@ -52,14 +52,16 @@ FFmpegEncodeMuxer::~FFmpegEncodeMuxer() {
 }
 
 bool FFmpegEncodeMuxer::Open(
-    const std::string& path,
+    const std::string& path, const std::string& format_name,
     const std::vector<std::pair<std::string, std::string>>& options) {
   AVFormatContext* fmt = nullptr;
-  if (avformat_alloc_output_context2(&fmt, nullptr, nullptr, path.c_str()) <
-          0 ||
+  if (avformat_alloc_output_context2(
+          &fmt, nullptr,
+          format_name.empty() ? nullptr : format_name.c_str(),
+          path.c_str()) < 0 ||
       !fmt) {
     LOG(ERROR) << "encode muxer: cannot open " << path
-               << " (unsupported extension?)";
+               << " (unsupported extension or format?)";
     return false;
   }
   // For containers that need a file (everything except raw streams like ADTS),

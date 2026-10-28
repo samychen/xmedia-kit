@@ -123,7 +123,8 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
 
   // --- Initialize output muxer ---
   FFmpegEncodeMuxer muxer;
-  if (!muxer.Open(params.output_path, params.muxer_options)) {
+  if (!muxer.Open(params.output_path, params.output_format,
+                  params.muxer_options)) {
     return Err(ErrorCode::kSourceOpenFailed, "cannot open output",
                params.output_path, "check the extension is supported");
   }

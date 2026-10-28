@@ -53,12 +53,14 @@ class AVBASE_MEDIA_EXPORT FFmpegEncodeMuxer {
   FFmpegEncodeMuxer& operator=(const FFmpegEncodeMuxer&) = delete;
   ~FFmpegEncodeMuxer();
 
-  // Opens the output container; the muxer follows the file extension
-  // (mp4/matroska/adts are enabled in the pinned build). |options| is a
+  // Opens the output container. |path| may be a file or a network URL
+  // (rtmp://... once the rtmp protocol is in the FFmpeg build); the muxer
+  // follows the file extension, so network URLs need |format_name| ("flv"
+  // for RTMP) — a URL carries no extension to infer from. |options| is a
   // key-value list passed to avformat_write_header (e.g. "movflags"→
   // "+faststart"); may be empty.
   bool
-  Open(const std::string& path,
+  Open(const std::string& path, const std::string& format_name = "",
        const std::vector<std::pair<std::string, std::string>>& options = {});
 
   // Adds tracks before the first WritePacket. Returns the stream index or

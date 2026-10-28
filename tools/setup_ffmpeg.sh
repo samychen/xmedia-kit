@@ -532,9 +532,9 @@ configure_flags() {
 --disable-postproc
 --disable-everything
 --enable-network
---enable-protocol=file,http,tcp,httpproxy,crypto
+--enable-protocol=file,http,https,tcp,httpproxy,crypto,rtmp,rtmps
 --enable-protocol=rtmp,rtmps,rtmpt,rtmpts,udp,rtp
---enable-demuxer=mov,matroska,mpegts,flv,mp3,wav,ogg,aac,h264,hevc,avi,mpegps,hls,rtsp
+--enable-demuxer=mov,matroska,mpegts,flv,mp3,wav,ogg,aac,h264,hevc,avi,mpegps,hls,flv,rtsp
 --enable-parser=h264,hevc,aac,mp3,vp9,opus,mpeg4video
 --enable-decoder=h264,hevc,aac,mp3,vp9,opus,mpeg4
 --enable-decoder=srt,ass,webvtt,mov_text,subrip
@@ -542,7 +542,7 @@ configure_flags() {
 --enable-encoder=mjpeg
 --enable-encoder=aac
 --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,extract_extradata
---enable-muxer=null,mp4,matroska,adts,image2
+--enable-muxer=null,mp4,matroska,adts,image2,flv
 --enable-filter=null,volume,aformat,anull,abuffer,abuffersink,buffer,buffersink,hflip,format
 --enable-avfilter
 --enable-swresample

@@ -38,6 +38,8 @@ namespace avbase::media {
 struct AVBASE_MEDIA_EXPORT ConcatParams {
   std::vector<std::string> inputs;
   std::string output_path;
+  // Empty = infer from the extension; "flv" for rtmp:// outputs.
+  std::string output_format;
   // Container options (same as TranscodeParams::muxer_options).
   std::vector<std::pair<std::string, std::string>> muxer_options;
   // If true, re-encode all segments (forces slow path). Default: false
