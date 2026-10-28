@@ -441,6 +441,32 @@ Status PlayerImpl::TakeSnapshot(base::TimeDelta at,
 // change what it does when the source becomes ready. Errored sources never get
 // here (the prepare callback returns earlier), so it cannot fire for a source
 // that never opened.
+void PlayerImpl::PostSourceFacts(const media::MediaInfo& info, int rotation) {
+  PostHdrUnsupportedIfNeeded(info);
+  PostRotationChangedIfNeeded(rotation);
+}
+
+// kRotationChanged was in the same state as kHdrUnsupported: a type, a name, a
+// payload struct (degrees + mirrored) and a query (rotation()), and no
+// producer. The value WAS stored -- video_rotation_ is read by rotation() --
+// so a host could poll it, but a host that renders the picture itself (the
+// rotate-the-texture case the payload exists for) had no way to be told when
+// it changed. Posted only when the source actually declares rotation, so a
+// normal 0-degree file does not emit an event saying "still 0".
+void PlayerImpl::PostRotationChangedIfNeeded(int degrees) {
+  if (degrees == 0) {
+    return;
+  }
+  RotationChangedPayload payload;
+  payload.degrees = degrees;
+  // Mirrored has no source in this tree yet: FFmpeg's display matrix reports
+  // rotation, and a horizontal flip is not representable in the double
+  // returned by av_display_rotation_get. Reported as false rather than
+  // guessed, because a guessed "mirrored" would flip pictures for real users.
+  payload.mirrored = false;
+  event_hub_.Post(EventType::kRotationChanged, payload, GetMediaTime());
+}
+
 void PlayerImpl::PostHdrUnsupportedIfNeeded(const media::MediaInfo& info) {
   const media::StreamInfo* video =
       info.FindStream(info.FirstStreamOfKind(media::StreamKind::kVideo));

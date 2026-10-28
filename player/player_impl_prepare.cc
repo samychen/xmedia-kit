@@ -138,11 +138,9 @@ PlayerImpl::CreateDemuxerFor(const media::DataSourceDescriptor& descriptor) {
   // FFmpeg's protocol layer, memory and custom sources through the
   // DataSource→AVIOContext bridge. Unsupported kinds fail inside the
   // demuxer with an actionable error rather than here.
-  //
   // The descriptor is deliberately NOT handed to the constructor: it travels
   // with the demuxer to Initialize() (one per source, paired in
   // PipelineImpl::DoStart), which is where an open actually happens.
-  //
   // BufferConfig -> BufferQueueLimits (invariant C22: media/ never sees
   // PlayerConfig). infbuf makes the byte cap unlimited, max-buffer-size is that
   // cap, and both are whole-player budgets the demuxer divides across streams.
@@ -459,6 +457,7 @@ void PlayerImpl::OnPipelineReady() {
   const auto pipeline = GetPipeline();
   const media::MediaInfo info =
       pipeline ? pipeline->media_info() : media::MediaInfo();
+  int rotation = 0;  // read under the lock; video_rotation_ is GUARDED_BY it
   {
     base::AutoLock scoped(snapshot_lock_);
     media_info_ = info;
@@ -468,13 +467,14 @@ void PlayerImpl::OnPipelineReady() {
       video_coded_size_ = v->coded_size;
       video_natural_size_ = v->natural_size;
       video_rotation_ = v->rotation;
+      rotation = v->rotation;
     }
   }
   // Push the stored gain onto the fresh graph: ApplyGain() is a no-op before
-  // this point (no pipeline yet), so a volume set between SetDataSource() and
-  // Prepare() would otherwise never reach the sink.
+  // this point (no pipeline yet), so a volume set during SetDataSource()
+  // would otherwise never reach the sink.
   ApplyGain();
-  PostHdrUnsupportedIfNeeded(info);
+  PostSourceFacts(info, rotation);
   PreparedPayload payload;
   payload.media_info = info;
   event_hub_.Post(EventType::kPrepared, std::move(payload), GetMediaTime());

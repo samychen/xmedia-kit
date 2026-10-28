@@ -52,12 +52,17 @@ namespace {
 // and an HDR sample is now one of them.
 const char* const kHdrUri = AVBASE_TESTDATA_DIR "/hdr_pq_320x240_1s.mp4";
 const char* const kSdrUri = AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+// The same 1 s clip with a 90-degree display matrix, for kRotationChanged.
+const char* const kRotatedUri =
+    AVBASE_TESTDATA_DIR "/rotated90_hdr_320x240_1s.mp4";
 
 // The handler runs on the player's event sequence; these outlive it and are
 // read after StopSync, which is why they are atomics rather than plain ints.
 struct Probe {
   std::atomic<int> hdr_events{0};
   std::atomic<int> prepared_events{0};
+  std::atomic<int> rotation_events{0};
+  int rotation_degrees{-1};
   // Order matters: a host that only learns "HDR" after it has already acted on
   // "prepared" cannot use the fact. Recorded as two counters plus a flag that
   // says whether HDR was seen before prepared.
@@ -81,6 +86,14 @@ void OnEvent(Probe* probe, const PlayerEvent& event) {
     }
     break;
   }
+  case EventType::kRotationChanged: {
+    probe->rotation_events.fetch_add(1);
+    if (const auto* payload =
+            std::get_if<RotationChangedPayload>(&event.payload)) {
+      probe->rotation_degrees = payload->degrees;
+    }
+    break;
+  }
   case EventType::kPrepared:
     probe->prepared_events.fetch_add(1);
     probe->saw_prepared.store(true);
@@ -96,7 +109,7 @@ void OnEvent(Probe* probe, const PlayerEvent& event) {
 // Preparing without autostart is deliberate: this suite is about what the
 // prepare path reports, and a playing pipeline would add decode work to the
 // same window without changing the answer.
-bool PrepareAndStop(const char* uri, Probe* probe) {
+bool PrepareAndStop(const char* uri, Probe* probe, int* reported_rotation) {
   PlayerConfig config;
   config.start_on_prepared = false;
   PlayerImpl impl(config, nullptr);
@@ -108,13 +121,16 @@ bool PrepareAndStop(const char* uri, Probe* probe) {
   if (!impl.PrepareSync(base::Seconds(30)).has_value()) {
     return false;
   }
+  if (reported_rotation != nullptr) {
+    *reported_rotation = impl.video_rotation();
+  }
   impl.StopSync(base::Milliseconds(500));
   return true;
 }
 
 TEST(PlayerHdrUnsupportedTest, HdrSourceReportsTheEventBeforePrepared) {
   Probe probe;
-  if (!PrepareAndStop(kHdrUri, &probe)) {
+  if (!PrepareAndStop(kHdrUri, &probe, nullptr)) {
     GTEST_SKIP() << "HDR test media unavailable";
   }
   EXPECT_EQ(probe.hdr_events.load(), 1)
@@ -128,9 +144,47 @@ TEST(PlayerHdrUnsupportedTest, HdrSourceReportsTheEventBeforePrepared) {
       << "the payload must name the transfer curve, not just say \"HDR\"";
 }
 
+// kRotationChanged was in the same state as kHdrUnsupported: type, name,
+// payload and a query (rotation()) existed; nothing posted it. A host that
+// rotates the picture itself had to poll.
+TEST(PlayerRotationChangedTest, RotatedSourceReportsTheEvent) {
+  Probe probe;
+  int reported_rotation = 0;
+  if (!PrepareAndStop(kRotatedUri, &probe, &reported_rotation)) {
+    GTEST_SKIP() << "rotated test media unavailable";
+  }
+  EXPECT_EQ(probe.rotation_events.load(), 1)
+      << "a rotated source produced no kRotationChanged event";
+  // 270, not 90, and that is not a bug: av_display_rotation_get() reports the
+  // angle COUNTERCLOCKWISE, while avbase's rotation is CLOCKWISE everywhere it
+  // is consumed (gl_layer_geometry.cc's kCosSin table is labelled clockwise,
+  // and NaturalSizeForRotation only cares about quarter turns). The demuxer
+  // negates to convert, so a 90-degree counterclockwise display matrix is a
+  // 270-degree clockwise rotation here.
+  //
+  // Asserted as "the event agrees with what the player reports elsewhere"
+  // rather than as a bare literal: a host that acts on the event must get the
+  // same number rotation() gives it, and pinning the literal alone would not
+  // catch those two drifting apart.
+  EXPECT_EQ(probe.rotation_degrees, 270);
+  // The event and the query must agree; a host uses whichever it has.
+  EXPECT_EQ(reported_rotation, probe.rotation_degrees)
+      << "kRotationChanged disagreed with rotation()";
+}
+
+TEST(PlayerRotationChangedTest, UnrotatedSourceReportsNoEvent) {
+  Probe probe;
+  if (!PrepareAndStop(kSdrUri, &probe, nullptr)) {
+    GTEST_SKIP() << "test media unavailable";
+  }
+  // "still 0" is not a change; emitting it would make hosts that act on the
+  // event do a wasted rotation on every file.
+  EXPECT_EQ(probe.rotation_events.load(), 0);
+}
+
 TEST(PlayerHdrUnsupportedTest, SdrSourceReportsNoEvent) {
   Probe probe;
-  if (!PrepareAndStop(kSdrUri, &probe)) {
+  if (!PrepareAndStop(kSdrUri, &probe, nullptr)) {
     GTEST_SKIP() << "test media unavailable";
   }
   // If this ever fires on BT.709 content, the detection rule is wrong (for
