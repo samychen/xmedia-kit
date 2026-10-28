@@ -60,6 +60,15 @@ struct AVBASE_MEDIA_EXPORT TranscodeParams {
   // "+faststart").
   std::vector<std::pair<std::string, std::string>> muxer_options;
 
+  // Pace the job against the wall clock at the input's own timeline.
+  // Off by default: the offline job's contract is "as fast as the disk
+  // allows", and pacing it would turn a 1-second clip conversion into a
+  // 1-second sleep. A live endpoint is the one target that needs the other
+  // behaviour -- publishing 3 s of media in 40 ms makes the receiving side
+  // drop everything it cannot buffer, so the frames arrive but the stream is
+  // unusable. Ignored for live inputs (no timeline to pace against).
+  bool realtime = false;
+
   // Output codec specs. An empty |audio_codec| or |video_codec| drops the
   // stream. "copy" means stream copy (no re-encode).
   struct AudioCodecSpec {

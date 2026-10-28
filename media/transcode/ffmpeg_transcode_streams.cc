@@ -97,8 +97,7 @@ base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
     return nullptr;
   }
 
-  const AVPixelFormat src_format =
-      static_cast<AVPixelFormat>(frame->format);
+  const AVPixelFormat src_format = static_cast<AVPixelFormat>(frame->format);
   // A plain I420 source is the common case and needs no conversion: copying
   // plane by plane is both cheaper and allocation-light (swscale would do the
   // same work with more overhead). Everything else goes through the shared
@@ -113,10 +112,10 @@ base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
     // Copy Y plane.
     auto y_span = vf->mutable_data(VideoFrame::kYPlane);
     for (int y = 0; y < height; ++y) {
-      std::memcpy(y_span.data() +
-                      static_cast<size_t>(y) * static_cast<size_t>(width),
-                  frame->data[0] + static_cast<ptrdiff_t>(y) * frame->linesize[0],
-                  static_cast<size_t>(width));
+      std::memcpy(
+          y_span.data() + static_cast<size_t>(y) * static_cast<size_t>(width),
+          frame->data[0] + static_cast<ptrdiff_t>(y) * frame->linesize[0],
+          static_cast<size_t>(width));
     }
     // Copy U/V planes (half width/height for I420).
     const int uv_w = width / 2;
@@ -124,14 +123,14 @@ base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
     auto u_span = vf->mutable_data(VideoFrame::kUPlane);
     auto v_span = vf->mutable_data(VideoFrame::kVPlane);
     for (int y = 0; y < uv_h; ++y) {
-      std::memcpy(u_span.data() +
-                      static_cast<size_t>(y) * static_cast<size_t>(uv_w),
-                  frame->data[1] + static_cast<ptrdiff_t>(y) * frame->linesize[1],
-                  static_cast<size_t>(uv_w));
-      std::memcpy(v_span.data() +
-                      static_cast<size_t>(y) * static_cast<size_t>(uv_w),
-                  frame->data[2] + static_cast<ptrdiff_t>(y) * frame->linesize[2],
-                  static_cast<size_t>(uv_w));
+      std::memcpy(
+          u_span.data() + static_cast<size_t>(y) * static_cast<size_t>(uv_w),
+          frame->data[1] + static_cast<ptrdiff_t>(y) * frame->linesize[1],
+          static_cast<size_t>(uv_w));
+      std::memcpy(
+          v_span.data() + static_cast<size_t>(y) * static_cast<size_t>(uv_w),
+          frame->data[2] + static_cast<ptrdiff_t>(y) * frame->linesize[2],
+          static_cast<size_t>(uv_w));
     }
     return vf;
   }

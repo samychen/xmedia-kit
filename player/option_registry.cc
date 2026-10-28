@@ -125,9 +125,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
          c->get_frame_mode = *b;
          return OkStatus();
        },
-       [](const PlayerConfig& c) -> OptionValue {
-         return c.get_frame_mode;
-       },
+       [](const PlayerConfig& c) -> OptionValue { return c.get_frame_mode; },
        "thumbnail mode: decode without displaying; grab frames via "
        "Player::TakeSnapshot (ijkplayer get-frame-mode)"});
 

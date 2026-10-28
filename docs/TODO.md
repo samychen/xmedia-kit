@@ -32,13 +32,19 @@
 > `avbase_player_transcode`（playback 构建不付编码器成本，D11 保持），应用
 > PlayerConfig 的 -vn/-an 语义（`video.disabled`/`audio.disabled` 剥流），
 > 判据 `player_ffmpeg_unittests` 两条（copy 转码 round-trip、-an 剥流断言）。
-> 仍未做：录制（播放侧落盘）、推流。
+>
+> **CLI 侧两个新入口（2026-10-28）**：`avbase-inspect preview` 与
+> `avbase-inspect publish`。前者把 `PreviewFrames` 的批量取帧落成 JPEG
+> （原来只有自己的单测在调它）；后者把文件推到 rtmp:// 对端。两者都进
+> `gate_local --jobs e2e`，RTMP 那条用 FFmpeg 自身的 `rtmp_listen` 当服务端
+> ——不需要 MediaMTX 就能跑真协议，判据见 `tools/check_rtmp_publish.py`。
+> 仍未做：录制（播放侧落盘）。
 
 | 能力 | 现状 |
 |---|---|
 | 录制（播放侧落盘） | ❌ 无。仅 `media/transcode/` 离线转码（输入是文件） |
-| 推流 / RTMP publish | ❌ 无。`rtmp` 仅作**输入**协议 |
-| 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。seek preview 的批量取帧（按时间窗返回 N 帧）仍无，需在 TranscodeJob 之上加一个 preview 任务 |
+| 推流 / RTMP publish | ✅ **已接线（2026-10-28）**：`avbase-inspect publish <file> -o rtmp://… --format flv` 走完整条转码链，`TranscodeParams::output_format` 让 muxer 在无扩展名的 URL 上也能定容器（不给就失败并说明原因，不静默写空流）。`TranscodeParams::realtime` 按输入时间戳配速——离线目标不需要，实时对端必须要（3.029 s 的源：实时 3.02 s / `--no-realtime` 0.05 s，两个模式都被断言）。真协议验收：`tools/check_rtmp_publish.py` 用 FFmpeg 的 `rtmp_listen` 起服务端，回环收到 2 条流、时长一致；缺 `--format` 必须拒绝 |
+| 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。**批量半边也已落地**：`PreviewFrames()`（`media/transcode/ffmpeg_preview_job.h`）+ `avbase-inspect preview -o <dir> --start S --count N [--interval S]`。seek 落在目标**之前**的关键帧上会让整段预览都是同一幅画，所以落盘前按时间戳丢弃早于目标的帧（`--start 0.5` 拿到的就是 500 ms，不是 0 ms）|
 | HDR / tone mapping | ❌ 无。`hdr_tone_mapping` 在 media/render 零命中；`kHdrUnsupported` 从未 emit |
 | PBO 上传 | ❌ 未实现。`render_perf_stats.h` 的 `kPbo` 是**预留枚举**——抄 MediaComponent 的 `UploadPath` 词汇表时一并搬过来的，本树从未有生产者（名字/JSON/单测都齐，唯独没有赋值点）。它是软解时代的中间态：只把 1080p 那 8.2 ms 的同步拷贝**搬出渲染线程**，字节数一点没少（每帧 3.1 MB 照样过总线）；能零拷贝的平台上多余，没零拷贝的平台上应直接做 [12 §1](12-剩余工作清单.md) 的 3.1/3.2。见 [07 §11.3](07-测试策略与可观测性.md) |
 | 真色彩管理 | ❌ 无。仅 YUV→RGB 矩阵，无 gamut/EOTF/ICC/HDR→SDR |

@@ -189,7 +189,13 @@ def iter_sources(root: pathlib.Path):
         dirnames[:] = [d for d in dirnames
                        if d not in {"build", ".git", "third_party", "docs",
                                     "deps"}
-                       and not d.startswith("build")]
+                       and not d.startswith("build")
+                       # Tool-session scratch: an agent runtime writes its
+                       # temporary probes here, and a scratch .cc has no
+                       # CMakeLists by definition. Scanning it made C25 report
+                       # a file that is not part of the tree (and that the
+                       # runtime then protects from deletion).
+                       and not d.startswith(".box-agent-scratch")]
         for name in filenames:
             if name.endswith((".h", ".cc")):
                 yield pathlib.Path(dirpath) / name
@@ -558,6 +564,10 @@ def check_sources_in_a_target(root: pathlib.Path, report: Report) -> None:
     for path in sorted(root.rglob("*.cc")):
         if any(part in (".git", "build", "third_party", "deps")
                or part.startswith("build") for part in path.parts):
+            continue
+        # A tool-session scratch directory holds runtime probes, not tree
+        # sources; see iter_sources() for why it is skipped.
+        if any(part.startswith(".box-agent-scratch") for part in path.parts):
             continue
         rel = path.relative_to(root).as_posix()
         if path.resolve() in covered or rel in DRAFT_FILES:

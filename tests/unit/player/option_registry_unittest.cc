@@ -25,10 +25,9 @@ TEST(OptionRegistryGetFrameModeTest, SetsFieldAndDefaultsFalse) {
           .SetString(&config, OptionCategory::kPlayer, "get-frame-mode", "1")
           .has_value());
   EXPECT_TRUE(config.get_frame_mode);
-  EXPECT_TRUE(
-      Registry()
-          .SetInt(&config, OptionCategory::kPlayer, "get-frame-mode", 0)
-          .has_value());
+  EXPECT_TRUE(Registry()
+                  .SetInt(&config, OptionCategory::kPlayer, "get-frame-mode", 0)
+                  .has_value());
   EXPECT_FALSE(config.get_frame_mode);
 }
 

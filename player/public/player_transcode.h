@@ -35,10 +35,11 @@ using PlayerStatus = media::Status;
 // the playback legs. Everything else passes through to media::Transcode
 // verbatim. |progress| runs on the calling thread; |cancel| is polled at
 // packet boundaries.
-PlayerStatus TranscodeMedia(
-    const std::string& input_uri, const media::TranscodeParams& params,
-    media::TranscodeProgressCB progress = nullptr,
-    const media::TranscodeCancelToken* cancel = nullptr);
+PlayerStatus
+TranscodeMedia(const std::string& input_uri,
+               const media::TranscodeParams& params,
+               media::TranscodeProgressCB progress = nullptr,
+               const media::TranscodeCancelToken* cancel = nullptr);
 
 // Asynchronous handle: media::TranscodeJob pre-bound to the same
 // PlayerConfig-derived defaults (-vn/-an). Start/Cancel/Wait/IsRunning
@@ -59,8 +60,8 @@ class PlayerTranscoder {
   bool IsRunning() const;
 
  private:
-  media::TranscodeParams ApplyDefaults(
-      const media::TranscodeParams& params) const;
+  media::TranscodeParams
+  ApplyDefaults(const media::TranscodeParams& params) const;
 
   PlayerConfig config_;
   std::unique_ptr<media::TranscodeJob> job_;

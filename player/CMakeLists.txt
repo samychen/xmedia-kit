@@ -44,13 +44,22 @@ endif()
 # Opt-in transcode entry on the Player API surface. NOT part of avbase_player
 # (playback builds must not pay for encoders; media/CMakeLists decision D11):
 # a host that transcodes links this target explicitly, next to avbase::transcode.
-file(GLOB AVBASE_PLAYER_TRANSCODE_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/player_transcode.cc")
-add_library(avbase_player_transcode ${AVBASE_PLAYER_TRANSCODE_SOURCES})
-add_library(avbase::player_transcode ALIAS avbase_player_transcode)
-target_include_directories(avbase_player_transcode PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
-target_link_libraries(avbase_player_transcode
-    PUBLIC avbase::player avbase::transcode)
-avbase_configure_target(avbase_player_transcode)
+#
+# Gated on FFmpeg for the same reason avbase::transcode is: this target's only
+# reason to exist is to forward to it, and its public header includes
+# transcode/ffmpeg_transcode_job.h. Without the gate, a no-ffmpeg configure
+# fails outright ("links to avbase::transcode, but the target was not found")
+# -- which is exactly what happened, because the target was added
+# unconditionally while the library it needs is conditional.
+if(AVBASE_ENABLE_FFMPEG)
+  file(GLOB AVBASE_PLAYER_TRANSCODE_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/player_transcode.cc")
+  add_library(avbase_player_transcode ${AVBASE_PLAYER_TRANSCODE_SOURCES})
+  add_library(avbase::player_transcode ALIAS avbase_player_transcode)
+  target_include_directories(avbase_player_transcode PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
+  target_link_libraries(avbase_player_transcode
+      PUBLIC avbase::player avbase::transcode)
+  avbase_configure_target(avbase_player_transcode)
+endif()

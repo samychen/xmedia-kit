@@ -353,14 +353,13 @@ Status PlayerImpl::PrepareAsync() {
   // "nodisp", and why it is not video_disabled: this keeps the video leg
   // decoding (av sync, cadence and the sink stats stay meaningful) and drops
   // only the picture. The factory makes the swap, so an injected backend sink
-  // cannot reintroduce a window the host asked not to have.
-  // get-frame-mode lands on the same switch as nodisp: both mean "the video
-  // leg decodes, the compositor holds frames, no window is fed". Distinct
-  // keys, one honest consumer.
-  factory_deps.disable_video_output = config_.render.disable_video_output ||
-                                      config_.get_frame_mode;
-  // "max-fps"/"framedrop": the setters had no caller in the tree until now, so
-  // the cap never reached the compositor. The default (31) is what turns it on.
+  // cannot reintroduce a window the host asked not to have. get-frame-mode
+  // lands on the same switch -- both mean "decode, hold frames, feed no
+  // window" -- so one consumer serves two intents.
+  factory_deps.disable_video_output =
+      config_.render.disable_video_output || config_.get_frame_mode;
+  // "max-fps"/"framedrop": the setters had no caller until now, so the cap
+  // never reached the compositor. The default (31) turns it on.
   factory_deps.video_max_fps = config_.video.max_fps;
   factory_deps.video_max_frame_drop = config_.video.max_frame_drop;
   // This is where config.video.decoder_preference stops being documentation.
@@ -481,19 +480,16 @@ void PlayerImpl::OnPipelineReady() {
   event_hub_.PostStateChanged(PlayerState::kPreparing, PlayerState::kPrepared,
                               GetMediaTime());
   // BEFORE the signal, deliberately, so that "PrepareSync() returned" and
-  // "the autostart has happened" are the same statement rather than two events
-  // a caller has to hope land in order. Start() is cheap and non-blocking here
-  // (a state_lock_ transition plus a PostTask), so there is nothing to gain
-  // from signalling first.
-  //
-  // Caveat, so this comment does not overclaim again (the first version did):
-  // the old order was NOT reliably observable as a bug. Signal() holds the
-  // WaitableEvent mutex the waiter needs, so the autostart won in 20/20
-  // measured runs even with the signal first
-  // (tests/unit/player/prepare_autostart_unittest.cc). This is therefore
-  // correctness by construction, not a visible-bug fix. What DOES matter for
-  // consumers is the two PostStateChanged calls above: kPreparing->kPrepared
-  // precedes any kStarted, so nobody sees a start before its prepare.
+  // "the autostart has happened" are one statement rather than two events a
+  // caller has to hope land in order. Start() is cheap and non-blocking here
+  // (a state_lock_ transition plus a PostTask), so signalling first would
+  // gain nothing. Caveat (the first version overclaimed): the old order was
+  // NOT reliably observable as a bug -- Signal() holds the WaitableEvent
+  // mutex the waiter needs, so autostart won in 20/20 measured runs even
+  // with the signal first (prepare_autostart_unittest.cc). Correctness by
+  // construction, not a visible-bug fix. What DOES matter to consumers is
+  // the two PostStateChanged calls above: kPreparing->kPrepared precedes any
+  // kStarted, so nobody sees a start before its prepare.
   if (config_.start_on_prepared) {
     Start();
   }

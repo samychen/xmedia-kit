@@ -5,7 +5,9 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 
 #include <algorithm>
+#include <chrono>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -194,6 +196,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   ff::PacketPtr pkt = ff::MakePacket();
   ff::FramePtr frame = ff::MakeFrame();
   int64_t processed_us = 0;
+  // Realtime pacing state (params.realtime); both only meaningful once
+  // pace_anchor_set is true.
+  bool paced_anchor_set = false;
+  int64_t pace_anchor_us = 0;
+  std::chrono::steady_clock::time_point pace_anchor_wall;
   const int64_t trim_end_us =
       params.duration_seconds > 0.0
           ? static_cast<int64_t>(
@@ -297,6 +304,23 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       break;
     }
     processed_us = std::max(processed_us, pkt_us);
+    // Realtime pacing (see TranscodeParams::realtime). Anchored on the first
+    // packet that carries a timestamp, so a slow open does not become a
+    // burst of catch-up frames. Sleeping here rather than after the write
+    // means the muxer is handed packets at the rate the peer can take them.
+    if (params.realtime && total_duration > 0.0 && !paced_anchor_set &&
+        pkt_us >= 0) {
+      pace_anchor_us = pkt_us;
+      pace_anchor_wall = std::chrono::steady_clock::now();
+      paced_anchor_set = true;
+    } else if (params.realtime && paced_anchor_set) {
+      const auto due =
+          pace_anchor_wall + std::chrono::microseconds(pkt_us - pace_anchor_us);
+      const auto now = std::chrono::steady_clock::now();
+      if (due > now) {
+        std::this_thread::sleep_until(due);
+      }
+    }
 
     if (idx == audio_stream_idx && want_audio) {
       if (audio.copy) {

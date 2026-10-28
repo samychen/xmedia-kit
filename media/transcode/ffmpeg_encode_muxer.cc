@@ -56,8 +56,7 @@ bool FFmpegEncodeMuxer::Open(
     const std::vector<std::pair<std::string, std::string>>& options) {
   AVFormatContext* fmt = nullptr;
   if (avformat_alloc_output_context2(
-          &fmt, nullptr,
-          format_name.empty() ? nullptr : format_name.c_str(),
+          &fmt, nullptr, format_name.empty() ? nullptr : format_name.c_str(),
           path.c_str()) < 0 ||
       !fmt) {
     LOG(ERROR) << "encode muxer: cannot open " << path

@@ -385,6 +385,53 @@ job_e2e() {
     else
       echo "ok   transcode without -o -> refused"
     fi
+
+    # preview: the batch-grab half of the thumbnail capability. The gate
+    # asserts the FRAME TIMESTAMPS, not just the exit code -- a preview that
+    # writes N copies of the keyframe "succeeds" while being useless, which is
+    # exactly what the keyframe-seek bug looked like (three frames at 0 ms for
+    # 0/0.5/1.0s). Requires the first frame to be at or after the request.
+    if "$inspect" preview tests/testdata/small_h264_aac_3s.mp4 \
+        -o "$tc/frames" --start 1.5 --count 2 >"$log" 2>&1 &&
+        [ "$(sed -n 's/.*\[0\] t=\([0-9]*\) ms.*/\1/p' "$log" |
+              awk '$1 >= 1500 {found=1} END {print found+0}')" = "1" ]; then
+      echo "ok   preview --start 1.5 -> first frame at or after 1.5 s"
+    else
+      echo "FAIL preview --start 1.5"; fail=1
+    fi
+    # The 10-bit regression, end to end: a 10-bit source used to transcode
+    # "successfully" into a banded mess (muxer OK, right duration, wrong
+    # pixels). The unit test pins the converter; this pins the CLI path. The
+    # sample is generated here rather than committed -- testdata is a seed set,
+    # not a media library.
+    if command -v ffmpeg >/dev/null 2>&1 &&
+        ffmpeg -y -loglevel error -f lavfi \
+          -i "testsrc2=size=320x240:rate=10:duration=1" \
+          -pix_fmt yuv420p10le -c:v libx264 -profile:v high10 \
+          "$tc/tenbit.mp4" >/dev/null 2>&1; then
+      if "$inspect" preview "$tc/tenbit.mp4" -o "$tc/frames10" \
+          --count 1 >"$log" 2>&1 &&
+          grep -q "geometry: 320x240" "$log"; then
+        echo "ok   preview 10-bit source -> converted frame"
+      else
+        echo "FAIL preview 10-bit source"; fail=1
+      fi
+    else
+      echo "skip preview 10-bit source (no ffmpeg CLI / no libx264 10-bit)"
+    fi
+
+    # publish: the RTMP half, against a real peer (ffmpeg's own listener), with
+    # pacing asserted in both directions. Skipped (not failed) when the ffmpeg
+    # CLI is missing: that is an environment gap, not a regression.
+    if command -v ffmpeg >/dev/null 2>&1; then
+      if tools/check_rtmp_publish.py --inspect "$inspect" >"$log" 2>&1; then
+        echo "ok   publish rtmp:// -> peer received it, pacing real"
+      else
+        echo "FAIL publish rtmp:// (see $log)"; fail=1
+      fi
+    else
+      echo "skip publish rtmp:// (no ffmpeg CLI to act as the peer)"
+    fi
   fi
   return $fail
 }

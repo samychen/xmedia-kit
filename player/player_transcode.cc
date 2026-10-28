@@ -4,6 +4,9 @@
 
 #include "player/public/player_transcode.h"
 
+#include <memory>
+#include <utility>
+
 #include "media/transcode/ffmpeg_transcode_job.h"
 
 namespace avbase {

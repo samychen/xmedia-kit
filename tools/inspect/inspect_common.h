@@ -100,9 +100,11 @@ int RunProbe(const Options& opts);
 int RunDecode(const Options& opts);
 int RunSync(const Options& opts);
 
-// transcode takes its own options, so it takes argv itself (argv[0] is the
-// subcommand name) rather than the shared Options.
+// transcode / preview / publish take their own options, so they take argv
+// themselves (argv[0] is the subcommand name) rather than the shared Options.
 int RunTranscode(int argc, char** argv);
+int RunPreview(int argc, char** argv);
+int RunPublish(int argc, char** argv);
 
 }  // namespace avbase
 

@@ -34,8 +34,8 @@ void ExpectPlayable(const std::string& path, int expected_streams) {
     void OnDemuxerError(media::MediaError) override {}
   } host;
   base::test::TaskEnvironment env;
-  media::Status opened = base::unexpected(media::MediaError(
-      media::ErrorCode::kNotImplemented, "not run", "", ""));
+  media::Status opened = base::unexpected(
+      media::MediaError(media::ErrorCode::kNotImplemented, "not run", "", ""));
   bool done = false;
   demuxer.Initialize(media::DataSourceDescriptor::FromUri(path), {}, &host,
                      env.GetMainThreadTaskRunnerRef(),
@@ -83,14 +83,13 @@ TEST(PlayerTranscodeTest, ConfigAudioDisabledStripsTheStream) {
   PlayerTranscoder transcoder(config);
   EXPECT_TRUE(transcoder.IsRunning() == false);
   std::atomic<bool> done{false};
-  media::Status job_status = base::unexpected(media::MediaError(
-      media::ErrorCode::kNotImplemented, "not run", "", ""));
-  EXPECT_TRUE(transcoder.Start(
-      TestFile("small_h264_aac_3s.mp4"), params, nullptr,
-      [&](media::Status s) {
-        job_status = std::move(s);
-        done.store(true);
-      }));
+  media::Status job_status = base::unexpected(
+      media::MediaError(media::ErrorCode::kNotImplemented, "not run", "", ""));
+  EXPECT_TRUE(transcoder.Start(TestFile("small_h264_aac_3s.mp4"), params,
+                               nullptr, [&](media::Status s) {
+                                 job_status = std::move(s);
+                                 done.store(true);
+                               }));
   transcoder.Wait();
   ASSERT_TRUE(done.load());
   ASSERT_TRUE(job_status) << job_status.error().ToString();

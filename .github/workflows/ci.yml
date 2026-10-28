@@ -172,6 +172,34 @@ jobs:
           else
             echo "ok   transcode without -o -> refused"
           fi
+          # preview: the batch grab. Timestamps are the assertion, not the exit
+          # code -- a preview that writes N copies of the keyframe "succeeds"
+          # while being useless, which is what the keyframe-seek bug looked
+          # like (0/0/1000 ms for a 0.5 s interval).
+          if "$inspect" preview tests/testdata/small_h264_aac_3s.mp4 \
+              -o "$tc/frames" --start 1.5 --count 2 \
+              > "$RUNNER_TEMP/tc.log" 2>&1 &&
+              [ "$(sed -n 's/.*\[0\] t=\([0-9]*\) ms.*/\1/p' \
+                     "$RUNNER_TEMP/tc.log" |
+                  awk '$1 >= 1500 {found=1} END {print found+0}')" = "1" ]; then
+            echo "ok   preview --start 1.5 -> first frame at or after 1.5 s"
+          else
+            echo "::error::preview --start 1.5 landed before the request"
+            sed -n '1,40p' "$RUNNER_TEMP/tc.log"
+            fail=1
+          fi
+          # publish: the RTMP half, over a real peer. The runner's ffmpeg CLI
+          # acts as the server (rtmp_listen), so this needs no MediaMTX. The
+          # script asserts both pacing modes, so a pacing flag that stopped
+          # working cannot pass as green.
+          if python3 tools/check_rtmp_publish.py --inspect "$inspect" \
+              > "$RUNNER_TEMP/rtmp.log" 2>&1; then
+            echo "ok   publish rtmp:// -> peer received it, pacing real"
+          else
+            echo "::error::RTMP publish acceptance failed"
+            sed -n '1,60p' "$RUNNER_TEMP/rtmp.log"
+            fail=1
+          fi
           exit $fail
       # End-to-end CPU (docs/04 §8, docs/07 §10). Recorded, never failed:
       # the committed baseline was measured on macOS with VideoToolbox, and

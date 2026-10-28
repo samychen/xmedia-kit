@@ -26,10 +26,10 @@ namespace avbase::media {
 //
 // Synchronous and blocking, like Transcode(); cancellable at packet
 // boundaries through the same token type.
-Status AVBASE_MEDIA_EXPORT PreviewFrames(
-    const std::string& input_uri, double start_time_seconds, int max_frames,
-    std::vector<base::scoped_refptr<VideoFrame>>* out,
-    const TranscodeCancelToken* cancel = nullptr);
+Status AVBASE_MEDIA_EXPORT
+PreviewFrames(const std::string& input_uri, double start_time_seconds,
+              int max_frames, std::vector<base::scoped_refptr<VideoFrame>>* out,
+              const TranscodeCancelToken* cancel = nullptr);
 
 }  // namespace avbase::media
 

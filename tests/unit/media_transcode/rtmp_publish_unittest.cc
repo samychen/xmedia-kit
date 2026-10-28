@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "media/ffmpeg/ffmpeg_demuxer.h"
-#include "base/test/task_environment.h"
 #include "base/functional/bind.h"
+#include "base/test/task_environment.h"
+#include "media/ffmpeg/ffmpeg_demuxer.h"
 
 namespace avbase::media {
 namespace {
@@ -40,8 +40,8 @@ TEST(RtmpPublishTest, FlvOutputRoundTripsThroughTheDemuxer) {
     void OnDemuxerError(MediaError) override {}
   } host;
   base::test::TaskEnvironment env;
-  Status opened = base::unexpected(MediaError(ErrorCode::kNotImplemented,
-                                              "not run", "", ""));
+  Status opened = base::unexpected(
+      MediaError(ErrorCode::kNotImplemented, "not run", "", ""));
   bool done = false;
   demuxer.Initialize(DataSourceDescriptor::FromUri(params.output_path), {},
                      &host, env.GetMainThreadTaskRunnerRef(),

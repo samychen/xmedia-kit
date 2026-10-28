@@ -29,6 +29,14 @@ int main(int argc, char** argv) {
     avbase::media::ffmpeg::InstallLogBridge();
     return avbase::RunTranscode(argc - 1, argv + 1);
   }
+  if (argc > 1 && std::string(argv[1]) == "preview") {
+    avbase::media::ffmpeg::InstallLogBridge();
+    return avbase::RunPreview(argc - 1, argv + 1);
+  }
+  if (argc > 1 && std::string(argv[1]) == "publish") {
+    avbase::media::ffmpeg::InstallLogBridge();
+    return avbase::RunPublish(argc - 1, argv + 1);
+  }
   avbase::Options opts;
   if (!avbase::ParseArgs(argc, argv, &opts)) {
     return 1;

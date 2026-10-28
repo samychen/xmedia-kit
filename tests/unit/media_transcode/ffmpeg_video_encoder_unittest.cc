@@ -183,7 +183,7 @@ TEST(AvFrameToVideoFrameTest, ConvertsTenBitSourceToEightBitI420) {
     for (int r = 0; r < 2; ++r) {
       for (int c = 0; c < 2; ++c) {
         plane[(static_cast<size_t>(r) *
-                   static_cast<size_t>(frame->linesize[p]) / 2) +
+               static_cast<size_t>(frame->linesize[p]) / 2) +
               static_cast<size_t>(c)] = 512;
       }
     }

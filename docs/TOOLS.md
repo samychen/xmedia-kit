@@ -211,6 +211,7 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 |---|---|---|
 | `check_protocols.py` | HLS VOD 与 HTTP progressive 走**真 socket**（本地 `http.server` + 现造媒体）——"要网络但不需要网络" | 每个协议到 `kCompleted` |
 | `check_live_protocols.py` | RTMP / RTSP / SRT 对**真流媒体对端**（`mediamtx` 或 ffmpeg 当 listener） | `headless` 到 `kCompleted` **或媒体时钟走过** `--media-threshold`（默认 2.0 s）——时钟真的在走才说明帧真的过了协议，不只是连上了 |
+| `check_rtmp_publish.py` | **推流**方向（播放方向在上面那条）：`avbase-inspect publish` 推到 FFmpeg 自己起的 `rtmp_listen` 服务端 | 对端真的收到流（非空 + 时长与源一致 + 流数一致）；**两种配速模式必须不同**——`--no-realtime` 若和实时一样慢，说明配速开关是装饰；URL 缺 `--format` 必须被拒绝且说明原因 |
 | `check_weaknet.py` | 源不回答 / 慢 / 中途挂断时播放器的行为 | 不是"播放成功"（全断时没什么可成功），而是**进程自己走到定义好的终态，且在限定时间内** |
 | `check_weaknet.sh` | 直播三协议在 `tc netem` 真实损伤下的降级 | 需 Linux + root；结束时**无论如何都拆掉 qdisc** |
 | `check_corpus.py` | 维度语料（codec × container × 损坏 × HDR × 多轨）的四个指标 | 语料**现造不入库**（300+ 真实媒体是几百 MB，而且入库的语料就是不再生长的语料） |
@@ -293,7 +294,9 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 | `decode` | `inspect_decode.cc` | 解一遍，报帧数/时间戳范围/**单调性**。有意思的不是帧数——时间戳不单调是缺时间基的指纹（bug #26），而它在帧数里是隐形的：帧数对，全打零 |
 | `sync` | `inspect_sync.cc` | 用真实时间戳驱动 `AvSyncController`。**这是抓到 bug #32 的那个子命令**：同步控制器有 28 条单测全绿（都从零开始的假时钟），而对真文件真宿主，主时钟读数是 -33185 s |
 | `transcode` | `inspect_transcode.cc` | `media/transcode` 的第一个生产消费者，跑完**重新打开产出**证明它可读 |
-| — | `inspect_common.{h,cc}` | 三个子命令共用的管道：参数解析、demuxer Host、任务队列 Pump |
+| `preview` | `inspect_preview.cc` | 批量取帧落成 JPEG（悬停预览/胶片条）。**打印每帧的时戳与相邻间隔**——间隔才是判据：`--interval 0.5` 却输出 `0/0/1000 ms` 是 seek 落在目标之前的关键帧上，帧数看着对、内容全是同一幅画 |
+| `publish` | `inspect_publish.cc` | 推到 `rtmp://` 对端。`--format` 必填（URL 没有扩展名可推断，缺了就报错而不是猜）；默认按输入时戳实时配速，`--no-realtime` 关掉。"muxer 返回 OK" 不等于对端收到，真实验收见 `tools/check_rtmp_publish.py` |
+| — | `inspect_common.{h,cc}` | 子命令共用的管道：参数解析、demuxer Host、任务队列 Pump |
 | — | `inspect_main.cc` | 入口与用法 |
 
 按子命令分文件是为了不顶到 C1 的 500 行（[06 §7.6](06-CMake工程与构建体系.md)：一个

@@ -5,9 +5,9 @@
 #include "media/transcode/ffmpeg_preview_job.h"
 
 #include "base/logging.h"
-#include "media/transcode/ffmpeg_transcode_streams.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/transcode/ffmpeg_transcode_streams.h"
 
 namespace avbase::media {
 namespace {
@@ -38,9 +38,9 @@ Status PreviewFrames(const std::string& input_uri, double start_time_seconds,
   }
   in.reset(raw_in);
   if (avformat_find_stream_info(in.get(), nullptr) < 0) {
-    return base::unexpected(MediaError(
-        ErrorCode::kSourceReadFailed, "preview: cannot probe " + input_uri,
-        "avformat_find_stream_info failed", {}));
+    return base::unexpected(MediaError(ErrorCode::kSourceReadFailed,
+                                       "preview: cannot probe " + input_uri,
+                                       "avformat_find_stream_info failed", {}));
   }
 
   int video_index = -1;
@@ -51,27 +51,29 @@ Status PreviewFrames(const std::string& input_uri, double start_time_seconds,
     }
   }
   if (video_index < 0) {
-    return base::unexpected(MediaError(
-        ErrorCode::kSourceUnsupported, "preview: the source has no video "
-                                       "stream",
-        "nb_streams=" + std::to_string(in->nb_streams),
-        "previews need a video track"));
+    return base::unexpected(
+        MediaError(ErrorCode::kSourceUnsupported,
+                   "preview: the source has no video "
+                   "stream",
+                   "nb_streams=" + std::to_string(in->nb_streams),
+                   "previews need a video track"));
   }
   AVStream* stream = in->streams[video_index];
 
   const AVCodec* dec = avcodec_find_decoder(stream->codecpar->codec_id);
   if (!dec) {
-    return base::unexpected(MediaError(
-        ErrorCode::kSourceUnsupported, "preview: no decoder for the video "
-                                       "codec",
-        "codec_id=" + std::to_string(stream->codecpar->codec_id),
-        "re-encode the source with a codec this build decodes"));
+    return base::unexpected(
+        MediaError(ErrorCode::kSourceUnsupported,
+                   "preview: no decoder for the video "
+                   "codec",
+                   "codec_id=" + std::to_string(stream->codecpar->codec_id),
+                   "re-encode the source with a codec this build decodes"));
   }
   ff::CodecCtxPtr decoder(avcodec_alloc_context3(dec));
   if (avcodec_parameters_to_context(decoder.get(), stream->codecpar) < 0) {
-    return base::unexpected(MediaError(
-        ErrorCode::kSourceReadFailed, "preview: decoder parameter copy failed",
-        {}, {}));
+    return base::unexpected(MediaError(ErrorCode::kSourceReadFailed,
+                                       "preview: decoder parameter copy failed",
+                                       {}, {}));
   }
   decoder->pkt_timebase = stream->time_base;
   if (avcodec_open2(decoder.get(), dec, nullptr) < 0) {
@@ -92,6 +94,18 @@ Status PreviewFrames(const std::string& input_uri, double start_time_seconds,
       avcodec_flush_buffers(decoder.get());
     }
   }
+
+  // av_seek_frame lands on the keyframe at or before the target, which for a
+  // 2-second-GOP source means asking for 0.5 s and getting 0 s. For a single
+  // snapshot that is fine (and is what ffmpeg's -ss does); for a scrubber it
+  // is not -- every preview in the first GOP is the same picture. So decode
+  // forward and discard anything before the target. The keyframe is still
+  // where decoding starts (that is unavoidable with inter-frame codecs);
+  // what changes is which frames are KEPT.
+  const int64_t keep_from_us =
+      start_time_seconds > 0.0
+          ? static_cast<int64_t>(start_time_seconds * AV_TIME_BASE)
+          : INT64_MIN;
 
   ff::PacketPtr packet(av_packet_alloc());
   ff::FramePtr frame(av_frame_alloc());
@@ -115,19 +129,31 @@ Status PreviewFrames(const std::string& input_uri, double start_time_seconds,
     }
     av_packet_unref(packet.get());
     while (avcodec_receive_frame(decoder.get(), frame.get()) >= 0) {
-      out->push_back(AvFrameToVideoFrame(
-          frame.get(), frame->width, frame->height, decoder->pkt_timebase));
+      const int64_t frame_us =
+          frame->pts == AV_NOPTS_VALUE
+              ? keep_from_us
+              : av_rescale_q(frame->pts, decoder->pkt_timebase,
+                             AVRational{1, AV_TIME_BASE});
+      // Dropped frames are the cost of the keyframe start; they are not
+      // errors and must not be counted as "decoded nothing".
+      if (frame_us < keep_from_us) {
+        av_frame_unref(frame.get());
+        continue;
+      }
+      out->push_back(AvFrameToVideoFrame(frame.get(), frame->width,
+                                         frame->height, decoder->pkt_timebase));
+      av_frame_unref(frame.get());
       if (static_cast<int>(out->size()) >= max_frames) {
         break;
       }
     }
   }
   if (out->empty()) {
-    return base::unexpected(MediaError(
-        ErrorCode::kSourceReadFailed, "preview: no frames decoded",
-        "seek target " + std::to_string(start_time_seconds) + "s, max " +
-            std::to_string(max_frames),
-        "the seek target may be past the last keyframe"));
+    return base::unexpected(
+        MediaError(ErrorCode::kSourceReadFailed, "preview: no frames decoded",
+                   "seek target " + std::to_string(start_time_seconds) +
+                       "s, max " + std::to_string(max_frames),
+                   "the seek target may be past the last keyframe"));
   }
   return Status();
 }
