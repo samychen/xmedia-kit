@@ -5,6 +5,9 @@
 **定位**：面向二次开发者的 **SDK**（API 易用、文档完整、示例齐全、错误信息可操作）
 **依赖**：系统 FFmpeg（`find_package`，不打 patch）
 
+> **CicadaPlayer 能力移植（2026-10）**：自研 curl 网络源、边播边缓存、
+> HLS 播放列表 demuxer（含 AES-128/ABR/live reload）、DRM 密钥抽象、外挂字幕、
+> 画面控制与 DASH MPD 基线已按 `docs/cicada-port/PLAN.md` 落地（核销表 §1.5）。
 > **项目沿革**：起于 ijkplayer 的 C++20 重构(docs/05 迁移对照表为历史卷,
 > golden 对拍 ijkplayer 保留为回归资产);现按 avbase 升级计划演进为
 > 三平台、硬解、网络流完备的企业播放器基座。

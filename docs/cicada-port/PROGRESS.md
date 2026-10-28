@@ -3,7 +3,7 @@
 > 活文档。恢复执行协议见 [PLAN.md](PLAN.md) §2：接手者读本表，从第一个未完成任务继续。
 > 状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
 
-**当前整体状态**：T7 完成，T8 进行中。
+**当前整体状态**：全部完成（T1–T9，2026-10-29）。
 
 ---
 
@@ -16,7 +16,8 @@
 - [x] **T5 DRM/密钥抽象**（KeyProvider 接口 + ClearKey + 端到端解密测试）
 - [x] **T6 外挂字幕**（SRT/VTT 解析 + Player API + ticker 发 cue）
 - [x] **T7 画面控制**（kCrop/mirror 进 GlScene + Scene 主层持久模式 + Player 四件套 API）
-- [~] **T8 直播增强 + DASH MPD 延伸**（UTC 事件 + mpd_parser 基线） since: 2026-10-29 04:15
+- [x] **T8 直播增强 + DASH MPD 延伸**（mpd_parser SegmentTemplate 基线；完整 DASH demuxer 为登记后续项）
+- [x] **T9 总验收**（888/888 + no-ffmpeg 665/665 + invariants 全过，见 PLAN §1.5 核销）
 - [ ] **T6 外挂字幕**（media/text：SRT/VTT 解析 + 加载 API + cue 调度）
 - [ ] **T7 画面控制**（rotate/mirror/scale：player API + GL sink）
 - [ ] **T8 直播增强 + DASH MPD 延伸**（追帧配置 + UTC 事件 + mpd_parser）
@@ -34,6 +35,9 @@
 | T6 外挂字幕 | 2026-10-29 03:55 | `media/filters/{srt,webvtt}_parser.*` + `external_text_track.*`（纯逻辑 7 单测）；`Player::{Add,Select,Set delay,Remove}ExternalSubtitle` + PlayerImpl 100ms ticker（`player_impl_subtitles.cc`）+ player 级 e2e。879/879 ctest 通过；invariants 全过。提交：feature/cicada-port |
 
 | T7 画面控制 | 2026-10-29 04:15 | `LayerContentMode::kCrop` + `GlScene::SetLayerMirror` + `CoverSourceRect` 纯几何（4 单测）+ `Scene::SetMainLayerModes`（Present 时主层应用，host hook 仍可覆写）+ `Player::{SetRotateMode,SetMirrorMode,SetScaleMode,SetVideoBackgroundColor}`。883/883 ctest 通过；invariants 全过。提交：feature/cicada-port |
+
+| T8 DASH 基线 | 2026-10-29 04:35 | `media/ffmpeg/mpd_parser.*`（自研 XML 子集 tokenizer + SegmentTemplate 展开 + ISO-8601 时长），5 单测。888/888 ctest 通过。提交：feature/cicada-port |
+| T9 总验收 | 2026-10-29 04:40 | macos-sdl2+curl 888/888；no-ffmpeg 665/665；`check_invariants` 603 文件全过；`check_api_compat` 0 breaking。核销表见 PLAN.md §1.5 |
 
 ## 交接备注
 

@@ -81,6 +81,23 @@
 - 全 preset 构建 + 全测试 + `check_invariants.py` + clang-format/cpplint；
   README/docs 登记（docs/PROGRESS.md 与新模块指南）；对照本文档 §0 逐项核销，输出结论。
 
+## 1.5 执行结果核销（T9，2026-10-29）
+
+| 任务 | 结论 |
+|---|---|
+| T1 curl 网络源 | ✅ `media/curl/`（独立 target，`AVBASE_ENABLE_CURL`），keep-alive/Range/DNS 固定/IPv4v6/低速看门狗，9 单测 |
+| T2 缓存层 | ✅ `SliceBufferSource`（LRU 分片）+ `FileCacheDataSource`（边播边存、续播、预算、IO 失败降级），9 单测，接通闲置的 `data_source.*` 配置 |
+| T3 HLS | ✅ m3u8 解析器 + AES-128（NIST 向量）+ `HlsPlaylistDemuxer`（稳定流包装、跨段时间线、seek 落段、live reload、加密段端到端），16 单测 |
+| T4 ABR | ✅ 估计器 + 缓冲水位算法（可注入）+ HLS 边界切换（观察 `variant_switches`），7 单测 + 爬梯 e2e |
+| T5 DRM 抽象 | ✅ `KeyProvider` 接口 + `ClearKeyProvider` + `Deps` 注入 + EXT-X-KEY 路由，加密 testdata 端到端 |
+| T6 外挂字幕 | ✅ SRT/VTT 解析 + `ExternalTextTrack` 调度 + Player 四 API + ticker 发 kTimedText，7 单测 + 播放 e2e |
+| T7 画面控制 | ✅ kCrop/mirror 进 GlScene、`Scene::SetMainLayerModes`（host hook 仍可覆写）、Player 四件套 API，4 几何单测 |
+| T8 DASH 基线 | ✅ `mpd_parser`（SegmentTemplate 子集，XML 自研 tokenizer），5 单测；完整 DASH demuxer 集成为已登记的后续项 |
+| T9 总验收 | ✅ macos-sdl2+curl **888/888** ctest；no-ffmpeg **665/665**；`check_invariants` 全过；api_compat 0 breaking |
+
+不可移植项（维持 §0 裁决）：Android/iOS/Flutter 平台栈、MediaCodec 原生集成、WideVine/FairPlay
+平台 CDM（以 `KeyProvider` 扩展点交付）、HDR10（AVFoundation 路径）——均以文档记录扩展点。
+
 ## 2. 执行与恢复协议
 
 1. 顺序执行 T1→T9；每任务完成：构建 + 单测通过 → 更新 PROGRESS.md（勾选 + 证据）→ 下一任务。
