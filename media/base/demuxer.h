@@ -14,11 +14,13 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/data_source_descriptor.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/key_provider.h"
 #include "media/base/media_error.h"
 #include "media/base/media_info.h"
 #include "media/base/media_log.h"
@@ -48,6 +50,9 @@ struct AVBASE_MEDIA_EXPORT DemuxerOptions {
   // picks the starting rung (0 = the highest advertised).
   bool abr_enabled{false};
   int64_t abr_initial_bandwidth_bps{0};
+  // Key system (cicada-port T5): where EXT-X-KEY bytes come from. Null =
+  // the demuxer's built-in clear-key fetch (plain GET of the key URI).
+  base::raw_ptr<KeyProvider> key_provider{nullptr};
   // Verbatim AVDictionary passthrough (PlayerConfig::extra_format_options).
   std::map<std::string, std::string> extra_options;
 };

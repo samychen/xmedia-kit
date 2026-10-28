@@ -223,6 +223,38 @@ TEST_F(HlsPlaylistDemuxerTest, AbrClimbsTheLadderAtABoundary) {
   EXPECT_GE(previous, base::Seconds(1));
 }
 
+TEST_F(HlsPlaylistDemuxerTest, DecryptsAes128SegmentsFromThePlaylistKey) {
+  // tests/testdata/hls/enc: the same two TS segments under AES-128-CBC,
+  // with the raw key bytes and IV in the playlist's EXT-X-KEY. The built-in
+  // clear-key path fetches the key (file:// here), decrypts, and the
+  // timeline behaves exactly like the plaintext playlist.
+  ASSERT_TRUE(Open(TestFile("hls/enc/enc.m3u8")).has_value());
+  DemuxerStream* video = demuxer_->GetStream(DemuxerStreamType::kVideo);
+  ASSERT_NE(video, nullptr);
+  EXPECT_TRUE(video->video_decoder_config().IsValidConfig());
+
+  base::TimeDelta previous;
+  bool crossed_boundary = false;
+  int reads = 0;
+  while (reads++ < 500) {
+    ReadResult_ one = ReadOne(video);
+    ASSERT_EQ(one.status, DemuxerStream::Status::kOk);
+    ASSERT_FALSE(one.buffers.empty());
+    if (one.buffers.back()->IsEndOfStream()) {
+      break;
+    }
+    for (const auto& buffer : one.buffers) {
+      ASSERT_TRUE(buffer->has_valid_timestamp());
+      EXPECT_GE(buffer->timestamp(), previous);
+      previous = buffer->timestamp();
+      if (previous >= base::Seconds(1)) {
+        crossed_boundary = true;
+      }
+    }
+  }
+  EXPECT_TRUE(crossed_boundary);
+}
+
 TEST_F(HlsPlaylistDemuxerTest, RejectsAPlaylistUrlThatIsNotM3U8) {
   Status status = Open(TestFile("hls/seg0.ts"));
   ASSERT_FALSE(status.has_value());

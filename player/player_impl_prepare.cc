@@ -194,6 +194,7 @@ Status PlayerImpl::PrepareAsync() {
   options.headers = config_.net.headers;
   options.abr_enabled = config_.abr.enabled;
   options.abr_initial_bandwidth_bps = config_.abr.initial_bandwidth_bps;
+  options.key_provider = deps_->key_provider.get();
   options.extra_options = config_.extra_format_options;
 
   // docs/14 stage 3: build the descriptor + demuxer list. Index 0 is this

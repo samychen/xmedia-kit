@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/tick_clock.h"
+#include "media/base/key_provider.h"
 #include "media/base/text_decoder.h"
 #include "player/public/player_event.h"
 #include "player/public/player_export.h"
@@ -103,6 +104,12 @@ struct AVBASE_PLAYER_EXPORT Deps {
   // your own DataSource subclass; M9's RetryDataSource and M18's
   // CacheDataSource are decorators that wrap an existing scoped_refptr.
   base::scoped_refptr<media::DataSource> data_source;
+
+  // Key system seam (cicada-port T5, CicadaPlayer's DrmManager
+  // counterpart): where the demuxer gets decryption-key bytes. Null means
+  // the built-in clear-key fetch (plain GET of the key URI); a WideVine or
+  // FairPlay product implements media::KeyProvider against its CDM.
+  base::scoped_refptr<media::KeyProvider> key_provider;
 
   // Injectable monotonic clock. Null means base::DefaultTickClock. Tests use
   // base::SimpleTestTickClock, which is what makes the scheduling logic
