@@ -31,6 +31,7 @@
 #include "media/ffmpeg/ffmpeg_audio_filter.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_video_filter.h"
+#include "media/ffmpeg/hls_playlist_demuxer.h"
 #endif
 #include "player/scene_internal.h"
 #include "player/source_wrapping.h"
@@ -99,6 +100,16 @@ PlayerImpl::CreateDemuxerFor(const media::DataSourceDescriptor& descriptor) {
   media::BufferQueueLimits limits;
   limits.max_buffers = media::kDefaultQueueMaxBuffers;  // count cap, not shared
   limits.max_bytes = config_.buffer.unlimited ? 0 : config_.buffer.max_bytes;
+  // The CicadaPlayer-parity protocol demuxer: a .m3u8 goes to the HLS
+  // client demuxer, which owns the playlist (variant switching, AES-128
+  // keys, live reload) instead of FFmpeg's built-in hls demuxer, which
+  // serves bytes and can do none of those things. Matched on the URI
+  // because a master playlist's media type is not reliable, and on EITHER
+  // kind: WrapRetry already turned http(s) URIs into custom sources while
+  // keeping the URI for exactly this kind of inspection.
+  if (descriptor.uri.find(".m3u8") != std::string::npos) {
+    return std::make_unique<media::HlsPlaylistDemuxer>(media_log_, limits);
+  }
   return std::make_unique<media::FFmpegDemuxer>(media_log_, limits);
 #else
   (void)descriptor;

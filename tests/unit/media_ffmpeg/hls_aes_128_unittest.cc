@@ -7,18 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "media/ffmpeg/av_includes.h"
-extern "C" {
-#include <libavutil/aes.h>  // this build's aes.h has no own extern "C"
-}
-
 #include "gtest/gtest.h"
 
 namespace avbase::media::hls {
 namespace {
 
-// Binary keys/IVs: std::string(char*) would truncate at the first NUL, so
-// every conversion below uses the (ptr, 16) form through these helpers.
+// The key and IV of NIST SP 800-38A CBC-AES128; the ciphertexts below were
+// produced against them with openssl (the production layer has no encryptor
+// to test against, and C4 keeps libav headers out of the tests).
 constexpr char kKeyBytes[] =
     "\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88"
     "\x09\xcf\x4f\x3c";
@@ -31,10 +27,6 @@ std::string kKey() {
 std::string kIv() {
   return std::string(kIvBytes, 16);
 }
-// NIST SP 800-38A CBC-AES128, first plaintext block.
-constexpr char kPlaintextBlock[] =
-    "\x6b\xc1\xbe\xe2\x2e\x40\x9f\x96"
-    "\xe9\x3d\x7e\x11\x73\x93\x17\x2a";
 
 std::string HexToBytes(std::string_view hex) {
   auto nibble = [](char c) -> int {
@@ -57,58 +49,39 @@ std::string HexToBytes(std::string_view hex) {
   return bytes;
 }
 
-// Encrypts |plain| (already a whole number of blocks) with av_aes so the
-// decrypter under test has a real producer instead of hardcoded blobs.
-std::vector<uint8_t> EncryptCbc(const std::string& key, const std::string& iv,
-                                const std::vector<uint8_t>& plain) {
-  AVAES* ctx = av_aes_alloc();
-  av_aes_init(ctx, reinterpret_cast<const uint8_t*>(key.data()), 128, 0);
-  uint8_t work_iv[16];
-  memcpy(work_iv, iv.data(), 16);
-  std::vector<uint8_t> cipher(plain.size());
-  av_aes_crypt(ctx, cipher.data(), plain.data(),
-               static_cast<int>(plain.size() / 16), work_iv, 0);
-  av_free(ctx);
-  return cipher;
-}
-
-std::vector<uint8_t> Padded(const std::string& body) {
-  std::vector<uint8_t> plain(body.begin(), body.end());
-  const uint8_t pad = static_cast<uint8_t>(16 - (plain.size() % 16));
-  plain.insert(plain.end(), pad, pad);
-  return plain;
+std::vector<uint8_t> BytesOf(const std::string& text) {
+  return std::vector<uint8_t>(text.begin(), text.end());
 }
 
 TEST(HlsAes128Test, DecryptsTheNistVector) {
-  // One block, no padding yet: pad it with a full PKCS7 block so the
-  // decrypter's unpad step sees a valid body.
-  std::vector<uint8_t> plain(kPlaintextBlock, kPlaintextBlock + 16);
-  plain.insert(plain.end(), 16, 16);  // PKCS7 full block
-  auto cipher = EncryptCbc(kKey(), kIv(), plain);
-  // The first ciphertext block must be the NIST published value -- this is
-  // what proves the encrypt side (and hence the fixture) is honest.
-  std::string expected_ct = HexToBytes("7649abac8119b246cee98e9b12e9197d");
-  ASSERT_EQ(cipher.size(), 32u);
-  EXPECT_EQ(memcmp(cipher.data(), expected_ct.data(), 16), 0);
-
+  // PT block 6bc1bee2... + a full PKCS7 pad block, per the published vector.
+  auto cipher = BytesOf(HexToBytes(
+      "7649abac8119b246cee98e9b12e9197d8964e0b149c10b7b682e6e39aaeb731c"));
   auto decrypter = Aes128CbcDecrypter::Create(kKey(), kIv());
   ASSERT_NE(decrypter, nullptr);
   auto result = decrypter->Decrypt(cipher);
   ASSERT_TRUE(result.has_value()) << result.error().summary();
   ASSERT_EQ(result->size(), 16u);
-  EXPECT_EQ(memcmp(result->data(), kPlaintextBlock, 16), 0);
+  const std::string expected_pt =
+      HexToBytes("6bc1bee22e409f96e93d7e117393172a");
+  EXPECT_EQ(memcmp(result->data(), expected_pt.data(), 16), 0);
 }
 
-TEST(HlsAes128Test, RoundTripsMultiBlockBodies) {
-  const std::string body =
-      "segment bytes that span several aes blocks for padding edge cases";
-  auto cipher = EncryptCbc(kKey(), kIv(), Padded(body));
+TEST(HlsAes128Test, RoundTripsAMultiBlockBody) {
+  // openssl-encrypted body "segment bytes that span several aes blocks for
+  // padding edge cases" (PKCS7 padded by the producer).
+  auto cipher = BytesOf(HexToBytes(
+      "77e8ff925474aa6dd762a2e7972bed471ff530ed350f7da05ee70745e25016c6"
+      "add8545fbea1b9b18cbe01dfd8c3087a2c2aa2027af55e6ce128eab47dbfb6d5"
+      "1e3938db99af598a165f57cf5a45fd7d"));
   auto decrypter = Aes128CbcDecrypter::Create(kKey(), kIv());
   ASSERT_NE(decrypter, nullptr);
   auto result = decrypter->Decrypt(cipher);
   ASSERT_TRUE(result.has_value()) << result.error().summary();
-  std::string decrypted(result->begin(), result->end());
-  EXPECT_EQ(decrypted, body);
+  const std::string body(result->begin(), result->end());
+  EXPECT_EQ(body,
+            "segment bytes that span several aes blocks for padding edge "
+            "cases");
 }
 
 TEST(HlsAes128Test, SequenceNumberIvFollowsTheSpecDefault) {
@@ -128,9 +101,10 @@ TEST(HlsAes128Test, RejectsWrongKeyLengthAndBadPadding) {
   // Not a whole number of blocks.
   auto misaligned = decrypter->Decrypt(std::vector<uint8_t>(17, 0xAB));
   ASSERT_FALSE(misaligned.has_value());
-  // Whole blocks, nonsense padding.
+  // One whole block whose plaintext is all zeros: PKCS7 says pad byte 0,
+  // which no legal body ends with.
   auto bad_pad = decrypter->Decrypt(
-      EncryptCbc(kKey(), kIv(), std::vector<uint8_t>(16, 0)));
+      BytesOf(HexToBytes("50fe67cc996d32b6da0937e99bafec60")));
   ASSERT_FALSE(bad_pad.has_value());
   EXPECT_EQ(bad_pad.error().code(), ErrorCode::kSourceUnsupported);
 }
