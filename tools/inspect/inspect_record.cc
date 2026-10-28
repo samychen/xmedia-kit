@@ -37,24 +37,7 @@
 #include "tools/inspect/inspect_common.h"
 
 namespace avbase {
-namespace {
-
-bool ParseSeconds(const char* text, double* out) {
-  if (text == nullptr || text[0] == '\0') {
-    return false;
-  }
-  errno = 0;
-  char* end = nullptr;
-  const double parsed = strtod(text, &end);
-  if (end == text || *end != '\0' || errno == ERANGE ||
-      !std::isfinite(parsed) || parsed <= 0.0) {
-    return false;
-  }
-  *out = parsed;
-  return true;
-}
-
-}  // namespace
+namespace {}  // namespace
 
 int RunRecord(int argc, char** argv) {
   std::string input;
@@ -94,7 +77,7 @@ int RunRecord(int argc, char** argv) {
       } else if (arg == "--acodec") {
         acodec = value;
       } else if (arg == "--duration") {
-        if (!ParseSeconds(value, &duration_seconds)) {
+        if (!ParseSecondsArg(value, /*allow_zero=*/false, &duration_seconds)) {
           fprintf(stderr,
                   "error: --duration '%s' is not a positive number of "
                   "seconds\n",
@@ -132,15 +115,11 @@ int RunRecord(int argc, char** argv) {
         "the source ends\n");
   }
 
-  media::TranscodeParams params;
-  params.output_path = output;
-  params.output_format = format;
-  params.duration_seconds = duration_seconds;
-  params.video_codec.codec = vcodec == "none" ? std::string() : vcodec;
-  params.audio_codec.codec = acodec == "none" ? std::string() : acodec;
   // Realtime on by default: a live source delivers at its own rate anyway, and
   // silencing the pacer is the caller's call, not a surprise.
-  params.realtime = !no_realtime;
+  const media::TranscodeParams params =
+      BuildJobParams(output, format, vcodec, acodec, duration_seconds,
+                     /*realtime=*/!no_realtime);
 
   printf("record: %s -> %s\n", input.c_str(), output.c_str());
   printf("  container: %s   video: %s   audio: %s\n",

@@ -15,27 +15,13 @@ extern "C" {
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/ffmpeg_util.h"
+#include "media/ffmpeg/tone_map.h"
 
 namespace avbase::media {
 
 namespace ff = ::avbase::media::ffmpeg;
 
 namespace {
-
-// True when the stream's transfer characteristics put its code values in a
-// high-dynamic-range transfer function rather than SDR.
-//
-// The transfer characteristic is the fact that matters -- not the primaries
-// and not the bit depth: BT.2020 primaries appear on SDR UHD broadcast too,
-// and 10-bit is used for SDR in plenty of H.264 High10 files. PQ (ST 2084) and
-// HLG (ARIB STD-B67) are the two HDR transfer functions in the wild. Neither
-// can be shown correctly by this renderer's SDR path (no tone mapping, see
-// docs/TODO §1), so they are the trigger for kHdrUnsupported rather than a
-// warning.
-bool HasHdrTransfer(const AVCodecParameters* par) {
-  return par->color_trc == AVCOL_TRC_SMPTE2084 ||
-         par->color_trc == AVCOL_TRC_ARIB_STD_B67;
-}
 
 // Dolby Vision / HDR10+ carry dynamic metadata nothing here can apply, and
 // they are worth flagging separately from the transfer function: a Dolby
@@ -86,11 +72,12 @@ VideoDecoderConfig MakeVideoDecoderConfig(const AVStream* stream) {
   config.level = par->level >= 0 ? std::to_string(par->level) : "";
   // HDR: this field had NO writer in the tree until now -- it existed, it was
   // read by the colour-space fallback table, and it was false for every file,
-  // so `HasHdrTransfer()` and the HDR half of GuessColorSpaceFallback() were
-  // dead code that looked alive. A field with only readers is the same defect
+  // so the HDR half of GuessColorSpaceFallback() was dead code that looked
+  // alive. A field with only readers is the same defect
   // class as an option with only a registry entry.
   config.has_hdr_metadata =
-      HasHdrTransfer(par) || HasDynamicHdrMetadata(stream);
+      ff::IsHdrTransfer(static_cast<int>(par->color_trc)) ||
+      HasDynamicHdrMetadata(stream);
   if (par->extradata && par->extradata_size > 0) {
     config.extra_data.assign(par->extradata,
                              par->extradata +

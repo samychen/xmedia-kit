@@ -5,6 +5,7 @@
 #include "tools/inspect/inspect_common.h"
 
 #include <cerrno>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -15,6 +16,65 @@
 #include "media/base/data_source_descriptor.h"
 
 namespace avbase {
+
+// The single copy of the numeric parsers the subcommands used to redefine.
+// Both are strict on purpose: atof/atoi turn garbage into 0, which reads as a
+// successful run with a nonsense parameter (the L9 lesson, still true).
+media::TranscodeParams BuildJobParams(const std::string& output,
+                                      const std::string& format,
+                                      const std::string& vcodec,
+                                      const std::string& acodec,
+                                      double duration, bool realtime) {
+  media::TranscodeParams params;
+  params.output_path = output;
+  params.output_format = format;
+  params.duration_seconds = duration;
+  // "none" and empty both mean "drop the stream" (ffmpeg's -vn/-an); anything
+  // else, including "copy", is passed through untouched.
+  params.video_codec.codec =
+      (vcodec == "none" || vcodec.empty()) ? std::string() : vcodec;
+  params.audio_codec.codec =
+      (acodec == "none" || acodec.empty()) ? std::string() : acodec;
+  params.realtime = realtime;
+  return params;
+}
+
+bool ParseSecondsArg(const char* text, bool allow_zero, double* out) {
+  if (text == nullptr || text[0] == '\0' || out == nullptr) {
+    return false;
+  }
+  errno = 0;
+  char* end = nullptr;
+  const double parsed = strtod(text, &end);
+  // strtod also accepts "nan"/"inf", neither of which is a time point.
+  if (end == text || *end != '\0' || errno == ERANGE ||
+      !std::isfinite(parsed)) {
+    return false;
+  }
+  if (parsed < 0.0 || (!allow_zero && parsed == 0.0)) {
+    return false;
+  }
+  *out = parsed;
+  return true;
+}
+
+bool ParseCountArg(const char* text, int max_value, int* out) {
+  if (text == nullptr || text[0] == '\0' || out == nullptr) {
+    return false;
+  }
+  errno = 0;
+  char* end = nullptr;
+  const int64_t parsed = strtoll(text, &end, 10);
+  // strtoll accepts leading whitespace and a sign; neither is a count.
+  if (end == text || *end != '\0' || errno == ERANGE || parsed <= 0) {
+    return false;
+  }
+  if (max_value > 0 && parsed > max_value) {
+    return false;
+  }
+  *out = static_cast<int>(parsed);
+  return true;
+}
 
 const char* StreamKindName(media::StreamKind kind) {
   switch (kind) {

@@ -94,6 +94,13 @@ class ToneMapper {
 
   bool Configured() const;
 
+  // True when this mapper is already set up for exactly these inputs. The
+  // caller asks THIS rather than tracking geometry/transfer itself: the first
+  // version kept three mirror fields in VideoConverter, which is two sources
+  // of truth for one fact and rebuilds the graph on every frame the moment
+  // the two drift.
+  bool Matches(int width, int height, int av_transfer) const;
+
   // Converts |src| into the caller's buffers. The frame's pixel format and
   // colour description are taken from |src| itself, so one mapper can serve a
   // stream whose frames vary.
@@ -111,6 +118,7 @@ class ToneMapper {
   // the class layout means a change there cannot recompile every caller.
   struct Graph;
   std::unique_ptr<Graph> graph_;
+  int configured_transfer_{0};
 };
 
 }  // namespace avbase::media::ffmpeg

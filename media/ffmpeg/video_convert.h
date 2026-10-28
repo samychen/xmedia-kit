@@ -86,9 +86,6 @@ class VideoConverter {
   // the resolution changes mid-stream), and Configure() cannot see the frame's
   // colour description.
   ToneMapper tone_mapper_;
-  int tone_mapper_transfer_{0};
-  int tone_mapper_width_{0};
-  int tone_mapper_height_{0};
   // Hable with a mild desaturation: the ffmpeg filter's default desat=2.0 is
   // aggressive enough to grey out skin tones.
   ToneMapCurve tone_mapper_curve_{ToneMapCurve::kHable};

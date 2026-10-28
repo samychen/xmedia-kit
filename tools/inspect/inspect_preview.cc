@@ -35,41 +35,6 @@
 namespace avbase {
 namespace {
 
-// L9: atof/atoi silently turn garbage into 0 (and a bad --count into "grab
-// nothing"), which looks like a successful run. Parse strictly and say why.
-bool ParseInt(const char* text, int* out) {
-  if (text == nullptr || text[0] == '\0') {
-    return false;
-  }
-  errno = 0;
-  char* end = nullptr;
-  const int64_t parsed = strtoll(text, &end, 10);
-  // strtol accepts leading whitespace and a sign; neither is a frame count.
-  if (end == text || *end != '\0' || errno == ERANGE || parsed <= 0 ||
-      parsed > 100000) {
-    return false;
-  }
-  *out = static_cast<int>(parsed);
-  return true;
-}
-
-bool ParseSeconds(const char* text, double* out) {
-  if (text == nullptr || text[0] == '\0') {
-    return false;
-  }
-  errno = 0;
-  char* end = nullptr;
-  const double parsed = strtod(text, &end);
-  // strtod also accepts "nan"/"inf", and a negative seek target is not a
-  // time point.
-  if (end == text || *end != '\0' || errno == ERANGE ||
-      !std::isfinite(parsed) || parsed < 0.0) {
-    return false;
-  }
-  *out = parsed;
-  return true;
-}
-
 // Prints the frames' geometry, timestamps and the gaps between them. The
 // gaps are the part worth reading: a preview strip whose frames are 0.1 s
 // apart when they were asked to be 1 s apart is a seek bug, and it is
@@ -136,7 +101,7 @@ int RunPreview(int argc, char** argv) {
       } else if (arg == "--prefix") {
         prefix = value;
       } else if (arg == "--start") {
-        if (!ParseSeconds(value, &start_seconds)) {
+        if (!ParseSecondsArg(value, /*allow_zero=*/true, &start_seconds)) {
           fprintf(stderr,
                   "error: --start '%s' is not a non-negative number of "
                   "seconds\n",
@@ -144,13 +109,13 @@ int RunPreview(int argc, char** argv) {
           return 1;
         }
       } else if (arg == "--count") {
-        if (!ParseInt(value, &count)) {
+        if (!ParseCountArg(value, 100000, &count)) {
           fprintf(stderr, "error: --count '%s' is not a positive frame count\n",
                   value);
           return 1;
         }
       } else {
-        if (!ParseSeconds(value, &interval_seconds) ||
+        if (!ParseSecondsArg(value, /*allow_zero=*/false, &interval_seconds) ||
             interval_seconds <= 0.0) {
           fprintf(stderr,
                   "error: --interval '%s' is not a positive number of "

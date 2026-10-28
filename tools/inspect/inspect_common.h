@@ -24,6 +24,7 @@
 #include "media/base/media_error.h"
 #include "media/base/media_info.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
+#include "media/transcode/ffmpeg_transcode_job.h"
 
 namespace avbase {
 
@@ -99,6 +100,31 @@ bool OpenDemuxer(media::FFmpegDemuxer* demuxer, const std::string& path,
 int RunProbe(const Options& opts);
 int RunDecode(const Options& opts);
 int RunSync(const Options& opts);
+
+// The numeric parsers the subcommands share. They were written three times
+// (transcode, preview, record) and had already drifted: only one of the three
+// checked ERANGE, and record rejected 0 while preview accepted it. Three
+// copies of a parser is three chances for a CLI to accept "12s" in one
+// subcommand and reject it in another.
+//
+// |allow_zero| is the one real difference: a seek target may be 0 (the start),
+// a duration may not.
+bool ParseSecondsArg(const char* text, bool allow_zero, double* out);
+// A positive integer count, with |max_value| as the ceiling (0 = no ceiling).
+bool ParseCountArg(const char* text, int max_value, int* out);
+
+// Builds the transcode parameters the three job-driving subcommands share.
+// They each wrote this by hand, and had already disagreed: `record` spells
+// "drop this stream" as --vcodec none while `publish` spells it --no-video, so
+// the same argv meant different things depending on which verb ran. One
+// builder, one spelling ("copy" passes through, "none"/empty drops).
+// |realtime| and |muxer_options| stay explicit: those genuinely differ per
+// verb.
+media::TranscodeParams BuildJobParams(const std::string& output,
+                                      const std::string& format,
+                                      const std::string& vcodec,
+                                      const std::string& acodec,
+                                      double duration, bool realtime);
 
 // transcode / preview / publish take their own options, so they take argv
 // themselves (argv[0] is the subcommand name) rather than the shared Options.

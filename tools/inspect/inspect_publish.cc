@@ -140,13 +140,10 @@ int RunPublish(int argc, char** argv) {
     return 1;
   }
 
-  media::TranscodeParams params;
-  params.output_path = url;
-  params.output_format = format;
-  params.video_codec.codec = drop_video ? std::string() : vcodec;
-  params.audio_codec.codec = drop_audio ? std::string() : acodec;
+  media::TranscodeParams params = BuildJobParams(
+      url, format, drop_video ? std::string() : vcodec,
+      drop_audio ? std::string() : acodec, /*duration=*/0.0, realtime);
   params.video_codec.options = encopts;
-  params.realtime = realtime;
 
   printf("publish: %s -> %s\n", input.c_str(), url.c_str());
   printf("  container: %s   video: %s   audio: %s   pacing: %s\n",

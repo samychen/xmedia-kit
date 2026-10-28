@@ -97,21 +97,6 @@ bool ParseCount(const char* text, int64_t* out) {
   return true;
 }
 
-bool ParseSeconds(const char* text, double* out) {
-  if (text == nullptr || text[0] == '\0') {
-    return false;
-  }
-  errno = 0;
-  char* end = nullptr;
-  const double parsed = strtod(text, &end);
-  // strtod also accepts "nan" and "inf", neither of which is a trim window.
-  if (end == text || *end != '\0' || !std::isfinite(parsed) || parsed < 0.0) {
-    return false;
-  }
-  *out = parsed;
-  return true;
-}
-
 // Returns the value following |flag|, or nullptr after printing why not.
 // Consumes the value on success.
 const char* ValueAfter(int argc, char** argv, int* i, const char* flag) {
@@ -161,7 +146,8 @@ bool ParseTranscodeArgs(int argc, char** argv, TranscodeArgs* out) {
     } else if (arg == "--start" || arg == "--duration") {
       const char* value = ValueAfter(argc, argv, &i, arg.c_str());
       double seconds = 0.0;
-      if (value == nullptr || !ParseSeconds(value, &seconds)) {
+      if (value == nullptr ||
+          !ParseSecondsArg(value, /*allow_zero=*/true, &seconds)) {
         fprintf(stderr,
                 "error: %s '%s' is not a non-negative number of "
                 "seconds\n",

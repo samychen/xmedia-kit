@@ -188,6 +188,45 @@ jobs:
             sed -n '1,40p' "$RUNNER_TEMP/tc.log"
             fail=1
           fi
+          # record: a bounded capture must actually stop at the limit. Measured
+          # on the OUTPUT, because a recorder that ignores the limit fills the
+          # disk while every exit-code-only check stays green.
+          if "$inspect" record tests/testdata/long_lowbr_40s.mp4 \
+              -o "$tc/rec.mp4" --duration 3 > "$RUNNER_TEMP/tc.log" 2>&1; then
+            recdur=$(ffprobe -v error -show_entries format=duration \
+                       -of default=nw=1:nk=1 "$tc/rec.mp4" 2>/dev/null || echo 0)
+            if awk -v d="$recdur" 'BEGIN {exit !(d > 2.5 && d < 4.0)}'; then
+              echo "ok   record --duration 3 -> ${recdur}s written"
+            else
+              echo "::error::record --duration 3 wrote ${recdur}s (expected ~3)"
+              fail=1
+            fi
+          else
+            echo "::error::record --duration 3 failed"
+            sed -n '1,40p' "$RUNNER_TEMP/tc.log"
+            fail=1
+          fi
+          # HDR tone mapping: the picture must be brighter than the naive path.
+          # An HDR source transcoded "successfully" for months with the right
+          # geometry, timestamps and duration and half the brightness, so the
+          # assertion is a measured luminance, not an exit code.
+          if "$inspect" transcode tests/testdata/hdr_pq_320x240_1s.mp4 \
+              -o "$tc/hdr.mp4" > "$RUNNER_TEMP/tc.log" 2>&1; then
+            hrluma=$(ffmpeg -hide_banner -i "$tc/hdr.mp4" -frames:v 1 \
+                       -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG" \
+                       -f null - 2>&1 |
+                     sed -n 's/.*YAVG=\([0-9.]*\).*/\1/p' | head -1)
+            if awk -v y="$hrluma" 'BEGIN {exit !(y > 150)}'; then
+              echo "ok   HDR PQ tone mapped -> avg luma $hrluma"
+            else
+              echo "::error::HDR PQ not tone mapped (avg luma ${hrluma:-none})"
+              fail=1
+            fi
+          else
+            echo "::error::HDR transcode failed"
+            sed -n '1,40p' "$RUNNER_TEMP/tc.log"
+            fail=1
+          fi
           # publish: the RTMP half, over a real peer. The runner's ffmpeg CLI
           # acts as the server (rtmp_listen), so this needs no MediaMTX. The
           # script asserts both pacing modes, so a pacing flag that stopped

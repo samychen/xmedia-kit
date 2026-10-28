@@ -244,6 +244,17 @@ class AVBASE_MEDIA_EXPORT RendererClient {
                                const std::string& decoder_name,
                                bool outputs_opaque_surface) {}
 
+  // The callback shape the sub-renderers use to report those two facts
+  // upward. Declared once, here, because both legs need the identical
+  // signature: it lived in each sub-renderer's header for one commit, and two
+  // copies of a type alias is how a five-parameter callback silently becomes
+  // two four-parameter callbacks that no longer connect.
+  //
+  // (type, from, to, reason, opaque): |from| empty means "opened".
+  using DecoderEventCB = base::RepeatingCallback<void(
+      DemuxerStreamType, const std::string&, const std::string&,
+      const std::string&, bool)>;
+
   // A decoder that was TRIED and failed (initialize error, or a working one
   // that started failing) was replaced by the next candidate. |from| is the
   // one that lost, |to| the one now in use (empty when every candidate is

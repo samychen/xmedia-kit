@@ -140,9 +140,8 @@ bool VideoConverter::ConvertHdr(const AVFrame& src, uint8_t* const dst_data[4],
       }
     }
   }
-  if (!tone_mapper_.Configured() ||
-      tone_mapper_transfer_ != static_cast<int>(src.color_trc) ||
-      tone_mapper_width_ != src.width || tone_mapper_height_ != src.height) {
+  if (!tone_mapper_.Matches(src.width, src.height,
+                            static_cast<int>(src.color_trc))) {
     if (!tone_mapper_.Configure(src.width, src.height,
                                 static_cast<int>(src.color_trc),
                                 tone_mapper_curve_, peak, tone_mapper_desat_)) {
@@ -157,9 +156,6 @@ bool VideoConverter::ConvertHdr(const AVFrame& src, uint8_t* const dst_data[4],
       }
       return ConvertSws(src, dst_data, dst_linesize);
     }
-    tone_mapper_transfer_ = static_cast<int>(src.color_trc);
-    tone_mapper_width_ = src.width;
-    tone_mapper_height_ = src.height;
   }
   return tone_mapper_.Process(src, dst_data, dst_linesize);
 }

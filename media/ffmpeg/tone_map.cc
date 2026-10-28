@@ -14,6 +14,18 @@
 #include "media/ffmpeg/compat.h"
 
 namespace avbase::media::ffmpeg {
+const char* ToneMapCurveName(ToneMapCurve curve) {
+  switch (curve) {
+  case ToneMapCurve::kReinhard:
+    return "reinhard";
+  case ToneMapCurve::kMobius:
+    return "mobius";
+  case ToneMapCurve::kHable:
+    return "hable";
+  }
+  return "hable";
+}
+
 namespace {
 
 // The graph every mapped frame runs through. Written as one string with the
@@ -38,18 +50,10 @@ namespace {
 //                       matrix assumes.
 std::string BuildGraphString(ToneMapCurve curve, double peak_luminance,
                              double desat) {
-  const char* curve_name = "hable";
-  switch (curve) {
-  case ToneMapCurve::kReinhard:
-    curve_name = "reinhard";
-    break;
-  case ToneMapCurve::kMobius:
-    curve_name = "mobius";
-    break;
-  case ToneMapCurve::kHable:
-  default:
-    break;
-  }
+  // One source of truth for the spelling: it is also what the diagnostics
+  // line prints, and two copies would let the graph and the message disagree
+  // about which curve is running.
+  const char* curve_name = ToneMapCurveName(curve);
   char peak[64];
   if (peak_luminance > 0.0) {
     snprintf(peak, sizeof(peak), ":npl=%.3f", peak_luminance);
@@ -67,18 +71,6 @@ std::string BuildGraphString(ToneMapCurve curve, double peak_luminance,
 }
 
 }  // namespace
-
-const char* ToneMapCurveName(ToneMapCurve curve) {
-  switch (curve) {
-  case ToneMapCurve::kReinhard:
-    return "reinhard";
-  case ToneMapCurve::kMobius:
-    return "mobius";
-  case ToneMapCurve::kHable:
-    return "hable";
-  }
-  return "hable";
-}
 
 bool IsHdrTransfer(int av_transfer) {
   return av_transfer == AVCOL_TRC_SMPTE2084 ||
@@ -133,11 +125,17 @@ bool ToneMapper::Configure(int width, int height, int av_transfer,
   graph_ = std::make_unique<Graph>();
   graph_->width = width;
   graph_->height = height;
+  configured_transfer_ = av_transfer;
   return true;
 }
 
 bool ToneMapper::Configured() const {
   return graph_ != nullptr && !filter_graph_.empty();
+}
+
+bool ToneMapper::Matches(int width, int height, int av_transfer) const {
+  return Configured() && graph_->width == width && graph_->height == height &&
+         configured_transfer_ == av_transfer;
 }
 
 bool ToneMapper::BuildFilterGraph(const AVFrame& src) {
