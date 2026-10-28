@@ -3,7 +3,7 @@
 > 活文档。恢复执行协议见 [PLAN.md](PLAN.md) §2：接手者读本表，从第一个未完成任务继续。
 > 状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
 
-**当前整体状态**：T5 完成，T6 进行中。
+**当前整体状态**：T6 完成，T7 进行中。
 
 ---
 
@@ -14,7 +14,8 @@
 - [x] **T3 HLS 播放列表 demuxer**（m3u8 parser / AES-128 / playlist demuxer）
 - [x] **T4 ABR**（估计器 + 缓冲水位算法 + HLS 边界切换集成）
 - [x] **T5 DRM/密钥抽象**（KeyProvider 接口 + ClearKey + 端到端解密测试）
-- [~] **T6 外挂字幕**（SRT/VTT 解析 + 加载 API） since: 2026-10-29 03:30
+- [x] **T6 外挂字幕**（SRT/VTT 解析 + Player API + ticker 发 cue）
+- [~] **T7 画面控制**（rotate/mirror/scale：player API + scene） since: 2026-10-29 03:55
 - [ ] **T6 外挂字幕**（media/text：SRT/VTT 解析 + 加载 API + cue 调度）
 - [ ] **T7 画面控制**（rotate/mirror/scale：player API + GL sink）
 - [ ] **T8 直播增强 + DASH MPD 延伸**（追帧配置 + UTC 事件 + mpd_parser）
@@ -28,6 +29,8 @@
 | T2 缓存层 | 2026-10-29 01:25 | `media/filters/slice_buffer_source.{h,cc}`（LRU 分片内存缓存）+ `media/filters/file_cache_data_source.{h,cc}`（边播边存文件缓存，按 URL fnv1a 键、重启续播、预算封顶、IO 失败降级直读）；接线 `WrapCache(WrapRetry(...))`，启用 PlayerConfig 闲置的 `data_source.*` 三字段。9 个单测（含 NetworkGoneBelow 磁盘/网络判别法）。`ctest` **842/842 通过**；invariants 全过。提交：feature/cicada-port |
 
 | T5 DRM/密钥抽象 | 2026-10-29 03:30 | `media/base/key_provider.h` 接口 + `media/ffmpeg/clear_key_provider.*` 默认实现 + `Deps::key_provider` 注入 + HLS EXT-X-KEY 路由。testdata/hls/enc 为 openssl 加密的真实 TS 段。871/871 ctest 通过；invariants 全过。提交：feature/cicada-port |
+
+| T6 外挂字幕 | 2026-10-29 03:55 | `media/filters/{srt,webvtt}_parser.*` + `external_text_track.*`（纯逻辑 7 单测）；`Player::{Add,Select,Set delay,Remove}ExternalSubtitle` + PlayerImpl 100ms ticker（`player_impl_subtitles.cc`）+ player 级 e2e。879/879 ctest 通过；invariants 全过。提交：feature/cicada-port |
 
 ## 交接备注
 
