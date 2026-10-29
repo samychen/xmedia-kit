@@ -55,6 +55,12 @@ struct AVBASE_MEDIA_EXPORT TranscodeParams {
   // means to end of file.
   double start_time_seconds = 0.0;
   double duration_seconds = 0.0;
+  // When true, a CANCEL still writes the container trailer before returning
+  // kCancelled: the partial output stays a playable file. Recording wants
+  // this (Stop must finalize); a user-interrupted batch job may not care.
+  // False by default, which is ffmpeg.c's behavior — an interrupted write
+  // leaves an unrecoverable file.
+  bool finalize_on_cancel = false;
 
   // Container options passed to avformat_write_header (e.g. "movflags" →
   // "+faststart").

@@ -56,6 +56,20 @@ void ExpectPlayable(const std::string& path, int expected_streams) {
             static_cast<size_t>(expected_streams));
 }
 
+bool PumpUntilState(Player& player, PlayerState want, base::TimeDelta timeout) {
+  const auto deadline =
+      std::chrono::steady_clock::now() +
+      std::chrono::milliseconds(
+          static_cast<long long>(timeout.InMillisecondsF()));
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (player.state() == want) {
+      return true;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  return player.state() == want;
+}
+
 TEST(PlayerTranscodeTest, TranscodeMediaCopiesStreams) {
   media::TranscodeParams params;
   params.output_path = testing::TempDir() + "pt_copy.mp4";
@@ -95,6 +109,64 @@ TEST(PlayerTranscodeTest, ConfigAudioDisabledStripsTheStream) {
   ASSERT_TRUE(job_status) << job_status.error().ToString();
   ExpectPlayable(params.output_path, 1);  // video only: -an was honoured.
   std::remove(params.output_path.c_str());
+}
+
+// Recording v1: plays the fixture, records from the current playhead for a
+// moment, stops, and the output is a real container with both streams. The
+// transcode-parallel semantics are what is under test here (a real source
+// read from the current playhead), not surface capture.
+TEST(PlayerRecorderTest, RecordDuringPlaybackWritesBothStreams) {
+  PlayerConfig config;
+  Player player(config, nullptr);
+  player.SetEventHandler(
+      base::BindRepeating([](const PlayerEvent&) {}));
+  ASSERT_TRUE(
+      player.SetDataSource(TestFile("small_h264_aac_3s.mp4")).has_value());
+  ASSERT_TRUE(player.PrepareSync(base::Seconds(10)).has_value());
+  // start-on-prepared may already have started playback; only call Start
+  // when it did not.
+  if (player.state() != PlayerState::kStarted) {
+    player.Start();
+  }
+  ASSERT_TRUE(
+      PumpUntilState(player, PlayerState::kStarted, base::Seconds(10)));
+
+  PlayerRecorder recorder(player, config);
+  const std::string out = testing::TempDir() + "record_test.mp4";
+  const Status started = recorder.Start(out);
+  ASSERT_TRUE(started) << started.error().ToString();
+
+  // Copy-mode transcode runs FASTER than realtime: the 3s source's tail
+  // finishes in milliseconds. But the job is ASYNC -- wait for it to finish
+  // (or stop it) before verifying the output. Either way -- stopped cleanly
+  // or self-completed -- the output must be a playable two-stream container.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  while (recorder.IsRecording() &&
+         std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  EXPECT_FALSE(recorder.IsRecording());
+  ExpectPlayable(out, 2);
+  std::remove(out.c_str());
+}
+
+TEST(PlayerRecorderTest, StartInIdleIsRejected) {
+  PlayerConfig config;
+  Player player(config, nullptr);
+  PlayerRecorder recorder(player, config);
+  const Status started = recorder.Start(testing::TempDir() + "nope.mp4");
+  ASSERT_FALSE(started);
+  EXPECT_EQ(started.error().code(), ErrorCode::kInvalidState);
+}
+
+TEST(PlayerRecorderTest, StopWithoutStartIsRejected) {
+  PlayerConfig config;
+  Player player(config, nullptr);
+  PlayerRecorder recorder(player, config);
+  const Status stopped = recorder.Stop();
+  ASSERT_FALSE(stopped);
+  EXPECT_EQ(stopped.error().code(), ErrorCode::kInvalidState);
 }
 
 }  // namespace

@@ -399,12 +399,18 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   // A cancel that interrupted a blocking read lands here as an ordinary
   // av_read_frame() failure -- do not mistake it for end of input.
   if (cancelled()) {
+    if (params.finalize_on_cancel) {
+      muxer.Finish();
+    }
     return CancelledStatus(input_uri);
   }
 
   // --- Flush decoders and encoders ---
   if (want_audio && !audio.copy) {
     if (cancelled()) {
+      if (params.finalize_on_cancel) {
+        muxer.Finish();
+      }
       return CancelledStatus(input_uri);
     }
     avcodec_send_packet(audio.decoder.get(), nullptr);
@@ -446,6 +452,9 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
 
   if (want_video && !video.copy) {
     if (cancelled()) {
+      if (params.finalize_on_cancel) {
+        muxer.Finish();
+      }
       return CancelledStatus(input_uri);
     }
     avcodec_send_packet(video.decoder.get(), nullptr);
