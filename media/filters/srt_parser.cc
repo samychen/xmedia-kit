@@ -6,25 +6,13 @@
 
 #include <cstdio>
 
+#include "media/filters/text_tag_strip.h"
+
 namespace avbase::media {
 namespace {
 
-// Strips the <tag> shapes real SRT files carry (<i>, </b>, <font ...>).
-// Cue text goes to the renderer as plain text (TimedTextCue::text).
-std::string StripTags(std::string_view line) {
-  std::string out;
-  bool in_tag = false;
-  for (char c : line) {
-    if (c == '<') {
-      in_tag = true;
-    } else if (c == '>') {
-      in_tag = false;
-    } else if (!in_tag) {
-      out.push_back(c);
-    }
-  }
-  return out;
-}
+// Tag stripping comes from text_tag_strip.h (shared with the WebVTT
+// parser); this file keeps only its own timestamp grammar.
 
 }  // namespace
 
@@ -114,7 +102,7 @@ ParseSrt(std::string_view text, int source_id) {
     if (!cue_text.empty()) {
       cue_text.push_back('\n');
     }
-    cue_text += StripTags(line);
+    cue_text += internal::StripTags(line);
   }
   if (in_cue && !cue_text.empty()) {
     TimedTextCue cue;

@@ -41,3 +41,4 @@ Testing/
 # doxygen 的 WARN_LOGFILE：tools/gen_api_docs.sh 每次在仓库根写一份（零 warning
 # 时是空文件）。它是生成器的副产物，不是源码；漏进索引会让每次跑 apidocs 都脏。
 doxygen-warnings.log
+.box-agent*

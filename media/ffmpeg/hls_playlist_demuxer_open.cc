@@ -19,80 +19,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/hls_aes_128.h"
-#include "media/ffmpeg/url_data_source.h"
+#include "media/ffmpeg/hls_fetch_utils.h"
 
 namespace avbase::media {
-namespace {
-
-// GETs |url| fully on the calling (worker) thread; aborted or empty fetches
-// report failure. The same helper shape the open chain in the main TU uses
-// for playlists.
-bool FetchWholeUrl(const std::string& url,
-                   base::raw_ptr<DataSource>* abort_handle,
-                   std::mutex* abort_lock, std::string* out) {
-  auto source = base::MakeRefCounted<ffmpeg::UrlDataSource>(url);
-  {
-    std::lock_guard<std::mutex> scoped(*abort_lock);
-    *abort_handle = source.get();
-  }
-  std::string bytes;
-  int64_t offset = 0;
-  while (true) {
-    char buffer[64 * 1024];
-    auto result = source->ReadBlocking(offset, sizeof(buffer),
-                                       reinterpret_cast<uint8_t*>(buffer));
-    if (!result.has_value() || *result == 0) {
-      break;
-    }
-    bytes.append(buffer, static_cast<size_t>(*result));
-    offset += *result;
-  }
-  {
-    std::lock_guard<std::mutex> scoped(*abort_lock);
-    *abort_handle = nullptr;
-  }
-  if (bytes.empty()) {
-    return false;
-  }
-  *out = std::move(bytes);
-  return true;
-}
-
-std::vector<uint8_t> StringBytes(const std::string& text) {
-  return std::vector<uint8_t>(text.begin(), text.end());
-}
-
-// "0x"-prefixed 32-hex-digit IV -> 16 raw bytes; empty on anything else
-// (the caller then falls back to the sequence-number default IV).
-std::string IvFromHex(const std::string& hex) {
-  if (hex.size() != 34 || !(hex.starts_with("0x") || hex.starts_with("0X"))) {
-    return {};
-  }
-  auto nibble = [](char c) -> int {
-    if (c >= '0' && c <= '9') {
-      return c - '0';
-    }
-    if (c >= 'a' && c <= 'f') {
-      return c - 'a' + 10;
-    }
-    if (c >= 'A' && c <= 'F') {
-      return c - 'A' + 10;
-    }
-    return -1;
-  };
-  std::string out;
-  for (size_t i = 2; i + 1 < hex.size(); i += 2) {
-    const int hi = nibble(hex[i]);
-    const int lo = nibble(hex[i + 1]);
-    if (hi < 0 || lo < 0) {
-      return {};
-    }
-    out.push_back(static_cast<char>((hi << 4) | lo));
-  }
-  return out;
-}
-
-}  // namespace
+namespace {}  // namespace
 
 void HlsPlaylistDemuxer::OpenSegment(size_t index, OpenCompletion completion) {
   open_in_flight_ = true;
@@ -125,7 +55,7 @@ void HlsPlaylistDemuxer::OpenSegment(size_t index, OpenCompletion completion) {
 void HlsPlaylistDemuxer::FetchSegmentOnWorker(size_t index) {
   const hls::Segment segment = playlist_.segments[index];
   std::string body;
-  if (!FetchWholeUrl(segment.uri, &active_fetch_, &lock_, &body)) {
+  if (!hls_fetch::FetchWholeUrl(segment.uri, &active_fetch_, &lock_, &body)) {
     media_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(
@@ -140,7 +70,7 @@ void HlsPlaylistDemuxer::FetchSegmentOnWorker(size_t index) {
                 "errors; this error means the segment is really gone"))));
     return;
   }
-  std::vector<uint8_t> bytes = StringBytes(body);
+  std::vector<uint8_t> bytes = hls_fetch::StringBytes(body);
   if (segment.byterange_start >= 0 && segment.byterange_length > 0) {
     const size_t start = static_cast<size_t>(segment.byterange_start);
     const size_t end = std::min(
@@ -151,11 +81,25 @@ void HlsPlaylistDemuxer::FetchSegmentOnWorker(size_t index) {
     }
   }
   if (segment.key.is_aes_128()) {
-    // Fetch (or reuse) the 16-byte key, then decrypt in place.
+    // Fetch (or reuse) the 16-byte key, then decrypt in place. Key source:
+    // an injected provider wins (its GetKeyBlocking is not interruptible by
+    // this demuxer's Stop -- the documented provider contract); without one
+    // the built-in clear-key fetch runs, which IS abortable through
+    // active_fetch_.
     if (segment.key.uri != cached_key_url_ || cached_key_.empty()) {
-      std::string key_text;
-      if (!FetchWholeUrl(segment.key.uri, &active_fetch_, &lock_, &key_text) ||
-          key_text.size() != 16) {
+      auto provided =
+          options_.key_provider
+              ? options_.key_provider->GetKeyBlocking(segment.key.uri)
+              : hls_fetch::FetchClearKeyBytes(segment.key.uri, &active_fetch_,
+                                              &lock_);
+      if (!provided.has_value()) {
+        media_task_runner_->PostTask(
+            FROM_HERE, base::BindOnce(&HlsPlaylistDemuxer::OnSegmentBytesReady,
+                                      base::Unretained(this), index,
+                                      base::unexpected(provided.error())));
+        return;
+      }
+      if (provided->size() != 16) {
         media_task_runner_->PostTask(
             FROM_HERE,
             base::BindOnce(
@@ -163,16 +107,16 @@ void HlsPlaylistDemuxer::FetchSegmentOnWorker(size_t index) {
                 base::Unretained(this), index,
                 base::unexpected(MediaError::Of(
                     ErrorCode::kSourceUnsupported,
-                    "the aes-128 key could not be fetched",
-                    "url = " + segment.key.uri,
-                    "check the EXT-X-KEY uri, or inject a key provider "
-                    "(cicada-port T5)"))));
+                    "the aes-128 key is not 16 bytes",
+                    "url = " + segment.key.uri +
+                        ", bytes = " + std::to_string(provided->size()),
+                    "check the EXT-X-KEY uri, or inject a key provider"))));
         return;
       }
-      cached_key_ = StringBytes(key_text);
+      cached_key_ = std::move(*provided);
       cached_key_url_ = segment.key.uri;
     }
-    std::string iv = IvFromHex(segment.key.iv_hex);
+    std::string iv = hls_fetch::IvFromHex(segment.key.iv_hex);
     if (iv.empty()) {
       // The spec default: the segment's media sequence number.
       iv = hls::Aes128CbcDecrypter::SequenceNumberIv(segment.media_sequence);

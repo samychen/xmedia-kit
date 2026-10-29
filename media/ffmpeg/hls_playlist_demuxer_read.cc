@@ -87,7 +87,6 @@ void HlsPlaylistDemuxer::StartVariantSwitch(int variant_index,
   // is what every real ladder ships -- CicadaPlayer aligns by sequence
   // number to the same effect.
   open_in_flight_ = true;
-  active_variant_pending_ = variant_index;
   worker_.task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(

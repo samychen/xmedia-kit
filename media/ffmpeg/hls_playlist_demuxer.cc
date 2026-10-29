@@ -11,50 +11,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/hls_aes_128.h"
-#include "media/ffmpeg/url_data_source.h"
+#include "media/ffmpeg/hls_fetch_utils.h"
 
 namespace avbase::media {
-namespace {
-
-// GETs |url| fully on the calling (worker) thread. Aborted or empty fetches
-// return false; callers turn that into a structured error where they know
-// what was being fetched.
-bool FetchWholeUrl(const std::string& url,
-                   base::raw_ptr<DataSource>* abort_handle,
-                   std::mutex* abort_lock, std::string* out) {
-  auto source = base::MakeRefCounted<ffmpeg::UrlDataSource>(url);
-  {
-    std::lock_guard<std::mutex> scoped(*abort_lock);
-    *abort_handle = source.get();
-  }
-  std::string bytes;
-  int64_t offset = 0;
-  while (true) {
-    char buffer[64 * 1024];
-    auto result = source->ReadBlocking(offset, sizeof(buffer),
-                                       reinterpret_cast<uint8_t*>(buffer));
-    if (!result.has_value() || *result == 0) {
-      break;
-    }
-    bytes.append(buffer, static_cast<size_t>(*result));
-    offset += *result;
-  }
-  {
-    std::lock_guard<std::mutex> scoped(*abort_lock);
-    *abort_handle = nullptr;
-  }
-  if (bytes.empty()) {
-    return false;
-  }
-  *out = std::move(bytes);
-  return true;
-}
-
-std::vector<uint8_t> StringBytes(const std::string& text) {
-  return std::vector<uint8_t>(text.begin(), text.end());
-}
-
-}  // namespace
+namespace {}  // namespace
 
 // ---- lifecycle
 // ---------------------------------------------------------------
@@ -104,7 +64,7 @@ void HlsPlaylistDemuxer::FetchPlaylist(InitializeCB init_cb) {
 void HlsPlaylistDemuxer::FetchUrlOnWorker(
     const std::string& url, base::OnceCallback<void(bool, std::string)> done) {
   std::string body;
-  const bool ok = FetchWholeUrl(url, &active_fetch_, &lock_, &body);
+  const bool ok = hls_fetch::FetchWholeUrl(url, &active_fetch_, &lock_, &body);
   media_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(std::move(done), ok, std::move(body)));
 }

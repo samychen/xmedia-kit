@@ -228,7 +228,6 @@ class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   std::vector<hls::Variant> master_variants_;  // master order
   int active_variant_ = -1;  // index into the MASTER's variant list
   int active_rung_ = -1;     // index into |abr_ladder_|
-  int active_variant_pending_ = -1;
   int pending_switch_rung_ = -1;
   bool switch_decided_ = false;
   AbrBandwidthEstimator abr_estimator_;

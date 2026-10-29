@@ -14,36 +14,6 @@ namespace {
 
 constexpr size_t kBlock = 16;
 
-int HexNibble(char c) {
-  if (c >= '0' && c <= '9') {
-    return c - '0';
-  }
-  if (c >= 'a' && c <= 'f') {
-    return c - 'a' + 10;
-  }
-  if (c >= 'A' && c <= 'F') {
-    return c - 'A' + 10;
-  }
-  return -1;
-}
-
-std::string HexToBytes(std::string_view hex) {
-  std::string bytes;
-  if (hex.size() % 2 != 0) {
-    return bytes;
-  }
-  bytes.reserve(hex.size() / 2);
-  for (size_t i = 0; i < hex.size(); i += 2) {
-    const int hi = HexNibble(hex[i]);
-    const int lo = HexNibble(hex[i + 1]);
-    if (hi < 0 || lo < 0) {
-      return {};
-    }
-    bytes.push_back(static_cast<char>((hi << 4) | lo));
-  }
-  return bytes;
-}
-
 }  // namespace
 
 struct Aes128CbcDecrypter::Impl {
@@ -59,9 +29,9 @@ Aes128CbcDecrypter::Create(const std::string& key, const std::string& iv) {
   if (key.size() != kBlock || iv.size() != kBlock) {
     return nullptr;
   }
-  // Note: |iv| may arrive as raw bytes (from SequenceNumberIv) or as the
-  // binary expansion of the playlist's 0x-prefixed IV, which the caller
-  // converts with HexToBytes above.
+  // |key| and |iv| arrive as raw bytes: the sequence-number default comes
+  // from SequenceNumberIv, and the playlist's 0x-prefixed IV is expanded by
+  // the caller (the HLS demuxer's IvFromHex).
   auto decrypter =
       std::unique_ptr<Aes128CbcDecrypter>(new Aes128CbcDecrypter());
   decrypter->impl_ = std::make_unique<Impl>();
