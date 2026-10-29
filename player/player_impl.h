@@ -59,6 +59,7 @@ class PlayerImpl final : public media::Pipeline::Client {
   // (or kError) on the event handler -- synchronous Status only says whether
   // the request was accepted.
   Status TakeSnapshot(base::TimeDelta at, const std::string& file_path);
+  void SetRecordTap(media::RecordTap tap);
   Result<int64_t> SeekTo(base::TimeDelta position, SeekMode mode,
                          Player::SeekCB cb);
   // Runtime track switch (Phase 4). Accepted from any thread; the switch

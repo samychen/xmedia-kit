@@ -94,6 +94,7 @@
 #include "media/filters/decoder_selector.h"
 #include "media/filters/decoder_stream.h"
 #include "media/filters/legacy/video_frame_compositor.h"
+#include "media/filters/record_tap.h"
 #include "media/filters/video_filter_stage.h"
 #include "media/media_export.h"
 
@@ -280,6 +281,12 @@ class AVBASE_MEDIA_EXPORT VideoRendererImpl final
   // becomes observable without playing a file.
   base::TimeDelta master_clock() const { return compositor_.master_clock(); }
   VideoFrameCompositor::Stats compositor_stats() const;
+
+  // S3. Forwards to the decoder stream (record_tap.h); re-applied after a
+  // track switch because the switch builds a fresh decoder stream.
+  void SetRecordTap(StreamRecordTap tap) {
+    decoder_stream_.SetRecordTap(std::move(tap));
+  }
   // The sink's counters plus its per-stage render timings (upload / compose /
   // blit / present). A plain accessor, sampled from the media sequence on the
   // statistics tick: the sink guards its own telemetry with a leaf lock, so

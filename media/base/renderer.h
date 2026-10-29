@@ -62,6 +62,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/video_frame.h"
+#include "media/filters/record_tap.h"
 #include "media/media_export.h"
 
 namespace avbase::media {
@@ -255,6 +256,11 @@ class AVBASE_MEDIA_EXPORT Renderer {
   using SnapshotFrameCallback =
       base::OnceCallback<void(MediaError, base::scoped_refptr<VideoFrame>)>;
   virtual void TakeSnapshot(base::TimeDelta at, SnapshotFrameCallback callback);
+
+  // Playback-side recording tap (record_tap.h). Default: no-op (renderers
+  // without legs, mock renderers). |tap| replaces any previous one; an empty
+  // tap (null on_packet) clears it.
+  virtual void SetRecordTap(RecordTap tap) { (void)tap; }
 
  protected:
   Renderer();

@@ -104,6 +104,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/filters/audio_filter_stage.h"
+#include "media/filters/record_tap.h"
 #include "media/filters/audio_renderer_algorithm.h"
 #include "media/filters/decoder_stream.h"
 #include "media/filters/legacy/av_sync_controller.h"
@@ -144,6 +145,12 @@ class AVBASE_MEDIA_EXPORT AudioRendererImpl final
       base::scoped_refptr<base::SequencedTaskRunner> task_runner,
       std::vector<base::scoped_refptr<AudioDecoderFactory>> factories,
       AvSyncController* av_sync);
+  // S4. Forwards to the decoder stream (record_tap.h); re-applied after a
+  // track switch.
+  void SetRecordTap(StreamRecordTap tap) {
+    decoder_stream_.SetRecordTap(std::move(tap));
+  }
+
   // config.audio.filter_graph ("af") plus the FFmpeg-side stage factory,
   // injected by the host: the media layer never names the FFmpeg
   // implementation (G2). An empty graph, or a graph without a factory, means

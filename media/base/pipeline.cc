@@ -34,6 +34,10 @@ void Pipeline::SetOutputTarget(base::scoped_refptr<NativeDisplay> display) {
   (void)display;
 }
 
+void Pipeline::SetRecordTap(RecordTap tap) {
+  (void)tap;
+}
+
 void Pipeline::TakeSnapshot(base::TimeDelta at,
                             Renderer::SnapshotFrameCallback callback) {
   (void)at;

@@ -374,6 +374,10 @@ std::string PlayerImpl::DumpDiagnostics() const {
   return json;
 }
 
+void PlayerImpl::SetRecordTap(media::RecordTap tap) {
+  pipeline_->SetRecordTap(std::move(tap));
+}
+
 Status PlayerImpl::TakeSnapshot(base::TimeDelta at,
                                 const std::string& file_path) {
 #if !AVBASE_ENABLE_FFMPEG

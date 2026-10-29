@@ -14,6 +14,7 @@
 #include "base/time/time.h"
 #include "media/base/data_source_descriptor.h"
 #include "media/base/video_frame.h"
+#include "media/filters/record_tap.h"
 #include "player/public/deps.h"
 #include "player/public/error.h"
 #include "player/public/global.h"
@@ -188,6 +189,11 @@ class AVBASE_PLAYER_EXPORT Player {
   // Errors: none.
   // Side effects: emits kCompleted once per finished pass.
   void SetLoopCount(int count);
+  // Playback-side recording tap (media/filters/record_tap.h). Pass a default
+  // RecordTap{} to detach. Consumed by PlayerRecorder (player_transcode.h);
+  // media types only, so the facade stays vendor-free.
+  void SetRecordTap(media::RecordTap tap);
+
   // Selects one track of |type| by its index in media_info(); disabled
   // tracks keep their place, so switching back is cheap.
   // Errors: kTrackNotFound for an index the media does not have.

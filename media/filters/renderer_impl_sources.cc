@@ -72,6 +72,9 @@ void RendererImpl::CreateSubRenderers(
     ApplyVideoConfig(video_renderers_[i].get());
     video_initialized_[i] = false;
     video_ended_[i] = false;
+    if (record_tap_.on_packet) {
+      video_renderers_[i]->SetRecordTap(BindTap(record_tap_, true));
+    }
     if (i == 0) {
       // Recorded next to the renderer, for the same reason audio_stream_ is
       // (media/base/media_resource.h: identity for "no switch needed" and for
@@ -89,6 +92,9 @@ void RendererImpl::CreateSubRenderers(
     if (!deps_.audio_filter_graph.empty()) {
       audio_->set_filter_graph(deps_.audio_filter_graph,
                                deps_.audio_filter_factory);
+    }
+    if (record_tap_.on_packet) {
+      audio_->SetRecordTap(BindTap(record_tap_, false));
     }
   }
 

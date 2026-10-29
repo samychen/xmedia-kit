@@ -155,6 +155,19 @@ if(FFmpeg_FOUND)
         "${AVBASE_FFMPEG_MAJOR}. Point AVBASE_FFMPEG_ROOT at a newer build, or "
         "run tools/setup_ffmpeg.sh. See docs/06 §5 for the support matrix.")
   endif()
+  # Upper bound: the support matrix tops out at 7.x. FFmpeg 8 (major 62)
+  # breaks the buffersink constraint API the filter stages use
+  # (av_opt_set_int_list on sample_fmts/pix_fmts fails at runtime) — observed
+  # silently degrading filter-graph tests when a Homebrew FFmpeg 8 was picked
+  # over the pinned 7.1.1. Fail loudly instead of half-working.
+  if(AVBASE_FFMPEG_MAJOR GREATER 61)
+    message(FATAL_ERROR
+        "avbase supports FFmpeg 4.4 through 7.x (libavcodec 58..61); found "
+        "libavcodec ${AVBASE_FFMPEG_MAJOR}. FFmpeg 8 changed the buffersink "
+        "option API the filter stages depend on. Run tools/setup_ffmpeg.sh to "
+        "build the pinned 7.1.1, or point AVBASE_FFMPEG_ROOT at it. See "
+        "docs/06 §5 for the support matrix.")
+  endif()
   message(STATUS "FindFFmpeg: libavcodec major ${AVBASE_FFMPEG_MAJOR}"
                  " (avformat ${FFmpeg_avformat_VERSION}) at ${FFmpeg_INCLUDE_DIRS}")
 

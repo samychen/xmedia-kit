@@ -4,14 +4,20 @@
 
 #include "player/public/player_transcode.h"
 
+#include <cstdlib>
 #include <memory>
 #include <utility>
 
+#include "base/functional/bind.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "media/transcode/ffmpeg_transcode_job.h"
 
 namespace avbase {
 
 namespace {
+constexpr int64_t kRateFallback = 48000;
+
 
 // -vn / -an: the PlayerConfig disabled-stream flags, applied to the job's
 // codec specs the same way transcode.cc's own flags empty them.
@@ -35,98 +41,186 @@ PlayerStatus TranscodeMedia(const std::string& input_uri,
   return media::Transcode(input_uri, params, std::move(progress), cancel);
 }
 
-PlayerRecorder::PlayerRecorder(const Player& player, const PlayerConfig& config)
-    : player_(player), config_(config),
-      job_(std::make_unique<media::TranscodeJob>()) {}
+PlayerRecorder::PlayerRecorder(Player& player, const PlayerConfig& config)
+    : player_(player), config_(config) {
+  tap_.on_stream = [this](const media::RecordStreamHeader& header) {
+    if (!record_runner_) {
+      return;
+    }
+    record_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&PlayerRecorder::OnTapStream,
+                                  base::Unretained(this), header));
+  };
+  tap_.on_packet = [this](bool video,
+                          base::scoped_refptr<media::DecoderBuffer> buffer) {
+    if (!record_runner_) {
+      return;
+    }
+    record_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&PlayerRecorder::OnTapPacket, base::Unretained(this),
+                       video, std::move(buffer)));
+  };
+}
 
-PlayerRecorder::~PlayerRecorder() = default;
+PlayerRecorder::~PlayerRecorder() {
+  if (recording_.load()) {
+    Stop();
+  }
+}
 
-Status PlayerRecorder::Start(const std::string& output_path,
-                             const media::TranscodeParams& overrides) {
+Status PlayerRecorder::Start(const std::string& output_path) {
   const PlayerState state = player_.state();
   if (state != PlayerState::kStarted && state != PlayerState::kPaused) {
     return base::unexpected(
         MediaError(ErrorCode::kInvalidState,
                    std::string("StartRecord called in state ") +
                        GetPlayerStateName(state),
-                   "recording needs a playhead to start from",
+                   "recording follows a playing pipeline",
                    "start recording while the player is playing or paused"));
   }
-  const auto info = player_.media_info();
-  if (!info || info->uri.empty()) {
+  if (recording_.load()) {
+    return base::unexpected(MediaError(ErrorCode::kInvalidState,
+                                       "a record is already running", {},
+                                       "call Stop() first"));
+  }
+  auto thread = std::make_unique<base::Thread>("avbase-recorder");
+  if (!thread->Start()) {
     return base::unexpected(
-        MediaError(ErrorCode::kInvalidArgument,
-                   "the player's source carries no URI",
-                   "recording v1 reads the source linearly from the current "
-                   "playhead, which needs an addressable input",
-                   "memory/descriptor sources need the render-tap recorder "
-                   "(follow-up)"));
+        MediaError(ErrorCode::kSourceReadFailed,
+                        "record thread failed to start",
+                   {}, {}));
   }
-  if (job_->IsRunning()) {
+  record_thread_ = std::move(thread);
+  record_runner_ = record_thread_->task_runner();
+  muxer_ = std::make_unique<media::FFmpegEncodeMuxer>();
+  if (!muxer_->Open(output_path)) {
+    muxer_.reset();
+    record_runner_.reset();
+    record_thread_.reset();
     return base::unexpected(MediaError(
-        ErrorCode::kInvalidState, "a record is already running",
-        "one recorder, one job",
-        "call Stop() before starting the next record"));
+        ErrorCode::kInvalidArgument, "cannot open the record output",
+        "avio for " + output_path + " failed",
+        "check the directory exists, and the extension maps to an enabled "
+        "muxer"));
   }
-  media::TranscodeParams params =
-      BuildParams(output_path, overrides);
-  const double start =
-      std::max(0.0, player_.GetMediaTime().InSecondsF());
-  params.start_time_seconds = start;
-  job_->Start(info->uri, params);
+  finished_ = false;
+  audio_ended_ = video_ended_ = false;
+  audio_stream_ = video_stream_ = -1;
+  audio_last_pts_ = video_last_pts_ = media::kNoPtsValue;
+  audio_shift_ = video_shift_ = 0;
+  recording_.store(true);
+  player_.SetRecordTap(tap_);
   return OkStatus();
 }
 
 Status PlayerRecorder::Stop() {
-  if (!job_->IsRunning()) {
+  if (!recording_.load()) {
     return base::unexpected(MediaError(ErrorCode::kInvalidState,
                                        "no record is running", {},
                                        "start one first"));
   }
-  job_->Cancel();
-  job_->Wait();
+  player_.SetRecordTap(media::RecordTap{});
+  // Finalize ON the record thread (FIFO: every queued packet is written
+  // first), then stop the thread.
+  base::WaitableEvent done;
+  record_runner_->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](media::FFmpegEncodeMuxer* muxer, bool* finished,
+                        base::WaitableEvent* ev) {
+                       if (!*finished) {
+                         muxer->Finish();
+                         *finished = true;
+                       }
+                       ev->Signal();
+                     },
+                     base::Unretained(muxer_.get()), &finished_, &done));
+  done.Wait();
+  record_thread_->Stop();
+  record_runner_.reset();
+  record_thread_.reset();
+  muxer_.reset();
+  recording_.store(false);
   return OkStatus();
 }
 
 bool PlayerRecorder::IsRecording() const {
-  return job_ && job_->IsRunning();
+  return recording_.load();
 }
 
-media::TranscodeParams PlayerRecorder::BuildParams(
-    const std::string& output_path,
-    const media::TranscodeParams& overrides) const {
-  media::TranscodeParams params = overrides;
-  params.output_path = output_path;
-  // Stream copy is the v1 default: "record what is playing" for the common
-  // mp4 -> mp4 case is lossless and cheap. The overrides count as "nothing
-  // specified" while they are byte-equal to a default-constructed params
-  // (whose spec defaults are libx264/aac); anything a caller set explicitly
-  // — including codec="copy" — wins verbatim.
-  const media::TranscodeParams untouched;
-  const bool caller_customized =
-      overrides.video_codec.codec != untouched.video_codec.codec ||
-      overrides.video_codec.bit_rate != untouched.video_codec.bit_rate ||
-      overrides.video_codec.crf != untouched.video_codec.crf ||
-      overrides.video_codec.gop != untouched.video_codec.gop ||
-      overrides.video_codec.width != 0 || overrides.video_codec.height != 0 ||
-      !overrides.video_codec.preset.empty() ||
-      overrides.audio_codec.codec != untouched.audio_codec.codec ||
-      overrides.audio_codec.bit_rate != untouched.audio_codec.bit_rate ||
-      overrides.audio_codec.sample_rate != 0 ||
-      overrides.audio_codec.channels != 0;
-  if (!caller_customized) {
-    params.video_codec.codec = "copy";
-    params.audio_codec.codec = "copy";
+void PlayerRecorder::OnTapStream(const media::RecordStreamHeader& header) {
+  if (!muxer_ || finished_) {
+    return;
   }
-  // Stop() cancels the job; the record must stay a playable file after it.
-  params.finalize_on_cancel = true;
-  if (config_.video.disabled) {
-    params.video_codec.codec.clear();
+  if (header.video) {
+    media::FFmpegEncodeMuxer::VideoStreamParams stream;
+    stream.codec_name = header.codec_name;
+    stream.width = header.width;
+    stream.height = header.height;
+    stream.extradata = header.extra_data;
+    video_stream_ = muxer_->AddVideoStream(stream);
+  } else {
+    media::FFmpegEncodeMuxer::AudioStreamParams stream;
+    stream.codec_name = header.codec_name;
+    stream.sample_rate = header.sample_rate;
+    stream.channels = header.channels;
+    stream.extradata = header.extra_data;
+    audio_stream_ = muxer_->AddAudioStream(stream);
+    audio_rate_ = header.sample_rate;
   }
-  if (config_.audio.disabled) {
-    params.audio_codec.codec.clear();
+}
+
+void PlayerRecorder::OnTapPacket(
+    bool video, base::scoped_refptr<media::DecoderBuffer> buffer) {
+  if (!muxer_ || finished_) {
+    return;
   }
-  return params;
+  const bool is_eos = !buffer || buffer->IsEndOfStream();
+  if (is_eos) {
+    if (video) {
+      video_ended_ = true;
+    } else {
+      audio_ended_ = true;
+    }
+    // End of playback finalizes the file: IsRecording() flips to false and
+    // the host's Stop() becomes a no-op-safe finalize.
+    muxer_->Finish();
+    finished_ = true;
+    recording_.store(false);
+    return;
+  }
+  const int stream = video ? video_stream_ : audio_stream_;
+  if (stream < 0) {
+    return;  // Packets before the decoder-open header; drop.
+  }
+  int64_t pts = 0;
+  if (video) {
+    pts = buffer->timestamp().InMicroseconds() * 90 / 1000;
+    if (video_last_pts_ != media::kNoPtsValue && pts < video_last_pts_) {
+      video_shift_ += video_last_pts_ - pts + 1;  // Segment re-base (seek).
+      pts = video_last_pts_ + 1;
+    }
+    video_last_pts_ = pts;
+  } else {
+    const int64_t rate = audio_rate_ > 0 ? audio_rate_ : kRateFallback;
+    pts = buffer->timestamp().InMicroseconds() * rate / 1000000;
+    if (audio_last_pts_ != media::kNoPtsValue && pts < audio_last_pts_) {
+      audio_shift_ += audio_last_pts_ - pts + 1;
+      pts = audio_last_pts_ + 1;
+    }
+    audio_last_pts_ = pts;
+  }
+  media::EncodedPacket ep;
+  ep.data.assign(buffer->data().begin(), buffer->data().end());
+  ep.pts = pts + (video ? video_shift_ : audio_shift_);
+  ep.dts = ep.pts;
+  ep.flags = 1;  // Keyframe: a tap cannot know better, and players accept it.
+  if (!muxer_->WritePacket(stream, ep)) {
+    LOG(ERROR) << "recorder: packet write failed; finalizing";
+    muxer_->Finish();
+    finished_ = true;
+    recording_.store(false);
+  }
 }
 
 PlayerTranscoder::PlayerTranscoder(const PlayerConfig& config)

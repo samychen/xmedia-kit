@@ -249,6 +249,11 @@ void DecoderStream<Traits>::OnBufferReady(
     if (buffer->IsEndOfStream()) {
       end_of_stream_ = true;
     }
+    // Recording tap: post-seek-generation, post-track-selection packets --
+    // exactly what the viewer's decoder is about to see (record_tap.h).
+    if (has_record_tap_ && record_tap_.on_packet) {
+      record_tap_.on_packet(buffer);
+    }
     pending_buffers_.push_back(std::move(buffer));
   }
   DecodeNextBuffer();

@@ -88,6 +88,21 @@ void PipelineImpl::SetOutputTarget(base::scoped_refptr<NativeDisplay> display) {
                                          std::move(display)));
 }
 
+void PipelineImpl::SetRecordTap(RecordTap tap) {
+  if (!media_runner_) {
+    return;
+  }
+  media_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&PipelineImpl::DoSetRecordTap,
+                                weak_factory_.GetWeakPtr(), std::move(tap)));
+}
+
+void PipelineImpl::DoSetRecordTap(RecordTap tap) {
+  if (renderer_) {
+    renderer_->SetRecordTap(std::move(tap));
+  }
+}
+
 void PipelineImpl::TakeSnapshot(base::TimeDelta at,
                                 Renderer::SnapshotFrameCallback callback) {
   if (!media_runner_) {

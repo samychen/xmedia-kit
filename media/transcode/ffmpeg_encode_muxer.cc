@@ -88,9 +88,17 @@ int FFmpegEncodeMuxer::AddAudioStream(const AudioStreamParams& params) {
   }
   const AVCodec* codec =
       avcodec_find_encoder_by_name(params.codec_name.c_str());
+  if (!codec) {
+    codec = avcodec_find_decoder_by_name(params.codec_name.c_str());
+  }
   AVStream* stream = avformat_new_stream(ctx_->fmt, codec);
   if (!stream) {
     LOG(ERROR) << "encode muxer: new audio stream failed";
+    return -1;
+  }
+  if (params.sample_rate <= 0) {
+    LOG(ERROR) << "encode muxer: audio stream with sample_rate "
+               << params.sample_rate << " rejected";
     return -1;
   }
   stream->id = static_cast<int>(ctx_->fmt->nb_streams) - 1;
@@ -119,6 +127,9 @@ int FFmpegEncodeMuxer::AddVideoStream(const VideoStreamParams& params) {
   }
   const AVCodec* codec =
       avcodec_find_encoder_by_name(params.codec_name.c_str());
+  if (!codec) {
+    codec = avcodec_find_decoder_by_name(params.codec_name.c_str());
+  }
   AVStream* stream = avformat_new_stream(ctx_->fmt, codec);
   if (!stream) {
     LOG(ERROR) << "encode muxer: new video stream failed";

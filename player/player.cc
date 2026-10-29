@@ -142,6 +142,9 @@ Status Player::RemoveExternalSubtitle(int track_id) {
   return impl_->core.RemoveExternalSubtitle(track_id);
 }
 
+void Player::SetRecordTap(media::RecordTap tap) {
+  impl_->core.SetRecordTap(std::move(tap));
+}
 Status Player::SelectTrack(media::DemuxerStreamType type, int stream_index) {
   // Asynchronous by nature: this returns once the request is accepted, and
   // the outcome arrives as kTrackChanged (or kError) on the event handler.

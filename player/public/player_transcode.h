@@ -12,6 +12,12 @@
 #include "media/base/media_error.h"
 #include "media/transcode/ffmpeg_transcode_job.h"
 #include "player/public/error.h"
+#include <memory>
+
+#include "media/filters/record_tap.h"
+#include "media/transcode/ffmpeg_encode_muxer.h"
+#include "media/base/decoder_buffer.h"
+#include "base/threading/thread.h"
 #include "player/public/player.h"
 #include "player/public/player_config.h"
 
@@ -42,49 +48,71 @@ TranscodeMedia(const std::string& input_uri,
                media::TranscodeProgressCB progress = nullptr,
                const media::TranscodeCancelToken* cancel = nullptr);
 
-// Playback-side recording, v1 semantics. Start() runs a media::TranscodeJob
-// over the player's CURRENT SOURCE beginning at the CURRENT media time:
-// "record what is playing, linearly, from now on". It is NOT a surface tap:
-// a seek of the player does not redirect the record (the job reads the source
-// linearly), a volume/mute change is not reflected, and a paused player does
-// not pause the record. The render-tap version (frames off the compositor +
-// the audio ring) is the follow-up when those semantics are required.
+// Playback-side recording, v2: a PACKET TAP on the playing pipeline --
+// "record what the viewer actually sees". The tap sits where decoded-stream
+// packets leave the demuxer for the decoders, so a seek of the player
+// redirects the record (the post-seek generation flows in), a track switch
+// switches what is recorded, and end of playback finalizes the file. Copy
+// stays copy: tap packets are the compressed payloads, no decode/encode
+// happens unless the caller asks (not wired -- copy covers the container the
+// source already is).
 //
-// Defaults mirror what is playing: stream copy for both legs (fast, lossless
-// for mp4->mp4 sources); |overrides| wins per-field when a field is set.
-// The -vn/-an config flags still strip streams.
+// Segment semantics: a seek makes the demuxer timestamps jump backwards; the
+// recorder re-bases each such segment to continue from the previous one, so
+// the output is one continuous timeline of what was watched.
+//
+// The -vn/-an config flags strip streams; |overrides| audio/video codec
+// names ("copy" etc.) win per-stream when non-empty. Requires a source whose
+// URI the transcode-style demuxer can reopen? NO -- the tap needs no source
+// access at all: packets arrive from the playing pipeline. Memory and
+// descriptor sources record fine.
 class PlayerRecorder {
  public:
-  // Borrows |player|; the player must outlive the recorder. |config| is the
-  // same PlayerConfig the player was built with (its disabled-stream flags
-  // apply).
-  PlayerRecorder(const Player& player, const PlayerConfig& config);
+  // Borrows |player| (Start/Stop mutate its tap state); the player must
+  // outlive the recorder. |config| is the same PlayerConfig the player was
+  // built with (its disabled-stream flags apply).
+  PlayerRecorder(Player& player, const PlayerConfig& config);
   PlayerRecorder(const PlayerRecorder&) = delete;
   PlayerRecorder& operator=(const PlayerRecorder&) = delete;
   ~PlayerRecorder();
 
-  // Starts recording |output_path| from the current media time. The player
-  // must be in kStarted or kPaused (a playhead exists). Returns an error
-  // when the state does not allow it, when the source carries no URI, or
-  // when a record is already running.
-  Status Start(const std::string& output_path,
-               const media::TranscodeParams& overrides = {});
+  // Starts recording |output_path| from this moment. The player should be
+  // in kStarted (a record of a paused player holds the last frame only).
+  // Returns an error when a record is already running or the state does not
+  // allow it.
+  Status Start(const std::string& output_path);
 
-  // Cancels the running job and waits for the output to be finalized.
-  // Returns the job's final status (OkStatus on a clean stop; kCancelled
-  // propagates as the job reports it).
+  // Detaches the tap and finalizes the container. Returns the recorded
+  // status (kCancelled if the presentation was still running; that is the
+  // normal Stop-during-playback outcome).
   Status Stop();
 
   bool IsRecording() const;
 
  private:
-  media::TranscodeParams BuildParams(
-      const std::string& output_path,
-      const media::TranscodeParams& overrides) const;
+  // Taps (S3/S4): marshal onto the record thread. |video| binds the leg.
+  void OnTapPacket(bool video,
+                   base::scoped_refptr<media::DecoderBuffer> buffer);
+  // Record thread: decoder-open header and packet writes.
+  void OnTapStream(const media::RecordStreamHeader& header);
 
-  const Player& player_;
+  Player& player_;
   PlayerConfig config_;
-  std::unique_ptr<media::TranscodeJob> job_;
+  media::RecordTap tap_;
+  std::unique_ptr<base::Thread> record_thread_;
+  base::scoped_refptr<base::SequencedTaskRunner> record_runner_;
+  std::unique_ptr<media::FFmpegEncodeMuxer> muxer_;
+  int audio_stream_ = -1;
+  int video_stream_ = -1;
+  int64_t audio_rate_ = 0;
+  int64_t audio_last_pts_ = media::kNoPtsValue;
+  int64_t video_last_pts_ = media::kNoPtsValue;
+  int64_t audio_shift_ = 0;
+  int64_t video_shift_ = 0;
+  bool audio_ended_ = false;
+  bool video_ended_ = false;
+  bool finished_ = false;
+  std::atomic<bool> recording_{false};
 };
 
 // Asynchronous handle: media::TranscodeJob pre-bound to the same

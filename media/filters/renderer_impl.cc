@@ -463,6 +463,32 @@ void RendererImpl::StartPlayingFrom(base::TimeDelta time) {
 // sub-renderers and report outward, and are not part of the
 // initialize/flush/ended lifecycle carried here.
 
+void RendererImpl::SetRecordTap(RecordTap tap) {
+  record_tap_ = tap;
+  // Sub-renderers live on their own sequences; each forwards to its decoder
+  // stream. Absent legs are skipped -- a later-created leg picks the tap up
+  // at construction. The record follows EVERY source (docs/14): each video
+  // renderer is one leg.
+  for (const auto& renderer : video_renderers_) {
+    deps_.video_task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](VideoRendererImpl* r, const RecordTap& tap) {
+              r->SetRecordTap(BindTap(tap, true));
+            },
+            base::Unretained(renderer.get()), tap));
+  }
+  if (audio_) {
+    deps_.audio_task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](AudioRendererImpl* r, const RecordTap& tap) {
+              r->SetRecordTap(BindTap(tap, false));
+            },
+            base::Unretained(audio_.get()), tap));
+  }
+}
+
 void RendererImpl::Flush(base::OnceClosure flush_cb) {
   if (!initialized_) {
     std::move(flush_cb).Run();

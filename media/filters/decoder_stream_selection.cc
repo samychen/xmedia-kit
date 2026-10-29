@@ -28,6 +28,20 @@ void DecoderStream<Traits>::Initialize(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   demuxer_stream_ = demuxer_stream;
   config_ = config;
+  if (has_record_tap_ && record_tap_.on_stream) {
+    RecordStreamHeader header;
+    header.video = Traits::kIsVideo;
+    header.codec_name = config.codec_name;
+    if constexpr (Traits::kIsVideo) {
+      header.width = config.coded_size.width;
+      header.height = config.coded_size.height;
+    } else {
+      header.sample_rate = config.sample_rate;
+      header.channels = config.channels;
+    }
+    header.extra_data = config.extra_data;
+    record_tap_.on_stream(header);
+  }
   factories_ = std::move(factories);
   next_factory_ = 0;
   TryNextFactory(std::move(init_cb));
@@ -56,6 +70,8 @@ void DecoderStream<Traits>::TryNextFactory(InitCB init_cb) {
     return;
   }
   decoder_ = std::move(decoder);
+  // The tap fires per decoder OPEN (a track switch re-fires with the new
+  // stream's config) -- see record_tap.h.
   // Remembered before initialize: the failure path still asks whether the
   // abandoned candidate would have produced device memory.
   active_factory_ = std::move(factory);

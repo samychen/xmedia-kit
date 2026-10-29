@@ -228,6 +228,9 @@ void RendererImpl::SwitchAudioRenderer(DemuxerStream* new_stream,
                                       deps_.audio_frames_per_buffer);
   audio_ = std::make_unique<AudioRendererImpl>(
       deps_.audio_task_runner, deps_.audio_factories, av_sync_.get());
+  if (record_tap_.on_packet) {
+    audio_->SetRecordTap(BindTap(record_tap_, false));
+  }
   WireAudioCallbacks();
   audio_initialized_ = false;
   deps_.audio_task_runner->PostTask(
@@ -292,6 +295,9 @@ void RendererImpl::SwitchVideoRenderer(DemuxerStream* new_stream,
       deps_.compositor_thresholds);
   // New object: everything inside it is re-installed (ApplyVideoConfig).
   ApplyVideoConfig(video_renderer());
+  if (record_tap_.on_packet) {
+    video_renderers_[0]->SetRecordTap(BindTap(record_tap_, true));
+  }
   WireVideoCallbacks(0);
   video_initialized_[0] = false;
   pending_video_switch_.stream = new_stream;

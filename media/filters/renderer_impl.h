@@ -85,6 +85,7 @@
 #include "media/filters/legacy/av_sync_controller.h"
 #include "media/filters/legacy/video_frame_compositor.h"
 #include "media/filters/video_filter_stage.h"
+#include "media/filters/record_tap.h"
 #include "media/filters/video_renderer_impl.h"
 #include "media/media_export.h"
 
@@ -202,6 +203,7 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   RendererType GetRendererType() override;
   void TakeSnapshot(base::TimeDelta at,
                     Renderer::SnapshotFrameCallback callback) override;
+  void SetRecordTap(RecordTap tap) override;
 
   // For PipelineImpl's statistics aggregation.
   PipelineStatistics GetStatistics() const;
@@ -374,6 +376,9 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   std::vector<bool> video_initialized_;
   std::vector<bool> video_ended_;
   std::unique_ptr<AudioRendererImpl> audio_;
+  // Playback-side recording tap; re-applied whenever a sub-renderer (or a
+  // whole leg) is (re)created, so a track switch keeps the record flowing.
+  RecordTap record_tap_;
 
   bool initialized_{false};
   // Source 0's audio leg only (§4.2); the video side's completion state is

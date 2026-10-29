@@ -64,7 +64,9 @@
 #include "media/base/demuxer.h"
 #include "media/base/media_error.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
+#include "media/filters/record_tap.h"
 #include "media/base/renderer_client.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/timed_text.h"
@@ -169,6 +171,9 @@ class AVBASE_MEDIA_EXPORT Pipeline {
   // kNotImplemented (the no-op pipelines need no override).
   virtual void TakeSnapshot(base::TimeDelta at,
                             Renderer::SnapshotFrameCallback callback);
+
+  // Playback-side recording tap; forwarded to the renderer on its sequence.
+  virtual void SetRecordTap(RecordTap tap);
 
   virtual bool IsRunning() const = 0;
 

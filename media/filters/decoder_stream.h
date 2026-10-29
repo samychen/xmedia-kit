@@ -31,6 +31,7 @@
 #include "media/base/audio_decoder_factory.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decoder_config.h"
+#include "media/filters/record_tap.h"
 #include "media/base/decoder_status.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_types.h"
@@ -62,6 +63,7 @@ enum class DecoderStreamEvent {
 AVBASE_MEDIA_EXPORT const char* GetDecoderStreamEventName(DecoderStreamEvent e);
 
 struct AVBASE_MEDIA_EXPORT VideoDecoderStreamTraits {
+  static constexpr bool kIsVideo = true;
   using DecoderType = VideoDecoder;
   using OutputType = VideoFrame;
   using ConfigType = VideoDecoderConfig;
@@ -101,6 +103,7 @@ struct AVBASE_MEDIA_EXPORT VideoDecoderStreamTraits {
 };
 
 struct AVBASE_MEDIA_EXPORT AudioDecoderStreamTraits {
+  static constexpr bool kIsVideo = false;
   using DecoderType = AudioDecoder;
   using OutputType = AudioBuffer;
   using ConfigType = AudioDecoderConfig;
@@ -181,6 +184,37 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
                   std::vector<base::scoped_refptr<FactoryType>> factories,
                   InitCB init_cb);
   void set_event_cb(EventCB event_cb) { event_cb_ = std::move(event_cb); }
+
+  // Playback-side recording tap (media/filters/record_tap.h): delivers the
+  // stream header when the decoder opens and every buffer that reached the
+  // decoder afterwards -- post-seek-generation, post-track-selection, EOS
+  // included. Fires on this stream's sequence; a null on_packet disables it
+  // (the default costs nothing).
+  void SetRecordTap(StreamRecordTap tap) {
+    record_tap_ = std::move(tap);
+    has_record_tap_ = static_cast<bool>(record_tap_.on_packet);
+    // A tap attached to an already-initialized stream must learn the stream
+    // header NOW: the on_stream-at-decoder-open path only covers taps that
+    // arrive before Initialize. Recorder-side streams are keyed on this.
+    if (has_record_tap_ && record_tap_.on_stream &&
+        config_.IsValidConfig()) {
+      RecordStreamHeader header;
+      header.video = Traits::kIsVideo;
+      header.codec_name = config_.codec_name;
+      if constexpr (Traits::kIsVideo) {
+        header.width = config_.coded_size.width;
+        header.height = config_.coded_size.height;
+      } else {
+        header.sample_rate = config_.sample_rate;
+        header.channels = config_.channels;
+      }
+      header.extra_data = config_.extra_data;
+      if (getenv("REC_DBG")) {
+        fprintf(stderr, "[rec] late-attach on_stream fired\n");
+      }
+      record_tap_.on_stream(header);
+    }
+  }
 
   // The config this stream was initialized with. Exposed because a runtime
   // track switch has to tell its client what the new stream is: the handover
@@ -263,6 +297,9 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
   base::raw_ptr<DemuxerStream> demuxer_stream_ = nullptr;
   ConfigType config_;
+  // Playback-side recording tap; see SetRecordTap.
+  StreamRecordTap record_tap_;
+  bool has_record_tap_ = false;
   std::vector<base::scoped_refptr<FactoryType>> factories_;
   size_t next_factory_ = 0;
   // The factory whose decoder is currently OPENED. Kept because the fallback
