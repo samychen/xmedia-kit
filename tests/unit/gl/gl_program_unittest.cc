@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "render/gl/gl_program.h"
 #include "render/gl/gl_shaders.h"
 
-namespace avbase::test {
+namespace xmedia::test {
 namespace {
 
 // Two uniforms, one of each type the setters cover here, both reaching the
@@ -130,4 +130,4 @@ TEST_F(GlProgramTest, TheCacheIsPerProgram) {
 }
 
 }  // namespace
-}  // namespace avbase::test
+}  // namespace xmedia::test

@@ -1,13 +1,13 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_GLOBAL_H_
-#define AVBASE_PLAYER_PUBLIC_GLOBAL_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_GLOBAL_H_
+#define XMEDIA_PLAYER_PUBLIC_GLOBAL_H_
 
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 // One-time, idempotent process-wide initialisation: bridges the vendor log,
 // initialises FFmpeg exactly once, and calls XInitThreads() when the process
@@ -18,17 +18,17 @@ namespace avbase {
 // X11 call (see docs/archive/09 §10 L1).
 //
 // Thread safety: safe to call concurrently; guarded by std::call_once.
-AVBASE_PLAYER_EXPORT void GlobalInit();
+XMEDIA_PLAYER_EXPORT void GlobalInit();
 
-// Version of avbase, e.g. "0.1.0".
-AVBASE_PLAYER_EXPORT const char* GetVersion();
+// Version of xmedia-kit, e.g. "0.1.0".
+XMEDIA_PLAYER_EXPORT const char* GetVersion();
 
-// Version of the FFmpeg avbase was built against, e.g. "7.1", or "none" when
-// built with AVBASE_ENABLE_FFMPEG=OFF.
-AVBASE_PLAYER_EXPORT const char* GetFFmpegVersion();
+// Version of the FFmpeg xmedia-kit was built against, e.g. "7.1", or "none" when
+// built with XMEDIA_ENABLE_FFMPEG=OFF.
+XMEDIA_PLAYER_EXPORT const char* GetFFmpegVersion();
 
 // RAII helper for programs that want symmetric init/shutdown.
-class AVBASE_PLAYER_EXPORT GlobalGuard {
+class XMEDIA_PLAYER_EXPORT GlobalGuard {
  public:
   GlobalGuard() { GlobalInit(); }
   GlobalGuard(const GlobalGuard&) = delete;
@@ -36,6 +36,6 @@ class AVBASE_PLAYER_EXPORT GlobalGuard {
   ~GlobalGuard() = default;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_GLOBAL_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_GLOBAL_H_

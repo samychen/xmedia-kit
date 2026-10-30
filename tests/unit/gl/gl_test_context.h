@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_
-#define AVBASE_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_
+#ifndef XMEDIA_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_
+#define XMEDIA_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_
 
 #include <memory>
 #include <string>
@@ -21,7 +21,7 @@
 #include "platform/glfw/glfw_gl_context.h"
 #include "render/gl/native_gl_context.h"
 
-namespace avbase::test {
+namespace xmedia::test {
 
 // A HIDDEN window with a GL 3.3 core context, current on the creating thread.
 //
@@ -71,6 +71,6 @@ class GlTestWindow {
   int height_{0};
 };
 
-}  // namespace avbase::test
+}  // namespace xmedia::test
 
-#endif  // AVBASE_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_
+#endif  // XMEDIA_TESTS_UNIT_GL_GL_TEST_CONTEXT_H_

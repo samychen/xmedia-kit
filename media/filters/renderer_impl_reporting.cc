@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 void RendererImpl::PushMasterClock() {
   if (!initialized_ || ended_) {
@@ -200,4 +200,4 @@ void RendererImpl::TakeSnapshot(base::TimeDelta at,
       }));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

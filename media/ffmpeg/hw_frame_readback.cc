@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/video_convert.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 base::scoped_refptr<media::VideoFrame>
 MapHwFrameToI420(const AVFrame* hw_frame, media::Rational sar,
@@ -56,4 +56,4 @@ MapHwFrameToI420(const AVFrame* hw_frame, media::Rational sar,
   return out;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

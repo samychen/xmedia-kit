@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_PRESENT_H_
-#define AVBASE_MEDIA_GL_GL_PRESENT_H_
+#ifndef XMEDIA_MEDIA_GL_GL_PRESENT_H_
+#define XMEDIA_MEDIA_GL_GL_PRESENT_H_
 
 #include <memory>
 
@@ -23,7 +23,7 @@
 #include "render/gl/native_gl_context.h"
 #include "render/gl/overlay.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Uploads a planar YUV frame into three textures and draws it through a
 // YUV->RGB program, optionally compositing a host-published overlay, into an
@@ -48,8 +48,8 @@ namespace avbase::media {
 // several sources through the same code path. Everything that is neither
 // video nor composition -- context abstraction, entry-point loading, program
 // compilation, textures, the unit quad, the overlay slot, the render target,
-// the blit, the cross-fade -- comes from avbase_gl (render/gl), which knows
-// nothing about frames. The split exists so that avbase_gl can be used by a
+// the blit, the cross-fade -- comes from xmedia_gl (render/gl), which knows
+// nothing about frames. The split exists so that xmedia_gl can be used by a
 // project that has never heard of VideoFrame.
 //
 // WHY THE CANVAS EXISTS. Drawing straight into the drawable makes the window
@@ -72,7 +72,7 @@ namespace avbase::media {
 // there and Shutdown() may be called from the host thread (it re-makes the
 // context current before deleting). The host must not make the context current
 // anywhere else.
-class AVBASE_MEDIA_EXPORT GlPresenter {
+class XMEDIA_MEDIA_EXPORT GlPresenter {
  public:
   // Takes ownership of |ctx| (a borrowed wrapper over the host's context:
   // the wrapper does not destroy the host's window/context on destruction).
@@ -325,6 +325,6 @@ class AVBASE_MEDIA_EXPORT GlPresenter {
   int snapshot_version_{-1};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_PRESENT_H_
+#endif  // XMEDIA_MEDIA_GL_GL_PRESENT_H_

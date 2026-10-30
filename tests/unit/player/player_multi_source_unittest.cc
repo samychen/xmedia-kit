@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -33,7 +33,7 @@
 #include <utility>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/simple_test_tick_clock.h"
@@ -48,7 +48,7 @@
 #include "player/public/player_config.h"
 #include "player/public/scene.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // PrepareAsync reaches the factory-deps assembly only when a demuxer can be
 // built, and without FFmpeg CreateDemuxer() has nothing to return
 // (player/player_impl_prepare.cc): the player reports kNotImplemented before
@@ -58,7 +58,7 @@
 // tests share.
 #else
 
-namespace avbase {
+namespace xmedia {
 
 // The seam player/public/scene.h grants a test: the player is the only other
 // caller of Scene::Bind(), and it needs a whole pipeline to do it. NOT in the
@@ -90,7 +90,7 @@ class PlayerMultiSourceTest : public ::testing::Test {
     auto deps = std::make_unique<Deps>();
     deps->tick_clock = clock_;
     impl_ = std::make_unique<PlayerImpl>(config, std::move(deps));
-    ASSERT_TRUE(impl_->SetDataSource("/nonexistent/avbase-multisrc-main.mp4")
+    ASSERT_TRUE(impl_->SetDataSource("/nonexistent/xmedia-multisrc-main.mp4")
                     .has_value());
     int z = 10;
     for (const auto& uri : secondary_uris) {
@@ -112,7 +112,7 @@ class PlayerMultiSourceTest : public ::testing::Test {
   // Prepares the SAME player a second time, adding no sources. Used to ask
   // what survived a Reset().
   void PrepareAgain() {
-    ASSERT_TRUE(impl_->SetDataSource("/nonexistent/avbase-multisrc-main.mp4")
+    ASSERT_TRUE(impl_->SetDataSource("/nonexistent/xmedia-multisrc-main.mp4")
                     .has_value());
     ASSERT_TRUE(impl_->PrepareAsync().has_value());
   }
@@ -210,7 +210,7 @@ TEST_F(PlayerMultiSourceTest, WithoutRegistrationThereIsNoExtraFactory) {
 }
 
 TEST_F(PlayerMultiSourceTest, ARegisteredSourceBecomesAnExtraSinkFactory) {
-  Prepare({"/nonexistent/avbase-multisrc-cam.mp4"});
+  Prepare({"/nonexistent/xmedia-multisrc-cam.mp4"});
   ASSERT_EQ(layers_.size(), 1u);
   ASSERT_NE(layers_[0], nullptr);
   EXPECT_EQ(layers_[0]->name(), "cam10");
@@ -227,8 +227,8 @@ TEST_F(PlayerMultiSourceTest, ARegisteredSourceBecomesAnExtraSinkFactory) {
 // ---------------------------------------------------------------------------
 
 TEST_F(PlayerMultiSourceTest, EachLegPublishesIntoItsOwnLayer) {
-  Prepare({"/nonexistent/avbase-multisrc-cam1.mp4",
-           "/nonexistent/avbase-multisrc-cam2.mp4"});
+  Prepare({"/nonexistent/xmedia-multisrc-cam1.mp4",
+           "/nonexistent/xmedia-multisrc-cam2.mp4"});
   ASSERT_EQ(layers_.size(), 2u);
   ASSERT_NE(layers_[0], nullptr);
   ASSERT_NE(layers_[1], nullptr);
@@ -270,7 +270,7 @@ TEST_F(PlayerMultiSourceTest,
   // them, so a player that is reused for another file does not resurrect a
   // second demuxer nobody asked for -- which would fail to open and take the
   // whole prepare down with it.
-  Prepare({"/nonexistent/avbase-multisrc-cam.mp4"});
+  Prepare({"/nonexistent/xmedia-multisrc-cam.mp4"});
   ASSERT_NE(deps_.extra_video_sink_factory, nullptr);
   impl().Reset();
   deps_ = media::DefaultRendererFactory::Deps();
@@ -289,12 +289,12 @@ TEST_F(PlayerMultiSourceTest, RegistrationIsRejectedOncePreparingStarted) {
   // honours, because "the layer exists but stays black" is exactly the failure
   // this whole file exists to give a name.
   EXPECT_EQ(impl().AddSource(media::DataSourceDescriptor::FromUri(
-                                 "/nonexistent/avbase-multisrc-late.mp4"),
+                                 "/nonexistent/xmedia-multisrc-late.mp4"),
                              "late", 10),
             nullptr);
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_ENABLE_FFMPEG
+#endif  // XMEDIA_ENABLE_FFMPEG

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -33,7 +33,7 @@
 #include "tests/support/fake_text_decoder.h"
 #include "tests/support/synthetic_live_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Real threads, like the other pipeline-level suites: RendererImpl's
@@ -163,8 +163,8 @@ class LiveCueExpiryTest : public ::testing::Test {
 
   base::test::TaskEnvironment env_{
       base::test::TaskEnvironment::TimeSource::kRealTime};
-  base::Thread video_thread_{"avbase-live-S3"};
-  base::Thread audio_thread_{"avbase-live-S4"};
+  base::Thread video_thread_{"xmedia-live-S3"};
+  base::Thread audio_thread_{"xmedia-live-S4"};
   base::DefaultTickClock tick_clock_;
   base::scoped_refptr<base::SequencedTaskRunner> runner_;
   std::shared_ptr<AvSyncController> av_sync_;
@@ -289,4 +289,4 @@ TEST_F(LiveCueExpiryTest, CuesInsideTheWindowStillArrive) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

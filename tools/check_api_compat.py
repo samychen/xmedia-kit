@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """V10 (docs/10 §4 and §12): a minor version bump must not break user code.
@@ -34,8 +34,8 @@ What is compatible (allowed for a minor bump):
     layout).
 
 Scope: public sections of classes/structs in player/public/**/*.h, the
-file-level C ABI functions in player/public/c/avbase_c.h, and public enums.
-Two exclusions match docs/Doxyfile: avbase_c_internal.h and avbase_c_export.h
+file-level C ABI functions in player/public/c/xmedia_c.h, and public enums.
+Two exclusions match docs/Doxyfile: xmedia_c_internal.h and xmedia_c_export.h
 are implementation-side. Plain public DATA MEMBERS are intentionally NOT
 tracked in v1 (see Known limitations in docs/10 §12 V10 note) -- they are a
 future extension; v1 covers the callable surface + enums + vtable layout,
@@ -228,7 +228,7 @@ def split_decl(text: str):
     # Drop dllexport / C-API macros: they are not part of the type and change
     # freely (reformatting, moving the macro) without altering the ABI.
     s = re.sub(r"\b[A-Z_][A-Z0-9_]*_EXPORT\b", "", s)
-    s = re.sub(r"\bAVBASE_C_API\b", "", s)
+    s = re.sub(r"\bXMEDIA_C_API\b", "", s)
     s = re.sub(r"\s+", " ", s).strip()
     is_virtual = bool(re.search(r"\bvirtual\b", s))
     s = re.sub(r"\bvirtual\b", "", s).strip()
@@ -338,7 +338,7 @@ def extract_symbols(text: str, path: str) -> list[Symbol]:
         return any(s.kind == "class" for s in scopes)
 
     def lang_for(first: str) -> str:
-        if first == "AVBASE_C_API":
+        if first == "XMEDIA_C_API":
             return "c"
         if any(s.kind == "externc" for s in scopes):
             return "c"
@@ -567,7 +567,7 @@ def extract_symbols(text: str, path: str) -> list[Symbol]:
     return symbols
 
 
-EXCLUDED_NAMES = {"avbase_c_internal.h", "avbase_c_export.h"}
+EXCLUDED_NAMES = {"xmedia_c_internal.h", "xmedia_c_export.h"}
 
 
 def collect(root: Path) -> dict[str, Symbol]:
@@ -711,7 +711,7 @@ def load_baseline(path: Path) -> dict:
 SELFTEST_BEFORE = """\
 #ifndef GUARD_H_
 #define GUARD_H_
-namespace avbase {
+namespace xmedia {
 class Widget {
  public:
   void Start();
@@ -720,15 +720,15 @@ class Widget {
   virtual void OnEvent(Event e);
 };
 enum class Color { kRed, kGreen, kBlue };
-AVBASE_C_API void avbase_free_thing(int* out);
-}  // namespace avbase
+XMEDIA_C_API void xmedia_free_thing(int* out);
+}  // namespace xmedia
 #endif
 """
 
 SELFTEST_AFTER = """\
 #ifndef GUARD_H_
 #define GUARD_H_
-namespace avbase {
+namespace xmedia {
 class Widget {
  public:
   void Start();
@@ -739,8 +739,8 @@ class Widget {
   void NewMethod();                 // ADDED (compatible)
 };
 enum class Color { kRed, kGreen, kBlue, kYellow };  // ENUM ADDED (compatible)
-AVBASE_C_API void avbase_free_thing(int* out);
-}  // namespace avbase
+XMEDIA_C_API void xmedia_free_thing(int* out);
+}  // namespace xmedia
 #endif
 """
 
@@ -751,14 +751,14 @@ def selftest() -> int:
     rep = diff_surface(before, after)
 
     # Breaking: SeekTo signature change, vtable change (OnTick added).
-    assert any("CHANGED  avbase::Widget::SeekTo" in b for b in rep.breaking), \
+    assert any("CHANGED  xmedia::Widget::SeekTo" in b for b in rep.breaking), \
         "SeekTo signature change not flagged"
-    assert any("VTABLE  avbase::Widget" in v for v in rep.virtual_changes), \
+    assert any("VTABLE  xmedia::Widget" in v for v in rep.virtual_changes), \
         "vtable change not flagged"
     # Compatible: NewMethod, Color::kYellow.
-    assert any("ADDED  avbase::Widget::NewMethod" in c
+    assert any("ADDED  xmedia::Widget::NewMethod" in c
                for c in rep.compatible), "NewMethod not marked compatible"
-    assert any("ENUM ADDED  avbase::Color::kYellow" in c
+    assert any("ENUM ADDED  xmedia::Color::kYellow" in c
                for c in rep.compatible), "kYellow not marked compatible"
     # No spurious removals.
     assert not any("REMOVED" in b for b in rep.breaking), \
@@ -777,7 +777,7 @@ def selftest() -> int:
     before_v = dict(before)
     from copy import deepcopy
     after_v = deepcopy(after)
-    after_v["E:avbase::Color"].enumerators["kGreen"] = 99
+    after_v["E:xmedia::Color"].enumerators["kGreen"] = 99
     rep4 = diff_surface(before_v, after_v)
     assert any("ENUM VALUE" in b for b in rep4.breaking), \
         "enum value change not flagged"

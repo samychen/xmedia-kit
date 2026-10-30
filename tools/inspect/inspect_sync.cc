@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect sync`: decode both streams and drive AvSyncController with
+// `xmedia-inspect sync`: decode both streams and drive AvSyncController with
 // the real timestamps.
 //
 // This is the subcommand that caught bug #32. The unit tests for the sync
@@ -32,7 +32,7 @@
 #include "media/filters/legacy/av_sync_controller.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 
 namespace {
 
@@ -242,4 +242,4 @@ int RunSync(const Options& opts) {
   return step > 0 ? 0 : 2;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

@@ -1,7 +1,7 @@
 # CicadaPlayer 能力移植计划（PLAN）
 
-> 目标：将 CicadaPlayer 有而 avbase 缺失的能力，按 avbase 的架构风格（Chromium 分层、
-> C++20、`-fno-exceptions`、Google Style）抽象补充进 avbase。
+> 目标：将 CicadaPlayer 有而 xmedia-kit 缺失的能力，按 xmedia-kit 的架构风格（Chromium 分层、
+> C++20、`-fno-exceptions`、Google Style）抽象补充进 xmedia-kit。
 > 进度跟踪：同目录 [PROGRESS.md](PROGRESS.md)（活文档，每任务完成即更新，崩溃恢复以它为准）。
 > 工作分支：`feature/cicada-port`。
 
@@ -11,15 +11,15 @@
 |---|---|
 | 自研 curl 网络源（HTTP/1.1、keep-alive、自定义 header/DNS/proxy、重试） | **全量移植**（T1） |
 | 内存分片缓存 + 边播边缓存 | **移植**（T2；remux-mp4 形态改为字节级文件缓存，见 T2 说明） |
-| HLS（master/media playlist、AES-128、live、无缝切换、LL-HLS 标签） | **全量移植**（T3，自研 demuxer 挂 avbase DataSource 抽象） |
+| HLS（master/media playlist、AES-128、live、无缝切换、LL-HLS 标签） | **全量移植**（T3，自研 demuxer 挂 xmedia-kit DataSource 抽象） |
 | DASH | **部分**：MPD 解析与 SegmentTemplate 落地为 T3 延伸（T8），完整 DASH 后置 |
 | ABR（带宽估计 + 缓冲水位算法） | **移植**（T4，算法对齐 CicadaPlayer AbrBufferAlgoStrategy 思想） |
-| DRM（WideVine/FairPlay） | **仅抽象**（T5）：KeyProvider 接口 + HLS ClearKey 落地；平台 CDM 留扩展点（对齐 avbase D8 决策） |
-| 字幕（外挂字幕加载/选择/延迟 + 渲染） | **部分**（T6）：SRT/VTT 解析 + 外挂轨道加载 API + cue 调度；渲染交宿主（avbase 文本腿既有决策） |
+| DRM（WideVine/FairPlay） | **仅抽象**（T5）：KeyProvider 接口 + HLS ClearKey 落地；平台 CDM 留扩展点（对齐 xmedia-kit D8 决策） |
+| 字幕（外挂字幕加载/选择/延迟 + 渲染） | **部分**（T6）：SRT/VTT 解析 + 外挂轨道加载 API + cue 调度；渲染交宿主（xmedia-kit 文本腿既有决策） |
 | 直播追帧 / UTC 同步 | **部分**（T8）：live edge 追帧配置 + UTC 事件（依赖 T3 live） |
 | 旋转/镜像/缩放/背景色 | **移植**（T7，player API + GL sink 实现） |
 | Android/iOS/Flutter 平台栈、MediaCodec 原生集成、HDR10(AVFoundation) | **不移植**（本机无法构建/验证目标平台；以文档记录扩展点） |
-| 插件机制（prototype 注册）/ DCA | **不移植**：与 avbase 编译期装配（DecoderSelector）冲突；以 DataSource 装饰器链达成同等扩展性（T1/T2 即实例） |
+| 插件机制（prototype 注册）/ DCA | **不移植**：与 xmedia-kit 编译期装配（DecoderSelector）冲突；以 DataSource 装饰器链达成同等扩展性（T1/T2 即实例） |
 
 ## 1. 任务清单（按依赖排序，每项含 DoD）
 
@@ -27,7 +27,7 @@
 - 新增 `media/net/`：`http_data_source.{h,cc}`（实现 `media::DataSource`，libcurl easy，
   blocking read + abortable、`CURLOPT_RESOLVE` 自定义 DNS、IPv4/6 强制、自定义 header/
   referer/UA/proxy、超时与重试）、`http_data_source_descriptor` 扩展（URL 源描述）。
-- `cmake/FindCurl.cmake`（照 FindSDL2 模式）+ `AvbaseOptions.cmake` 开关 `AVBASE_WITH_CURL`。
+- `cmake/FindCurl.cmake`（照 FindSDL2 模式）+ `XmediaOptions.cmake` 开关 `XMEDIA_WITH_CURL`。
 - DoD：单测覆盖（本地 HTTP fixture：200/206 Range/404/断流重试/Abort/自定义头验证）；
   保持 no-ffmpeg 配置可关。
 
@@ -85,7 +85,7 @@
 
 | 任务 | 结论 |
 |---|---|
-| T1 curl 网络源 | ✅ `media/curl/`（独立 target，`AVBASE_ENABLE_CURL`），keep-alive/Range/DNS 固定/IPv4v6/低速看门狗，9 单测 |
+| T1 curl 网络源 | ✅ `media/curl/`（独立 target，`XMEDIA_ENABLE_CURL`），keep-alive/Range/DNS 固定/IPv4v6/低速看门狗，9 单测 |
 | T2 缓存层 | ✅ `SliceBufferSource`（LRU 分片）+ `FileCacheDataSource`（边播边存、续播、预算、IO 失败降级），9 单测，接通闲置的 `data_source.*` 配置 |
 | T3 HLS | ✅ m3u8 解析器 + AES-128（NIST 向量）+ `HlsPlaylistDemuxer`（稳定流包装、跨段时间线、seek 落段、live reload、加密段端到端），16 单测 |
 | T4 ABR | ✅ 估计器 + 缓冲水位算法（可注入）+ HLS 边界切换（观察 `variant_switches`），7 单测 + 爬梯 e2e |

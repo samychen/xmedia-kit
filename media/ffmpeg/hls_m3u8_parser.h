@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_
-#define AVBASE_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_
+#define XMEDIA_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_
 
 #include <stdint.h>
 
@@ -15,11 +15,11 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 
 // The HLS playlist model, ported from CicadaPlayer's
 // framework/demuxer/play_list (HlsParser/HlsTags/PlaylistManager) down to
-// what an avbase demuxer consumes: master playlists (variant streams to
+// what an xmedia-kit demuxer consumes: master playlists (variant streams to
 // switch between), media playlists (the segment timeline to serve), and the
 // tags that change how a segment is fetched or decrypted.
 //
@@ -30,7 +30,7 @@ namespace avbase::media::hls {
 // playlist. EXT-X-PROGRAM-DATE-TIME, EXT-X-DATERANGE and
 // EXT-X-I-FRAMES-ONLY are CicadaPlayer's documented unsupported list too.
 
-struct AVBASE_MEDIA_EXPORT KeyInfo {
+struct XMEDIA_MEDIA_EXPORT KeyInfo {
   // EXT-X-KEY:METHOD -- NONE, AES-128, SAMPLE-AES.
   std::string method{"NONE"};
   // Applied per segment: the key active when the segment tag appeared.
@@ -41,7 +41,7 @@ struct AVBASE_MEDIA_EXPORT KeyInfo {
   bool is_aes_128() const { return method == "AES-128"; }
 };
 
-struct AVBASE_MEDIA_EXPORT Segment {
+struct XMEDIA_MEDIA_EXPORT Segment {
   std::string uri;  // resolved against the playlist URL
   base::TimeDelta duration;
   std::string title;  // EXTINF's comma tail
@@ -61,7 +61,7 @@ struct AVBASE_MEDIA_EXPORT Segment {
   base::TimeDelta timeline_start;
 };
 
-struct AVBASE_MEDIA_EXPORT Variant {
+struct XMEDIA_MEDIA_EXPORT Variant {
   // EXT-X-STREAM-INF attributes (ABR candidates).
   int bandwidth{0};
   int average_bandwidth{0};
@@ -74,7 +74,7 @@ struct AVBASE_MEDIA_EXPORT Variant {
   int variant_index{0};
 };
 
-struct AVBASE_MEDIA_EXPORT Rendition {
+struct XMEDIA_MEDIA_EXPORT Rendition {
   // EXT-X-MEDIA (audio/subtitle renditions of a GROUP-ID).
   std::string type;  // AUDIO / SUBTITLES
   std::string group_id;
@@ -85,7 +85,7 @@ struct AVBASE_MEDIA_EXPORT Rendition {
   bool is_autoselect{false};
 };
 
-struct AVBASE_MEDIA_EXPORT Playlist {
+struct XMEDIA_MEDIA_EXPORT Playlist {
   bool is_master{false};
   bool is_live{false};  // no EXT-X-ENDLIST
   int target_duration{0};
@@ -106,7 +106,7 @@ struct AVBASE_MEDIA_EXPORT Playlist {
 // structured error when the body is not an M3U8 (#EXTM3U missing) or a
 // required attribute is malformed -- a playlist that parses to zero
 // segments AND zero variants is also an error: there is nothing to play.
-AVBASE_MEDIA_EXPORT base::expected<Playlist, MediaError>
+XMEDIA_MEDIA_EXPORT base::expected<Playlist, MediaError>
 ParseM3U8(std::string_view text, const std::string& base_url);
 
 // Resolves |relative| against |base_url| the way an HLS client must:
@@ -114,9 +114,9 @@ ParseM3U8(std::string_view text, const std::string& base_url);
 // root-relative inherit the authority, everything else joins the base
 // directory. Deliberately not a full RFC 3986 resolver -- HLS URIs in the
 // wild are one of those four shapes.
-AVBASE_MEDIA_EXPORT std::string ResolveUrl(const std::string& base_url,
+XMEDIA_MEDIA_EXPORT std::string ResolveUrl(const std::string& base_url,
                                            std::string_view relative);
 
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls
 
-#endif  // AVBASE_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_HLS_M3U8_PARSER_H_

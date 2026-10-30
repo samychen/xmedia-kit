@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `base/test/task_environment.h` (BSD-3-Clause).
 //
-// This is what makes avbase's scheduling logic testable at all. ijkplayer's
+// This is what makes xmedia-kit's scheduling logic testable at all. ijkplayer's
 // video_refresh() reads av_gettime_relative() directly and mutates a
 // 200-field god struct, so the only way to exercise it is to play a real file
 // in real time and watch. Here a test constructs a TaskEnvironment with
@@ -12,8 +12,8 @@
 // sleep, no flakiness, and the whole media/filters suite runs in under a
 // second.
 
-#ifndef AVBASE_BASE_TEST_TASK_ENVIRONMENT_H_
-#define AVBASE_BASE_TEST_TASK_ENVIRONMENT_H_
+#ifndef XMEDIA_BASE_TEST_TASK_ENVIRONMENT_H_
+#define XMEDIA_BASE_TEST_TASK_ENVIRONMENT_H_
 
 #include <cstddef>
 #include <memory>
@@ -25,9 +25,9 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 
-namespace avbase::base::test {
+namespace xmedia::base::test {
 
-class AVBASE_BASE_EXPORT TaskEnvironment {
+class XMEDIA_BASE_EXPORT TaskEnvironment {
  public:
   enum class TimeSource {
     kMockTime,  // Default: time only moves when the test moves it.
@@ -74,6 +74,6 @@ class AVBASE_BASE_EXPORT TaskEnvironment {
   scoped_refptr<SequencedTaskRunner> previous_default_;
 };
 
-}  // namespace avbase::base::test
+}  // namespace xmedia::base::test
 
-#endif  // AVBASE_BASE_TEST_TASK_ENVIRONMENT_H_
+#endif  // XMEDIA_BASE_TEST_TASK_ENVIRONMENT_H_

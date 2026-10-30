@@ -1,21 +1,21 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/sequence_checker.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_SEQUENCE_CHECKER_H_
-#define AVBASE_BASE_SEQUENCE_CHECKER_H_
+#ifndef XMEDIA_BASE_SEQUENCE_CHECKER_H_
+#define XMEDIA_BASE_SEQUENCE_CHECKER_H_
 
 #include <atomic>
 #include <thread>
 
 #include "base/check.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // Records the thread id on first use and DCHECKs every later use matches.
-// avbase runs one logical sequence per dedicated thread (docs/04 §2), so
+// xmedia-kit runs one logical sequence per dedicated thread (docs/04 §2), so
 // thread identity is a faithful stand-in for Chromium's sequence tokens.
 class SequenceChecker {
  public:
@@ -42,10 +42,10 @@ class SequenceChecker {
   mutable std::atomic<std::thread::id> bound_{};
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#if defined(AVBASE_ENABLE_DCHECK)
-#define SEQUENCE_CHECKER(name) mutable ::avbase::base::SequenceChecker name
+#if defined(XMEDIA_ENABLE_DCHECK)
+#define SEQUENCE_CHECKER(name) mutable ::xmedia::base::SequenceChecker name
 #define DCHECK_CALLED_ON_VALID_SEQUENCE(name) \
   DCHECK((name).CalledOnValidSequence())
 #define DETACH_FROM_SEQUENCE(name) (name).DetachFromSequence()
@@ -55,4 +55,4 @@ class SequenceChecker {
 #define DETACH_FROM_SEQUENCE(name) static_assert(true, "")
 #endif
 
-#endif  // AVBASE_BASE_SEQUENCE_CHECKER_H_
+#endif  // XMEDIA_BASE_SEQUENCE_CHECKER_H_

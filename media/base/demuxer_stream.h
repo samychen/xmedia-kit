@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Signature mirrors Chromium's `media/base/demuxer_stream.h` (BSD-3-Clause),
 // including the Read(count, ReadCB) shape and the Status enum.
 
-#ifndef AVBASE_MEDIA_BASE_DEMUXER_STREAM_H_
-#define AVBASE_MEDIA_BASE_DEMUXER_STREAM_H_
+#ifndef XMEDIA_MEDIA_BASE_DEMUXER_STREAM_H_
+#define XMEDIA_MEDIA_BASE_DEMUXER_STREAM_H_
 
 #include <stdint.h>
 
@@ -19,17 +19,17 @@
 #include "media/base/decoder_config.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 enum class StreamLiveness { kUnknown = 0, kRecorded, kLive };
-AVBASE_MEDIA_EXPORT const char* GetStreamLivenessName(StreamLiveness liveness);
+XMEDIA_MEDIA_EXPORT const char* GetStreamLivenessName(StreamLiveness liveness);
 
 // One elementary stream inside a container.
 //
 // Read() is asynchronous and never runs its callback inline: the result is
 // posted to the sequence that created the stream. Callers request up to |count|
 // buffers and may receive 1..count back; the last one may be the EOS marker.
-class AVBASE_MEDIA_EXPORT DemuxerStream {
+class XMEDIA_MEDIA_EXPORT DemuxerStream {
  public:
   // Status returned in the Read() callback.
   //  kOk            : |buffers| holds 1..count buffers, the last may be EOS.
@@ -79,6 +79,6 @@ class AVBASE_MEDIA_EXPORT DemuxerStream {
   virtual ~DemuxerStream() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_DEMUXER_STREAM_H_
+#endif  // XMEDIA_MEDIA_BASE_DEMUXER_STREAM_H_

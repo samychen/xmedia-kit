@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,7 +25,7 @@
 #include "base/logging.h"
 #include "gtest/gtest.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 namespace {
 
 // Records what reaches the logging system so a test can assert that a
@@ -123,14 +123,14 @@ TEST(NullCheckStreamTest, StreamedOperandsAreStillEvaluated) {
 // 3. DCHECK：两种构建两种语义，分开断言
 // ---------------------------------------------------------------------------
 //
-// AVBASE_ENABLE_DCHECK is a compile definition from
-// cmake/AvbaseCompilerFlags.cmake:58 that reaches test translation units too,
+// XMEDIA_ENABLE_DCHECK is a compile definition from
+// cmake/XmediaCompilerFlags.cmake:58 that reaches test translation units too,
 // so what DCHECK means is a property of the build, not of the call site. Both
 // branches below are real code; only the one matching this configuration is
-// compiled. The default is ON (cmake/AvbaseOptions.cmake:52); `release` is the
+// compiled. The default is ON (cmake/XmediaOptions.cmake:52); `release` is the
 // one preset that turns it off.
 
-#if defined(AVBASE_ENABLE_DCHECK)
+#if defined(XMEDIA_ENABLE_DCHECK)
 
 // DCHECK is CHECK here -- there is no half form -- so a false one aborts and a
 // true one must not.
@@ -233,4 +233,4 @@ TEST(CheckDeathTest, CallerSuppliedContextReachesTheLog) {
 #endif  // GTEST_HAS_DEATH_TEST
 
 }  // namespace
-}  // namespace avbase::base
+}  // namespace xmedia::base

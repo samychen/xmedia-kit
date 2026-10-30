@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_HLS_AES_128_H_
-#define AVBASE_MEDIA_FFMPEG_HLS_AES_128_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_HLS_AES_128_H_
+#define XMEDIA_MEDIA_FFMPEG_HLS_AES_128_H_
 
 #include <stdint.h>
 
@@ -14,7 +14,7 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 
 // AES-128-CBC segment decryption for EXT-X-KEY:METHOD=AES-128 -- the port of
 // CicadaPlayer's play_list/segment_decrypt/AES_128Decrypter. HLS prescribes
@@ -22,7 +22,7 @@ namespace avbase::media::hls {
 // either from the playlist (EXT-X-KEY:IV) or derived from the segment's
 // media sequence number (the spec's default: 64-bit big-endian sequence in
 // the low half of a zero IV). SequenceNumberIv() builds that default.
-class AVBASE_MEDIA_EXPORT Aes128CbcDecrypter {
+class XMEDIA_MEDIA_EXPORT Aes128CbcDecrypter {
  public:
   // 16-byte key and IV; nullopt when the key length is wrong (the av_aes
   // init inside is what actually rejects, but a wrong-size key is always a
@@ -48,6 +48,6 @@ class AVBASE_MEDIA_EXPORT Aes128CbcDecrypter {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls
 
-#endif  // AVBASE_MEDIA_FFMPEG_HLS_AES_128_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_HLS_AES_128_H_

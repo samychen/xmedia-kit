@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_ENCODE_MUXER_H_
-#define AVBASE_MEDIA_TRANSCODE_ENCODE_MUXER_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_ENCODE_MUXER_H_
+#define XMEDIA_MEDIA_TRANSCODE_ENCODE_MUXER_H_
 
 #include <cstdint>
 #include <string>
@@ -15,7 +15,7 @@
 
 struct AVRational;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The container write end for encoded streams — RemuxContainer's skeleton
 // generalized so the packets come from encoders instead of a demuxer. This
@@ -26,7 +26,7 @@ namespace avbase::media {
 // in 1/encoder_time_base. Callers pass EncodedPacket (pts/dts/flags/side_data
 // from the encoder); the muxer rescales into the container's timebase on
 // write and passes flags through verbatim instead of guessing keyframes.
-class AVBASE_MEDIA_EXPORT FFmpegEncodeMuxer {
+class XMEDIA_MEDIA_EXPORT FFmpegEncodeMuxer {
  public:
   struct AudioStreamParams {
     int sample_rate = 48000;
@@ -81,6 +81,6 @@ class AVBASE_MEDIA_EXPORT FFmpegEncodeMuxer {
   std::unique_ptr<Context> ctx_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_ENCODE_MUXER_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_ENCODE_MUXER_H_

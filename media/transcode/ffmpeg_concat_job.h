@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_CONCAT_JOB_H_
-#define AVBASE_MEDIA_TRANSCODE_CONCAT_JOB_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_CONCAT_JOB_H_
+#define XMEDIA_MEDIA_TRANSCODE_CONCAT_JOB_H_
 
 #include <cstdint>
 #include <functional>
@@ -13,7 +13,7 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Multi-input concatenation: the E4 slab. Mirrors combine.cc's CombineTask —
 // each input segment is either fast-pathed (stream copy + bsf auto-insert)
@@ -35,7 +35,7 @@ namespace avbase::media {
 //   |inputs|    — ordered list of input URIs to concatenate.
 //   |output_path| — the output container (extension selects muxer).
 //   |stream_select| — which streams to include (audio/video).
-struct AVBASE_MEDIA_EXPORT ConcatParams {
+struct XMEDIA_MEDIA_EXPORT ConcatParams {
   std::vector<std::string> inputs;
   std::string output_path;
   // Empty = infer from the extension; "flv" for rtmp:// outputs.
@@ -49,8 +49,8 @@ struct AVBASE_MEDIA_EXPORT ConcatParams {
 
 // Runs the concat synchronously. Returns OkStatus on success.
 // The caller's thread blocks until the job completes or fails.
-AVBASE_MEDIA_EXPORT Status Concat(const ConcatParams& params);
+XMEDIA_MEDIA_EXPORT Status Concat(const ConcatParams& params);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_CONCAT_JOB_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_CONCAT_JOB_H_

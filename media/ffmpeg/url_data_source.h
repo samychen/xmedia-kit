@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
-#define AVBASE_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
 
 #include <cstdint>
 #include <mutex>
@@ -18,7 +18,7 @@
 
 struct AVIOContext;
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // An avio-backed DataSource for network URIs (http/https today). This is the
 // component that lets the RETRY layer exist on the network path at all: the
@@ -33,7 +33,7 @@ namespace avbase::media::ffmpeg {
 // interrupt callback observes, so a blocked read returns AVERROR_EXIT promptly
 // (Δ15). The async Read() runs on a private worker like RetryDataSource's: the
 // callback is posted to |task_runner|, never inline.
-class AVBASE_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
+class XMEDIA_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
  public:
   explicit UrlDataSource(std::string uri);
   UrlDataSource(const UrlDataSource&) = delete;
@@ -79,6 +79,6 @@ class AVBASE_MEDIA_EXPORT UrlDataSource final : public media::DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_URL_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_URL_DATA_SOURCE_H_

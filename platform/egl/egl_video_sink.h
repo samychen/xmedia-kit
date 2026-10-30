@@ -1,21 +1,21 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_EGL_EGL_VIDEO_SINK_H_
-#define AVBASE_PLATFORM_EGL_EGL_VIDEO_SINK_H_
+#ifndef XMEDIA_PLATFORM_EGL_EGL_VIDEO_SINK_H_
+#define XMEDIA_PLATFORM_EGL_EGL_VIDEO_SINK_H_
 
 #include "media/base/video_renderer_sink.h"
 #include "media/gl/gl_output_target.h"
 #include "media/gl/gl_video_sink.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The EGL output target (docs/archive/09 §2 embedding mode): the host owns the
 // EGLDisplay / EGLSurface / EGLContext; this hands the sink a context adapter
 // over them. Like GLFW, EGL is GL-only, so has_gl_route() is unconditional.
-class AVBASE_MEDIA_EXPORT EglOutputTarget final : public GlOutputTarget {
+class XMEDIA_MEDIA_EXPORT EglOutputTarget final : public GlOutputTarget {
  public:
   void SetSurface(void* raw) override { raw_ = raw; }
   bool has_gl_route() const override { return true; }
@@ -33,7 +33,7 @@ class AVBASE_MEDIA_EXPORT EglOutputTarget final : public GlOutputTarget {
 // EGL video output endpoint: an EglOutputTarget behind the shared GlVideoSink
 // loop. Every method that matters lives there; see Sdl2VideoSink's comment for
 // why a backend is a target and not a second sink.
-class AVBASE_MEDIA_EXPORT EglVideoSink final : public GlVideoSink {
+class XMEDIA_MEDIA_EXPORT EglVideoSink final : public GlVideoSink {
  public:
   explicit EglVideoSink(base::scoped_refptr<NativeDisplay> display);
   EglVideoSink(const EglVideoSink&) = delete;
@@ -41,7 +41,7 @@ class AVBASE_MEDIA_EXPORT EglVideoSink final : public GlVideoSink {
   ~EglVideoSink() override = default;
 };
 
-class AVBASE_MEDIA_EXPORT EglVideoSinkFactory final
+class XMEDIA_MEDIA_EXPORT EglVideoSinkFactory final
     : public VideoRendererSinkFactory {
  public:
   std::unique_ptr<VideoRendererSink>
@@ -49,6 +49,6 @@ class AVBASE_MEDIA_EXPORT EglVideoSinkFactory final
   const char* name() const override { return "egl"; }
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_EGL_EGL_VIDEO_SINK_H_
+#endif  // XMEDIA_PLATFORM_EGL_EGL_VIDEO_SINK_H_

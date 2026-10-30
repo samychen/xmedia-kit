@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/memory/ref_counted.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_MEMORY_REF_COUNTED_H_
-#define AVBASE_BASE_MEMORY_REF_COUNTED_H_
+#ifndef XMEDIA_BASE_MEMORY_REF_COUNTED_H_
+#define XMEDIA_BASE_MEMORY_REF_COUNTED_H_
 
 #include <atomic>
 #include <utility>
@@ -13,7 +13,7 @@
 #include "base/check.h"
 #include "base/memory/scoped_refptr.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // Declaring this inside a class forbids accidental construction on the stack
 // or via `new T` without adoption by a scoped_refptr. Mirrors Chromium's
@@ -26,8 +26,8 @@ namespace avbase::base {
 // NOLINT on the definition does not suppress it and all 11 users would have
 // to carry one. alignof requires completeness just as sizeof does.
 #define REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE()                            \
-  static_assert(alignof(::avbase::base::subtle::AdoptionHelper) > 0, ""); \
-  friend class ::avbase::base::subtle::AdoptionHelper
+  static_assert(alignof(::xmedia::base::subtle::AdoptionHelper) > 0, ""); \
+  friend class ::xmedia::base::subtle::AdoptionHelper
 
 namespace subtle {
 
@@ -107,7 +107,7 @@ class RefCounted : public subtle::RefCountedBase {
 };
 
 // Thread-safe ref counting. Use for objects that cross sequences, which in
-// avbase means every media::DecoderBuffer and media::VideoFrame.
+// xmedia-kit means every media::DecoderBuffer and media::VideoFrame.
 //
 // RULE: the destructor here is deliberately NON-virtual, matching Chromium.
 // Release() does `delete static_cast<const T*>(this)`, where T is the complete
@@ -135,6 +135,6 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
   ~RefCountedThreadSafe() = default;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_MEMORY_REF_COUNTED_H_
+#endif  // XMEDIA_BASE_MEMORY_REF_COUNTED_H_

@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "gl_test_context.h"
 
-namespace avbase::test {
+namespace xmedia::test {
 namespace {
 
 // glfwInit() is process-global and not reference-counted; doing it once and
@@ -45,7 +45,7 @@ std::unique_ptr<GlTestWindow> GlTestWindow::Create(int width, int height,
   // refresh the test is not trying to observe.
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   GLFWwindow* window =
-      glfwCreateWindow(width, height, "avbase gl test", nullptr, nullptr);
+      glfwCreateWindow(width, height, "xmedia-kit gl test", nullptr, nullptr);
   if (!window) {
     if (error) {
       *error = "glfwCreateWindow failed (no GL 3.3 core context on this host)";
@@ -73,4 +73,4 @@ std::unique_ptr<GlTestWindow> GlTestWindow::Create(int width, int height,
   return self;
 }
 
-}  // namespace avbase::test
+}  // namespace xmedia::test

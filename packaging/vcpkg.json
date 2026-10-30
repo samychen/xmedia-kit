@@ -1,8 +1,8 @@
 {
-  "name": "avbase",
+  "name": "xmedia-kit",
   "version": "0.1.0",
-  "description": "Chromium-style layered media player core (find_package(avbase) consumable CMake package)",
-  "homepage": "https://github.com/samychen/avbase",
+  "description": "Chromium-style layered media player core (find_package(xmedia-kit) consumable CMake package)",
+  "homepage": "https://github.com/samychen/xmedia-kit",
   "license": "BSD-3-Clause",
   "dependencies": [
     {

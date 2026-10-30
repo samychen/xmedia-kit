@@ -1,20 +1,20 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_ENCODED_PACKET_H_
-#define AVBASE_MEDIA_BASE_ENCODED_PACKET_H_
+#ifndef XMEDIA_MEDIA_BASE_ENCODED_PACKET_H_
+#define XMEDIA_MEDIA_BASE_ENCODED_PACKET_H_
 
 #include <cstdint>
 #include <vector>
 
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The encoder output: one compressed packet plus the metadata the muxer needs
 // to write it correctly. ffmpeg.c threads AVPacket end-to-end through encode →
-// mux; avbase splits the encoder and muxer into separate objects, so this
+// mux; xmedia-kit splits the encoder and muxer into separate objects, so this
 // struct carries the AVPacket fields that cross that boundary.
 //
 // Fields mirror AVPacket:
@@ -42,7 +42,7 @@ namespace avbase::media {
 // and "who touches libav*" the same line, which is exactly the confusion
 // docs/02 §4.1 exists to prevent.
 constexpr int64_t kNoPtsValue = INT64_MIN;
-struct AVBASE_MEDIA_EXPORT EncodedPacket {
+struct XMEDIA_MEDIA_EXPORT EncodedPacket {
   std::vector<uint8_t> data;
   int64_t pts = kNoPtsValue;
   int64_t dts = kNoPtsValue;
@@ -74,6 +74,6 @@ struct AVBASE_MEDIA_EXPORT EncodedPacket {
   }
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_ENCODED_PACKET_H_
+#endif  // XMEDIA_MEDIA_BASE_ENCODED_PACKET_H_

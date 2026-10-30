@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_
-#define AVBASE_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_
+#define XMEDIA_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_
 
 #include <memory>
 #include <optional>
@@ -14,14 +14,14 @@
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One video filter-graph stage. Pure interface (G2): the FFmpeg
 // implementation is injected by the host, same pattern as
 // AudioFilterStage. Frames in/out share the format the stage was built
 // for; graphs that change geometry must append their own scale/crop tail
 // and are rejected unless the sink is constrained accordingly.
-class AVBASE_MEDIA_EXPORT VideoFilterStage {
+class XMEDIA_MEDIA_EXPORT VideoFilterStage {
  public:
   virtual ~VideoFilterStage() = default;
 
@@ -56,7 +56,7 @@ using VideoFilterStageFactory =
 // deliberately not bridged by calling ToI420() here: that would drag every
 // frame back to system memory and quietly undo the zero-copy path, which is
 // the most expensive way to produce a picture that never needed to move.
-class AVBASE_MEDIA_EXPORT VideoFilterStageRunner {
+class XMEDIA_MEDIA_EXPORT VideoFilterStageRunner {
  public:
   // An empty |graph| means no filtering was requested. A graph with no
   // |factory| (a no-ffmpeg build) is refused HERE rather than at the first
@@ -92,6 +92,6 @@ class AVBASE_MEDIA_EXPORT VideoFilterStageRunner {
   bool hardware_notice_logged_{false};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_VIDEO_FILTER_STAGE_H_

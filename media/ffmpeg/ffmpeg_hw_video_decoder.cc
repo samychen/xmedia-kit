@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,10 +15,10 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/hw_frame_readback.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // Resolves |name| against FFmpeg's own device-type list by iteration, so no
 // version-specific enum switch lands here. Returns AV_HWDEVICE_TYPE_NONE when
@@ -382,4 +382,4 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
   }
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

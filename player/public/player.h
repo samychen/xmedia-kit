@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_PLAYER_H_
-#define AVBASE_PLAYER_PUBLIC_PLAYER_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_H_
+#define XMEDIA_PLAYER_PUBLIC_PLAYER_H_
 
 #include <map>
 #include <memory>
@@ -27,17 +27,17 @@
 #include "player/public/player_export.h"
 #include "player/public/scene.h"
 
-namespace avbase {
+namespace xmedia {
 namespace media {
 class DataSource;
 }  // namespace media
 
-class AVBASE_PLAYER_EXPORT Player;
+class XMEDIA_PLAYER_EXPORT Player;
 class Scene;
 class SceneSource;
 
 // Re-exported from media/base so that SDK callers can spell it
-// avbase::DataSourceDescriptor without reaching into the media layer. The type
+// xmedia::DataSourceDescriptor without reaching into the media layer. The type
 // lives there because media::Demuxer takes it and media/ must not depend on
 // player/ (docs/02 §2.1).
 using media::DataSourceDescriptor;
@@ -61,18 +61,18 @@ using media::DataSourceDescriptor;
 //
 // Minimal use:
 //
-//   avbase::Player player;
-//   player.SetEventHandler([&player](const avbase::PlayerEvent& e) {
-//     if (e.type == avbase::EventType::kPrepared) player.Start();
+//   xmedia::Player player;
+//   player.SetEventHandler([&player](const xmedia::PlayerEvent& e) {
+//     if (e.type == xmedia::EventType::kPrepared) player.Start();
 //   });
-//   AVBASE_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
-//   AVBASE_RETURN_IF_ERROR(player.PrepareAsync());
+//   XMEDIA_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
+//   XMEDIA_RETURN_IF_ERROR(player.PrepareAsync());
 //
 // The event handler runs on the event dispatch sequence, never on a pipeline
 // sequence, and it is safe to call any Player method from inside it — including
 // Stop() and Reset(). That fixes a real deadlock in ijkplayer, whose
 // message_loop dispatches while holding the player mutex.
-class AVBASE_PLAYER_EXPORT Player {
+class XMEDIA_PLAYER_EXPORT Player {
  public:
   // Uses auto-detected platform backends. Inject custom ones via the
   // Deps overload or PlayerBuilder.
@@ -377,7 +377,7 @@ class AVBASE_PLAYER_EXPORT Player {
   void SetEventHandler(EventHandler handler);
 
   // RAII subscription handle: unsubscribes on destruction.
-  class AVBASE_PLAYER_EXPORT Subscription {
+  class XMEDIA_PLAYER_EXPORT Subscription {
    public:
     Subscription();
     Subscription(Subscription&&) noexcept;
@@ -422,7 +422,7 @@ class AVBASE_PLAYER_EXPORT Player {
 
 // Builder form, for injecting custom backends and for migrating string options.
 // Not thread-safe: configure, Build(), then hand the Player to its owner.
-class AVBASE_PLAYER_EXPORT PlayerBuilder {
+class XMEDIA_PLAYER_EXPORT PlayerBuilder {
  public:
   PlayerBuilder();
   PlayerBuilder(const PlayerBuilder&) = delete;
@@ -459,6 +459,6 @@ class AVBASE_PLAYER_EXPORT PlayerBuilder {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_PLAYER_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_PLAYER_H_

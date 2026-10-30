@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_STATE_MACHINE_H_
-#define AVBASE_PLAYER_STATE_MACHINE_H_
+#ifndef XMEDIA_PLAYER_STATE_MACHINE_H_
+#define XMEDIA_PLAYER_STATE_MACHINE_H_
 
 #include "player/public/player_event.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 // The SDK's playback states and the only transitions between them.
 //
@@ -27,7 +27,7 @@ namespace avbase {
 //   any of {kPrepared, kStarted, kPaused, kCompleted} --Stop--> kStopping
 //     --stopped--> kStopped --Reset--> kIdle
 //   any --error--> kError --Reset--> kIdle
-class AVBASE_PLAYER_EXPORT PlayerStateMachine {
+class XMEDIA_PLAYER_EXPORT PlayerStateMachine {
  public:
   PlayerStateMachine() = default;
   PlayerStateMachine(const PlayerStateMachine&) = delete;
@@ -46,6 +46,6 @@ class AVBASE_PLAYER_EXPORT PlayerStateMachine {
   PlayerState state_{PlayerState::kIdle};
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_STATE_MACHINE_H_
+#endif  // XMEDIA_PLAYER_STATE_MACHINE_H_

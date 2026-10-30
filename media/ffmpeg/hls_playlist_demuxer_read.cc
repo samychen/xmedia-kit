@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // ---- the read path
 // ------------------------------------------------------------
@@ -350,4 +350,4 @@ void HlsPlaylistDemuxer::Stop() {
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

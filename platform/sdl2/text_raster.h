@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_SDL2_TEXT_RASTER_H_
-#define AVBASE_PLATFORM_SDL2_TEXT_RASTER_H_
+#ifndef XMEDIA_PLATFORM_SDL2_TEXT_RASTER_H_
+#define XMEDIA_PLATFORM_SDL2_TEXT_RASTER_H_
 
 #include <stdint.h>
 
 #include <string>
 #include <vector>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // CPU-side RGBA8 bitmap, tightly packed, row-major, 4 bytes per pixel
 // (premultiplied-alpha not required: alpha is straight, matching the GL
@@ -42,7 +42,7 @@ struct TextRasterStyle {
 // header documents ("不做完整 bidi 重排 / 自动 wrap"), minus the
 // shaping it does add. Bring HarfBuzz in when a subtitle track needs it.
 //
-// AVBASE_HAVE_FREETYPE (set by the build when FreeType was found) gates the
+// XMEDIA_HAVE_FREETYPE (set by the build when FreeType was found) gates the
 // implementation; without it Rasterize() always returns false and the overlay
 // slot still works with host-supplied bitmaps.
 class TextRaster {
@@ -66,6 +66,6 @@ class TextRaster {
                  RgbaBitmap* out);
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_SDL2_TEXT_RASTER_H_
+#endif  // XMEDIA_PLATFORM_SDL2_TEXT_RASTER_H_

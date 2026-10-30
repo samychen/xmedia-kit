@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_CURL_CURL_DATA_SOURCE_H_
-#define AVBASE_MEDIA_CURL_CURL_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_CURL_CURL_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_CURL_CURL_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -19,10 +19,10 @@
 #include "media/curl/media_curl_export.h"
 #include "media/filters/async_data_source_base.h"
 
-namespace avbase::media::curl {
+namespace xmedia::media::curl {
 
 // A libcurl-backed DataSource for http(s) URIs -- the port of CicadaPlayer's
-// curl_data_source to avbase's DataSource contract. It exists because the
+// curl_data_source to xmedia-kit's DataSource contract. It exists because the
 // avio-backed UrlDataSource cannot express the network controls a CDN-backed
 // playback session needs: pinned DNS answers, forced IPv4/IPv6, per-request
 // headers, a proxy, and a low-speed watchdog that kills a stalled transfer
@@ -44,7 +44,7 @@ namespace avbase::media::curl {
 // callback polls, so a stalled read returns kAborted promptly (Delta 15).
 // The async Read() runs on the shared AsyncDataSourceBase worker and posts
 // its result to |task_runner|, never inline.
-class AVBASE_CURL_EXPORT CurlDataSource final : public DataSource {
+class XMEDIA_CURL_EXPORT CurlDataSource final : public DataSource {
  public:
   enum class IpResolve {
     kUnspec,  // let the resolver decide (default)
@@ -140,6 +140,6 @@ class AVBASE_CURL_EXPORT CurlDataSource final : public DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media::curl
+}  // namespace xmedia::media::curl
 
-#endif  // AVBASE_MEDIA_CURL_CURL_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_CURL_CURL_DATA_SOURCE_H_

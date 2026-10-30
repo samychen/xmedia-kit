@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // The two media-layer entries from the docs/04 §8 `BM_*` list whose budgets are
 // the tightest, and the only two that can be timed without a decoder: both
-// depend on media/base and media/filters alone, so AVBASE_ENABLE_FFMPEG=OFF
+// depend on media/base and media/filters alone, so XMEDIA_ENABLE_FFMPEG=OFF
 // still configures, builds and runs this target.
 //
 //   BM_GetMasterClock    budget < 200 ns  (seqlock read, 2-4 calls per frame)
@@ -23,11 +23,11 @@
 
 namespace {
 
-using avbase::base::SimpleTestTickClock;
-using avbase::base::TimeDelta;
-using avbase::base::TimeTicks;
-using avbase::media::AvSyncController;
-using avbase::media::VideoFrameCompositor;
+using xmedia::base::SimpleTestTickClock;
+using xmedia::base::TimeDelta;
+using xmedia::base::TimeTicks;
+using xmedia::media::AvSyncController;
+using xmedia::media::VideoFrameCompositor;
 
 // Same fixture the unit tests use (tests/unit/media_filters/
 // video_frame_compositor_unittest.cc): a 30 fps stream whose next frame is due
@@ -39,9 +39,9 @@ using avbase::media::VideoFrameCompositor;
 // only. The kHold and kDrop branches take different code paths inside the same
 // function and are NOT timed here; a regression confined to
 // ShouldDropForLateness() would not show up in this number.
-constexpr TimeDelta kFps30 = avbase::base::Microseconds(33333);
+constexpr TimeDelta kFps30 = xmedia::base::Microseconds(33333);
 constexpr TimeTicks kNow = TimeTicks::FromMicroseconds(1000000);
-constexpr TimeDelta kTenSeconds = avbase::base::Seconds(10);
+constexpr TimeDelta kTenSeconds = xmedia::base::Seconds(10);
 
 VideoFrameCompositor::FrameSyncInput MakePresentInput() {
   VideoFrameCompositor::FrameSyncInput in;
@@ -65,7 +65,7 @@ VideoFrameCompositor::FrameSyncInput MakePresentInput() {
   return in;
 }
 
-AVBASE_BENCH(BM_DecideNextFrame) {
+XMEDIA_BENCH(BM_DecideNextFrame) {
   const VideoFrameCompositor::FrameSyncInput in = MakePresentInput();
   const VideoFrameCompositor::Thresholds th{};
   uint64_t sink = 0;
@@ -74,10 +74,10 @@ AVBASE_BENCH(BM_DecideNextFrame) {
         VideoFrameCompositor::DecideNextFrame(in, th);
     sink += static_cast<uint64_t>(out.decision);
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
 }
 
-AVBASE_BENCH(BM_GetMasterClock) {
+XMEDIA_BENCH(BM_GetMasterClock) {
   // A frozen wall clock on purpose: GetMasterClock() extrapolates media time
   // from the instant the clock was anchored, and letting real time advance
   // would add a varying operand to a 200 ns measurement. The seqlock read path
@@ -86,13 +86,13 @@ AVBASE_BENCH(BM_GetMasterClock) {
   AvSyncController controller(AvSyncController::MasterType::kAudio, &clock,
                               AvSyncController::Thresholds{});
   controller.SetStreamAvailability(/*has_audio=*/true, /*has_video=*/true);
-  controller.OnAudioFramesConsumed(1024, avbase::base::Seconds(5), 1);
+  controller.OnAudioFramesConsumed(1024, xmedia::base::Seconds(5), 1);
 
   int64_t sink = 0;
   for (uint64_t i = 0; i < iters; ++i) {
     sink += controller.GetMasterClock().InMicroseconds();
   }
-  avbase::bench::Sink(static_cast<uint64_t>(sink));
+  xmedia::bench::Sink(static_cast<uint64_t>(sink));
 }
 
 }  // namespace

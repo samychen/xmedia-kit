@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 base::scoped_refptr<DataSource>
@@ -26,7 +26,7 @@ SliceBufferSource::SliceBufferSource(base::scoped_refptr<DataSource> inner,
                                      Config config)
     : inner_(CheckedInner(std::move(inner))),
       config_(config),
-      async_("avbase-slice-src",
+      async_("xmedia-slice-src",
              base::BindRepeating(&SliceBufferSource::ReadBlocking,
                                  base::Unretained(this))) {}
 
@@ -197,4 +197,4 @@ SliceBufferSource::ReadBlocking(int64_t offset, size_t size, uint8_t* data) {
   return static_cast<int>(copied);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

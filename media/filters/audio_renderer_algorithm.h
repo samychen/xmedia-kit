@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,10 +8,10 @@
 // `media/filters/audio_renderer_algorithm.{h,cc}` (BSD-3-Clause, Copyright
 // 2012 The Chromium Authors), fetched from chromium.googlesource.com at
 // refs/heads/main on 2026-09-29. Every constant below names the Chromium
-// identifier it came from. The code is avbase's own: Chromium's version
+// identifier it came from. The code is xmedia-kit's own: Chromium's version
 // leans on AudioBufferQueue, AudioBus::CopyPartialFramesTo, base::HeapArray,
 // MultiChannelResampler and cc::ScopedSubnormalFloatDisabler, none of which
-// exist in avbase, so the queue and the window arithmetic are written directly
+// exist in xmedia-kit, so the queue and the window arithmetic are written directly
 // against AudioBuffer::ReadFrames() and AudioBus::channel().
 //
 // ★ONE PROVENANCE GAP, stated rather than papered over: the similarity metric
@@ -40,7 +40,7 @@
 // target on
 // purpose: a file that cannot compile must not be reachable from a build (the
 // convention docs/PROGRESS.md records from the fifth round). Gaps to close
-// before it joins `avbase_media`: 1. Compile it. `-std=c++20 -fno-exceptions
+// before it joins `xmedia_media`: 1. Compile it. `-std=c++20 -fno-exceptions
 // -fno-rtti -Werror`, plus the Google warning set; the DSP loops are the kind
 // of code where a signed/ unsigned comparison or a narrowing conversion shows
 // up immediately.
@@ -48,14 +48,14 @@
 // 3. Run docs/07 §3.9's checklist, in particular the FFT pitch assertion --
 // that is Δ17's acceptance test and the only thing that proves replacing
 // SoundTouch did not change how 2x playback sounds. 4.
-// FillBufferMode::kResampler is NOT implemented (avbase has no
+// FillBufferMode::kResampler is NOT implemented (xmedia-kit has no
 // MultiChannelResampler yet), so SetPreservesPitch(false) currently logs once
 // and keeps using WSOLA. That is a wrong-pitch-but-not-wrong-duration failure,
 // and it must be either implemented or rejected loudly before M13. 5. No
 // SetChannelMask() (Chromium uses it to shrink the search space). Purely an
 // optimisation, but WSOLA is the expensive path in the audio thread and the p99
 // < 100us budget in AudioRendererSinkContract is measured with it. 6.
-// PeekFrames() copies through a scratch AudioBus because avbase's AudioBus has
+// PeekFrames() copies through a scratch AudioBus because xmedia-kit's AudioBus has
 // no CopyPartialFramesTo(src_offset, n, dest_offset, dest). Adding that one
 // method to AudioBus would remove a copy per peek. 7. This file is one of
 // three; the split mirrors Chromium's own, which keeps each half under the
@@ -63,13 +63,13 @@
 // gap: wsola_internals.{h,cc}      DSP primitives, incl. Similarity()
 // audio_frame_queue.{h,cc}    Chromium's AudioBufferQueue equivalent
 // audio_renderer_algorithm.*  buffering, index bookkeeping, FillBuffer() 8.
-// avbase's AudioParameters has no bitstream flag, so is_bitstream_format_ is
+// xmedia-kit's AudioParameters has no bitstream flag, so is_bitstream_format_ is
 // hardcoded false and AC3/EAC3 passthrough would be mangled by WSOLA. Adding
 // the flag touches a frozen M3 header, so it needs the same review as the other
 // cross-file items in docs/PROGRESS.md.
 
-#ifndef AVBASE_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
-#define AVBASE_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#ifndef XMEDIA_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#define XMEDIA_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 
 #include <stdint.h>
 
@@ -85,7 +85,7 @@
 #include "media/filters/audio_frame_queue.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Buffers decoded audio and time-stretches it to match the playback rate.
 //
@@ -102,7 +102,7 @@ namespace avbase::media {
 // own a lock or a lock-free handoff. That decision belongs to
 // AudioRendererImpl, not here; SEQUENCE_CHECKER cannot express it, so it is a
 // documented contract.
-class AVBASE_MEDIA_EXPORT AudioRendererAlgorithm {
+class XMEDIA_MEDIA_EXPORT AudioRendererAlgorithm {
  public:
   // Which path FillBuffer() took, exposed because the three modes have very
   // different cost and quality, and "why does 1.0x sound different from 1.01x"
@@ -278,6 +278,6 @@ class AVBASE_MEDIA_EXPORT AudioRendererAlgorithm {
   std::unique_ptr<AudioBus> scratch_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
+#endif  // XMEDIA_MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_

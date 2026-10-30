@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,11 +22,11 @@
 #include "media/base/audio_bus.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 std::string TestFile(const char* name) {
-  return std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+  return std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
 }
 
 class SilentHost final : public Demuxer::Host {
@@ -419,4 +419,4 @@ TEST_F(FFmpegAudioDecoderTest,
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

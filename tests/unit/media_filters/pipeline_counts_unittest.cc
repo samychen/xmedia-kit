@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -74,7 +74,7 @@
 #include "tests/support/fake_sink_factories.h"
 #include "tests/support/pipeline_fixture.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // 10 s of media at 30 fps and 48 kHz -- the numbers docs/07 section 5 uses.
@@ -267,4 +267,4 @@ TEST_F(PipelineCountsTest, DoubleSpeedPresentsTheSameFramesInHalfTheTime) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

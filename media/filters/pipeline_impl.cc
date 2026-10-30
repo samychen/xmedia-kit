@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,7 +22,7 @@
 #include "media/base/native_display.h"
 #include "media/filters/live_edge_policy.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 PipelineImpl::PipelineImpl() = default;
 
@@ -231,7 +231,7 @@ void PipelineImpl::OnRendererFlushed() {
 void PipelineImpl::OnSeekDemuxerDone(Status status, base::TimeDelta actual) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!status) {
-    LOG(WARNING) << "avbase.pipeline: seek reported "
+    LOG(WARNING) << "xmedia.pipeline: seek reported "
                  << status.error().summary() << " at " << actual.InSecondsF()
                  << "s";
   } else {
@@ -357,4 +357,4 @@ bool PipelineImpl::IsRunning() const {
   return s == State::kStarting || s == State::kReady || s == State::kStopping;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

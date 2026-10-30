@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 // ff_ffplay.c. Here it is one pure function over a capability list, so the
 // ordering rule is testable without a device.
 
-#ifndef AVBASE_MEDIA_FILTERS_DECODER_SELECTOR_H_
-#define AVBASE_MEDIA_FILTERS_DECODER_SELECTOR_H_
+#ifndef XMEDIA_MEDIA_FILTERS_DECODER_SELECTOR_H_
+#define XMEDIA_MEDIA_FILTERS_DECODER_SELECTOR_H_
 
 #include <stdint.h>
 
@@ -23,7 +23,7 @@
 #include "media/base/video_decoder_factory.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Which decoder kind to prefer. Defined here rather than in player/public so
 // that media/ never depends on player/ (invariant C22); PlayerConfig's field of
@@ -57,7 +57,7 @@ using HwCodecMask = uint32_t;
 //
 // Deterministic and side-effect free so the ordering can be exhaustively unit
 // tested; see decoder_selector_unittest.cc.
-class AVBASE_MEDIA_EXPORT DecoderSelector {
+class XMEDIA_MEDIA_EXPORT DecoderSelector {
  public:
   // Deleted here rather than under `private:`: a deleted function is part of
   // the class's interface -- it is what tells a caller this type is a namespace
@@ -81,6 +81,6 @@ class AVBASE_MEDIA_EXPORT DecoderSelector {
   static bool CodecAllowedByMask(VideoCodec codec, HwCodecMask mask);
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_DECODER_SELECTOR_H_
+#endif  // XMEDIA_MEDIA_FILTERS_DECODER_SELECTOR_H_

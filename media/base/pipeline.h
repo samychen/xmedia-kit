@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/pipeline.h` (BSD-3-Clause). Removed: the
 // MediaResource-based Start() overload set that Chromium accumulated for MSE,
 // the CDM/key-system plumbing, text-track client routing into blink, and
-// SetLatencyHint's optional wrapper (avbase always has a value or zero).
+// SetLatencyHint's optional wrapper (xmedia-kit always has a value or zero).
 //
 // STATUS: IN THE BUILD (promoted from DRAFT, tenth round)
 // PROMOTED into the build in the tenth round, after a full compile and test
@@ -52,8 +52,8 @@
 //   Pipeline::~Pipeline()        media/base/demuxer.cc
 // Pipeline::Client owes nothing (all pure virtual, dtor inline-defaulted).
 
-#ifndef AVBASE_MEDIA_BASE_PIPELINE_H_
-#define AVBASE_MEDIA_BASE_PIPELINE_H_
+#ifndef XMEDIA_MEDIA_BASE_PIPELINE_H_
+#define XMEDIA_MEDIA_BASE_PIPELINE_H_
 
 #include <memory>
 
@@ -73,7 +73,7 @@
 #include "media/base/waiting.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class NativeDisplay;
 
@@ -92,7 +92,7 @@ class NativeDisplay;
 // stop has been *requested*, and Player::StopSync(timeout) is what waits, with
 // config.shutdown_timeout bounding the wait and detach-plus-LOG(ERROR) as the
 // escape hatch (Δ15: leak a thread rather than hang the caller).
-class AVBASE_MEDIA_EXPORT Pipeline {
+class XMEDIA_MEDIA_EXPORT Pipeline {
  public:
   // Upward channel to the owner. Same threading rules as RendererClient; the
   // two are separate interfaces because the pipeline reports pipeline-level
@@ -235,10 +235,10 @@ class AVBASE_MEDIA_EXPORT Pipeline {
   virtual int GetVideoStreamId() const = 0;
   virtual int GetTextStreamId() const = 0;
 
-  // Add/Remove{Video,Audio,Text}Stream describe a shape avbase does not have.
+  // Add/Remove{Video,Audio,Text}Stream describe a shape xmedia-kit does not have.
   //
   // They came from Chromium's MediaResource, where one resource can carry
-  // several streams of the same type and `id` selects among them. avbase's
+  // several streams of the same type and `id` selects among them. xmedia-kit's
   // Demuxer answers `GetStream(DemuxerStreamType)` -- ONE stream per type, no
   // index -- so there is no "second video stream" for an id to name. A second
   // picture is a second URL, which is a second Demuxer, not a second id.
@@ -276,6 +276,6 @@ MakeSingleSource(std::unique_ptr<Demuxer> demuxer) {
   return sources;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_PIPELINE_H_
+#endif  // XMEDIA_MEDIA_BASE_PIPELINE_H_

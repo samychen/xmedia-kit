@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,7 @@
 // sanitizer presets. Deterministic: fixed PRNG seed, fixed iteration count,
 // so a crash is reproducible from the command line alone.
 //
-// usage: avbase_fuzz_demuxer_standalone [--iters n] [--file f]...
+// usage: xmedia_fuzz_demuxer_standalone [--iters n] [--file f]...
 
 #include <cstdint>
 #include <cstdio>
@@ -106,11 +106,11 @@ int main(int argc, char** argv) {
   if (files.empty()) {
     // Default corpus: the in-repo seeds.
     files = {
-        AVBASE_SEEDS_DIR "/small_h264_aac_3s.mp4",
-        AVBASE_SEEDS_DIR "/audio_only.m4a",
-        AVBASE_SEEDS_DIR "/video_only.mp4",
-        AVBASE_SEEDS_DIR "/truncated_header.mp4",
-        AVBASE_SEEDS_DIR "/corrupt_prefix.mp4",
+        XMEDIA_SEEDS_DIR "/small_h264_aac_3s.mp4",
+        XMEDIA_SEEDS_DIR "/audio_only.m4a",
+        XMEDIA_SEEDS_DIR "/video_only.mp4",
+        XMEDIA_SEEDS_DIR "/truncated_header.mp4",
+        XMEDIA_SEEDS_DIR "/corrupt_prefix.mp4",
     };
   }
 

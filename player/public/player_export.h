@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_PLAYER_EXPORT_H_
-#define AVBASE_PLAYER_PUBLIC_PLAYER_EXPORT_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_EXPORT_H_
+#define XMEDIA_PLAYER_PUBLIC_PLAYER_EXPORT_H_
 
-#if defined(AVBASE_PLAYER_IMPLEMENTATION)
-#define AVBASE_PLAYER_EXPORT __attribute__((visibility("default")))
+#if defined(XMEDIA_PLAYER_IMPLEMENTATION)
+#define XMEDIA_PLAYER_EXPORT __attribute__((visibility("default")))
 #else
-#define AVBASE_PLAYER_EXPORT
+#define XMEDIA_PLAYER_EXPORT
 #endif
 
-#endif  // AVBASE_PLAYER_PUBLIC_PLAYER_EXPORT_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_PLAYER_EXPORT_H_

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# tools/gate_local.sh — Local reproduction of avbase's CI gate sequence.
+# tools/gate_local.sh — Local reproduction of xmedia-kit's CI gate sequence.
 #
 # WHY THIS EXISTS
 #   This sandbox cannot see GitHub Actions (the proxy drops api.github.com and
@@ -115,7 +115,7 @@ job_lint() {
 
 job_apidocs() {
   # Mirrors the CI apidocs job. doxygen is not on every machine (this one
-  # keeps it at /tmp/avbase_tools), so DOXYGEN= overrides the lookup; with
+  # keeps it at /tmp/xmedia_tools), so DOXYGEN= overrides the lookup; with
   # neither present the job is skipped, per this script's contract.
   if [ -z "${DOXYGEN:-}" ] && ! command -v doxygen >/dev/null 2>&1; then
     echo "doxygen not found; set DOXYGEN=/path/to/doxygen to run this job"
@@ -148,7 +148,7 @@ job_apicompat() {
 
 job_bench() {
   # M13 (docs/04 §8, docs/07 §10): self-contained micro-benchmarks. Links
-  # avbase::base and avbase::media -- media/ffmpeg is a separate target, so
+  # xmedia::base and xmedia::media -- media/ffmpeg is a separate target, so
   # FFmpeg is still not required. The gate is a *trend guard*: it reports
   # regressions against the committed baseline. We hard-fail here (the local
   # machine is quiet enough to be actionable); CI runs the same command
@@ -161,14 +161,14 @@ job_bench() {
   # and for it the floor IS the measurement, so a mismatch here would compare
   # a 20k-op round against a 50k-op one.
   if [ -z "$CMAKE" ]; then echo "cmake not found"; return 2; fi
-  "$CMAKE" -S . -B build/bench -DAVBASE_BUILD_BENCH=ON -DAVBASE_BUILD_TESTS=OFF \
-    -DAVBASE_ENABLE_FFMPEG=OFF >/dev/null 2>&1 \
+  "$CMAKE" -S . -B build/bench -DXMEDIA_BUILD_BENCH=ON -DXMEDIA_BUILD_TESTS=OFF \
+    -DXMEDIA_ENABLE_FFMPEG=OFF >/dev/null 2>&1 \
     || { echo "bench configure failed"; return 1; }
-  "$CMAKE" --build build/bench --target avbase_benchmarks -j \
+  "$CMAKE" --build build/bench --target xmedia_benchmarks -j \
     >/dev/null 2>&1 || { echo "bench build failed"; return 1; }
   local bench_bin
-  bench_bin="$(find build/bench -name avbase_benchmarks -type f | head -1)"
-  if [ -z "$bench_bin" ]; then echo "avbase_benchmarks not found"; return 1; fi
+  bench_bin="$(find build/bench -name xmedia_benchmarks -type f | head -1)"
+  if [ -z "$bench_bin" ]; then echo "xmedia_benchmarks not found"; return 1; fi
   local out; out="$(mktemp)"
   # Three runs, appended to one file: the checker takes the median per
   # benchmark. Run-to-run spread is the dominant noise term, not round-to-round
@@ -256,7 +256,7 @@ job_qt() {
   #
   # CMake finds Qt with no hint where the distro owns it (Ubuntu's qt6-base-dev
   # puts Qt6Config.cmake in /usr/lib/<arch>/cmake/Qt6). Homebrew's Qt is NOT on
-  # the default search path, so set AVBASE_QT_PREFIX to its prefix on macOS.
+  # the default search path, so set XMEDIA_QT_PREFIX to its prefix on macOS.
   # With Qt absent entirely this fails at find_package rather than skipping --
   # loudly, which is the point: a gate that goes green because it did not run is
   # the failure mode this whole script exists to avoid.
@@ -264,17 +264,17 @@ job_qt() {
   # Not an array: bash 3.2 (macOS) treats "${arr[@]}" on an empty array as an
   # unbound variable under `set -u`, and the branch below is exactly the case
   # where the array would be empty.
-  if [ -n "${AVBASE_QT_PREFIX:-}" ]; then
-    "$CMAKE" --preset qt -DCMAKE_PREFIX_PATH="$AVBASE_QT_PREFIX" || return 1
+  if [ -n "${XMEDIA_QT_PREFIX:-}" ]; then
+    "$CMAKE" --preset qt -DCMAKE_PREFIX_PATH="$XMEDIA_QT_PREFIX" || return 1
   else
     "$CMAKE" --preset qt || return 1
   fi
   "$CMAKE" --build build/qt || return 1
   python3 tools/check_binary_freshness.py --root build/qt || return 1
   python3 tools/check_invariants.py --root . || return 1
-  # Both artifacts, not just "the build succeeded": avbase_player_qt is the app,
+  # Both artifacts, not just "the build succeeded": xmedia_player_qt is the app,
   # qt_unittests is the only executable check on the timeline model.
-  test -x build/qt/bin/avbase_player_qt || { echo "avbase_player_qt not built"; return 1; }
+  test -x build/qt/bin/xmedia_player_qt || { echo "xmedia_player_qt not built"; return 1; }
   test -x build/qt/bin/qt_unittests || { echo "qt_unittests not built"; return 1; }
   # A target that stopped being registered would leave ctest green at the old,
   # smaller count, so assert the cases are actually in the set.
@@ -328,9 +328,9 @@ job_e2e() {
   # verification line the CLI prints after re-opening its own output, and the
   # negative case requires BOTH a non-zero exit and the list of encoders this
   # build actually has.
-  local inspect=build/ffmpeg/bin/avbase-inspect
-  "$CMAKE" --build build/ffmpeg --target avbase-inspect >/dev/null 2>&1 \
-    || { echo "FAIL avbase-inspect build failed"; fail=1; }
+  local inspect=build/ffmpeg/bin/xmedia-inspect
+  "$CMAKE" --build build/ffmpeg --target xmedia-inspect >/dev/null 2>&1 \
+    || { echo "FAIL xmedia-inspect build failed"; fail=1; }
   if [ -x "$inspect" ]; then
     local tc; tc="$(mktemp -d)"
     if "$inspect" transcode tests/testdata/small_h264_aac_3s.mp4 \
@@ -516,11 +516,11 @@ if [ "${1:-}" = "--list" ]; then
   echo "  apidocs apidocs (doxygen zero warnings; needs DOXYGEN= if not on PATH)"
   echo "  commentcov comment_comment_coverage (V9 player/public four-question coverage; python3, no deps)"
   echo "  apicompat apicompat (V10 API-surface diff vs tools/api_baseline.json; python3, no deps)"
-  echo "  bench    bench (M13 self-contained micro-benchmarks; avbase::base + avbase::player, no FFmpeg, no Google Benchmark)"
+  echo "  bench    bench (M13 self-contained micro-benchmarks; xmedia::base + xmedia::player, no FFmpeg, no Google Benchmark)"
   echo "  e2ecpu   e2e-cpu (M13 end-to-end CPU per media second; needs headless + ffmpeg CLI, ~1 min)"
   echo "  macos   macos-player (macos-sdl2)"
   echo "  capi    capi + C99 syntax check"
-  echo "  qt      qt (Qt host: avbase_player_qt + qt_unittests; needs Qt 6.4+, AVBASE_QT_PREFIX on Homebrew)"
+  echo "  qt      qt (Qt host: xmedia_player_qt + qt_unittests; needs Qt 6.4+, XMEDIA_QT_PREFIX on Homebrew)"
   echo "  core    full[core no-ffmpeg]"
   echo "  ffmpeg  ffmpeg"
   echo "  e2e     e2e-headless"

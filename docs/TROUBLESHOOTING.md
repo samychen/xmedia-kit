@@ -2,11 +2,11 @@
 
 > 每条症状的修复手段都来自本仓真实踩过的坑（轮次记录见 git log）或真实
 > 代码路径（2026-10-18，M13 第八波整理）。排查三件套：
-> `player.DumpDiagnostics()`（运行中快照）、`avbase-inspect probe <url>`
+> `player.DumpDiagnostics()`（运行中快照）、`xmedia-inspect probe <url>`
 > （离线容器诊断）、`kError` 事件的三段式错误
 > （summary / detail / suggestion，[V5](10-SDK易用性设计.md)）。
 >
-> **先看错误本身**：avbase 的每个 `MediaError` 都带 suggestion，别跳过它
+> **先看错误本身**：xmedia-kit 的每个 `MediaError` 都带 suggestion，别跳过它
 > 直接猜。
 
 ---
@@ -19,11 +19,11 @@
 **修复**：
 
 ```cpp
-config.demux.analyze_duration = avbase::base::Milliseconds(100);  // 直播
+config.demux.analyze_duration = xmedia::base::Milliseconds(100);  // 直播
 config.demux.probe_size = 1024 * 1024;                            // 1 MiB 够探
 ```
 
-**诊断**：`avbase-inspect probe <url>` 会打印各阶段耗时；`stats.stages`
+**诊断**：`xmedia-inspect probe <url>` 会打印各阶段耗时；`stats.stages`
 里 `open_input_to_stream_info` 段即探测耗时。
 
 ## T2. 播放中频繁 `kBufferingStarted`（卡顿）
@@ -35,7 +35,7 @@ config.demux.probe_size = 1024 * 1024;                            // 1 MiB 够�
 **修复**：
 
 ```cpp
-config.buffer.last_high_water_mark = avbase::base::Seconds(2);
+config.buffer.last_high_water_mark = xmedia::base::Seconds(2);
 config.buffer.max_bytes = 30 * 1024 * 1024;   // 全播放器预算，按流拆分
 config.net.reconnect_max_retries = 8;
 ```
@@ -50,7 +50,7 @@ config.net.reconnect_max_retries = 8;
 **诊断**：
 
 ```cpp
-const avbase::PlaybackStats st = player.GetPlaybackStats();
+const xmedia::PlaybackStats st = player.GetPlaybackStats();
 // st.audio_glitches.total_glitches     播放器侧下溢计数
 // st.audio_glitches.total_glitch_duration
 // st.audio_glitches.xruns              设备层 xrun（ALSA EPIPE 等）
@@ -65,7 +65,7 @@ const avbase::PlaybackStats st = player.GetPlaybackStats();
 **诊断**：
 
 ```cpp
-const avbase::PlaybackStats st = player.GetPlaybackStats();
+const xmedia::PlaybackStats st = player.GetPlaybackStats();
 st.av_delay;  // 当前音画延迟
 st.av_diff;   // 相对基准的差
 ```
@@ -93,13 +93,13 @@ st.av_diff;   // 相对基准的差
 **原因与修复**：
 
 ```cpp
-config.video.decoder_preference = avbase::DecoderPreference::kHardwareFirst;
+config.video.decoder_preference = xmedia::DecoderPreference::kHardwareFirst;
 // kAuto：硬解优先，静默回落（默认）
 // kHardwareFirst：回落时告警
 // kSoftware：永不硬解
 // kHardwareOnly：失败即报错，不回落
-config.video.hw_codecs = static_cast<avbase::HwCodecMask>(
-    avbase::HwCodecFlag::kHevc);   // 只放行 HEVC 走硬解
+config.video.hw_codecs = static_cast<xmedia::HwCodecMask>(
+    xmedia::HwCodecFlag::kHevc);   // 只放行 HEVC 走硬解
 ```
 
 容器/codec 不在放行掩码、或平台无对应后端时回落；`hw_decoder_name` 可指名
@@ -122,7 +122,7 @@ config.video.hw_codecs = static_cast<avbase::HwCodecMask>(
 **逐项排除**：
 1. **字体**：示例用 `FindDemoFont()` 找三个系统路径，都没有就静默不渲染。
    宿主必须指用户的真实字体。
-2. **轨道没选中**：avbase 不自动选字幕轨（示例里 play_sdl2 自己在
+2. **轨道没选中**：xmedia-kit 不自动选字幕轨（示例里 play_sdl2 自己在
    kPrepared 时选第一条）。用 `SelectTrack(kText, index)`。
 3. **直播字幕过期**：cue 超过 media 时钟的 end 即被丢弃（设计如此），
    1 Hz 的过期检查有至多 1 秒粗粒度。
@@ -160,21 +160,21 @@ ijk 风格的布尔写法（`1`/`0`）同样被接受。
 
 ## T12. 链接报找不到符号 / 多 definition
 
-1. 确认链接的是 `avbase::avbase`（总门面）而不是单模块 target。
-2. dlopen 模式下 `libavbase.so` 只硬链 FFmpeg；SDL2/GL/X11/ALSA 由后端
+1. 确认链接的是 `xmedia::xmedia-kit`（总门面）而不是单模块 target。
+2. dlopen 模式下 `libxmedia.so` 只硬链 FFmpeg；SDL2/GL/X11/ALSA 由后端
    在运行期加载（V3）——**别把 `-lSDL2` 加进最终产品链接**，那是把可选
    后端变刚需。
 3. `player/public/` 头全部可独立 include；若你的构建报缺
-   `AVBASE_*_EXPORT`，说明包含了内部路径（如 `media/base/*.h`）——
-   公开面只有 `player/public/` 与 `avbase_c.h`。
+   `XMEDIA_*_EXPORT`，说明包含了内部路径（如 `media/base/*.h`）——
+   公开面只有 `player/public/` 与 `xmedia_c.h`。
 
 ## T13. 日志太多 / 看不到日志
 
 ```cpp
 // 全局级别
-avbase::base::logging::SetMinLogLevel(avbase::base::logging::SEVERITY_WARNING);
+xmedia::base::logging::SetMinLogLevel(xmedia::base::logging::SEVERITY_WARNING);
 // 或整个接管（Deps::logging_delegate，COOKBOOK 第 20 条）
-auto deps = std::make_unique<avbase::Deps>();
+auto deps = std::make_unique<xmedia::Deps>();
 deps->logging_delegate = std::make_unique<MyLog>();
 ```
 
@@ -198,7 +198,7 @@ media 层的阶段日志（`open-input` / `find-stream-info` 等）也走同一�
 | 内存涨 | `stats.video.cached_bytes` | T9 |
 | 退出竞态 | 换 `StopSync` | T10 |
 | SetOption 报错 | 9 key 白名单 | T11 |
-| 链接符号 | 只链 `avbase::avbase`；dlopen 模式别链 `-lSDL2` | T12 |
+| 链接符号 | 只链 `xmedia::xmedia-kit`；dlopen 模式别链 `-lSDL2` | T12 |
 | 日志 | `SetMinLogLevel` / `logging_delegate` | T13 |
 
 返回：[README](README.md) ｜ 配方见 [COOKBOOK](COOKBOOK.md) ｜ 错误约定见

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -178,7 +178,7 @@ def main(argv=None) -> int:
                    help="benchmark name (default: derived from the clip)")
     p.add_argument("--clip-dir", default=None,
                    help="where generated clips are cached "
-                        "(default: $TMPDIR/avbase-e2e-cpu)")
+                        "(default: $TMPDIR/xmedia-e2e-cpu)")
     p.add_argument("--selftest", action="store_true",
                    help="run built-in checks; needs no player or ffmpeg")
     args = p.parse_args(argv)
@@ -200,7 +200,7 @@ def main(argv=None) -> int:
         label = args.label or clip.stem
     else:
         clip_dir = Path(args.clip_dir) if args.clip_dir else Path(
-            tempfile.gettempdir()) / "avbase-e2e-cpu"
+            tempfile.gettempdir()) / "xmedia-e2e-cpu"
         clip = ensure_clip(shutil.which("ffmpeg"), clip_dir,
                            int(args.media_seconds), DEFAULT_SIZE, DEFAULT_RATE,
                            DEFAULT_BITRATE)

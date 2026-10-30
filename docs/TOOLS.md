@@ -64,7 +64,7 @@ core ffmpeg e2e asan tsan ubsan coverage
 | C25 | 树里每个 `.cc` 都被某个目标编译 |
 | C26 | `media/` 不 include `platform/` |
 | C27 | 核心 media 不 include `media/ffmpeg/` |
-| C28 | `render/` 不 include `media/`/`platform/`/`base/`（`avbase_gl` 零依赖） |
+| C28 | `render/` 不 include `media/`/`platform/`/`base/`（`xmedia_gl` 零依赖） |
 | C29 | `player/public/` 不出现别的模块的导出宏（V6） |
 | C30 | `examples/` 不许起裸 `std::thread`（V7：例子是宿主抄的模板） |
 
@@ -112,7 +112,7 @@ core ffmpeg e2e asan tsan ubsan coverage
 2. **HEADERS**：只包含 `player/public/*.h` 的 TU，必须**只要 FFmpeg 的 include 路径**
    就能编过。
 
-脚本头的教训值得记：LINK 那半的第一版是个带 `-i` 的单行 grep，于是 `avbase::gl::
+脚本头的教训值得记：LINK 那半的第一版是个带 `-i` 的单行 grep，于是 `xmedia::gl::
 GlApi::Load(NativeGLContext*)` 里的 "eGL" 被当成 EGL 依赖——**一个对着自己代码库的
 名字开火的门禁，会逼人把正则放宽到它通过为止**。所以：先 demangle，再大小写敏感
 匹配，并逐个点名"别人的"前缀。
@@ -211,7 +211,7 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 |---|---|---|
 | `check_protocols.py` | HLS VOD 与 HTTP progressive 走**真 socket**（本地 `http.server` + 现造媒体）——"要网络但不需要网络" | 每个协议到 `kCompleted` |
 | `check_live_protocols.py` | RTMP / RTSP / SRT 对**真流媒体对端**（`mediamtx` 或 ffmpeg 当 listener） | `headless` 到 `kCompleted` **或媒体时钟走过** `--media-threshold`（默认 2.0 s）——时钟真的在走才说明帧真的过了协议，不只是连上了 |
-| `check_rtmp_publish.py` | **推流**方向（播放方向在上面那条）：`avbase-inspect publish` 推到 FFmpeg 自己起的 `rtmp_listen` 服务端 | 对端真的收到流（非空 + 时长与源一致 + 流数一致）；**两种配速模式必须不同**——`--no-realtime` 若和实时一样慢，说明配速开关是装饰；URL 缺 `--format` 必须被拒绝且说明原因 |
+| `check_rtmp_publish.py` | **推流**方向（播放方向在上面那条）：`xmedia-inspect publish` 推到 FFmpeg 自己起的 `rtmp_listen` 服务端 | 对端真的收到流（非空 + 时长与源一致 + 流数一致）；**两种配速模式必须不同**——`--no-realtime` 若和实时一样慢，说明配速开关是装饰；URL 缺 `--format` 必须被拒绝且说明原因 |
 | `check_weaknet.py` | 源不回答 / 慢 / 中途挂断时播放器的行为 | 不是"播放成功"（全断时没什么可成功），而是**进程自己走到定义好的终态，且在限定时间内** |
 | `check_weaknet.sh` | 直播三协议在 `tc netem` 真实损伤下的降级 | 需 Linux + root；结束时**无论如何都拆掉 qdisc** |
 | `check_corpus.py` | 维度语料（codec × container × 损坏 × HDR × 多轨）的四个指标 | 语料**现造不入库**（300+ 真实媒体是几百 MB，而且入库的语料就是不再生长的语料） |
@@ -237,7 +237,7 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 |---|---|
 | `gen_options.py` | 生成 `OptionRegistry` 表，并把 **docs/05 表 4（规约）⟷ `player_config.h`（代码）⟷ `option_map.py`（映射）** 三方对账。`--check` CI 安全，`--emit` 写 `.inc` |
 | `option_map.py` | ijkplayer 选项键 → `PlayerConfig` 字段的映射表（数据）。kind 解释了迁移不是恒等的：三个键取反、 `volume` 换量程（Δ6，0..100→0.0..1.0）、四个键把毫秒送进 `base::TimeDelta` |
-| `extract_constants.py` | 风险 R1（A/V 同步阈值抄错）的缓解措施 4："阈值用本工具提取，**禁止手抄**"。三方交叉：`ffplay #define` ⟷ avbase 代码 ⟷ docs/05 表 7 |
+| `extract_constants.py` | 风险 R1（A/V 同步阈值抄错）的缓解措施 4："阈值用本工具提取，**禁止手抄**"。三方交叉：`ffplay #define` ⟷ xmedia-kit 代码 ⟷ docs/05 表 7 |
 | `ported_constants.py` | 移植常量表（数据）。**单位在这里声明，绝不推断**：ffplay 自己就不一致（`AV_SYNC_THRESHOLD_MIN` 是 0.04 秒，`MAX_SLEEP` 是 1000000 微秒，`AV_NOSYNC_THRESHOLD` 是 10.0——一个整数秒，任何"是不是浮点"的启发式都分不出它和"10 个别的东西"） |
 | `doxy_xml_to_md.py` | doxygen XML → `docs/API.md`。由 `gen_api_docs.sh` 调用，不单独跑 |
 | `doxygen_comment_filter.py` | doxygen 的 INPUT_FILTER：把仓库用的**前置 `//` 块**与**尾注**改写成 doxygen 认得的 `///` / `///<`。不重写纯分隔线块（挂到下一个成员会变成它的 brief，比丢掉更糟）；跟踪引号状态，所以 `"http://x"` 不会被当注释 |
@@ -250,8 +250,8 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 
 | 文件 | 说明 |
 |---|---|
-| `setup_ffmpeg.sh [version] [prefix] [jobs]` | 从源码编一个**钉住版本**的 FFmpeg 到仓库内 `tools/build`，让所有人和所有 CI job 对着同一版本编译（Debian 12 发 5.1、Ubuntu 24.04 发 6.1，版本不定则兼容层无意义）。组件列表**刻意最小**（2 核近 3 分钟）；要什么往这里加，不要 `--enable-everything`。`AVBASE_FFMPEG_DEPS="openssl x264 srt ..."` 可加第三方，装进同一 prefix |
-| `setup_glfw.sh [version] [prefix]` | 从源码编 GLFW 到仓库内，纯粹为了让 GLFW 后端在包管理器够不到 github 时**能编能跑**。avbase 本身不依赖它（后端可选，缺 glfw3 时 warning 而非 error）。macOS 上静态库按 `AVBASE_OSX_DEPLOYMENT_TARGET`（默认 11.0）编，免得链接时警告部署版本比宿主新 |
+| `setup_ffmpeg.sh [version] [prefix] [jobs]` | 从源码编一个**钉住版本**的 FFmpeg 到仓库内 `tools/build`，让所有人和所有 CI job 对着同一版本编译（Debian 12 发 5.1、Ubuntu 24.04 发 6.1，版本不定则兼容层无意义）。组件列表**刻意最小**（2 核近 3 分钟）；要什么往这里加，不要 `--enable-everything`。`XMEDIA_FFMPEG_DEPS="openssl x264 srt ..."` 可加第三方，装进同一 prefix |
+| `setup_glfw.sh [version] [prefix]` | 从源码编 GLFW 到仓库内，纯粹为了让 GLFW 后端在包管理器够不到 github 时**能编能跑**。xmedia-kit 本身不依赖它（后端可选，缺 glfw3 时 warning 而非 error）。macOS 上静态库按 `XMEDIA_OSX_DEPLOYMENT_TARGET`（默认 11.0）编，免得链接时警告部署版本比宿主新 |
 | `mediamtx/mediamtx.yml` | MediaMTX 的最小配置，只给 `check_live_protocols.py` 用：仅 loopback、无鉴权、无录制、只开被测的三个协议 |
 
 ---
@@ -279,7 +279,7 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 
 ---
 
-## 8. `tools/inspect/` — `avbase-inspect` 诊断 CLI
+## 8. `tools/inspect/` — `xmedia-inspect` 诊断 CLI
 
 **这个子目录是产品，不是工具**：它是交付给宿主的诊断命令行，只是住在 `tools/` 下。
 

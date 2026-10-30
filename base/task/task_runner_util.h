@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `base/task/task_runner_util.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_TASK_TASK_RUNNER_UTIL_H_
-#define AVBASE_BASE_TASK_TASK_RUNNER_UTIL_H_
+#ifndef XMEDIA_BASE_TASK_TASK_RUNNER_UTIL_H_
+#define XMEDIA_BASE_TASK_TASK_RUNNER_UTIL_H_
 
 #include <type_traits>
 #include <utility>
@@ -15,7 +15,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // Runs |task| on |task_runner| and delivers its return value to |reply| on the
 // calling sequence. This is how an async media API reports a result without the
@@ -35,7 +35,7 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
   // The reply runs on the *calling sequence*, matching Chromium's
   // PostTaskAndReplyWithResult / PostTaskAndReply: |task| executes on
   // |task_runner| (the worker), but the result is delivered back where the
-  // async call was issued. avbase media objects are only ever touched on their
+  // async call was issued. xmedia-kit media objects are only ever touched on their
   // own sequence (docs/04 §3), so redirecting the reply onto |task_runner|
   // would let a different sequence reach into them. Capture the caller's
   // sequence now, before |task| is posted and possibly starts running.
@@ -101,6 +101,6 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
   return task_runner->PostTask(from_here, std::move(work));
 }
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_TASK_TASK_RUNNER_UTIL_H_
+#endif  // XMEDIA_BASE_TASK_TASK_RUNNER_UTIL_H_

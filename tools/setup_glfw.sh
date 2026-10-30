@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
 # Builds GLFW from source into a repo-local prefix, purely so that the GLFW
 # backend (platform/glfw/) and its acceptance example can be COMPILED AND RUN
-# on machines whose package manager cannot reach github.  Nothing in avbase
+# on machines whose package manager cannot reach github.  Nothing in xmedia-kit
 # depends on this: the GLFW backend is optional and skipped (warning, not
 # error) when glfw3 is absent.
 #
@@ -16,19 +16,19 @@
 #
 # Usage:
 #   tools/setup_glfw.sh [version] [prefix]
-#   cmake --preset macos-sdl2 -DAVBASE_ENABLE_GLFW=ON \
+#   cmake --preset macos-sdl2 -DXMEDIA_ENABLE_GLFW=ON \
 #         -DCMAKE_PREFIX_PATH=tools/build/glfw
 #
 # Default prefix is repo-local tools/build/glfw (gitignored, no sudo), matching
 # tools/setup_ffmpeg.sh's convention.
 #
-# On macOS the static library is built for AVBASE_OSX_DEPLOYMENT_TARGET
-# (default 11.0) rather than for the host OS, so linking avbase's examples
+# On macOS the static library is built for XMEDIA_OSX_DEPLOYMENT_TARGET
+# (default 11.0) rather than for the host OS, so linking xmedia-kit's examples
 # against it does not warn about a newer deployment version.  No effect on Linux.
 #
 # If github release downloads fail in your network, point at any mirror that
 # serves the identical file:
-#   AVBASE_GLFW_BASE_URL=https://gh-proxy.com/https://github.com/glfw/glfw/\
+#   XMEDIA_GLFW_BASE_URL=https://gh-proxy.com/https://github.com/glfw/glfw/\
 # releases/download tools/setup_glfw.sh
 # Mirrors are third parties: verify what you get (see the post-download checks
 # below, which the script already performs).
@@ -40,7 +40,7 @@ PREFIX_IN="${2:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${PREFIX_IN:-$ROOT/tools/build/glfw}"
-BASE_URL="${AVBASE_GLFW_BASE_URL:-https://github.com/glfw/glfw/releases/download}"
+BASE_URL="${XMEDIA_GLFW_BASE_URL:-https://github.com/glfw/glfw/releases/download}"
 
 SRC_NAME="glfw-${VERSION}"
 TARBALL="${SRC_NAME}.zip"
@@ -79,7 +79,7 @@ esac
 echo ">> building into ${PREFIX}"
 mkdir -p "$PREFIX"
 # Pin the macOS deployment target.  Left to itself CMake builds GLFW for the host
-# OS version, and then every avbase link prints a wall of
+# OS version, and then every xmedia-kit link prints a wall of
 #   ld: warning: object file (libglfw3.a[...]) was built for newer 'macOS'
 #   version (15.8) than being linked (15.7)
 # because the host is newer than the SDK's default target.  Ignored by CMake on
@@ -90,7 +90,7 @@ cmake -S "${WORK}/${SRC_NAME}" -B "$BUILD_DIR" -G Ninja \
       -DGLFW_BUILD_EXAMPLES=OFF \
       -DGLFW_BUILD_TESTS=OFF \
       -DGLFW_BUILD_DOCS=OFF \
-      -DCMAKE_OSX_DEPLOYMENT_TARGET="${AVBASE_OSX_DEPLOYMENT_TARGET:-11.0}" \
+      -DCMAKE_OSX_DEPLOYMENT_TARGET="${XMEDIA_OSX_DEPLOYMENT_TARGET:-11.0}" \
       -DCMAKE_INSTALL_PREFIX="$PREFIX"
 cmake --build "$BUILD_DIR"
 cmake --install "$BUILD_DIR"
@@ -103,7 +103,7 @@ Installed GLFW ${FOUND_VERSION} into ${PREFIX}
 Build the backend with:
 
   cmake --preset macos-sdl2 \\
-        -DAVBASE_ENABLE_GLFW=ON \\
+        -DXMEDIA_ENABLE_GLFW=ON \\
         -DCMAKE_PREFIX_PATH=${PREFIX}
   cmake --build build/macos-sdl2
 

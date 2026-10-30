@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_
-#define AVBASE_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_
+#define XMEDIA_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_
 
 #include <cstdint>
 #include <memory>
@@ -30,7 +30,7 @@ struct AVAudioFifo;
 struct AVFrame;
 struct SwsContext;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Forward-declared so this header need not include the Swr wrapper; the full
 // definition arrives via media/ffmpeg/audio_convert.h in the .cc files that
@@ -41,13 +41,13 @@ class AudioConverter;
 
 // unique_ptr deleter for AVCodecContext. Defined in the .cc precisely so
 // that this header does not need avcodec.h.
-struct AVBASE_MEDIA_EXPORT CodecCtxDeleter {
+struct XMEDIA_MEDIA_EXPORT CodecCtxDeleter {
   void operator()(AVCodecContext* p) const;
 };
 using CodecCtxPtr = std::unique_ptr<AVCodecContext, CodecCtxDeleter>;
 
 // unique_ptr deleter for AVFrame, for the same reason.
-struct AVBASE_MEDIA_EXPORT AvFrameDeleter {
+struct XMEDIA_MEDIA_EXPORT AvFrameDeleter {
   void operator()(AVFrame* p) const;
 };
 using AvFramePtr = std::unique_ptr<AVFrame, AvFrameDeleter>;
@@ -114,15 +114,15 @@ struct VideoState {
   bool sws_ready = false;
 };
 
-// Conversions from a decoded libav frame into avbase's own buffer types.
+// Conversions from a decoded libav frame into xmedia-kit's own buffer types.
 // |pts_time_base| is the time_base the frame's pts is expressed in -- the
 // decoder context's pkt_timebase (= the input stream's time_base). It must
 // NOT be assumed to be 1/90000: containers use 1/1000, 1/48000, 1/25 ...
 // and a hardcoded denominator silently rewrites every timestamp.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<AudioBuffer>
 AvFrameToAudioBuffer(AVFrame* frame, int sample_rate, int channels);
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
                                                     int height,
                                                     AVRational pts_time_base);
@@ -131,9 +131,9 @@ base::scoped_refptr<VideoFrame> AvFrameToVideoFrame(AVFrame* frame, int width,
 // every stream's first written timestamp becomes its origin so that output
 // timelines start at zero (see the note in ffmpeg_concat_job.cc for what
 // happens when they do not).
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 int64_t TimelineOrigin(bool* seen, int64_t* origin, int64_t ts);
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 int64_t ShiftTs(int64_t ts, int64_t origin);
 
 // Converts a packet's timestamps from the units it arrived in into the units
@@ -142,7 +142,7 @@ int64_t ShiftTs(int64_t ts, int64_t origin);
 // source timebase is derived from the codec, and only mp4 happens to make
 // them equal. Timestamps that are unset are passed through untouched —
 // av_rescale_q() on AV_NOPTS_VALUE yields garbage, not "still unset".
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 void RescaleTimestamps(EncodedPacket* ep, int in_num, int in_den, int out_num,
                        int out_den);
 
@@ -157,13 +157,13 @@ void RescaleTimestamps(EncodedPacket* ep, int in_num, int in_den, int out_num,
 // relabels the same audio: 16 frames of 44100 Hz asked for 24000 Hz come out
 // 938ms long instead of 488ms, because the encoder counts the samples it was
 // handed at the rate it was told rather than the rate they were taken at.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 std::vector<base::scoped_refptr<AudioBuffer>>
 FramesForEncoder(AudioState* st, AVFrame* frame, int frame_size);
 
 // Drains what the resampler is still holding: the remaining whole frames,
 // then the tail as a final short frame. Empty when nothing was resampled.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
                                                              int frame_size);
 
@@ -172,15 +172,15 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
 // factory list — and registers the output stream on |muxer|. Split out of
 // the transcode loop (invariant C1) because preparation and pumping are
 // different concerns even though they share the states above.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 Status PrepareAudioStream(AVFormatContext* in_ctx, int audio_stream_idx,
                           const TranscodeParams& params,
                           FFmpegEncodeMuxer* muxer, AudioState* out);
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 Status PrepareVideoStream(AVFormatContext* in_ctx, int video_stream_idx,
                           const TranscodeParams& params,
                           FFmpegEncodeMuxer* muxer, VideoState* out);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_TRANSCODE_STREAMS_H_

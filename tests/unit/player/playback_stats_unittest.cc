@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -29,7 +29,7 @@
 #include "player/player_impl.h"
 #include "player/public/player_config.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // The mapping is a copy of five fields, but it is a copy that has to be
@@ -128,4 +128,4 @@ TEST(PlayerStartupVolumeTest, SetVolumeStillWinsOverTheConfiguredSeed) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 // Each benchmark body receives an iteration count and must perform exactly one
 // logical "operation" per iteration so the per-op cost is meaningful.
 
-#ifndef AVBASE_BENCH_BENCH_H_
-#define AVBASE_BENCH_BENCH_H_
+#ifndef XMEDIA_BENCH_BENCH_H_
+#define XMEDIA_BENCH_BENCH_H_
 
 #include <chrono>
 #include <cstdint>
@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace avbase::bench {
+namespace xmedia::bench {
 
 // A benchmark case: invoked with a requested iteration count.
 using BenchFn = std::function<void(uint64_t iters)>;
@@ -29,7 +29,7 @@ struct Case {
   BenchFn fn;
 };
 
-// Static registry populated by the AVBASE_BENCH macro at static-init time.
+// Static registry populated by the XMEDIA_BENCH macro at static-init time.
 std::vector<Case>& Registry();
 
 // Result of timing a benchmark.
@@ -80,11 +80,11 @@ struct Registrar {
   Registrar(const char* name, BenchFn fn);
 };
 
-}  // namespace avbase::bench
+}  // namespace xmedia::bench
 
-#define AVBASE_BENCH(name)                                         \
+#define XMEDIA_BENCH(name)                                         \
   static void name(uint64_t iters);                                \
-  static ::avbase::bench::Registrar name##_registrar(#name, name); \
+  static ::xmedia::bench::Registrar name##_registrar(#name, name); \
   static void name(uint64_t iters)
 
-#endif  // AVBASE_BENCH_BENCH_H_
+#endif  // XMEDIA_BENCH_BENCH_H_

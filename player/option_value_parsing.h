@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // helpers are two different jobs (naming what a key means vs. how a value is
 // read), and this is the seam the file already had.
 
-#ifndef AVBASE_PLAYER_OPTION_VALUE_PARSING_H_
-#define AVBASE_PLAYER_OPTION_VALUE_PARSING_H_
+#ifndef XMEDIA_PLAYER_OPTION_VALUE_PARSING_H_
+#define XMEDIA_PLAYER_OPTION_VALUE_PARSING_H_
 
 #include <optional>
 #include <string>
@@ -19,7 +19,7 @@
 #include "player/public/error.h"
 #include "player/public/option_registry.h"
 
-namespace avbase {
+namespace xmedia {
 namespace option_internal {
 
 int Levenshtein(std::string_view a, std::string_view b);
@@ -34,6 +34,6 @@ base::unexpected<MediaError> TypeMismatch(std::string_view key,
 std::optional<bool> ParseBoolOption(const OptionValue& v);
 
 }  // namespace option_internal
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_OPTION_VALUE_PARSING_H_
+#endif  // XMEDIA_PLAYER_OPTION_VALUE_PARSING_H_

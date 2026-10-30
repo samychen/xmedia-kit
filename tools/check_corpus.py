@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Generate the dimensional test corpus, then measure four metrics over it.
@@ -51,7 +51,7 @@ same repository as broken in one place and healthy in the other.
 USAGE
     tools/check_corpus.py --headless build/ffmpeg/bin/headless \\
                            --ffmpeg /path/to/ffmpeg \\
-                           --outdir /tmp/avbase-corpus \\
+                           --outdir /tmp/xmedia-corpus \\
                            [--baseline corpus_baseline.json] [--min-samples 300]
 """
 
@@ -322,7 +322,7 @@ def build_matrix(ffmpeg, src, outdir, video_src, profile="smoke"):
     # would imply it has content worth reviewing.
     srt_path = os.path.join(outdir, "_subtitle.srt")
     with open(srt_path, "w", encoding="utf-8") as handle:
-        handle.write("1\n00:00:00,000 --> 00:00:02,000\navbase\n\n")
+        handle.write("1\n00:00:00,000 --> 00:00:02,000\nxmedia-kit\n\n")
     emit("multi_subs.mkv", ["-i", video_src, "-t", "2", "-i", srt_path,
                             "-map", "0:v:0", "-map", "0:a:0?",
                             "-map", "1:s:0",
@@ -500,7 +500,7 @@ def main():
         print("check_corpus: seed media not found: %s" % audio_src)
         return 2
 
-    workdir = args.outdir or tempfile.mkdtemp(prefix="avbase-corpus-")
+    workdir = args.outdir or tempfile.mkdtemp(prefix="xmedia-corpus-")
     os.makedirs(workdir, exist_ok=True)
     try:
         print("check_corpus: generating the dimensional matrix in %s" % workdir)

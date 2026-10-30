@@ -31,7 +31,7 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
   （GPU 帧直通，不读回）。
 - **选项面**：注册表 9 个 key 全部有真实读取者，未知 key 报错并带
   "did you mean"（Δ2）——不接受「能读能写但不做事」的选项。
-- **C ABI**（M15）：`player/public/c/avbase_c.h`，60 个导出函数，C99 可编译，
+- **C ABI**（M15）：`player/public/c/xmedia_c.h`，60 个导出函数，C99 可编译，
   已接门禁（`f485d53`、`3cc34fb`）。
 - **转码**：`media/transcode/` 离线转码 E1–E5 + E3b 异步 + E5b 平台表外置。
 - **测试与门禁**：unit / corpus（315 样本，`5f3eff0`，CI 跑 full，
@@ -52,9 +52,9 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
   compatible。gate_local --jobs apicompat 与 ci.yml apicompat job 同构。基线由
   --snapshot 生成、仅切 MAJOR 时带 --allow-breaking 刷新。v1 不跟踪公开数据成员。
 - 微基准自包含 harness（`64c13e8`）：`bench/` 落地零依赖 micro-bench——
-  不用 Google Benchmark（沙箱取不到，CI 也不该装），并接上 `AVBASE_BUILD_BENCH`
+  不用 Google Benchmark（沙箱取不到，CI 也不该装），并接上 `XMEDIA_BUILD_BENCH`
   （此前该 option 定义了但**全树无人消费**，没有任何 benchmark target）。只链
-  `avbase::base`，所以 `AVBASE_ENABLE_FFMPEG=OFF` 也能编能跑。首批两项：
+  `xmedia::base`，所以 `XMEDIA_ENABLE_FFMPEG=OFF` 也能编能跑。首批两项：
   `BM_PostTask_RoundTrip` ≈ 8.6 µs、`BM_BindOnce_Invoke` ≈ 118 ns（mac 实测）。
   趋势守护 `tools/check_bench_regression.py` 对比入库基线
   `tools/bench-baseline.jsonl`（回退 >10% 告警）；`gate_local --jobs bench`
@@ -63,10 +63,10 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
 - 微基准扩到 media 层（`129c6f3`）：新增 `BM_DecideNextFrame` ≈ 15.5 ns、
   `BM_GetMasterClock` ≈ 6.3 ns（mac 实测 p75），即 docs/04 §8 预算里最紧的两条
   （< 1 µs / < 200 ns），实测在预算内两个数量级；`bench/` 因此改为链
-  `avbase::media`，FFmpeg 仍不需要。
+  `xmedia::media`，FFmpeg 仍不需要。
 - 微基准扩到 player 层（`0952d06`）：新增 `BM_EventHub_PostVisit` ≈ 1.94 µs
   （mac 实测 p75），即 docs/04 §8 预算里的 `EventHub::Post()` < 3 µs；`bench/`
-  因此改为链 `avbase::player`（传递 media），FFmpeg 仍不需要。形态是「发一批
+  因此改为链 `xmedia::player`（传递 media），FFmpeg 仍不需要。形态是「发一批
   + 末尾一个 FIFO 哨兵等排空」，不是「发一个等一个」——后者测的是两次线程
   唤醒（≈10 µs 量级，见 `BM_PostTask_RoundTrip`），不是预算写的那条路径；
   故数字是 **max(入队, 派发)**，两侧任一变慢都推高它。噪声源是「每事件一次
@@ -182,4 +182,4 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
   全部未做，见 docs/TODO §1。
 - V1（新人冷启动实测）与 V10（abi-compliance-checker）待人工/CI 环境。
 
-[0.1.0]: https://github.com/samychen/avbase/releases/tag/v0.1.0
+[0.1.0]: https://github.com/samychen/xmedia-kit/releases/tag/v0.1.0

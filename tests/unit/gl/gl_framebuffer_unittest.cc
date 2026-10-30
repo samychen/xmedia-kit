@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,7 +18,7 @@
 #include "render/gl/gl_api.h"
 #include "render/gl/gl_framebuffer.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 namespace {
 
 constexpr int kWidth = 64;
@@ -136,4 +136,4 @@ TEST_F(GlFramebufferTest, ARejectedSizeLeavesTheTargetEmpty) {
 }
 
 }  // namespace
-}  // namespace avbase::gl
+}  // namespace xmedia::gl

@@ -1,18 +1,18 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/audio_parameters.h` (BSD-3-Clause).
 
-#ifndef AVBASE_MEDIA_BASE_AUDIO_PARAMETERS_H_
-#define AVBASE_MEDIA_BASE_AUDIO_PARAMETERS_H_
+#ifndef XMEDIA_MEDIA_BASE_AUDIO_PARAMETERS_H_
+#define XMEDIA_MEDIA_BASE_AUDIO_PARAMETERS_H_
 
 #include <stdint.h>
 
 #include "base/time/time.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 enum class SampleFormat {
   kUnknown = 0,
@@ -38,22 +38,22 @@ enum class ChannelLayout {
   kDiscrete,
 };
 
-AVBASE_MEDIA_EXPORT const char* GetSampleFormatName(SampleFormat format);
-AVBASE_MEDIA_EXPORT const char* GetChannelLayoutName(ChannelLayout layout);
-AVBASE_MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
-AVBASE_MEDIA_EXPORT int SampleFormatBytesPerChannel(SampleFormat format);
+XMEDIA_MEDIA_EXPORT const char* GetSampleFormatName(SampleFormat format);
+XMEDIA_MEDIA_EXPORT const char* GetChannelLayoutName(ChannelLayout layout);
+XMEDIA_MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
+XMEDIA_MEDIA_EXPORT int SampleFormatBytesPerChannel(SampleFormat format);
 // True for the planar (P-suffixed) formats. This is a property of the format
 // itself, so it belongs next to the byte count rather than being re-derived
 // per consumer: the FFmpeg layer kept two private copies that had to stay in
 // step with each other and with this file.
-AVBASE_MEDIA_EXPORT bool SampleFormatIsPlanar(SampleFormat format);
+XMEDIA_MEDIA_EXPORT bool SampleFormatIsPlanar(SampleFormat format);
 
 // Decodes one sample at |src| into a float in [-1, 1]. Returns 0 for unknown
 // formats rather than trapping: a malformed stream must degrade to silence, not
 // crash the audio thread (which would take the whole player down).
-AVBASE_MEDIA_EXPORT float DecodeSample(const uint8_t* src, SampleFormat format);
+XMEDIA_MEDIA_EXPORT float DecodeSample(const uint8_t* src, SampleFormat format);
 
-class AVBASE_MEDIA_EXPORT AudioParameters {
+class XMEDIA_MEDIA_EXPORT AudioParameters {
  public:
   AudioParameters() = default;
   // |channels| defaults to 0, which means "take it from |layout|". Pass it
@@ -112,6 +112,6 @@ class AVBASE_MEDIA_EXPORT AudioParameters {
   int channels_{0};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_AUDIO_PARAMETERS_H_
+#endif  // XMEDIA_MEDIA_BASE_AUDIO_PARAMETERS_H_

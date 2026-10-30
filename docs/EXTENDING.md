@@ -1,6 +1,6 @@
-# EXTENDING · 扩展 avbase
+# EXTENDING · 扩展 xmedia-kit
 
-> 本篇回答「我要换掉/加进 avbase 的某一环，该实现什么、注入到哪」。
+> 本篇回答「我要换掉/加进 xmedia-kit 的某一环，该实现什么、注入到哪」。
 > 所有签名摘自 `player/public/` 与 `media/base/` 头文件原文（2026-10-18 校对）。
 > 分层铁律先读这里：**C28 —— `render/` 不得 include `media`/`platform`/`base`/`player`**；
 > `platform/` 只装「被宿主选中」的代码；可移植代码不进 `platform/`
@@ -35,12 +35,12 @@
 `media/base/data_source.h`（SDK 侧经 `deps.h` 前向声明使用）：
 
 ```cpp
-class AVBASE_MEDIA_EXPORT DataSource
+class XMEDIA_MEDIA_EXPORT DataSource
     : public base::RefCountedThreadSafe<DataSource> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();  // 用 base::MakeRefCounted 造
 
-  // 宿主可以暂停/恢复 avbase 的读请求（弱网背压用）。
+  // 宿主可以暂停/恢复 xmedia-kit 的读请求（弱网背压用）。
   class Host {
    public:
     virtual void RequestAdditionalBytes(size_t bytes) = 0;
@@ -67,10 +67,10 @@ class AVBASE_MEDIA_EXPORT DataSource
 注入与装饰器模式：
 
 ```cpp
-auto deps = std::make_unique<avbase::Deps>();
+auto deps = std::make_unique<xmedia::Deps>();
 deps->data_source = base::MakeRefCounted<media::MyDecryptDataSource>(
     base::MakeRefCounted<media::FileDataSource>(path), key);
-avbase::Player player(config, std::move(deps));
+xmedia::Player player(config, std::move(deps));
 ```
 
 装饰器（包装另一个 `scoped_refptr<DataSource>`）是官方推荐的复合方式：
@@ -83,7 +83,7 @@ M9 的 `RetryDataSource`（重试/重连）就是这个形状；M18 的 `CacheDa
 三个解码器接口同形（异步完成 + 回调），以视频为例：
 
 ```cpp
-class AVBASE_MEDIA_EXPORT VideoDecoder {
+class XMEDIA_MEDIA_EXPORT VideoDecoder {
  public:
   using InitCB = base::OnceCallback<void(DecoderStatus)>;
   // 每解出一帧调一次；必须尽快调用，不要为它起线程跳转——高帧率素材上
@@ -251,17 +251,17 @@ obj)`，与 ijkplayer 的 `FFP_MSG_*` 数值一致（05 表 5 的映射即来源
 
 ```cpp
 class MyLog : public base::logging::LoggingDelegate { /* … */ };
-avbase::base::logging::SetDelegate(std::make_unique<MyLog>());
+xmedia::base::logging::SetDelegate(std::make_unique<MyLog>());
 ```
 
 FFmpeg 的 `av_log` 经 `media/ffmpeg/log_bridge.cc` 汇入同一委托（Δ22），
-不需要两套钩子。`PlayerBuilder::SetLogLevel(severity)` 只调 avbase 自身的
+不需要两套钩子。`PlayerBuilder::SetLogLevel(severity)` 只调 xmedia-kit 自身的
 严重度阈值。
 
 ## 10. C ABI（跨语言）
 
-`player/public/c/avbase_c.h` 是**冻结契约**，独立 target `avbase_cabi`，
-默认 `-DAVBASE_ENABLE_CAPI=OFF`。新增 C 函数的硬规则（M15 踩过的坑）：
+`player/public/c/xmedia_c.h` 是**冻结契约**，独立 target `xmedia_cabi`，
+默认 `-DXMEDIA_ENABLE_CAPI=OFF`。新增 C 函数的硬规则（M15 踩过的坑）：
 
 - what 码（200/300/100/400/500-502/600/700/800/900/1000/10001）**不能猜**，
   对照现有表扩展；C++ 默认参数等 C 不支持的形态进不了这个头（CI 用
@@ -276,7 +276,7 @@ Java/OC 侧迁移见 MIGRATION §7（0.1.0 只有 C ABI 这条跨语言路）。
 
 - 布局：`tests/unit/<dir>/*.cc` 按 glob 收集（新文件不用改 CMakeLists，
   但 invariants 的文件数基线会 +1，照常更新）。
-- **测试绝不依赖工作目录**：测试数据路径用编译期宏 `AVBASE_TESTDATA_DIR`
+- **测试绝不依赖工作目录**：测试数据路径用编译期宏 `XMEDIA_TESTDATA_DIR`
   （tests/CMakeLists.txt 逐 target 定义）。同二进制直接跑绿、ctest 红 =
   先查 cwd。
 - **鉴别力声明要先证明**：注释写「这个测试能抓住 X」之前，把 X 改回去跑一次

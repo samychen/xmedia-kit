@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Live-protocol coverage acceptance: RTMP, RTSP, SRT -- over a real peer.
@@ -81,7 +81,7 @@ FFMPEG_PORTS = {
     "srt": 18990,
 }
 HOST = "127.0.0.1"
-STREAM = "avbase"
+STREAM = "xmedia-kit"
 
 
 def wait_for_port(port, timeout=10.0):

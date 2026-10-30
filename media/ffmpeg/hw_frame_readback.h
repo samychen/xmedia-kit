@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_HW_FRAME_READBACK_H_
-#define AVBASE_MEDIA_FFMPEG_HW_FRAME_READBACK_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_HW_FRAME_READBACK_H_
+#define XMEDIA_MEDIA_FFMPEG_HW_FRAME_READBACK_H_
 
 #include "base/time/time.h"
 #include "media/base/video_color_space.h"
@@ -11,9 +11,9 @@
 
 struct AVFrame;
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
-// The explicit-readback half of the zero-copy contract (avbase §6.2): copies
+// The explicit-readback half of the zero-copy contract (xmedia-kit §6.2): copies
 // a hardware frame's pixels into a freshly allocated owned I420 VideoFrame.
 // Only ever called from behind VideoFrame::ToI420() -- never as part of the
 // decode path, which keeps the surface GPU-resident end to end.
@@ -28,6 +28,6 @@ MapHwFrameToI420(const AVFrame* hw_frame, media::Rational sar,
                  base::TimeDelta timestamp, base::TimeDelta duration,
                  int32_t serial, media::VideoColorSpace cs);
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_HW_FRAME_READBACK_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_HW_FRAME_READBACK_H_

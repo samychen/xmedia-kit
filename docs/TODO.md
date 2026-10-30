@@ -16,7 +16,7 @@
 
 ## 1. 产品化能力（全部未做）
 
-> **转码层（E1–E5）已接上第一个生产入口**：`avbase-inspect transcode <input>
+> **转码层（E1–E5）已接上第一个生产入口**：`xmedia-inspect transcode <input>
 > -o <output>`（`tools/inspect/inspect_transcode.cc`）跑完整条
 > `media/transcode/` 链——工厂选择 → 解码 → 编码 → 混流，然后**重新打开产出
 > 文件**证明它是可读媒体（「muxer 返回 OK」与「文件能放」是两件事）。私有编码
@@ -29,12 +29,12 @@
 >
 > **Player 上的入口已补（2026-10-28）**：`player/public/player_transcode.h`
 > 的 `TranscodeMedia` / `PlayerTranscoder`——opt-in 目标
-> `avbase_player_transcode`（playback 构建不付编码器成本，D11 保持），应用
+> `xmedia_player_transcode`（playback 构建不付编码器成本，D11 保持），应用
 > PlayerConfig 的 -vn/-an 语义（`video.disabled`/`audio.disabled` 剥流），
 > 判据 `player_ffmpeg_unittests` 两条（copy 转码 round-trip、-an 剥流断言）。
 >
-> **CLI 侧两个新入口（2026-10-28）**：`avbase-inspect preview` 与
-> `avbase-inspect publish`。前者把 `PreviewFrames` 的批量取帧落成 JPEG
+> **CLI 侧两个新入口（2026-10-28）**：`xmedia-inspect preview` 与
+> `xmedia-inspect publish`。前者把 `PreviewFrames` 的批量取帧落成 JPEG
 > （原来只有自己的单测在调它）；后者把文件推到 rtmp:// 对端。两者都进
 > `gate_local --jobs e2e`，RTMP 那条用 FFmpeg 自身的 `rtmp_listen` 当服务端
 > ——不需要 MediaMTX 就能跑真协议，判据见 `tools/check_rtmp_publish.py`。
@@ -42,9 +42,9 @@
 
 | 能力 | 现状 |
 |---|---|
-| 录制 | ✅ **两个半边都已落地**。读源录制（2026-10-28）：`avbase-inspect record <input> -o <out> [--duration S]`，copy 优先，`--duration` 对文件是媒体预算、对直播是墙钟预算（实测 40 s 源 `--duration 3` 写出 3.03 s，判据钉住输出时长而不是退出码）；直播源也走通了（`total_duration <= 0` 曾让配速整段失效，已修）。**播放侧取包录制（2026-10-30/31）**：`PlayerRecorder` + `RecordTap`（管线解码流消费侧挂点），录“观众实际看到的那一份”——seek 改变录制走向、切轨改变录制内容、播放结束自动收尾，copy 直写 `FFmpegEncodeMuxer`。落地时踩掉三个坑：**mux 线程化**（双腿并发 `av_interleaved_write_frame` 在 FFmpeg 内部死锁，收进专用录制线程）；**S3/S4 流头与首包竞速**（跨线程无全序，输家的流会被 post-header 补加 → FFmpeg 对新流的 `priv_pts` 不初始化 → 首包 `frac_add` 除零 SIGFPE——muxer 现在显式拒绝 post-header 加流，录制器用挂起队列 + 闸门等双腿流头齐了才写 header）；**音频深预取饿死**（算法队列可预取 3 s，中段挂载时整条腿的 compressed 包已解码完、EOS 也被消费 → 容器里是条死轨——`Start` 现在向当前播放位置重锚：flush 丢弃预取、双腿经 tap 重拉，录像恰好是 `[attach, 结束]` 一份；首条 EOS 挂 500 ms 兜底收尾，双腿 EOS 齐才立即收尾）。判据 `player_ffmpeg_unittests` 3 条，录制链压测 30/30 |
-| 推流 / RTMP publish | ✅ **已接线（2026-10-28）**：`avbase-inspect publish <file> -o rtmp://… --format flv` 走完整条转码链，`TranscodeParams::output_format` 让 muxer 在无扩展名的 URL 上也能定容器（不给就失败并说明原因，不静默写空流）。`TranscodeParams::realtime` 按输入时间戳配速——离线目标不需要，实时对端必须要（3.029 s 的源：实时 3.02 s / `--no-realtime` 0.05 s，两个模式都被断言）。真协议验收：`tools/check_rtmp_publish.py` 用 FFmpeg 的 `rtmp_listen` 起服务端，回环收到 2 条流、时长一致；缺 `--format` 必须拒绝 |
-| 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。**批量半边也已落地**：`PreviewFrames()`（`media/transcode/ffmpeg_preview_job.h`）+ `avbase-inspect preview -o <dir> --start S --count N [--interval S]`。seek 落在目标**之前**的关键帧上会让整段预览都是同一幅画，所以落盘前按时间戳丢弃早于目标的帧（`--start 0.5` 拿到的就是 500 ms，不是 0 ms）|
+| 录制 | ✅ **两个半边都已落地**。读源录制（2026-10-28）：`xmedia-inspect record <input> -o <out> [--duration S]`，copy 优先，`--duration` 对文件是媒体预算、对直播是墙钟预算（实测 40 s 源 `--duration 3` 写出 3.03 s，判据钉住输出时长而不是退出码）；直播源也走通了（`total_duration <= 0` 曾让配速整段失效，已修）。**播放侧取包录制（2026-10-30/31）**：`PlayerRecorder` + `RecordTap`（管线解码流消费侧挂点），录“观众实际看到的那一份”——seek 改变录制走向、切轨改变录制内容、播放结束自动收尾，copy 直写 `FFmpegEncodeMuxer`。落地时踩掉三个坑：**mux 线程化**（双腿并发 `av_interleaved_write_frame` 在 FFmpeg 内部死锁，收进专用录制线程）；**S3/S4 流头与首包竞速**（跨线程无全序，输家的流会被 post-header 补加 → FFmpeg 对新流的 `priv_pts` 不初始化 → 首包 `frac_add` 除零 SIGFPE——muxer 现在显式拒绝 post-header 加流，录制器用挂起队列 + 闸门等双腿流头齐了才写 header）；**音频深预取饿死**（算法队列可预取 3 s，中段挂载时整条腿的 compressed 包已解码完、EOS 也被消费 → 容器里是条死轨——`Start` 现在向当前播放位置重锚：flush 丢弃预取、双腿经 tap 重拉，录像恰好是 `[attach, 结束]` 一份；首条 EOS 挂 500 ms 兜底收尾，双腿 EOS 齐才立即收尾）。判据 `player_ffmpeg_unittests` 3 条，录制链压测 30/30 |
+| 推流 / RTMP publish | ✅ **已接线（2026-10-28）**：`xmedia-inspect publish <file> -o rtmp://… --format flv` 走完整条转码链，`TranscodeParams::output_format` 让 muxer 在无扩展名的 URL 上也能定容器（不给就失败并说明原因，不静默写空流）。`TranscodeParams::realtime` 按输入时间戳配速——离线目标不需要，实时对端必须要（3.029 s 的源：实时 3.02 s / `--no-realtime` 0.05 s，两个模式都被断言）。真协议验收：`tools/check_rtmp_publish.py` 用 FFmpeg 的 `rtmp_listen` 起服务端，回环收到 2 条流、时长一致；缺 `--format` 必须拒绝 |
+| 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。**批量半边也已落地**：`PreviewFrames()`（`media/transcode/ffmpeg_preview_job.h`）+ `xmedia-inspect preview -o <dir> --start S --count N [--interval S]`。seek 落在目标**之前**的关键帧上会让整段预览都是同一幅画，所以落盘前按时间戳丢弃早于目标的帧（`--start 0.5` 拿到的就是 500 ms，不是 0 ms）|
 | 解码器事件（`kDecoderOpened` / `kDecoderFallback`） | ✅ **已接通（2026-10-28）**：两个事件此前零生产者（名字只进了 `VideoRendererImpl` 的 LOG(INFO)）。新通道 `DecoderStream → 两个子 renderer → RendererImpl::ForwardDecoderEvent → PipelineImpl → PlayerImpl → EventHub`，另有四个查询（`video_decoder_name` / `audio_decoder_name` / `video_decoder_opaque` / `decoder_fallback_count`），因为宿主通常在播放起来之后才问。两个实测坑：给 `ForwardDecoderEvent` 绑 `WeakPtr` 会在 S3/S4 上 CHECK 中止（改 `Unretained`，同 `ReportError`）；回调参数是 `(type, from, to, reason, opaque)`，把名字填进 `from` 会让每次「打开」都像「回落」 |
 | HDR / tone mapping | ✅ **已落地（2026-10-28）**：检测（PQ `smpte2084` / HLG `arib-std-b67` + Dolby Vision/HDR10+）+ `kHdrUnsupported` 上报 + **真 tone mapping**。渲染器只有 8-bit SDR 一条输出，把 PQ 码值当 SDR 交给 sws 会丢掉整条传输函数：实测同一帧 naive 平均亮度 122、正确 Hable 235。实现走 FFmpeg `zscale=t=linear:npl=<峰值>` → `tonemap=hable:desat=0.5` → `zscale=t=bt709`，在 `VideoConverter::Convert` 里**排在 libyuv/sws 之前**（libyuv 矩阵硬编码 BT.601，sws 没有传输函数概念，两者对 HDR 都错得无声）。`npl` 取自 mastering-display 侧数据的真实峰值，没有元数据时交给 zscale 用传输函数默认值。判据三层：单元测试比较 tone-mapped 与 naive 的像素差（关掉后报 148 vs 148）、e2e 量输出平均亮度（关掉后报 123.4）、SDR 不进 tonemapper（按位深判会把 10-bit SDR 压黑）。**zimg 直连方案不成立**：libzimg 无 tone mapping API（nm 查零个 tonemap 符号），压缩曲线在 FFmpeg 的 tonemap filter 里 |
 | PBO 上传 | ❌ 未实现。`render_perf_stats.h` 的 `kPbo` 是**预留枚举**——抄 MediaComponent 的 `UploadPath` 词汇表时一并搬过来的，本树从未有生产者（名字/JSON/单测都齐，唯独没有赋值点）。它是软解时代的中间态：只把 1080p 那 8.2 ms 的同步拷贝**搬出渲染线程**，字节数一点没少（每帧 3.1 MB 照样过总线）；能零拷贝的平台上多余，没零拷贝的平台上应直接做 [12 §1](12-剩余工作清单.md) 的 3.1/3.2。见 [07 §11.3](07-测试策略与可观测性.md) |
@@ -133,7 +133,7 @@ FORMAT/CODEC 透传项。它们的 `PlayerConfig` 字段同样多数无人读；
 > （QObject 桥 + 两条上屏路径；起时间线显示真实 `MediaInfo`，判据是
 > `tests/unit/qt/` 的 8 条），剩余的是把 `player/qt/` 抽成可复用库，见
 > [12 §2](12-剩余工作清单.md) 的 4.2 行。CI 一侧已补上：新增 `qt` preset 与 `qt`
-> job（Ubuntu 24.04 装 Qt 6.4.2），本地 `AVBASE_QT_PREFIX=... tools/gate_local.sh
+> job（Ubuntu 24.04 装 Qt 6.4.2），本地 `XMEDIA_QT_PREFIX=... tools/gate_local.sh
 > --jobs qt` 可复刻，见同表 4.10 行与 [BUILDING §3.9](BUILDING.md)。
 
 ---

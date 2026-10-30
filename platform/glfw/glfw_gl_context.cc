@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 GlfwGLContext::GlfwGLContext(void* window)
     : window_(static_cast<GLFWwindow*>(window)) {}
@@ -42,4 +42,4 @@ void GlfwGLContext::GetDrawableSize(int* width, int* height) {
   glfwGetFramebufferSize(window_, width, height);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

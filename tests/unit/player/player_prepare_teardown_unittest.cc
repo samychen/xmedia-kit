@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -40,23 +40,23 @@
 #include <memory>
 #include <string>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "gtest/gtest.h"
 #include "player/public/player_config.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // Same reason as player_deps_wiring_unittest.cc: without a demuxer there is
 // no prepare to tear down, so there is no teardown race to pin. Compiles to
 // nothing rather than registering tests that would have to skip.
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // A path no machine has. The demuxer fails on the media sequence; what is on
 // trial is what the teardown does with a pipeline that never finished
 // starting.
-constexpr char kUnopenableUri[] = "/nonexistent/avbase-teardown-test.mp4";
+constexpr char kUnopenableUri[] = "/nonexistent/xmedia-teardown-test.mp4";
 
 }  // namespace
 
@@ -73,6 +73,6 @@ TEST(PlayerPrepareTeardownTest, DestroyingMidPrepareLeavesNothingBehind) {
   }
 }
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG

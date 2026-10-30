@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,13 +10,13 @@
 #include <mutex>
 #include <utility>
 
-namespace avbase::base::logging {
+namespace xmedia::base::logging {
 namespace {
 
 std::atomic<LogSeverity> g_min_log_level{LOG_INFO};
 std::atomic<int> g_min_vlog_level{0};
 // Function-local statics rather than heap-allocated leaks: logging can happen
-// up to the very end of main(), but never from a static destructor in avbase,
+// up to the very end of main(), but never from a static destructor in xmedia-kit,
 // and LeakSanitizer cleanliness is a release blocker (docs/07 §9.1).
 std::mutex& DelegateMutex() {
   static std::mutex mutex;
@@ -100,4 +100,4 @@ LogMessage::~LogMessage() {
   }
 }
 
-}  // namespace avbase::base::logging
+}  // namespace xmedia::base::logging

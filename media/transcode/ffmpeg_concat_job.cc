@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,10 +18,10 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 #include "media/transcode/ffmpeg_transcode_streams.h"  // RescaleTimestamps
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // RAII for AVBSFContext.
 struct BsfCtxDeleter {
@@ -485,4 +485,4 @@ Status Concat(const ConcatParams& params) {
   return OkStatus();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

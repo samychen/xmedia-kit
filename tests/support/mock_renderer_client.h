@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,8 +12,8 @@
 // the tenth round's init-callback bug was an ordering bug, and "OnEnded was
 // called" would not have caught it.
 
-#ifndef AVBASE_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_
-#define AVBASE_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_
+#ifndef XMEDIA_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_
+#define XMEDIA_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_
 
 #include <string>
 #include <string_view>
@@ -27,7 +27,7 @@
 #include "media/base/renderer_client.h"
 #include "media/base/timed_text.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 class FakeRendererClient final : public RendererClient {
  public:
@@ -90,6 +90,6 @@ class FakeRendererClient final : public RendererClient {
   int overlay_runner_calls_ = 0;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_
+#endif  // XMEDIA_TESTS_SUPPORT_MOCK_RENDERER_CLIENT_H_

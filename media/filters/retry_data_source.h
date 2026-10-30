@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
-#define AVBASE_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
 
 #include <cstdint>
 
@@ -15,7 +15,7 @@
 #include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A DataSource decorator that retries a failed inner read instead of
 // reporting it upward -- the M9 answer to "the network died mid-stream"
@@ -34,7 +34,7 @@ namespace avbase::media {
 // runs on a private worker and posts its result to |task_runner| -- never
 // inline (the DataSource contract). Abort() stops both paths promptly and
 // forwards to the inner source.
-class AVBASE_MEDIA_EXPORT RetryDataSource final : public DataSource {
+class XMEDIA_MEDIA_EXPORT RetryDataSource final : public DataSource {
  public:
   struct Config {
     int max_retries{3};
@@ -68,6 +68,6 @@ class AVBASE_MEDIA_EXPORT RetryDataSource final : public DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_RETRY_DATA_SOURCE_H_

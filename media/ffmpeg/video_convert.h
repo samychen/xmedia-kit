@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,21 +17,21 @@
 // Everything here stays inside the platform/ffmpeg vendor quarantine (C4):
 // callers hand over AVFrame data/linesize arrays and never see FFmpeg types.
 
-#ifndef AVBASE_MEDIA_FFMPEG_VIDEO_CONVERT_H_
-#define AVBASE_MEDIA_FFMPEG_VIDEO_CONVERT_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_VIDEO_CONVERT_H_
+#define XMEDIA_MEDIA_FFMPEG_VIDEO_CONVERT_H_
 
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/tone_map.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // Converts one video frame per call. Configure() pins the geometry; Convert()
 // fills caller-owned destination planes (AVFrame data/linesize convention:
 // up to 4 entries, entries beyond the format's plane count are ignored).
 //
-// AVBASE_HAVE_LIBYUV (set by the build when libyuv was found) enables the
+// XMEDIA_HAVE_LIBYUV (set by the build when libyuv was found) enables the
 // SIMD fast paths; without it the class is a thin cached-sws wrapper with
 // identical observable behavior.
 class VideoConverter {
@@ -92,6 +92,6 @@ class VideoConverter {
   double tone_mapper_desat_{0.5};
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_VIDEO_CONVERT_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_VIDEO_CONVERT_H_

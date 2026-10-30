@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,7 +25,7 @@
 #include <string>
 #include <thread>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
@@ -34,17 +34,17 @@
 #include "player/public/player_config.h"
 #include "player/public/player_event.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // Decoder selection lives in the FFmpeg layer; nothing to gate without it.
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
-#ifndef AVBASE_TESTDATA_DIR
-#error "player_unittests must define AVBASE_TESTDATA_DIR for this suite"
+#ifndef XMEDIA_TESTDATA_DIR
+#error "player_unittests must define XMEDIA_TESTDATA_DIR for this suite"
 #endif
-const char* const kUri = AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+const char* const kUri = XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
 
 struct Probe {
   std::atomic<int> video_opened{0};
@@ -206,6 +206,6 @@ TEST(PlayerDecoderEventTest, NormalPrepareReportsNoFallback) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_ENABLE_FFMPEG
+#endif  // XMEDIA_ENABLE_FFMPEG

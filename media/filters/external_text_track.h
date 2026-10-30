@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_
-#define AVBASE_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_
+#ifndef XMEDIA_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_
+#define XMEDIA_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_
 
 #include <string>
 #include <vector>
@@ -14,7 +14,7 @@
 #include "media/filters/webvtt_parser.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One external subtitle track -- the scheduling half of CicadaPlayer's
 // addExtSubtitle/selectExtSubtitle/setStreamDelay trio. The parser half
@@ -22,7 +22,7 @@ namespace avbase::media {
 // track's delay (CicadaPlayer's setStreamDelayTime: negative moves the
 // track earlier), and answers which cues are on screen between two clock
 // reads. Pure and single-threaded: the owner serialises access.
-class AVBASE_MEDIA_EXPORT ExternalTextTrack {
+class XMEDIA_MEDIA_EXPORT ExternalTextTrack {
  public:
   // Parses |text| as SRT or WebVTT by shape: a WEBVTT signature wins,
   // otherwise the SRT grammar decides (a file that parses as neither is an
@@ -55,6 +55,6 @@ class AVBASE_MEDIA_EXPORT ExternalTextTrack {
   std::vector<TimedTextCue> cues_;  // sorted by pts
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_
+#endif  // XMEDIA_MEDIA_FILTERS_EXTERNAL_TEXT_TRACK_H_

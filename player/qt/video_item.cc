@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_frame.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 namespace {
 
@@ -168,7 +168,7 @@ QRectF FitRect(const QSizeF& source, const QRectF& box) {
 }  // namespace
 
 VideoItem::VideoItem(QQuickItem* parent) : QQuickPaintedItem(parent) {
-  // The frame arrives on avbase's render thread; this item only ever reads it
+  // The frame arrives on xmedia-kit's render thread; this item only ever reads it
   // from the GUI thread, one mailbox swap per tick.
   timer_ = new QTimer(this);
   timer_->setInterval(16);
@@ -180,7 +180,7 @@ VideoItem::VideoItem(QQuickItem* parent) : QQuickPaintedItem(parent) {
 VideoItem::~VideoItem() {
   // The comparison the GPU item exists to justify, printed only when asked:
   // this number is CPU work that the shader path does on the GPU instead.
-  if (converted_frames_ > 0 && qEnvironmentVariableIsSet("AVBASE_QT_TIMING")) {
+  if (converted_frames_ > 0 && qEnvironmentVariableIsSet("XMEDIA_QT_TIMING")) {
     std::fprintf(stderr, "[qt-cpu] frames=%d convert_avg=%.3fms\n",
                  converted_frames_, convert_ms_ / converted_frames_);
   }
@@ -206,7 +206,7 @@ void VideoItem::refresh() {
   // tell "our conversion corrupts memory" apart from "the decoder already
   // did". Costs one env lookup per frame, which is why it is not in the
   // hot path unless set.
-  if (qEnvironmentVariableIsSet("AVBASE_QT_NO_PIXELS")) {
+  if (qEnvironmentVariableIsSet("XMEDIA_QT_NO_PIXELS")) {
     return;
   }
 
@@ -230,7 +230,7 @@ void VideoItem::refresh() {
 
   const auto convert_begin = std::chrono::steady_clock::now();
   QImage image = I420ToImage(*readable);
-  if (qEnvironmentVariableIsSet("AVBASE_QT_TIMING")) {
+  if (qEnvironmentVariableIsSet("XMEDIA_QT_TIMING")) {
     convert_ms_ += std::chrono::duration<double, std::milli>(
                        std::chrono::steady_clock::now() - convert_begin)
                        .count();
@@ -267,4 +267,4 @@ void VideoItem::paint(QPainter* painter) {
   painter->drawImage(FitRect(QSizeF(image_.size()), boundingRect()), image_);
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

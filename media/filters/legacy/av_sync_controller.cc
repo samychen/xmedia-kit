@@ -1,16 +1,16 @@
 // Copyright (c) 2013-2026 Zhang Rui <bbcallen@gmail.com>
 // Copyright (c) 2013-2026 Bilibili
 // Copyright (c) 2003-2013 Fabrice Bellard (ffplay.c)
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 //
-// This file is part of avbase.
+// This file is part of xmedia.
 //
-// avbase is free software; you can redistribute it and/or modify it under the
+// xmedia-kit is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License as published by the Free
 // Software Foundation; either version 2.1 of the License, or (at your option)
 // any later version.
 //
-// avbase is distributed in the hope that it will be useful, but WITHOUT ANY
+// xmedia-kit is distributed in the hope that it will be useful, but WITHOUT ANY
 // WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 // FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
 // details.
@@ -27,7 +27,7 @@
 // AlignAudioDurationToVideo() are line-by-line ports of ijkplayer's
 // get_master_sync_type(), get_master_clock(), synchronize_audio() and
 // synchronize_audio_to_video(), which makes this a derivative work
-// (LGPL-2.1). The rest of avbase is BSD-3-Clause; see
+// (LGPL-2.1). The rest of xmedia-kit is BSD-3-Clause; see
 // media/filters/legacy/README.md.
 
 #include "media/filters/legacy/av_sync_controller.h"
@@ -39,7 +39,7 @@
 #include "base/logging.h"
 #include "media/base/media_constants.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 const char* GetMasterTypeName(AvSyncController::MasterType type) {
   using M = AvSyncController::MasterType;
@@ -370,4 +370,4 @@ AvSyncController::Snapshot AvSyncController::GetSnapshot() const {
   return snapshot;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

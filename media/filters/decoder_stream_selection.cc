@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -19,7 +19,7 @@
 #include "base/logging.h"
 #include "media/base/decoder_buffer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 template <typename Traits>
 void DecoderStream<Traits>::Initialize(
@@ -119,4 +119,4 @@ void DecoderStream<Traits>::OnDecoderInitialized(InitCB init_cb,
 template class DecoderStream<VideoDecoderStreamTraits>;
 template class DecoderStream<AudioDecoderStreamTraits>;
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

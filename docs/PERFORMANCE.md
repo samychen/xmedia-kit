@@ -76,7 +76,7 @@ CI 的 `bench` job **不硬 fail**，只记录并上传 artifact：共享 runner
 ### 4.1 内存预算——先搞清口径再调
 
 `max-buffer-size`（`buffer.max_bytes`，默认 **15 MiB**）是**全播放器预算**，
-不是每条流的额度：ijkplayer/avbase 比的是 audio+video+subtitle **三队列之和**。
+不是每条流的额度：ijkplayer/xmedia-kit 比的是 audio+video+subtitle **三队列之和**。
 按流拆分走 `SplitQueueBudget()`（`media/base/decoder_buffer_queue.h:57`）：
 
 ```cpp
@@ -156,15 +156,15 @@ demuxer + 第二对渲染腿**，共用一个时钟——多一次完整解码�
 - `DumpDiagnostics()`：全量内部状态 JSON，~1ms，任何时刻可调；**bug 报告的
   第一附件**。
 - `kStats` 事件随统计 tick（1s）推送，替代 ijkplayer 的 20+ 次属性轮询。
-- 日志线程名前缀：`avbase-media` / `avbase-demux`（background 优先级）/
-  `avbase-video` / `avbase-audio` / `avbase-event`（Δ16）。
+- 日志线程名前缀：`xmedia-media` / `xmedia-demux`（background 优先级）/
+  `xmedia-video` / `xmedia-audio` / `xmedia-event`（Δ16）。
 
 ## 6. 已知边界（0.1.0 性能面的未项）
 
 - **微基准已落地（base + media + player 层 10 项）**：`bench/` 是自包含
   harness——无 Google Benchmark（沙箱取不到，CI 也不该装），接
-  `AVBASE_BUILD_BENCH`，链 `avbase::base` + `avbase::player`（后者传递 media；
-  `media/ffmpeg` 是独立 target，故 `AVBASE_ENABLE_FFMPEG=OFF` 照样能编能跑）。
+  `XMEDIA_BUILD_BENCH`，链 `xmedia::base` + `xmedia::player`（后者传递 media；
+  `media/ffmpeg` 是独立 target，故 `XMEDIA_ENABLE_FFMPEG=OFF` 照样能编能跑）。
   mac 实测（p75，入 `tools/bench-baseline.jsonl`）：`BM_PostTask_RoundTrip`
   ≈ 10.5 µs、`BM_EventHub_PostVisit` ≈ 1.94 µs、`BM_BindOnce_Invoke`
   ≈ 138 ns、`BM_DecideNextFrame` ≈ 15.5 ns、`BM_GetMasterClock` ≈ 6.3 ns。
@@ -189,7 +189,7 @@ demuxer + 第二对渲染腿**，共用一个时钟——多一次完整解码�
   唤醒」，不是「跨线程」本身，所以它没有像 PostTask 那样拿到 40% 的单独容差。
   鉴别力实测：每次迭代发两个事件 → +100.3% → 判 REGRESSION（其余 4 项无误伤）。
   **仍缺**：`BM_AudioRenderCallback`（★ < 100 µs 的设备线程回调，要假解码器
-  + 假 sink 填 ring，而 bench 被两边配成 `AVBASE_BUILD_TESTS=OFF`，
+  + 假 sink 填 ring，而 bench 被两边配成 `XMEDIA_BUILD_TESTS=OFF`，
   tests/support 的 target 不存在于那个配置）与四个依赖真解码器的端到端项
   （`BM_EndToEnd_1080p_NullSink` / `BM_FirstFrameLatency` / `BM_SeekLatency` /
   `BM_MemoryPerInstance`）——理由与出路见 docs/04 §8 底部。

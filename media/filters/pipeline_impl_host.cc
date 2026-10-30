@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,7 @@
 #include "base/logging.h"
 #include "media/filters/live_edge_policy.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 namespace {
 
@@ -47,7 +47,7 @@ int PipelineImpl::GetTextStreamId() const {
 
 // These six reject, and the reason is NOT that they are unimplemented -- see
 // the block above AddVideoStream in media/base/pipeline.h. They name a shape
-// avbase does not have: `id` would select among several streams of one type,
+// xmedia-kit does not have: `id` would select among several streams of one type,
 // and Demuxer::GetStream(type) returns ONE per type. A second picture is a
 // second URL (a second Demuxer, or a second Player feeding the scene's
 // mailbox), not an id.
@@ -63,28 +63,28 @@ int PipelineImpl::GetTextStreamId() const {
 // called before it is ready, so a caller that does reach here gets a visible
 // diagnostic and no effect -- which is exactly what the interface promises.
 void PipelineImpl::AddVideoStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: AddVideoStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: AddVideoStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 void PipelineImpl::RemoveVideoStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: RemoveVideoStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: RemoveVideoStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 void PipelineImpl::AddAudioStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: AddAudioStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: AddAudioStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 void PipelineImpl::RemoveAudioStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: RemoveAudioStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: RemoveAudioStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 void PipelineImpl::AddTextStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: AddTextStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: AddTextStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 void PipelineImpl::RemoveTextStream(int id) {
-  LOG(WARNING) << "avbase.pipeline: RemoveTextStream(" << id
-               << ") rejected: avbase has one stream per type, not an id axis";
+  LOG(WARNING) << "xmedia.pipeline: RemoveTextStream(" << id
+               << ") rejected: xmedia-kit has one stream per type, not an id axis";
 }
 
 // ---- Demuxer::Host ----------------------------------------------------------
@@ -233,7 +233,7 @@ void PipelineImpl::OnStatisticsUpdate(const PipelineStatistics& stats) {
     if (ShouldChaseToLiveEdge(behind)) {
       const base::TimeDelta target =
           LiveEdgePolicy::SuggestedTarget(edge, latency_hint_);
-      LOG(WARNING) << "avbase.pipeline: live chase, behind="
+      LOG(WARNING) << "xmedia.pipeline: live chase, behind="
                    << behind.InMillisecondsF() << "ms, skipping to "
                    << target.InSecondsF() << "s";
       seek_in_flight_ = true;
@@ -270,7 +270,7 @@ void PipelineImpl::OnAudioOutputDeviceChanged(const std::string& device_id,
   // Pipeline::Client has no device-change hook (it is a RendererClient
   // member); diagnostics get it via the log until M9's device switching
   // defines what a host needs.
-  LOG(INFO) << "avbase.pipeline: audio device '" << device_id
+  LOG(INFO) << "xmedia.pipeline: audio device '" << device_id
             << "' default=" << is_default << " "
             << OutputDeviceStatusToString(status);
 }
@@ -287,4 +287,4 @@ MediaInfo PipelineImpl::media_info() const {
   return media_info_;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,7 +25,7 @@
 
 #include "player/public/player_event.h"
 
-namespace avbase {
+namespace xmedia {
 
 void PlayerImpl::OnDecoderOpened(media::DemuxerStreamType type,
                                  const std::string& decoder_name,
@@ -93,4 +93,4 @@ int PlayerImpl::decoder_fallback_count() const {
   return decoder_fallback_count_;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

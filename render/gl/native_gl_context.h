@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_NATIVE_GL_CONTEXT_H_
-#define AVBASE_RENDER_GL_NATIVE_GL_CONTEXT_H_
+#ifndef XMEDIA_RENDER_GL_NATIVE_GL_CONTEXT_H_
+#define XMEDIA_RENDER_GL_NATIVE_GL_CONTEXT_H_
 
 #include <string>
 
 #include "render/gl/gl_export.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // The seam between this module and whatever owns the window: a GL context plus
 // the two things the module needs from its host -- a way to resolve entry
@@ -29,7 +29,7 @@ namespace avbase::gl {
 // module calls MakeCurrent() on its own render thread before touching GL and
 // ReleaseCurrent() when it is done; a host that also binds the context
 // elsewhere must expect the module's objects to be invalid there.
-class AVBASE_GL_EXPORT NativeGLContext {
+class XMEDIA_GL_EXPORT NativeGLContext {
  public:
   virtual ~NativeGLContext() = default;
 
@@ -54,6 +54,6 @@ class AVBASE_GL_EXPORT NativeGLContext {
   virtual std::string GetError() { return std::string(); }
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_NATIVE_GL_CONTEXT_H_
+#endif  // XMEDIA_RENDER_GL_NATIVE_GL_CONTEXT_H_

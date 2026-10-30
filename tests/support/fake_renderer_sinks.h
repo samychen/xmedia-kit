@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,8 +15,8 @@
 // reported the plain fields as data races. The frame vector is test-thread only
 // and stays a plain container.
 
-#ifndef AVBASE_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_
-#define AVBASE_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_
+#ifndef XMEDIA_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_
+#define XMEDIA_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_
 
 #include <atomic>
 #include <cstdint>
@@ -33,7 +33,7 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer_sink.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 class FakeVideoSink final : public VideoRendererSink {
  public:
@@ -172,6 +172,6 @@ class FakeAudioSink final : public AudioRendererSink {
   std::atomic<int64_t> frames_rendered_{0};
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_
+#endif  // XMEDIA_TESTS_SUPPORT_FAKE_RENDERER_SINKS_H_

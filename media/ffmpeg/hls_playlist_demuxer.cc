@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 #include "media/ffmpeg/hls_aes_128.h"
 #include "media/ffmpeg/hls_fetch_utils.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {}  // namespace
 
 // ---- lifecycle
@@ -330,4 +330,4 @@ base::TimeDelta HlsPlaylistDemuxer::SegmentStream::buffered_duration() const {
                                               : it->second->buffered_duration();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

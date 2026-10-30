@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_SEI_TIMECODE_H_
-#define AVBASE_MEDIA_FFMPEG_SEI_TIMECODE_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_SEI_TIMECODE_H_
+#define XMEDIA_MEDIA_FFMPEG_SEI_TIMECODE_H_
 
 #include <optional>
 #include <string>
 
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // SMPTE ST 12-1 timecode, as FFmpeg surfaces it from the H.264/MPEG-2 SEI
 // timecode message (AV_FRAME_DATA_S12M_TIMECODE side data). MediaComponent
@@ -36,6 +36,6 @@ std::optional<S12mTimecode> TimecodeFromFrame(const AVFrame& frame);
 // failure. If the frame already carries a timecode, it is replaced.
 bool WriteTimecodeToFrame(AVFrame* frame, const S12mTimecode& tc);
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_SEI_TIMECODE_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_SEI_TIMECODE_H_

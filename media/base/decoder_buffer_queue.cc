@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 const char* GetPopStatusName(DecoderBufferQueue::PopStatus s) {
   using S = DecoderBufferQueue::PopStatus;
@@ -292,4 +292,4 @@ DecoderBufferQueue::Stats DecoderBufferQueue::GetStats() const {
   return stats;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

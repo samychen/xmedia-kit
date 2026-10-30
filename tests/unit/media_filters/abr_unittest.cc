@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 
 #include "gtest/gtest.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 AbrInput MakeInput(std::vector<int64_t> ladder, int current,
@@ -98,4 +98,4 @@ TEST(AbrBufferAlgoTest, StaysAtTheTop) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

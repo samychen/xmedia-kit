@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 #include <cstdlib>
 #include <string>
 
-namespace avbase::base::internal {
+namespace xmedia::base::internal {
 
-// CHECK/DCHECK failure path. avbase is built with -fno-exceptions, so a failed
+// CHECK/DCHECK failure path. xmedia-kit is built with -fno-exceptions, so a failed
 // check logs at FATAL severity (which aborts) and then aborts unconditionally,
 // matching Chromium's behaviour.
 CheckOpStreamHelper::~CheckOpStreamHelper() {
@@ -21,4 +21,4 @@ CheckOpStreamHelper::~CheckOpStreamHelper() {
   std::abort();  // Unreachable: LOG(FATAL) aborts. Keeps the compiler quiet.
 }
 
-}  // namespace avbase::base::internal
+}  // namespace xmedia::base::internal

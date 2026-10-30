@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,9 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 
-namespace avbase {
+namespace xmedia {
 
-EventHub::EventHub() : thread_("avbase-event") {
+EventHub::EventHub() : thread_("xmedia-event") {
   thread_.Start();
 }
 
@@ -174,4 +174,4 @@ void EventHub::Shutdown(base::TimeDelta timeout) {
   thread_.Stop();
 }
 
-}  // namespace avbase
+}  // namespace xmedia

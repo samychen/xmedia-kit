@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/media_resource.h` (BSD-3-Clause), reduced to
-// the single hook avbase actually needs.
+// the single hook xmedia-kit actually needs.
 //
 // STATUS: IN THE BUILD (promoted from DRAFT, tenth round)
 // PROMOTED into the build in the tenth round, after a full compile and test
@@ -24,21 +24,21 @@
 //      through interface review.
 //   2. RendererImpl::Initialize() is the only caller (M7).
 //   3. Chromium's GetFirstDataSource()/byte-range loaders are intentionally
-//      absent: decision D2 keeps FFmpeg types out of media/base, and avbase's
+//      absent: decision D2 keeps FFmpeg types out of media/base, and xmedia-kit's
 //      byte source is media::DataSource, reached through the Demuxer rather
 //      than through the resource. If M9's DataSource decorators
 //      (RetryDataSource / LiveDataSource) need a second access path, add it
 //      here rather than widening Demuxer.
 
-#ifndef AVBASE_MEDIA_BASE_MEDIA_RESOURCE_H_
-#define AVBASE_MEDIA_BASE_MEDIA_RESOURCE_H_
+#ifndef XMEDIA_MEDIA_BASE_MEDIA_RESOURCE_H_
+#define XMEDIA_MEDIA_BASE_MEDIA_RESOURCE_H_
 
 #include <vector>
 
 #include "media/base/demuxer_stream.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // What a Renderer is given to read from.
 //
@@ -60,7 +60,7 @@ namespace avbase::media {
 //
 // Threading: called on the media sequence only. Implementations need no lock;
 // SEQUENCE_CHECKER enforces it.
-class AVBASE_MEDIA_EXPORT MediaResource {
+class XMEDIA_MEDIA_EXPORT MediaResource {
  public:
   MediaResource(const MediaResource&) = delete;
   MediaResource& operator=(const MediaResource&) = delete;
@@ -146,6 +146,6 @@ class AVBASE_MEDIA_EXPORT MediaResource {
   virtual ~MediaResource() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_MEDIA_RESOURCE_H_
+#endif  // XMEDIA_MEDIA_BASE_MEDIA_RESOURCE_H_

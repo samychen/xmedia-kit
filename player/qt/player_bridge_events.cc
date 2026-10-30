@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// PlayerBridge's event half: the hop from avbase's dispatch sequence to the GUI
+// PlayerBridge's event half: the hop from xmedia-kit's dispatch sequence to the GUI
 // thread, and what each event means for the properties QML binds to.
 //
 // Split out of player_bridge.cc, the way media/filters separates
@@ -21,7 +21,7 @@
 #include "media/base/media_info.h"
 #include "player/qt/timeline_model.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 namespace {
 
@@ -32,7 +32,7 @@ QString StateName(PlayerState state) {
 }  // namespace
 
 void PlayerBridge::OnEvent(const PlayerEvent& event) {
-  // Runs on avbase's event dispatch sequence. Touching a QObject member from
+  // Runs on xmedia-kit's event dispatch sequence. Touching a QObject member from
   // here would be a data race with the GUI thread, and calling into QML from a
   // non-GUI thread is not allowed at all, so the only thing this does is hand a
   // copy to the GUI thread. The copy is deliberate: |event| is a reference into
@@ -139,4 +139,4 @@ void PlayerBridge::ApplyEvent(const PlayerEvent& event) {
   }
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

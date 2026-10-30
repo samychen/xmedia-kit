@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_RENDER_PERF_STATS_H_
-#define AVBASE_MEDIA_BASE_RENDER_PERF_STATS_H_
+#ifndef XMEDIA_MEDIA_BASE_RENDER_PERF_STATS_H_
+#define XMEDIA_MEDIA_BASE_RENDER_PERF_STATS_H_
 
 #include <stdint.h>
 
@@ -11,7 +11,7 @@
 
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // How a decoded frame reached the GPU. The vocabulary mirrors MediaComponent's
 // UploadPath (framework/render/common/render_perf_stats.h) so a reader moving
@@ -32,7 +32,7 @@ enum class UploadPath {
                 // GlHwTextureImporter.
 };
 
-AVBASE_MEDIA_EXPORT const char* UploadPathName(UploadPath path);
+XMEDIA_MEDIA_EXPORT const char* UploadPathName(UploadPath path);
 
 // Whether a requested "vf" filter graph is reaching the pixels, and when it is
 // not, why. A graph that quietly does nothing is indistinguishable from one
@@ -55,7 +55,7 @@ enum class VideoFilterState {
   kRefusedGraphFailed,    // Requested, but the graph would not start.
 };
 
-AVBASE_MEDIA_EXPORT const char* VideoFilterStateName(VideoFilterState state);
+XMEDIA_MEDIA_EXPORT const char* VideoFilterStateName(VideoFilterState state);
 
 // Per-frame breakdown of one present, in milliseconds. The four fields are
 // kept apart because they are separated by a real cost boundary -- each can
@@ -78,7 +78,7 @@ AVBASE_MEDIA_EXPORT const char* VideoFilterStateName(VideoFilterState state);
 //
 // Reported as a value, not a callback: the producer is on the render thread
 // and the consumer is on the media sequence, so the hand-off is a snapshot.
-struct AVBASE_MEDIA_EXPORT PresentTiming {
+struct XMEDIA_MEDIA_EXPORT PresentTiming {
   double upload_ms{0.0};
   double compose_ms{0.0};
   double blit_ms{0.0};
@@ -104,7 +104,7 @@ struct AVBASE_MEDIA_EXPORT PresentTiming {
 //
 // Thread-compatible, not thread-safe: the writer is the render thread, the
 // reader copies the whole RenderPerfStats under the sink's own lock.
-class AVBASE_MEDIA_EXPORT DurationEwma {
+class XMEDIA_MEDIA_EXPORT DurationEwma {
  public:
   void Add(double ms);
   void Reset();
@@ -127,7 +127,7 @@ class AVBASE_MEDIA_EXPORT DurationEwma {
 // frames_presented / frames_dropped, and a second copy would be the kind of
 // duplicated state that drifts. This struct answers "what did each frame
 // cost", that one answers "how many frames were there".
-struct AVBASE_MEDIA_EXPORT RenderPerfStats {
+struct XMEDIA_MEDIA_EXPORT RenderPerfStats {
   DurationEwma upload;
   DurationEwma compose;
   DurationEwma blit;
@@ -142,6 +142,6 @@ struct AVBASE_MEDIA_EXPORT RenderPerfStats {
   std::string ToJson() const;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_RENDER_PERF_STATS_H_
+#endif  // XMEDIA_MEDIA_BASE_RENDER_PERF_STATS_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@
 
 #include "gtest/gtest.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 media::VideoDecoderConfig H264Config(const std::string& profile) {
@@ -51,7 +51,7 @@ TEST(FFmpegHwDecoderFactoryTest, VideotoolboxDeclinesUnsupportedChroma) {
   base::test::TaskEnvironment env;
   auto runner = base::SequencedTaskRunner::GetCurrentDefault();
   media::ffmpeg::FFmpegHwDecoderSpec spec =
-      avbase::platform::hwaccel::VideotoolboxHwSpec();
+      xmedia::platform::hwaccel::VideotoolboxHwSpec();
   ASSERT_TRUE(spec.config_supported)
       << "VideotoolboxHwSpec must wire the chroma gate";
   auto factory = base::MakeRefCounted<FFmpegHwVideoDecoderFactory>(
@@ -97,4 +97,4 @@ TEST(FFmpegHwDecoderFactoryTest, EmptyGateIsNoFilter) {
 }
 
 }  // namespace
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

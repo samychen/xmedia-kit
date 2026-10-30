@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace avbase::gl {
+namespace xmedia::gl {
 namespace {
 
 // Interleaved (x, y, u, v) per vertex, in triangle-strip order:
@@ -99,4 +99,4 @@ void GlQuad::Draw() const {
   gl_->context().DrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount);
 }
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl

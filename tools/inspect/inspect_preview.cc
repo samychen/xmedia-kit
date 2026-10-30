@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect preview`: the seek-preview batch grab, written to disk.
+// `xmedia-inspect preview`: the seek-preview batch grab, written to disk.
 //
 // Why a CLI and not just the library call: PreviewFrames() returned frames
 // to nobody before this existed -- its only caller was its own unit test, and
@@ -32,7 +32,7 @@
 #include "media/transcode/ffmpeg_preview_job.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // Prints the frames' geometry, timestamps and the gaps between them. The
@@ -213,4 +213,4 @@ int RunPreview(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

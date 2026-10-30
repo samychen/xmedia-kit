@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,10 +27,10 @@
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/log_bridge.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 StreamKind ToStreamKind(AVMediaType type) {
   switch (type) {
@@ -261,9 +261,9 @@ void FFmpegDemuxer::Initialize(
     loop_state_ = LoopState::kRunning;  // OnOpened is about to post the loop.
   }
 
-  demux_thread_ = std::make_unique<base::Thread>("avbase-demux");
+  demux_thread_ = std::make_unique<base::Thread>("xmedia-demux");
   base::Thread::Options thread_options;
-  thread_options.name = "avbase-demux";
+  thread_options.name = "xmedia-demux";
   // Demuxing is I/O bound and tolerates latency; it must not compete with the
   // audio render thread for CPU.
   thread_options.priority = base::ThreadPriority::kBackground;
@@ -792,7 +792,7 @@ FFmpegDemuxer::ReadStep FFmpegDemuxer::ReadAndRouteOnePacket(void* ctx_raw,
 }
 
 void FFmpegDemuxer::DemuxLoop() {
-  // Runs on "avbase-demux": the only sequence allowed to block on I/O
+  // Runs on "xmedia-demux": the only sequence allowed to block on I/O
   // (docs/04 §2.1, decision D3).
   AVFormatContext* ctx = ff::AsFormatContext(format_ctx_raw_);
   if (!ctx) {
@@ -925,4 +925,4 @@ void FFmpegDemuxer::EmitStage(MediaLogEvent::Type stage,
       GetMediaLogEventTypeName(stage));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

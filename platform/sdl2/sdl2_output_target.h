@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_
-#define AVBASE_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_
+#ifndef XMEDIA_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_
+#define XMEDIA_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_
 
 #include "media/gl/gl_output_target.h"
 #include "media/media_export.h"
 #include "render/gl/overlay.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The SDL2 half of video output: everything that used to make Sdl2VideoSink a
 // SECOND sink rather than a backend.
@@ -30,7 +30,7 @@ namespace avbase::media {
 // THREADING (see surface.h): the host created the window/renderer on its main
 // thread; every SDL object below is then touched only from the sink's render
 // thread, and ReleaseOutput() runs once that thread is joined.
-class AVBASE_MEDIA_EXPORT Sdl2OutputTarget final : public GlOutputTarget {
+class XMEDIA_MEDIA_EXPORT Sdl2OutputTarget final : public GlOutputTarget {
  public:
   Sdl2OutputTarget() = default;
   Sdl2OutputTarget(const Sdl2OutputTarget&) = delete;
@@ -73,6 +73,6 @@ class AVBASE_MEDIA_EXPORT Sdl2OutputTarget final : public GlOutputTarget {
   int snapshot_version_{-1};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_
+#endif  // XMEDIA_PLATFORM_SDL2_SDL2_OUTPUT_TARGET_H_

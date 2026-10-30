@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_AUDIO_FILTER_H_
-#define AVBASE_MEDIA_FFMPEG_AUDIO_FILTER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_AUDIO_FILTER_H_
+#define XMEDIA_MEDIA_FFMPEG_AUDIO_FILTER_H_
 
 #include <memory>
 #include <string>
@@ -13,12 +13,12 @@
 #include "media/base/audio_buffer.h"
 #include "media/filters/audio_filter_stage.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One audio filter-graph stage, driven by the "af" filter_graph config.
 //
 // Ported role from MediaComponent's framework/ffmpeg/audio_filter.h, rewritten
-// onto avbase's AudioBuffer contract: buffers in (matching the stream config),
+// onto xmedia-kit's AudioBuffer contract: buffers in (matching the stream config),
 // buffers out (the graph's negotiated output). Requires avfilter in the
 // FFmpeg build (tools/setup_ffmpeg.sh enables it and the common audio
 // filters).
@@ -45,6 +45,6 @@ class FFmpegAudioFilter final : public AudioFilterStage {
   std::unique_ptr<Context> ctx_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_AUDIO_FILTER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_AUDIO_FILTER_H_

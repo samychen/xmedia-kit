@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -19,7 +19,7 @@
 #include "media/filters/null_video_sink.h"
 #include "media/gl/gl_layer_source.h"
 
-namespace avbase {
+namespace xmedia {
 
 // ---- SceneSource -----------------------------------------------------------
 
@@ -221,4 +221,4 @@ void SceneSource::RetireLocked() {
   source_.reset();
 }
 
-}  // namespace avbase
+}  // namespace xmedia

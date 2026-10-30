@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_TEXT_TAG_STRIP_H_
-#define AVBASE_MEDIA_FILTERS_TEXT_TAG_STRIP_H_
+#ifndef XMEDIA_MEDIA_FILTERS_TEXT_TAG_STRIP_H_
+#define XMEDIA_MEDIA_FILTERS_TEXT_TAG_STRIP_H_
 
 #include <string>
 #include <string_view>
 
-namespace avbase::media::internal {
+namespace xmedia::media::internal {
 
 // Strips the <tag> shapes real subtitle files carry (<i>, </b>,
 // <font ...>): cue text goes to the renderer as plain text, which is what
@@ -30,6 +30,6 @@ inline std::string StripTags(std::string_view line) {
   return out;
 }
 
-}  // namespace avbase::media::internal
+}  // namespace xmedia::media::internal
 
-#endif  // AVBASE_MEDIA_FILTERS_TEXT_TAG_STRIP_H_
+#endif  // XMEDIA_MEDIA_FILTERS_TEXT_TAG_STRIP_H_

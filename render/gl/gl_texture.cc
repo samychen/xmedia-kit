@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "render/gl/gl_texture.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 std::unique_ptr<GlTexture> GlTexture::Create(const GlApi& gl) {
   return Create(gl, GL_TEXTURE_2D);
@@ -114,4 +114,4 @@ void GlTexture::GenerateMipmap() const {
   }
 }
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl

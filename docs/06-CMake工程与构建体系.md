@@ -1,6 +1,6 @@
 # 06 · CMake 工程与构建体系
 
-> 上一篇：[05 迁移对照表](05-迁移对照表.md) ｜ 下一篇：[07 测试策略与可观测性](07-测试策略与可观测性.md)
+> 上一篇：[04 线程模型与数据流](04-线程模型与数据流.md) ｜ 下一篇：[07 测试策略与可观测性](07-测试策略与可观测性.md)
 
 > **实现状态**：本篇是设计文档，描述目标形态。**当前已落地到哪一步以
 > [PROGRESS.md](PROGRESS.md) 为唯一真相源**；两者的差异（已实现 / 计划中）在 PROGRESS.md 里逐项标注。
@@ -9,14 +9,14 @@
 
 | 本篇描述 | 仓库现状 | 落地里程碑 |
 |---|---|---|
-| `cmake/FindFFmpeg.cmake` | ⬜ 未创建（`AVBASE_ENABLE_FFMPEG` 默认 **OFF**，本篇示例写 ON） | M4 |
+| `cmake/FindFFmpeg.cmake` | ⬜ 未创建（`XMEDIA_ENABLE_FFMPEG` 默认 **OFF**，本篇示例写 ON） | M4 |
 | `cmake/FindLinuxMediaDeps.cmake` | ⬜ 未创建 | M11/M12 |
-| `cmake/AvbaseInstall.cmake` + `avbase.map` | ✅ 2026-10-18（M13）：install/export/CPack 已建（`packaging/README.md` 记验证状态）；符号版本表 `avbase.map` 未做——本仓全静态库 + 全头 inline，无导出符号表可锁，条目按「无对象」关闭 |
-| `cmake/AvbaseOptions.cmake` 的 `AVBASE_LINUX_*` 细分开关 | ⬜ 未创建 | M12 |
-| `avbase_platform_null` / `_sdl2` / `_linux` target | ⬜ `platform/CMakeLists.txt` 目前是占位（对 SDL2/Linux 开关直接 `FATAL_ERROR` 指向里程碑） | M10/M11/M12 |
+| `cmake/XmediaInstall.cmake` + `xmedia.map` | ✅ 2026-10-18（M13）：install/export/CPack 已建（`packaging/README.md` 记验证状态）；符号版本表 `xmedia.map` 未做——本仓全静态库 + 全头 inline，无导出符号表可锁，条目按「无对象」关闭 |
+| `cmake/XmediaOptions.cmake` 的 `XMEDIA_LINUX_*` 细分开关 | ⬜ 未创建 | M12 |
+| `xmedia_platform_null` / `_sdl2` / `_linux` target | ⬜ `platform/CMakeLists.txt` 目前是占位（对 SDL2/Linux 开关直接 `FATAL_ERROR` 指向里程碑） | M10/M11/M12 |
 | `tools/gen_options.py` 生成 `option_registry.inc` | ⬜ `player/option_registry.cc` 目前是 9 项手写表 | M1 |
 | `examples/` 全部 | ⬜ 未创建 | M8/M11 |
-| 已就位 | ✅ 顶层 + `base/` + `media/` + `player/` + `platform/` + `tests/` 六个 CMakeLists、`AvbaseOptions`、`AvbaseCompilerFlags`、`AvbaseThirdParty`、`AvbaseCheckInvariants`、`BuildConfig.h.in`、`Version.h.in`、`CMakePresets.json`（12 preset）、`.github/workflows/ci.yml`、`tools/check_invariants.py` | — |
+| 已就位 | ✅ 顶层 + `base/` + `media/` + `player/` + `platform/` + `tests/` 六个 CMakeLists、`XmediaOptions`、`XmediaCompilerFlags`、`XmediaThirdParty`、`XmediaCheckInvariants`、`BuildConfig.h.in`、`Version.h.in`、`CMakePresets.json`（12 preset）、`.github/workflows/ci.yml`、`tools/check_invariants.py` | — |
 
 目标：**一条命令从零构建**（G10），Linux 上 `cmake --preset linux-sdl2 && cmake --build && ./build/.../play_sdl2 video.mp4` 直接出画。
 
@@ -27,19 +27,19 @@
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" AVBASE_VERSION_RAW)
-string(STRIP "${AVBASE_VERSION_RAW}" AVBASE_VERSION)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" XMEDIA_VERSION_RAW)
+string(STRIP "${XMEDIA_VERSION_RAW}" XMEDIA_VERSION)
 
-project(avbase
-    VERSION   ${AVBASE_VERSION}
+project(xmedia-kit
+    VERSION   ${XMEDIA_VERSION}
     LANGUAGES C CXX
     DESCRIPTION "A C++20 reimplementation of the ijkplayer core, Chromium-style"
-    HOMEPAGE_URL "https://example.com/avbase")
+    HOMEPAGE_URL "https://example.com/xmedia-kit")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  set(AVBASE_IS_TOP_LEVEL ON)
+  set(XMEDIA_IS_TOP_LEVEL ON)
 else()
-  set(AVBASE_IS_TOP_LEVEL OFF)
+  set(XMEDIA_IS_TOP_LEVEL OFF)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -47,8 +47,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 include(CMakeDependentOption)
 include(CMakePackageConfigHelpers)
-include(AvbaseOptions)
-include(AvbaseCompilerFlags)
+include(XmediaOptions)
+include(XmediaCompilerFlags)
 
 # ---------- 全局默认 ----------
 set(CMAKE_CXX_STANDARD 20)
@@ -57,7 +57,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)             # ★Google: 禁用 GNU 扩展
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)   # 静态库也要 PIC，才能进 .so
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ${AVBASE_IS_TOP_LEVEL})
+set(CMAKE_EXPORT_COMPILE_COMMANDS ${XMEDIA_IS_TOP_LEVEL})
 set(CMAKE_DEBUG_POSTFIX "")               # Google 风格不加 d 后缀
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -71,21 +71,21 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # ---------- 依赖 ----------
 find_package(Threads REQUIRED)
 
-if(AVBASE_ENABLE_FFMPEG)
+if(XMEDIA_ENABLE_FFMPEG)
   find_package(FFmpeg REQUIRED COMPONENTS avformat avcodec avutil swscale swresample)
 endif()
-if(AVBASE_ENABLE_SDL2)
+if(XMEDIA_ENABLE_SDL2)
   find_package(SDL2 REQUIRED)
 endif()
-if(AVBASE_ENABLE_LINUX_NATIVE)
+if(XMEDIA_ENABLE_LINUX_NATIVE)
   include(FindLinuxMediaDeps)             # OpenGL/EGL/GLX/X11/Wayland/ALSA/Pulse，全部可选
 endif()
-if(AVBASE_BUILD_TESTS OR AVBASE_BUILD_BENCH)
-  include(AvbaseThirdParty)                # GTest/GMock/Benchmark
+if(XMEDIA_BUILD_TESTS OR XMEDIA_BUILD_BENCH)
+  include(XmediaThirdParty)                # GTest/GMock/Benchmark
 endif()
 
-configure_file(cmake/BuildConfig.h.in "${CMAKE_BINARY_DIR}/generated/avbase/BuildConfig.h" @ONLY)
-configure_file(cmake/Version.h.in     "${CMAKE_BINARY_DIR}/generated/avbase/Version.h"     @ONLY)
+configure_file(cmake/BuildConfig.h.in "${CMAKE_BINARY_DIR}/generated/xmedia-kit/BuildConfig.h" @ONLY)
+configure_file(cmake/Version.h.in     "${CMAKE_BINARY_DIR}/generated/xmedia-kit/Version.h"     @ONLY)
 
 # ---------- 生成物 ----------
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -103,119 +103,119 @@ add_subdirectory(base)
 add_subdirectory(media)
 add_subdirectory(platform)
 add_subdirectory(player)
-if(AVBASE_BUILD_TESTS)    add_subdirectory(tests)    endif()
-if(AVBASE_BUILD_EXAMPLES) add_subdirectory(examples) endif()
+if(XMEDIA_BUILD_TESTS)    add_subdirectory(tests)    endif()
+if(XMEDIA_BUILD_EXAMPLES) add_subdirectory(examples) endif()
 
-include(AvbaseInstall)
-include(AvbaseCheckInvariants)
+include(XmediaInstall)
+include(XmediaCheckInvariants)
 
-if(AVBASE_IS_TOP_LEVEL)
+if(XMEDIA_IS_TOP_LEVEL)
   message(STATUS "────────────────────────────────────────────────────────")
-  message(STATUS " avbase ${PROJECT_VERSION}   (${CMAKE_BUILD_TYPE})")
+  message(STATUS " xmedia-kit ${PROJECT_VERSION}   (${CMAKE_BUILD_TYPE})")
   message(STATUS "   compiler        : ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
   message(STATUS "   exceptions/RTTI : OFF / OFF   (Google style)")
-  message(STATUS "   FFmpeg          : ${AVBASE_ENABLE_FFMPEG}  ${FFmpeg_VERSION_STRING}")
-  message(STATUS "   SDL2 backend    : ${AVBASE_ENABLE_SDL2}   ${SDL2_VERSION}")
-  message(STATUS "   Linux native    : ${AVBASE_ENABLE_LINUX_NATIVE}")
-  message(STATUS "     OpenGL/EGL    : ${AVBASE_HAVE_OPENGL} / ${AVBASE_HAVE_EGL}")
-  message(STATUS "     X11/Wayland   : ${AVBASE_HAVE_X11} / ${AVBASE_HAVE_WAYLAND}")
-  message(STATUS "     ALSA/Pulse/PW : ${AVBASE_HAVE_ALSA} / ${AVBASE_HAVE_PULSE} / ${AVBASE_HAVE_PIPEWIRE}")
-  message(STATUS "   sanitizers      : ${AVBASE_SANITIZERS}")
-  message(STATUS "   tests/examples  : ${AVBASE_BUILD_TESTS} / ${AVBASE_BUILD_EXAMPLES}")
+  message(STATUS "   FFmpeg          : ${XMEDIA_ENABLE_FFMPEG}  ${FFmpeg_VERSION_STRING}")
+  message(STATUS "   SDL2 backend    : ${XMEDIA_ENABLE_SDL2}   ${SDL2_VERSION}")
+  message(STATUS "   Linux native    : ${XMEDIA_ENABLE_LINUX_NATIVE}")
+  message(STATUS "     OpenGL/EGL    : ${XMEDIA_HAVE_OPENGL} / ${XMEDIA_HAVE_EGL}")
+  message(STATUS "     X11/Wayland   : ${XMEDIA_HAVE_X11} / ${XMEDIA_HAVE_WAYLAND}")
+  message(STATUS "     ALSA/Pulse/PW : ${XMEDIA_HAVE_ALSA} / ${XMEDIA_HAVE_PULSE} / ${XMEDIA_HAVE_PIPEWIRE}")
+  message(STATUS "   sanitizers      : ${XMEDIA_SANITIZERS}")
+  message(STATUS "   tests/examples  : ${XMEDIA_BUILD_TESTS} / ${XMEDIA_BUILD_EXAMPLES}")
   message(STATUS "────────────────────────────────────────────────────────")
 endif()
 ```
 
 ---
 
-## 2. `cmake/AvbaseOptions.cmake`
+## 2. `cmake/XmediaOptions.cmake`
 
 ```cmake
 # ---------- 功能开关 ----------
-option(AVBASE_ENABLE_FFMPEG       "Build FFmpeg demuxer/decoder adapters"        ON)
-option(AVBASE_ENABLE_SDL2         "Build the SDL2 video/audio backend"           ON)
-option(AVBASE_ENABLE_LINUX_NATIVE "Build the native Linux backend (GL/EGL/X11/Wayland/ALSA/Pulse)" ON)
-option(AVBASE_ENABLE_ANDROID      "Build the Android backend"                    OFF)
-option(AVBASE_ENABLE_IOS          "Build the iOS backend"                        OFF)
-option(AVBASE_ENABLE_CAPI         "Build the C ABI compatibility layer"          OFF)
+option(XMEDIA_ENABLE_FFMPEG       "Build FFmpeg demuxer/decoder adapters"        ON)
+option(XMEDIA_ENABLE_SDL2         "Build the SDL2 video/audio backend"           ON)
+option(XMEDIA_ENABLE_LINUX_NATIVE "Build the native Linux backend (GL/EGL/X11/Wayland/ALSA/Pulse)" ON)
+option(XMEDIA_ENABLE_ANDROID      "Build the Android backend"                    OFF)
+option(XMEDIA_ENABLE_IOS          "Build the iOS backend"                        OFF)
+option(XMEDIA_ENABLE_CAPI         "Build the C ABI compatibility layer"          OFF)
 # ↑ 默认 OFF,但**必须出现在某个 preset 里**否则它没有门禁:`capi` preset
-# (ffmpeg + CAPI=ON)构建 target `avbase_cabi` 与 `avbase_capi_smoke`,并由 CI 的
+# (ffmpeg + CAPI=ON)构建 target `xmedia_cabi` 与 `xmedia_capi_smoke`,并由 CI 的
 # `capi` job 跑 `capi_smoke_test`。`capi_smoke_test.c` 是纯 C 源码,以 C99 + `-Werror`
-# 编译 —— 这是唯一能证明 `avbase_c.h` 仍是合法 C 的检查(C++ 编译通过证明不了任何事)。
-option(AVBASE_BUILD_SHARED        "Build shared libraries instead of static"     OFF)
+# 编译 —— 这是唯一能证明 `xmedia_c.h` 仍是合法 C 的检查(C++ 编译通过证明不了任何事)。
+option(XMEDIA_BUILD_SHARED        "Build shared libraries instead of static"     OFF)
 
 # ---------- Linux 原生后端的细分开关（全部默认 dlopen，弱依赖） ----------
-option(AVBASE_LINUX_USE_OPENGL    "Native backend: OpenGL 3.3 video path"   ON)
-option(AVBASE_LINUX_USE_EGL       "Native backend: EGL (Wayland/GBM)"       ON)
-option(AVBASE_LINUX_USE_GLX       "Native backend: GLX (X11)"               ON)
-option(AVBASE_LINUX_USE_X11       "Native backend: X11 window integration"  ON)
-option(AVBASE_LINUX_USE_WAYLAND   "Native backend: Wayland window integration" ON)
-option(AVBASE_LINUX_USE_ALSA      "Native backend: ALSA audio output"       ON)
-option(AVBASE_LINUX_USE_PULSE     "Native backend: PulseAudio output"       ON)
-option(AVBASE_LINUX_USE_PIPEWIRE  "Native backend: PipeWire output"         OFF)
-option(AVBASE_LINUX_LINK_RUNTIME  "dlopen platform libs at runtime instead of linking" ON)
+option(XMEDIA_LINUX_USE_OPENGL    "Native backend: OpenGL 3.3 video path"   ON)
+option(XMEDIA_LINUX_USE_EGL       "Native backend: EGL (Wayland/GBM)"       ON)
+option(XMEDIA_LINUX_USE_GLX       "Native backend: GLX (X11)"               ON)
+option(XMEDIA_LINUX_USE_X11       "Native backend: X11 window integration"  ON)
+option(XMEDIA_LINUX_USE_WAYLAND   "Native backend: Wayland window integration" ON)
+option(XMEDIA_LINUX_USE_ALSA      "Native backend: ALSA audio output"       ON)
+option(XMEDIA_LINUX_USE_PULSE     "Native backend: PulseAudio output"       ON)
+option(XMEDIA_LINUX_USE_PIPEWIRE  "Native backend: PipeWire output"         OFF)
+option(XMEDIA_LINUX_LINK_RUNTIME  "dlopen platform libs at runtime instead of linking" ON)
 
 # ---------- 产物 ----------
-option(AVBASE_BUILD_TESTS    "Build unit/contract/integration/golden tests" ${AVBASE_IS_TOP_LEVEL})
-option(AVBASE_BUILD_EXAMPLES "Build example programs"                       ${AVBASE_IS_TOP_LEVEL})
-option(AVBASE_BUILD_BENCH    "Build benchmarks"                             OFF)
-option(AVBASE_BUILD_FUZZ     "Build libFuzzer targets"                      OFF)
-option(AVBASE_BUILD_DOCS     "Build Doxygen documentation"                  OFF)
-option(AVBASE_INSTALL        "Generate install rules"                       ${AVBASE_IS_TOP_LEVEL})
+option(XMEDIA_BUILD_TESTS    "Build unit/contract/integration/golden tests" ${XMEDIA_IS_TOP_LEVEL})
+option(XMEDIA_BUILD_EXAMPLES "Build example programs"                       ${XMEDIA_IS_TOP_LEVEL})
+option(XMEDIA_BUILD_BENCH    "Build benchmarks"                             OFF)
+option(XMEDIA_BUILD_FUZZ     "Build libFuzzer targets"                      OFF)
+option(XMEDIA_BUILD_DOCS     "Build Doxygen documentation"                  OFF)
+option(XMEDIA_INSTALL        "Generate install rules"                       ${XMEDIA_IS_TOP_LEVEL})
 
 # ---------- 质量 ----------
-option(AVBASE_STRICT_WARNINGS "Enable -Wconversion / -Wold-style-cast / clang-tidy-as-error" OFF)
-option(AVBASE_WERROR          "Treat warnings as errors"            ${AVBASE_IS_TOP_LEVEL})
-option(AVBASE_ENABLE_LTO      "Enable IPO/LTO for release builds"   OFF)
-option(AVBASE_COVERAGE        "Enable gcov/llvm-cov instrumentation" OFF)
-option(AVBASE_ENABLE_DCHECK   "Enable DCHECK/CHECK/SEQUENCE_CHECKER" ON)
-set(AVBASE_SANITIZERS "" CACHE STRING "Semicolon list: address;thread;undefined;leak")
+option(XMEDIA_STRICT_WARNINGS "Enable -Wconversion / -Wold-style-cast / clang-tidy-as-error" OFF)
+option(XMEDIA_WERROR          "Treat warnings as errors"            ${XMEDIA_IS_TOP_LEVEL})
+option(XMEDIA_ENABLE_LTO      "Enable IPO/LTO for release builds"   OFF)
+option(XMEDIA_COVERAGE        "Enable gcov/llvm-cov instrumentation" OFF)
+option(XMEDIA_ENABLE_DCHECK   "Enable DCHECK/CHECK/SEQUENCE_CHECKER" ON)
+set(XMEDIA_SANITIZERS "" CACHE STRING "Semicolon list: address;thread;undefined;leak")
 
 # ---------- 依赖位置 ----------
-set(AVBASE_FFMPEG_ROOT "" CACHE PATH "Prefix where FFmpeg is installed (cross builds)")
+set(XMEDIA_FFMPEG_ROOT "" CACHE PATH "Prefix where FFmpeg is installed (cross builds)")
 
 # ---------- 校验 ----------
-if("address" IN_LIST AVBASE_SANITIZERS AND "thread" IN_LIST AVBASE_SANITIZERS)
+if("address" IN_LIST XMEDIA_SANITIZERS AND "thread" IN_LIST XMEDIA_SANITIZERS)
   message(FATAL_ERROR "ASan and TSan cannot be enabled together")
 endif()
-if(AVBASE_ENABLE_ANDROID AND AVBASE_ENABLE_IOS)
+if(XMEDIA_ENABLE_ANDROID AND XMEDIA_ENABLE_IOS)
   message(FATAL_ERROR "Android and iOS backends are mutually exclusive")
 endif()
-if(AVBASE_ENABLE_LINUX_NATIVE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  message(FATAL_ERROR "AVBASE_ENABLE_LINUX_NATIVE requires CMAKE_SYSTEM_NAME=Linux")
+if(XMEDIA_ENABLE_LINUX_NATIVE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "XMEDIA_ENABLE_LINUX_NATIVE requires CMAKE_SYSTEM_NAME=Linux")
 endif()
-if(NOT AVBASE_ENABLE_FFMPEG AND AVBASE_BUILD_EXAMPLES AND NOT AVBASE_BUILD_TESTS)
+if(NOT XMEDIA_ENABLE_FFMPEG AND XMEDIA_BUILD_EXAMPLES AND NOT XMEDIA_BUILD_TESTS)
   message(WARNING "Without FFmpeg only headless/synthetic examples can run")
 endif()
 ```
 
-> ⚠️ **不要用 `cmake_dependent_option` 把 `AVBASE_BUILD_TESTS` 绑到 `AVBASE_ENABLE_FFMPEG`**。
+> ⚠️ **不要用 `cmake_dependent_option` 把 `XMEDIA_BUILD_TESTS` 绑到 `XMEDIA_ENABLE_FFMPEG`**。
 > `no-ffmpeg` 配置的核心价值就是"没装 FFmpeg 也能编译 base/media/player 并跑大部分单测"（G2 的可执行证明）。需要 FFmpeg 的用例用 CTest 标签 `needs-ffmpeg` 排除。
 
 ---
 
-## 3. `cmake/AvbaseCompilerFlags.cmake`（Google Style 落地）
+## 3. `cmake/XmediaCompilerFlags.cmake`（Google Style 落地）
 
 ```cmake
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceCompiles)
 
 # ---------- 导出宏 ----------
-if(AVBASE_BUILD_SHARED)
+if(XMEDIA_BUILD_SHARED)
   if(WIN32)
-    set(AVBASE_DLLEXPORT "__declspec(dllexport)")
-    set(AVBASE_DLLIMPORT "__declspec(dllimport)")
+    set(XMEDIA_DLLEXPORT "__declspec(dllexport)")
+    set(XMEDIA_DLLIMPORT "__declspec(dllimport)")
   else()
-    set(AVBASE_DLLEXPORT "__attribute__((visibility(\"default\")))")
-    set(AVBASE_DLLIMPORT "__attribute__((visibility(\"default\")))")
+    set(XMEDIA_DLLEXPORT "__attribute__((visibility(\"default\")))")
+    set(XMEDIA_DLLIMPORT "__attribute__((visibility(\"default\")))")
   endif()
 else()
-  set(AVBASE_DLLEXPORT "")
-  set(AVBASE_DLLIMPORT "")
+  set(XMEDIA_DLLEXPORT "")
+  set(XMEDIA_DLLIMPORT "")
 endif()
 
 # ---------- 警告（Google Style + Chromium） ----------
-set(AVBASE_WARNINGS_COMMON
+set(XMEDIA_WARNINGS_COMMON
     -Wall -Wextra -Wpedantic
     -Wshadow -Wnon-virtual-dtor -Woverloaded-virtual -Wunused
     -Wcast-align -Wnull-dereference -Wdouble-promotion
@@ -223,19 +223,19 @@ set(AVBASE_WARNINGS_COMMON
     -Werror=return-type -Werror=uninitialized -Werror=parentheses
     -Werror=narrowing -Werror=delete-non-virtual-dtor -Werror=reorder
     -Wno-unknown-pragmas)
-set(AVBASE_WARNINGS_STRICT
+set(XMEDIA_WARNINGS_STRICT
     -Wconversion -Wsign-conversion -Wold-style-cast -Wuseless-cast
     -Wsuggest-override -Wsuggest-final-types -Wsuggest-final-methods
     -Wzero-as-null-pointer-constant -Wextra-semi -Wpessimizing-move
     -Wundefined-func-template)
 
-function(avbase_configure_target target)
+function(xmedia_configure_target target)
   target_compile_features(${target} PUBLIC cxx_std_20)
 
   # ★Google / Chromium: 禁用异常与 RTTI
   if(NOT MSVC)
     target_compile_options(${target} PRIVATE -fno-exceptions -fno-rtti)
-    target_compile_definitions(${target} PRIVATE AVBASE_NO_EXCEPTIONS=1)
+    target_compile_definitions(${target} PRIVATE XMEDIA_NO_EXCEPTIONS=1)
   else()
     target_compile_options(${target} PRIVATE /GR- /EHs-c-)
     target_compile_definitions(${target} PRIVATE _HAS_EXCEPTIONS=0)
@@ -244,29 +244,29 @@ function(avbase_configure_target target)
   # 警告
   if(MSVC)
     target_compile_options(${target} PRIVATE /W4 /permissive- /Zc:__cplusplus
-        /Zc:preprocessor /wd4251 $<$<BOOL:${AVBASE_WERROR}>:/WX>)
+        /Zc:preprocessor /wd4251 $<$<BOOL:${XMEDIA_WERROR}>:/WX>)
   else()
-    target_compile_options(${target} PRIVATE ${AVBASE_WARNINGS_COMMON}
-        $<$<BOOL:${AVBASE_STRICT_WARNINGS}>:${AVBASE_WARNINGS_STRICT}>
-        $<$<BOOL:${AVBASE_WERROR}>:-Werror>)
+    target_compile_options(${target} PRIVATE ${XMEDIA_WARNINGS_COMMON}
+        $<$<BOOL:${XMEDIA_STRICT_WARNINGS}>:${XMEDIA_WARNINGS_STRICT}>
+        $<$<BOOL:${XMEDIA_WERROR}>:-Werror>)
     # clang thread-safety analysis（GUARDED_BY / GUARDED_BY_CONTEXT）
-    check_cxx_compiler_flag(-Wthread-safety AVBASE_HAS_THREAD_SAFETY)
-    if(AVBASE_HAS_THREAD_SAFETY)
+    check_cxx_compiler_flag(-Wthread-safety XMEDIA_HAS_THREAD_SAFETY)
+    if(XMEDIA_HAS_THREAD_SAFETY)
       target_compile_options(${target} PRIVATE -Wthread-safety)
-      target_compile_definitions(${target} PRIVATE AVBASE_THREAD_SAFETY_ANALYSIS=1)
+      target_compile_definitions(${target} PRIVATE XMEDIA_THREAD_SAFETY_ANALYSIS=1)
     endif()
   endif()
 
   # DCHECK 开关
   target_compile_definitions(${target} PRIVATE
-      $<$<BOOL:${AVBASE_ENABLE_DCHECK}>:AVBASE_ENABLE_DCHECK=1>
-      $<$<CONFIG:Debug>:AVBASE_DEBUG=1>
-      $<$<CONFIG:Release>:AVBASE_NDEBUG=1>)
+      $<$<BOOL:${XMEDIA_ENABLE_DCHECK}>:XMEDIA_ENABLE_DCHECK=1>
+      $<$<CONFIG:Debug>:XMEDIA_DEBUG=1>
+      $<$<CONFIG:Release>:XMEDIA_NDEBUG=1>)
 
   # sanitizers
-  if(AVBASE_SANITIZERS)
+  if(XMEDIA_SANITIZERS)
     set(_sf "")
-    foreach(s IN LISTS AVBASE_SANITIZERS)
+    foreach(s IN LISTS XMEDIA_SANITIZERS)
       list(APPEND _sf "-fsanitize=${s}")
     endforeach()
     target_compile_options(${target} PRIVATE ${_sf} -fno-omit-frame-pointer
@@ -275,7 +275,7 @@ function(avbase_configure_target target)
   endif()
 
   # coverage
-  if(AVBASE_COVERAGE)
+  if(XMEDIA_COVERAGE)
     target_compile_options(${target} PRIVATE --coverage -O0 -g)
     target_link_options(${target} PRIVATE --coverage)
   endif()
@@ -285,14 +285,14 @@ function(avbase_configure_target target)
 endfunction()
 
 # ---------- LTO ----------
-if(AVBASE_ENABLE_LTO)
+if(XMEDIA_ENABLE_LTO)
   include(CheckIPOSupported)
-  check_ipo_supported(RESULT AVBASE_IPO_OK OUTPUT AVBASE_IPO_MSG)
-  if(AVBASE_IPO_OK)
+  check_ipo_supported(RESULT XMEDIA_IPO_OK OUTPUT XMEDIA_IPO_MSG)
+  if(XMEDIA_IPO_OK)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
   else()
-    message(WARNING "LTO requested but unsupported: ${AVBASE_IPO_MSG}")
+    message(WARNING "LTO requested but unsupported: ${XMEDIA_IPO_MSG}")
   endif()
 endif()
 
@@ -300,23 +300,23 @@ endif()
 check_cxx_source_compiles("
   #include <expected>
   int main() { std::expected<int, int> e{1}; return *e - 1; }"
-  AVBASE_HAVE_STD_EXPECTED)
-if(AVBASE_HAVE_STD_EXPECTED)
+  XMEDIA_HAVE_STD_EXPECTED)
+if(XMEDIA_HAVE_STD_EXPECTED)
   message(STATUS "base::expected aliases std::expected (C++23 library available)")
 endif()
 
 # ---------- 符号隐藏 ----------
-function(avbase_hide_vendor_symbols target)
-  if(NOT AVBASE_BUILD_SHARED)
+function(xmedia_hide_vendor_symbols target)
+  if(NOT XMEDIA_BUILD_SHARED)
     return()
   endif()
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     target_link_options(${target} PRIVATE
         "-Wl,--exclude-libs,ALL"
-        "-Wl,--version-script=${CMAKE_SOURCE_DIR}/cmake/avbase.map")
+        "-Wl,--version-script=${CMAKE_SOURCE_DIR}/cmake/xmedia.map")
   elseif(APPLE)
     target_link_options(${target} PRIVATE
-        "-Wl,-exported_symbols_list,${CMAKE_SOURCE_DIR}/cmake/avbase_exported.txt")
+        "-Wl,-exported_symbols_list,${CMAKE_SOURCE_DIR}/cmake/xmedia_exported.txt")
   endif()
 endfunction()
 ```
@@ -340,18 +340,18 @@ Google C++ Style 禁用异常；Chromium 额外禁用 RTTI。这直接影响设�
 
 `-fno-rtti` 还有一个实际收益：包体减小约 8%，且 `storage_as<T>()` 的静态地址比较比 `dynamic_cast` 快一个数量级（@hot 路径每帧调用）。
 
-### 3.2 `cmake/avbase.map` — 符号导出白名单
+### 3.2 `cmake/xmedia.map` — 符号导出白名单
 
 ```
 {
   global:
     extern "C++" {
-      avbase::*;
-      avbase::base::*;
-      avbase::media::*;
-      avbase::player::*;
+      xmedia::*;
+      xmedia::base::*;
+      xmedia::media::*;
+      xmedia::player::*;
     };
-    avbase_*;                 # C ABI 层（若启用）
+    xmedia_*;                 # C ABI 层（若启用）
     JNI_OnLoad;
     JNI_OnUnload;
   local:
@@ -359,7 +359,7 @@ Google C++ Style 禁用异常；Chromium 额外禁用 RTTI。这直接影响设�
 };
 ```
 
-解决 ijkplayer 用户的**头号集成痛点**：`libijkffmpeg.so` 导出全部 `av*` 符号，与 App 里另一个 FFmpeg 冲突。CI 检查 `nm -D --defined-only libavbase.so | grep -E ' T (av|swr_|sws_|SDL_)'` 必须为空。
+解决 ijkplayer 用户的**头号集成痛点**：`libijkffmpeg.so` 导出全部 `av*` 符号，与 App 里另一个 FFmpeg 冲突。CI 检查 `nm -D --defined-only libxmedia.so | grep -E ' T (av|swr_|sws_|SDL_)'` 必须为空。
 
 ---
 
@@ -376,8 +376,8 @@ if(NOT FFmpeg_FIND_COMPONENTS)
 endif()
 
 set(_hints "")
-if(AVBASE_FFMPEG_ROOT)
-  list(APPEND _hints "${AVBASE_FFMPEG_ROOT}")
+if(XMEDIA_FFMPEG_ROOT)
+  list(APPEND _hints "${XMEDIA_FFMPEG_ROOT}")
 elseif(DEFINED ENV{FFMPEG_ROOT})
   list(APPEND _hints "$ENV{FFMPEG_ROOT}")
 endif()
@@ -463,16 +463,16 @@ if(FFmpeg_FOUND)
   list(REMOVE_DUPLICATES FFmpeg_INCLUDE_DIRS)
   set(FFmpeg_LIBRARIES "${FFmpeg_LIBRARIES}" CACHE INTERNAL "")
   set(FFmpeg_INCLUDE_DIRS "${FFmpeg_INCLUDE_DIRS}" CACHE INTERNAL "")
-  set(AVBASE_FFMPEG_MAJOR "${FFmpeg_avcodec_VERSION_MAJOR}" CACHE INTERNAL "")
+  set(XMEDIA_FFMPEG_MAJOR "${FFmpeg_avcodec_VERSION_MAJOR}" CACHE INTERNAL "")
   set(FFmpeg_VERSION_STRING "${FFmpeg_avformat_VERSION}" CACHE INTERNAL "")
   # 最低版本门禁（Q2：默认 4.4）
-  if(AVBASE_FFMPEG_MAJOR LESS 58)
+  if(XMEDIA_FFMPEG_MAJOR LESS 58)
     message(FATAL_ERROR
-        "avbase requires FFmpeg >= 4.4 (libavcodec >= 58), found ${AVBASE_FFMPEG_MAJOR}. "
-        "Set AVBASE_FFMPEG_ROOT to a newer FFmpeg, or see docs/06 §5 for the "
+        "xmedia-kit requires FFmpeg >= 4.4 (libavcodec >= 58), found ${XMEDIA_FFMPEG_MAJOR}. "
+        "Set XMEDIA_FFMPEG_ROOT to a newer FFmpeg, or see docs/06 §5 for the "
         "supported version matrix.")
   endif()
-  message(STATUS "FindFFmpeg: avcodec major ${AVBASE_FFMPEG_MAJOR} (${FFmpeg_VERSION_STRING})")
+  message(STATUS "FindFFmpeg: avcodec major ${XMEDIA_FFMPEG_MAJOR} (${FFmpeg_VERSION_STRING})")
 endif()
 ```
 
@@ -484,8 +484,8 @@ endif()
 
 ```cpp
 // media/ffmpeg/av_includes.h —— 全项目唯一的 extern "C" 包裹点
-#ifndef AVBASE_PLATFORM_FFMPEG_AV_INCLUDES_H_
-#define AVBASE_PLATFORM_FFMPEG_AV_INCLUDES_H_
+#ifndef XMEDIA_PLATFORM_FFMPEG_AV_INCLUDES_H_
+#define XMEDIA_PLATFORM_FFMPEG_AV_INCLUDES_H_
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -513,29 +513,29 @@ extern "C" {
 // ---- 版本开关（全项目唯一出现处） ----
 #if (LIBAVUTIL_VERSION_MAJOR > 57) || \
     (LIBAVUTIL_VERSION_MAJOR == 57 && LIBAVUTIL_VERSION_MINOR >= 28)
-#define AVBASE_FFMPEG_HAS_CHANNEL_LAYOUT 1
+#define XMEDIA_FFMPEG_HAS_CHANNEL_LAYOUT 1
 #else
-#define AVBASE_FFMPEG_HAS_CHANNEL_LAYOUT 0
+#define XMEDIA_FFMPEG_HAS_CHANNEL_LAYOUT 0
 #endif
 
 #if LIBAVCODEC_VERSION_MAJOR >= 58   // FFmpeg 4.4: AVPacket 时间字段改 int64
-#define AVBASE_FFMPEG_PACKET_INT64 1
+#define XMEDIA_FFMPEG_PACKET_INT64 1
 #else
-#define AVBASE_FFMPEG_PACKET_INT64 0
+#define XMEDIA_FFMPEG_PACKET_INT64 0
 #endif
 
 #if LIBAVCODEC_VERSION_MAJOR >= 61   // FFmpeg 7.x
-#define AVBASE_FFMPEG_7_OR_NEWER 1
+#define XMEDIA_FFMPEG_7_OR_NEWER 1
 #else
-#define AVBASE_FFMPEG_7_OR_NEWER 0
+#define XMEDIA_FFMPEG_7_OR_NEWER 0
 #endif
 
-#endif  // AVBASE_PLATFORM_FFMPEG_AV_INCLUDES_H_
+#endif  // XMEDIA_PLATFORM_FFMPEG_AV_INCLUDES_H_
 ```
 
 ```cpp
 // media/ffmpeg/compat.h（节选）
-namespace avbase::platform::ffmpeg {
+namespace xmedia::platform::ffmpeg {
 
 // ---------- RAII deleters（消灭原版 50+ 处 goto fail） ----------
 struct FormatCtxDeleter { void operator()(AVFormatContext* p) const { if (p) avformat_close_input(&p); } };
@@ -577,7 +577,7 @@ DecoderStatus ToDecoderStatus(int av_error, std::string_view context);
 DictPtr ToAvDict(const std::map<std::string, std::string>& m);
 std::map<std::string, std::string> FromAvDict(const AVDictionary* d);
 
-}  // namespace avbase::platform::ffmpeg
+}  // namespace xmedia::platform::ffmpeg
 ```
 
 **支持矩阵**（CI 全覆盖）：
@@ -594,43 +594,43 @@ std::map<std::string, std::string> FromAvDict(const AVDictionary* d);
 
 ## 6. `cmake/FindLinuxMediaDeps.cmake`（★Linux 后端）
 
-全部**可选** + 默认 **`dlopen` 运行时加载**（`AVBASE_LINUX_LINK_RUNTIME=ON`），这样单个 `libavbase.so` 可以在只有 ALSA 的机器上跑，也可以在只有 PipeWire 的机器上跑，不会因为缺库而无法加载。
+全部**可选** + 默认 **`dlopen` 运行时加载**（`XMEDIA_LINUX_LINK_RUNTIME=ON`），这样单个 `libxmedia.so` 可以在只有 ALSA 的机器上跑，也可以在只有 PipeWire 的机器上跑，不会因为缺库而无法加载。
 
 ```cmake
 # OpenGL / GLES
-if(AVBASE_LINUX_USE_OPENGL)
+if(XMEDIA_LINUX_USE_OPENGL)
   find_package(OpenGL COMPONENTS OpenGL GLX QUIET)
   if(OpenGL_FOUND)
-    set(AVBASE_HAVE_OPENGL ON)
+    set(XMEDIA_HAVE_OPENGL ON)
   endif()
 endif()
-if(AVBASE_LINUX_USE_EGL)
+if(XMEDIA_LINUX_USE_EGL)
   find_path(EGL_INCLUDE_DIR EGL/egl.h)
   find_library(EGL_LIBRARY NAMES EGL)
   if(EGL_INCLUDE_DIR AND EGL_LIBRARY)
-    set(AVBASE_HAVE_EGL ON)
+    set(XMEDIA_HAVE_EGL ON)
   endif()
 endif()
 
 # X11
-if(AVBASE_LINUX_USE_X11)
+if(XMEDIA_LINUX_USE_X11)
   find_package(X11 QUIET COMPONENTS X11 Xext Xrandr)
   if(X11_FOUND)
-    set(AVBASE_HAVE_X11 ON)
+    set(XMEDIA_HAVE_X11 ON)
     # Present 扩展（精确 vsync）与 XShm（零拷贝上传）
     find_path(X11_PRESENT_INCLUDE_DIR X11/extensions/Xpresent.h HINTS ${X11_INCLUDE_DIR})
     if(X11_PRESENT_INCLUDE_DIR)
-      set(AVBASE_HAVE_X11_PRESENT ON)
+      set(XMEDIA_HAVE_X11_PRESENT ON)
     endif()
     find_path(X11_SHM_INCLUDE_DIR X11/extensions/XShm.h HINTS ${X11_INCLUDE_DIR})
     if(X11_SHM_INCLUDE_DIR)
-      set(AVBASE_HAVE_X11_SHM ON)
+      set(XMEDIA_HAVE_X11_SHM ON)
     endif()
   endif()
 endif()
 
 # Wayland（需要 wayland-scanner 生成协议代码）
-if(AVBASE_LINUX_USE_WAYLAND)
+if(XMEDIA_LINUX_USE_WAYLAND)
   find_package(PkgConfig QUIET)
   if(PKG_CONFIG_FOUND)
     pkg_check_modules(WAYLAND QUIET wayland-client wayland-egl wayland-cursor)
@@ -639,8 +639,8 @@ if(AVBASE_LINUX_USE_WAYLAND)
     find_path(WAYLAND_PROTOCOLS_DIR NAMES xdg-shell/xdg-shell.xml
               PATH_SUFFIXES share/wayland-protocols)
     if(WAYLAND_FOUND AND XKBCOMMON_FOUND AND WAYLAND_SCANNER AND WAYLAND_PROTOCOLS_DIR)
-      set(AVBASE_HAVE_WAYLAND ON)
-      set(AVBASE_WAYLAND_PROTOCOLS
+      set(XMEDIA_HAVE_WAYLAND ON)
+      set(XMEDIA_WAYLAND_PROTOCOLS
           xdg-shell/xdg-shell.xml
           xdg-decoration/unstable/v1/xdg-decoration-unstable-v1.xml
           linux-dmabuf/unstable/v1/linux-dmabuf-unstable-v1.xml
@@ -651,39 +651,39 @@ if(AVBASE_LINUX_USE_WAYLAND)
 endif()
 
 # 音频
-if(AVBASE_LINUX_USE_ALSA)
+if(XMEDIA_LINUX_USE_ALSA)
   find_package(ALSA QUIET)
-  if(ALSA_FOUND) set(AVBASE_HAVE_ALSA ON) endif()
+  if(ALSA_FOUND) set(XMEDIA_HAVE_ALSA ON) endif()
 endif()
-if(AVBASE_LINUX_USE_PULSE)
+if(XMEDIA_LINUX_USE_PULSE)
   pkg_check_modules(PULSE QUIET libpulse-simple libpulse)
-  if(PULSE_FOUND) set(AVBASE_HAVE_PULSE ON) endif()
+  if(PULSE_FOUND) set(XMEDIA_HAVE_PULSE ON) endif()
 endif()
-if(AVBASE_LINUX_USE_PIPEWIRE)
+if(XMEDIA_LINUX_USE_PIPEWIRE)
   pkg_check_modules(PIPEWIRE QUIET libpipewire-0.3)
-  if(PIPEWIRE_FOUND) set(AVBASE_HAVE_PIPEWIRE ON) endif()
+  if(PIPEWIRE_FOUND) set(XMEDIA_HAVE_PIPEWIRE ON) endif()
 endif()
 
 # dmabuf 零拷贝（VAAPI/硬解输出直接 EGLImage）
 include(CheckIncludeFileCXX)
-check_include_file_cxx("linux/dmabuf.h" AVBASE_HAVE_DMABUF_H)
-check_include_file_cxx("drm_fourcc.h"   AVBASE_HAVE_DRM_FOURCC)
+check_include_file_cxx("linux/dmabuf.h" XMEDIA_HAVE_DMABUF_H)
+check_include_file_cxx("drm_fourcc.h"   XMEDIA_HAVE_DRM_FOURCC)
 
 # SDL2（另一个后端）
-if(AVBASE_ENABLE_SDL2)
+if(XMEDIA_ENABLE_SDL2)
   find_package(SDL2 REQUIRED)
 endif()
 
 # ---------- 汇总报告 ----------
-foreach(v AVBASE_HAVE_OPENGL AVBASE_HAVE_EGL AVBASE_HAVE_X11 AVBASE_HAVE_X11_PRESENT
-          AVBASE_HAVE_X11_SHM AVBASE_HAVE_WAYLAND AVBASE_HAVE_ALSA AVBASE_HAVE_PULSE
-          AVBASE_HAVE_PIPEWIRE AVBASE_HAVE_DMABUF_H)
+foreach(v XMEDIA_HAVE_OPENGL XMEDIA_HAVE_EGL XMEDIA_HAVE_X11 XMEDIA_HAVE_X11_PRESENT
+          XMEDIA_HAVE_X11_SHM XMEDIA_HAVE_WAYLAND XMEDIA_HAVE_ALSA XMEDIA_HAVE_PULSE
+          XMEDIA_HAVE_PIPEWIRE XMEDIA_HAVE_DMABUF_H)
   if(NOT DEFINED ${v}) set(${v} OFF) endif()
 endforeach()
 
 # 至少要有一个视频后端和一个音频后端，否则只能 headless
-if(AVBASE_ENABLE_LINUX_NATIVE AND NOT (AVBASE_HAVE_OPENGL OR AVBASE_HAVE_EGL))
-  message(WARNING "Neither OpenGL nor EGL found: avbase_platform_linux will be "
+if(XMEDIA_ENABLE_LINUX_NATIVE AND NOT (XMEDIA_HAVE_OPENGL OR XMEDIA_HAVE_EGL))
+  message(WARNING "Neither OpenGL nor EGL found: xmedia_platform_linux will be "
                   "built without a video path (headless only).")
 endif()
 ```
@@ -692,10 +692,10 @@ endif()
 
 ```cmake
 # platform/linux/CMakeLists.txt（片段）
-if(AVBASE_HAVE_WAYLAND)
+if(XMEDIA_HAVE_WAYLAND)
   set(WL_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/wayland-gen")
   file(MAKE_DIRECTORY "${WL_GEN_DIR}")
-  foreach(proto IN LISTS AVBASE_WAYLAND_PROTOCOLS)
+  foreach(proto IN LISTS XMEDIA_WAYLAND_PROTOCOLS)
     get_filename_component(name "${proto}" NAME_WE)
     add_custom_command(
         OUTPUT  "${WL_GEN_DIR}/${name}-client-protocol.h"
@@ -724,7 +724,7 @@ endif()
 ### 7.1 `base/CMakeLists.txt`
 
 ```cmake
-set(AVBASE_BASE_SOURCES
+set(XMEDIA_BASE_SOURCES
     base/check.cc
     base/logging.cc
     base/observer_list.cc
@@ -755,27 +755,27 @@ set(AVBASE_BASE_SOURCES
     base/trace_event/trace_event.cc
     base/strings/string_number_conversions.cc)
 
-add_library(avbase_base ${AVBASE_BASE_SOURCES})
-add_library(avbase::base ALIAS avbase_base)
-target_include_directories(avbase_base PUBLIC
+add_library(xmedia_base ${XMEDIA_BASE_SOURCES})
+add_library(xmedia::base ALIAS xmedia_base)
+target_include_directories(xmedia_base PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/avbase>)
-target_link_libraries(avbase_base PUBLIC Threads::Threads)
-target_compile_definitions(avbase_base PRIVATE AVBASE_IMPLEMENTING_BASE=1)
-avbase_configure_target(avbase_base)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit>)
+target_link_libraries(xmedia_base PUBLIC Threads::Threads)
+target_compile_definitions(xmedia_base PRIVATE XMEDIA_IMPLEMENTING_BASE=1)
+xmedia_configure_target(xmedia_base)
 
 # ★base 零外部依赖，可独立发布
-if(AVBASE_BUILD_TESTS)
-  add_library(avbase_base_test_support
+if(XMEDIA_BUILD_TESTS)
+  add_library(xmedia_base_test_support
       base/test/task_environment.cc
       base/test/mock_callback.cc
       base/test/scoped_feature_list.cc
       base/test/test_waitable_event.cc
       base/time/simple_test_tick_clock.cc
       base/test/lock_order_checker.cc)
-  target_link_libraries(avbase_base_test_support PUBLIC avbase_base GTest::gtest GTest::gmock)
-  avbase_configure_target(avbase_base_test_support)
+  target_link_libraries(xmedia_base_test_support PUBLIC xmedia_base GTest::gtest GTest::gmock)
+  xmedia_configure_target(xmedia_base_test_support)
 endif()
 ```
 
@@ -783,7 +783,7 @@ endif()
 
 ```cmake
 # ---------- media/base + media/filters（不含 FFmpeg） ----------
-set(AVBASE_MEDIA_SOURCES
+set(XMEDIA_MEDIA_SOURCES
     media/base/decoder_buffer.cc
     media/base/decoder_buffer_queue.cc
     media/base/video_frame.cc
@@ -819,17 +819,17 @@ set(AVBASE_MEDIA_SOURCES
     media/audio/fake/fake_audio_output_stream.cc
     media/renderers/default_renderer_factory.cc)
 
-add_library(avbase_media ${AVBASE_MEDIA_SOURCES})
-add_library(avbase::media ALIAS avbase_media)
-target_include_directories(avbase_media PUBLIC
+add_library(xmedia_media ${XMEDIA_MEDIA_SOURCES})
+add_library(xmedia::media ALIAS xmedia_media)
+target_include_directories(xmedia_media PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/avbase>)
-target_link_libraries(avbase_media PUBLIC avbase::base)
-target_compile_definitions(avbase_media PRIVATE AVBASE_IMPLEMENTING_MEDIA=1)
-avbase_configure_target(avbase_media)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit>)
+target_link_libraries(xmedia_media PUBLIC xmedia::base)
+target_compile_definitions(xmedia_media PRIVATE XMEDIA_IMPLEMENTING_MEDIA=1)
+xmedia_configure_target(xmedia_media)
 # ★不链接 FFmpeg
 
-# ---------- media/ffmpeg（唯一链接 FFmpeg 的 target，改名 avbase_ffmpeg） ----------
+# ---------- media/ffmpeg（唯一链接 FFmpeg 的 target，改名 xmedia_ffmpeg） ----------
 # 目录现由 file(GLOB) 收录，下列是搬家后的真实成员（节选）：
 #   compat · av_packet_storage · log_bridge · data_source_io · url_data_source
 #   ffmpeg_glue · ffmpeg_demuxer(+_configs/_track_select/_seek) · ffmpeg_{video,audio}_decoder
@@ -838,52 +838,52 @@ avbase_configure_target(avbase_media)
 #   ffmpeg_text_decoder · ffmpeg_image_snapshot · sei_timecode
 # （av_frame_storage / dict_converter / interrupt_callback 三个从未落地；
 #   interrupt_callback.{h,cc} 已作为死代码删除）
-if(AVBASE_ENABLE_FFMPEG)
-  add_library(avbase_ffmpeg ${AVBASE_FFMPEG_SOURCES})
-  add_library(avbase::ffmpeg ALIAS avbase_ffmpeg)
-  target_link_libraries(avbase_ffmpeg
-      PUBLIC  avbase::media
+if(XMEDIA_ENABLE_FFMPEG)
+  add_library(xmedia_ffmpeg ${XMEDIA_FFMPEG_SOURCES})
+  add_library(xmedia::ffmpeg ALIAS xmedia_ffmpeg)
+  target_link_libraries(xmedia_ffmpeg
+      PUBLIC  xmedia::media
       PRIVATE FFmpeg::avformat FFmpeg::avcodec FFmpeg::avutil
               FFmpeg::swscale FFmpeg::swresample)
-  target_compile_definitions(avbase_platform_ffmpeg PRIVATE AVBASE_ENABLE_FFMPEG=1)
-  target_include_directories(avbase_platform_ffmpeg PRIVATE ${CMAKE_SOURCE_DIR})
-  avbase_configure_target(avbase_platform_ffmpeg)
-  target_precompile_headers(avbase_platform_ffmpeg PRIVATE
+  target_compile_definitions(xmedia_platform_ffmpeg PRIVATE XMEDIA_ENABLE_FFMPEG=1)
+  target_include_directories(xmedia_platform_ffmpeg PRIVATE ${CMAKE_SOURCE_DIR})
+  xmedia_configure_target(xmedia_platform_ffmpeg)
+  target_precompile_headers(xmedia_platform_ffmpeg PRIVATE
       "${CMAKE_SOURCE_DIR}/media/ffmpeg/av_includes.h")
 endif()
 ```
 
-> **D11 边界说明**：`media/filters/ffmpeg_*.cc` 会 include `media/ffmpeg/av_includes.h`。也就是说，`media/filters/` 里 FFmpeg 相关实现**确实**会见到 `libav*.h`，但它们被单独放进 `avbase_platform_ffmpeg` target，链接隔离仍然成立（`avbase_media` 不含任何 FFmpeg 符号）。
+> **D11 边界说明**：`media/filters/ffmpeg_*.cc` 会 include `media/ffmpeg/av_includes.h`。也就是说，`media/filters/` 里 FFmpeg 相关实现**确实**会见到 `libav*.h`，但它们被单独放进 `xmedia_platform_ffmpeg` target，链接隔离仍然成立（`xmedia_media` 不含任何 FFmpeg 符号）。
 > 若要更严格（`media/filters/ffmpeg_*.cc` 也不 include FFmpeg，全部走 `media/ffmpeg/` 的薄封装），实现成本约 +15%。**这是需要拍板的 D11**；本设计取"链接隔离 + 目录隔离，放弃 include 隔离"。
 
 ### 7.3 `platform/CMakeLists.txt`
 
 ```cmake
 # ---------- null ----------
-add_library(avbase_platform_null
+add_library(xmedia_platform_null
     platform/null/null_video_renderer_sink.cc
     platform/null/null_audio_renderer_sink.cc
     platform/null/null_backend.cc)
-add_library(avbase::platform_null ALIAS avbase_platform_null)
-target_link_libraries(avbase_platform_null PUBLIC avbase::media)
-target_include_directories(avbase_platform_null PUBLIC
+add_library(xmedia::platform_null ALIAS xmedia_platform_null)
+target_link_libraries(xmedia_platform_null PUBLIC xmedia::media)
+target_include_directories(xmedia_platform_null PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-avbase_configure_target(avbase_platform_null)
+xmedia_configure_target(xmedia_platform_null)
 
 # ---------- sdl2 ----------
-if(AVBASE_ENABLE_SDL2)
-  add_library(avbase_platform_sdl2
+if(XMEDIA_ENABLE_SDL2)
+  add_library(xmedia_platform_sdl2
       platform/sdl2/sdl2_video_sink.cc
       platform/sdl2/sdl2_audio_sink.cc
       platform/sdl2/gl_present.cc
       platform/sdl2/text_raster.cc)
-  add_library(avbase::platform_sdl2 ALIAS avbase_platform_sdl2)
-  target_link_libraries(avbase_platform_sdl2 PUBLIC avbase::media PRIVATE SDL2::SDL2)
-  avbase_configure_target(avbase_platform_sdl2)
+  add_library(xmedia::platform_sdl2 ALIAS xmedia_platform_sdl2)
+  target_link_libraries(xmedia_platform_sdl2 PUBLIC xmedia::media PRIVATE SDL2::SDL2)
+  xmedia_configure_target(xmedia_platform_sdl2)
 endif()
 
 # ---------- linux native ----------
-if(AVBASE_ENABLE_LINUX_NATIVE)
+if(XMEDIA_ENABLE_LINUX_NATIVE)
   set(LINUX_SOURCES
       platform/linux/linux_backend.cc
       platform/linux/native_display_linux.cc
@@ -900,44 +900,44 @@ if(AVBASE_ENABLE_LINUX_NATIVE)
       platform/linux/audio/pipewire_audio_renderer_sink.cc
       platform/linux/zero_copy/dmabuf_video_frame.cc)
 
-  add_library(avbase_platform_linux ${LINUX_SOURCES} ${WL_GEN_SOURCES})
-  add_library(avbase::platform_linux ALIAS avbase_platform_linux)
-  target_link_libraries(avbase_platform_linux PUBLIC avbase::media PRIVATE ${CMAKE_DL_LIBS})
+  add_library(xmedia_platform_linux ${LINUX_SOURCES} ${WL_GEN_SOURCES})
+  add_library(xmedia::platform_linux ALIAS xmedia_platform_linux)
+  target_link_libraries(xmedia_platform_linux PUBLIC xmedia::media PRIVATE ${CMAKE_DL_LIBS})
 
   # dlopen 模式：不硬链接平台库，运行时探测（★SDK 分发友好）
-  if(AVBASE_LINUX_LINK_RUNTIME)
-    target_compile_definitions(avbase_platform_linux PRIVATE AVBASE_LINUX_DLOPEN=1)
+  if(XMEDIA_LINUX_LINK_RUNTIME)
+    target_compile_definitions(xmedia_platform_linux PRIVATE XMEDIA_LINUX_DLOPEN=1)
   else()
-    if(AVBASE_HAVE_OPENGL) target_link_libraries(avbase_platform_linux PRIVATE OpenGL::GL OpenGL::GLX) endif()
-    if(AVBASE_HAVE_EGL)    target_link_libraries(avbase_platform_linux PRIVATE ${EGL_LIBRARY})           endif()
-    if(AVBASE_HAVE_X11)    target_link_libraries(avbase_platform_linux PRIVATE X11::X11 X11::Xext X11::Xrandr) endif()
-    if(AVBASE_HAVE_WAYLAND)target_link_libraries(avbase_platform_linux PRIVATE ${WAYLAND_LIBRARIES} ${XKBCOMMON_LIBRARIES}) endif()
-    if(AVBASE_HAVE_ALSA)   target_link_libraries(avbase_platform_linux PRIVATE ALSA::ALSA)               endif()
-    if(AVBASE_HAVE_PULSE)  target_link_libraries(avbase_platform_linux PRIVATE ${PULSE_LIBRARIES})       endif()
+    if(XMEDIA_HAVE_OPENGL) target_link_libraries(xmedia_platform_linux PRIVATE OpenGL::GL OpenGL::GLX) endif()
+    if(XMEDIA_HAVE_EGL)    target_link_libraries(xmedia_platform_linux PRIVATE ${EGL_LIBRARY})           endif()
+    if(XMEDIA_HAVE_X11)    target_link_libraries(xmedia_platform_linux PRIVATE X11::X11 X11::Xext X11::Xrandr) endif()
+    if(XMEDIA_HAVE_WAYLAND)target_link_libraries(xmedia_platform_linux PRIVATE ${WAYLAND_LIBRARIES} ${XKBCOMMON_LIBRARIES}) endif()
+    if(XMEDIA_HAVE_ALSA)   target_link_libraries(xmedia_platform_linux PRIVATE ALSA::ALSA)               endif()
+    if(XMEDIA_HAVE_PULSE)  target_link_libraries(xmedia_platform_linux PRIVATE ${PULSE_LIBRARIES})       endif()
   endif()
 
-  target_compile_definitions(avbase_platform_linux PRIVATE
-      AVBASE_HAVE_OPENGL=$<BOOL:${AVBASE_HAVE_OPENGL}>
-      AVBASE_HAVE_EGL=$<BOOL:${AVBASE_HAVE_EGL}>
-      AVBASE_HAVE_X11=$<BOOL:${AVBASE_HAVE_X11}>
-      AVBASE_HAVE_X11_PRESENT=$<BOOL:${AVBASE_HAVE_X11_PRESENT}>
-      AVBASE_HAVE_X11_SHM=$<BOOL:${AVBASE_HAVE_X11_SHM}>
-      AVBASE_HAVE_WAYLAND=$<BOOL:${AVBASE_HAVE_WAYLAND}>
-      AVBASE_HAVE_ALSA=$<BOOL:${AVBASE_HAVE_ALSA}>
-      AVBASE_HAVE_PULSE=$<BOOL:${AVBASE_HAVE_PULSE}>
-      AVBASE_HAVE_PIPEWIRE=$<BOOL:${AVBASE_HAVE_PIPEWIRE}>)
-  if(AVBASE_HAVE_WAYLAND)
-    target_include_directories(avbase_platform_linux PRIVATE "${WL_GEN_DIR}")
+  target_compile_definitions(xmedia_platform_linux PRIVATE
+      XMEDIA_HAVE_OPENGL=$<BOOL:${XMEDIA_HAVE_OPENGL}>
+      XMEDIA_HAVE_EGL=$<BOOL:${XMEDIA_HAVE_EGL}>
+      XMEDIA_HAVE_X11=$<BOOL:${XMEDIA_HAVE_X11}>
+      XMEDIA_HAVE_X11_PRESENT=$<BOOL:${XMEDIA_HAVE_X11_PRESENT}>
+      XMEDIA_HAVE_X11_SHM=$<BOOL:${XMEDIA_HAVE_X11_SHM}>
+      XMEDIA_HAVE_WAYLAND=$<BOOL:${XMEDIA_HAVE_WAYLAND}>
+      XMEDIA_HAVE_ALSA=$<BOOL:${XMEDIA_HAVE_ALSA}>
+      XMEDIA_HAVE_PULSE=$<BOOL:${XMEDIA_HAVE_PULSE}>
+      XMEDIA_HAVE_PIPEWIRE=$<BOOL:${XMEDIA_HAVE_PIPEWIRE}>)
+  if(XMEDIA_HAVE_WAYLAND)
+    target_include_directories(xmedia_platform_linux PRIVATE "${WL_GEN_DIR}")
   endif()
-  avbase_configure_target(avbase_platform_linux)
-  avbase_hide_vendor_symbols(avbase_platform_linux)
+  xmedia_configure_target(xmedia_platform_linux)
+  xmedia_hide_vendor_symbols(xmedia_platform_linux)
 endif()
 ```
 
 ### 7.4 `player/CMakeLists.txt`
 
 ```cmake
-add_library(avbase_player
+add_library(xmedia_player
     player/player_impl.cc
     player/state_machine.cc
     player/event_hub.cc
@@ -947,39 +947,39 @@ add_library(avbase_player
     player/diagnostics.cc
     player/global.cc
     "${CMAKE_BINARY_DIR}/generated/player/option_registry.inc")
-add_library(avbase::player ALIAS avbase_player)
+add_library(xmedia::player ALIAS xmedia_player)
 
-target_include_directories(avbase_player PUBLIC
+target_include_directories(xmedia_player PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/avbase>)
-target_link_libraries(avbase_player PUBLIC avbase::media avbase::platform_null)
-target_compile_definitions(avbase_player PRIVATE AVBASE_IMPLEMENTING_PLAYER=1)
-avbase_configure_target(avbase_player)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit>)
+target_link_libraries(xmedia_player PUBLIC xmedia::media xmedia::platform_null)
+target_compile_definitions(xmedia_player PRIVATE XMEDIA_IMPLEMENTING_PLAYER=1)
+xmedia_configure_target(xmedia_player)
 
 # ---------- 聚合 INTERFACE target ----------
-add_library(avbase INTERFACE)
-add_library(avbase::avbase ALIAS avbase)
-target_link_libraries(avbase INTERFACE avbase::player)
-if(AVBASE_ENABLE_FFMPEG)    target_link_libraries(avbase INTERFACE avbase::platform_ffmpeg) endif()
-if(AVBASE_ENABLE_SDL2)      target_link_libraries(avbase INTERFACE avbase::platform_sdl2)   endif()
-if(AVBASE_ENABLE_LINUX_NATIVE) target_link_libraries(avbase INTERFACE avbase::platform_linux) endif()
+add_library(xmedia-kit INTERFACE)
+add_library(xmedia::xmedia-kit ALIAS xmedia-kit)
+target_link_libraries(xmedia-kit INTERFACE xmedia::player)
+if(XMEDIA_ENABLE_FFMPEG)    target_link_libraries(xmedia-kit INTERFACE xmedia::platform_ffmpeg) endif()
+if(XMEDIA_ENABLE_SDL2)      target_link_libraries(xmedia-kit INTERFACE xmedia::platform_sdl2)   endif()
+if(XMEDIA_ENABLE_LINUX_NATIVE) target_link_libraries(xmedia-kit INTERFACE xmedia::platform_linux) endif()
 
-if(AVBASE_BUILD_SHARED)
-  add_library(avbase_shared SHARED platform/shared/empty_translation_unit.cc)
-  target_link_libraries(avbase_shared PRIVATE avbase::avbase)
-  set_target_properties(avbase_shared PROPERTIES OUTPUT_NAME avbase)
-  avbase_hide_vendor_symbols(avbase_shared)
+if(XMEDIA_BUILD_SHARED)
+  add_library(xmedia_shared SHARED platform/shared/empty_translation_unit.cc)
+  target_link_libraries(xmedia_shared PRIVATE xmedia::xmedia-kit)
+  set_target_properties(xmedia_shared PROPERTIES OUTPUT_NAME xmedia-kit)
+  xmedia_hide_vendor_symbols(xmedia_shared)
 endif()
 
-if(AVBASE_BUILD_TESTS)
+if(XMEDIA_BUILD_TESTS)
   enable_testing()
   # player/public/c registers a CTest case, so it must be added AFTER
   # enable_testing(). CMake silently drops add_test() in a subdirectory
   # processed before testing is enabled -- configure succeeds and ctest then
   # reports "No tests were found!!!" with exit code 0, so the gate looks
   # installed while never having run. See docs/PROGRESS round 84.
-  if(AVBASE_ENABLE_CAPI) add_subdirectory(player/public/c) endif()
+  if(XMEDIA_ENABLE_CAPI) add_subdirectory(player/public/c) endif()
 endif()
 ```
 
@@ -990,23 +990,23 @@ endif()
 ### 7.5 `examples/CMakeLists.txt`
 
 ```cmake
-function(avbase_add_example name)
+function(xmedia_add_example name)
   cmake_parse_arguments(EX "" "" "SOURCES;DEPS" ${ARGN})
   add_executable(${name} ${EX_SOURCES})
-  target_link_libraries(${name} PRIVATE avbase::avbase ${EX_DEPS})
+  target_link_libraries(${name} PRIVATE xmedia::xmedia-kit ${EX_DEPS})
   target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR})
-  avbase_configure_target(${name})
+  xmedia_configure_target(${name})
 endfunction()
 
-avbase_add_example(play_sdl2     SOURCES examples/play_sdl2/main.cc
+xmedia_add_example(play_sdl2     SOURCES examples/play_sdl2/main.cc
                                       examples/play_sdl2/simple_window.cc)
-avbase_add_example(play_native   SOURCES examples/play_native/main.cc)
-avbase_add_example(play_embed    SOURCES examples/play_embed/main.cc)
-avbase_add_example(headless      SOURCES examples/headless/main.cc)
-avbase_add_example(stats_dump    SOURCES examples/stats_dump/main.cc)
-avbase_add_example(avbase_inspect SOURCES examples/avbase_inspect/main.cc
-                                       examples/avbase_inspect/dump.cc
-                                       examples/avbase_inspect/golden.cc)
+xmedia_add_example(play_native   SOURCES examples/play_native/main.cc)
+xmedia_add_example(play_embed    SOURCES examples/play_embed/main.cc)
+xmedia_add_example(headless      SOURCES examples/headless/main.cc)
+xmedia_add_example(stats_dump    SOURCES examples/stats_dump/main.cc)
+xmedia_add_example(xmedia_inspect SOURCES examples/xmedia_inspect/main.cc
+                                       examples/xmedia_inspect/dump.cc
+                                       examples/xmedia_inspect/golden.cc)
 ```
 
 ### 7.6 源文件列举：什么时候可以 glob
@@ -1018,17 +1018,17 @@ avbase_add_example(avbase_inspect SOURCES examples/avbase_inspect/main.cc
 
 | 目录 | 处理 | 原因 |
 |---|---|---|
-| `media/base/` · `media/filters/` · `media/renderers/` · `media/filters/legacy/` | glob | 全部属于 `avbase_media`，无平台/开关选择 |
-| `media/ffmpeg/` | glob | 全部属于 `avbase_ffmpeg`；目录本身就是隔离区，由 C4/C27 守着 |
-| `media/transcode/` | glob | 全部属于 `avbase_transcode`（离线转码产品线，建在 `avbase_ffmpeg` 之上） |
-| `platform/sdl2/` | glob | 目录自身单目标，`AVBASE_ENABLE_SDL2` 门控的是 target 而非目录里的某个文件 |
+| `media/base/` · `media/filters/` · `media/renderers/` · `media/filters/legacy/` | glob | 全部属于 `xmedia_media`，无平台/开关选择 |
+| `media/ffmpeg/` | glob | 全部属于 `xmedia_ffmpeg`；目录本身就是隔离区，由 C4/C27 守着 |
+| `media/transcode/` | glob | 全部属于 `xmedia_transcode`（离线转码产品线，建在 `xmedia_ffmpeg` 之上） |
+| `platform/sdl2/` | glob | 目录自身单目标，`XMEDIA_ENABLE_SDL2` 门控的是 target 而非目录里的某个文件 |
 | `player/` | glob | 单目录单目标 |
 | `tools/inspect/` | glob | 单目录单目标：新增子命令不必再改 CMake |
 | `tests/unit/{base,media_base,media_filters,media_ffmpeg,media_transcode,player,sdl2}/` | glob | 每个目录的用例都属于同一个测试二进制（`media_base/` 与 `media_filters/` 同属 `media_unittests`），也正是新增文件最频繁的地方 |
 | `base/` | 显式 | 这一层的抽象就是"每平台一个文件"（今天是 `threading/platform_thread_posix.cc`，§7.1 计划里的 `synchronization/` posix/win 成对文件同理），glob 会编进错误平台的那一个 |
 | `examples/` | 显式 | 两个可执行文件同在一个目录、却在两个不同的开关下 |
 
-`media/filters/` 过去是表里唯一的例外：它同时装着核心 filter 和属于 `avbase_ffmpeg` 的
+`media/filters/` 过去是表里唯一的例外：它同时装着核心 filter 和属于 `xmedia_ffmpeg` 的
 `ffmpeg_*.cc`，一 glob 就会把 `libav*` 扫进核心库（破坏 G2），所以只能逐个手写——手写清单
 也从最初的 5 行长到了 21 行，每加一个核心 filter 都要记得改它。FFmpeg 代码整体归入
 `media/ffmpeg/` 之后，这个例外消失了：**两个目录各自单目标，两个都能 glob**。这也是为什么
@@ -1068,46 +1068,46 @@ avbase_add_example(avbase_inspect SOURCES examples/avbase_inspect/main.cc
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "AVBASE_BUILD_TESTS": "ON",
-        "AVBASE_BUILD_EXAMPLES": "ON"
+        "XMEDIA_BUILD_TESTS": "ON",
+        "XMEDIA_BUILD_EXAMPLES": "ON"
       }
     },
     { "name": "default",   "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" } },
-    { "name": "debug",     "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "AVBASE_STRICT_WARNINGS": "ON", "AVBASE_ENABLE_DCHECK": "ON" } },
-    { "name": "release",   "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "AVBASE_ENABLE_LTO": "ON", "AVBASE_ENABLE_DCHECK": "OFF", "AVBASE_BUILD_TESTS": "OFF", "AVBASE_BUILD_SHARED": "ON" } },
+    { "name": "debug",     "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "XMEDIA_STRICT_WARNINGS": "ON", "XMEDIA_ENABLE_DCHECK": "ON" } },
+    { "name": "release",   "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "XMEDIA_ENABLE_LTO": "ON", "XMEDIA_ENABLE_DCHECK": "OFF", "XMEDIA_BUILD_TESTS": "OFF", "XMEDIA_BUILD_SHARED": "ON" } },
 
     { "name": "no-ffmpeg", "inherits": "base", "displayName": "Core only — no FFmpeg needed",
-      "cacheVariables": { "AVBASE_ENABLE_FFMPEG": "OFF", "AVBASE_ENABLE_SDL2": "OFF", "AVBASE_ENABLE_LINUX_NATIVE": "OFF" } },
+      "cacheVariables": { "XMEDIA_ENABLE_FFMPEG": "OFF", "XMEDIA_ENABLE_SDL2": "OFF", "XMEDIA_ENABLE_LINUX_NATIVE": "OFF" } },
 
     { "name": "linux-sdl2",   "inherits": "default",
-      "cacheVariables": { "AVBASE_ENABLE_SDL2": "ON", "AVBASE_ENABLE_LINUX_NATIVE": "OFF" } },
+      "cacheVariables": { "XMEDIA_ENABLE_SDL2": "ON", "XMEDIA_ENABLE_LINUX_NATIVE": "OFF" } },
     { "name": "linux-native", "inherits": "default",
-      "cacheVariables": { "AVBASE_ENABLE_LINUX_NATIVE": "ON", "AVBASE_ENABLE_SDL2": "OFF" } },
+      "cacheVariables": { "XMEDIA_ENABLE_LINUX_NATIVE": "ON", "XMEDIA_ENABLE_SDL2": "OFF" } },
     { "name": "linux-all",    "inherits": "default",
-      "cacheVariables": { "AVBASE_ENABLE_LINUX_NATIVE": "ON", "AVBASE_ENABLE_SDL2": "ON" } },
+      "cacheVariables": { "XMEDIA_ENABLE_LINUX_NATIVE": "ON", "XMEDIA_ENABLE_SDL2": "ON" } },
     { "name": "linux-static-deps", "inherits": "linux-all",
-      "cacheVariables": { "AVBASE_LINUX_LINK_RUNTIME": "OFF" } },
+      "cacheVariables": { "XMEDIA_LINUX_LINK_RUNTIME": "OFF" } },
 
-    { "name": "asan",     "inherits": "debug", "cacheVariables": { "AVBASE_SANITIZERS": "address;undefined" } },
-    { "name": "tsan",     "inherits": "debug", "cacheVariables": { "AVBASE_SANITIZERS": "thread" } },
-    { "name": "ubsan",    "inherits": "debug", "cacheVariables": { "AVBASE_SANITIZERS": "undefined" } },
-    { "name": "coverage", "inherits": "debug", "cacheVariables": { "AVBASE_COVERAGE": "ON" } },
-    { "name": "fuzz",     "inherits": "asan",  "cacheVariables": { "AVBASE_BUILD_FUZZ": "ON", "CMAKE_CXX_COMPILER": "clang++" } },
+    { "name": "asan",     "inherits": "debug", "cacheVariables": { "XMEDIA_SANITIZERS": "address;undefined" } },
+    { "name": "tsan",     "inherits": "debug", "cacheVariables": { "XMEDIA_SANITIZERS": "thread" } },
+    { "name": "ubsan",    "inherits": "debug", "cacheVariables": { "XMEDIA_SANITIZERS": "undefined" } },
+    { "name": "coverage", "inherits": "debug", "cacheVariables": { "XMEDIA_COVERAGE": "ON" } },
+    { "name": "fuzz",     "inherits": "asan",  "cacheVariables": { "XMEDIA_BUILD_FUZZ": "ON", "CMAKE_CXX_COMPILER": "clang++" } },
 
     { "name": "android-arm64", "inherits": "base",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
         "ANDROID_ABI": "arm64-v8a", "ANDROID_PLATFORM": "android-21", "ANDROID_STL": "c++_shared",
-        "AVBASE_ENABLE_ANDROID": "ON", "AVBASE_ENABLE_SDL2": "OFF", "AVBASE_ENABLE_LINUX_NATIVE": "OFF",
-        "AVBASE_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/android/arm64-v8a",
-        "AVBASE_BUILD_TESTS": "OFF", "AVBASE_BUILD_EXAMPLES": "OFF" } },
+        "XMEDIA_ENABLE_ANDROID": "ON", "XMEDIA_ENABLE_SDL2": "OFF", "XMEDIA_ENABLE_LINUX_NATIVE": "OFF",
+        "XMEDIA_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/android/arm64-v8a",
+        "XMEDIA_BUILD_TESTS": "OFF", "XMEDIA_BUILD_EXAMPLES": "OFF" } },
     { "name": "ios-device", "inherits": "base",
       "cacheVariables": {
         "CMAKE_SYSTEM_NAME": "iOS", "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "12.0",
-        "AVBASE_ENABLE_IOS": "ON", "AVBASE_ENABLE_SDL2": "OFF", "AVBASE_ENABLE_LINUX_NATIVE": "OFF",
-        "AVBASE_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/ios/arm64",
-        "AVBASE_BUILD_TESTS": "OFF" } }
+        "XMEDIA_ENABLE_IOS": "ON", "XMEDIA_ENABLE_SDL2": "OFF", "XMEDIA_ENABLE_LINUX_NATIVE": "OFF",
+        "XMEDIA_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/ios/arm64",
+        "XMEDIA_BUILD_TESTS": "OFF" } }
   ],
   "buildPresets": [
     { "name": "default",      "configurePreset": "default" },
@@ -1139,7 +1139,7 @@ avbase_add_example(avbase_inspect SOURCES examples/avbase_inspect/main.cc
 
 ---
 
-## 9. `cmake/AvbaseCheckInvariants.cmake` — 把设计约束变成 CI
+## 9. `cmake/XmediaCheckInvariants.cmake` — 把设计约束变成 CI
 
 架构约束只写在文档里，半年后一定失效。这里把它变成构建目标。
 
@@ -1150,7 +1150,7 @@ avbase_add_example(avbase_inspect SOURCES examples/avbase_inspect/main.cc
 C18/C20 本就是编译器必报的错，其余只是把"taste"写成了门禁——一条会误伤的门禁教人无视门禁。
 
 ```cmake
-# cmake/AvbaseCheckInvariants.cmake（实际内容）
+# cmake/XmediaCheckInvariants.cmake（实际内容）
 find_package(Python3 COMPONENTS Interpreter QUIET)
 
 if(Python3_Interpreter_FOUND)
@@ -1160,7 +1160,7 @@ if(Python3_Interpreter_FOUND)
       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
       COMMENT "Checking structural invariants (C1, C4, C5, C22, C23, C24, C25)")
 
-  if(AVBASE_IS_TOP_LEVEL)
+  if(XMEDIA_IS_TOP_LEVEL)
     add_custom_target(ci-quick DEPENDS check-invariants)
   endif()
 else()
@@ -1219,64 +1219,64 @@ endif()
 ## 11. Install / Export
 
 ```cmake
-# cmake/AvbaseInstall.cmake
-if(NOT AVBASE_INSTALL)
+# cmake/XmediaInstall.cmake
+if(NOT XMEDIA_INSTALL)
   return()
 endif()
 
-set(_targets avbase_base avbase_media avbase_player avbase_platform_null avbase)
-if(AVBASE_ENABLE_FFMPEG)       list(APPEND _targets avbase_platform_ffmpeg) endif()
-if(AVBASE_ENABLE_SDL2)         list(APPEND _targets avbase_platform_sdl2)   endif()
-if(AVBASE_ENABLE_LINUX_NATIVE) list(APPEND _targets avbase_platform_linux)  endif()
+set(_targets xmedia_base xmedia_media xmedia_player xmedia_platform_null xmedia-kit)
+if(XMEDIA_ENABLE_FFMPEG)       list(APPEND _targets xmedia_platform_ffmpeg) endif()
+if(XMEDIA_ENABLE_SDL2)         list(APPEND _targets xmedia_platform_sdl2)   endif()
+if(XMEDIA_ENABLE_LINUX_NATIVE) list(APPEND _targets xmedia_platform_linux)  endif()
 
-install(TARGETS ${_targets} EXPORT avbaseTargets
+install(TARGETS ${_targets} EXPORT xmedia-kitTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avbase)
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit)
 
 # ★只装公开头：player/public/ + media/base/ + base/（供写自定义 sink/decoder 的高级用户）
-install(DIRECTORY player/public/  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avbase/player/public
+install(DIRECTORY player/public/  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit/player/public
         FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY media/base/     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avbase/media/base
+install(DIRECTORY media/base/     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit/media/base
         FILES_MATCHING PATTERN "*.h" PATTERN "*_export.h")
-install(DIRECTORY base/           DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avbase/base
+install(DIRECTORY base/           DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit/base
         FILES_MATCHING PATTERN "*.h")
-install(FILES "${CMAKE_BINARY_DIR}/generated/avbase/Version.h"
-              "${CMAKE_BINARY_DIR}/generated/avbase/BuildConfig.h"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/avbase)
+install(FILES "${CMAKE_BINARY_DIR}/generated/xmedia-kit/Version.h"
+              "${CMAKE_BINARY_DIR}/generated/xmedia-kit/BuildConfig.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xmedia-kit)
 # media/filters/ 与 platform/ 的实现头一律不装
 
-install(EXPORT avbaseTargets FILE avbaseTargets.cmake NAMESPACE avbase::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avbase)
-configure_package_config_file(cmake/avbaseConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/avbaseConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avbase)
+install(EXPORT xmedia-kitTargets FILE xmedia-kitTargets.cmake NAMESPACE xmedia::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/xmedia-kit)
+configure_package_config_file(cmake/xmedia-kitConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/xmedia-kitConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/xmedia-kit)
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/avbaseConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/xmedia-kitConfigVersion.cmake"
     VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion ARCH_INDEPENDENT)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/avbaseConfig.cmake"
-              "${CMAKE_CURRENT_BINARY_DIR}/avbaseConfigVersion.cmake"
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmedia-kitConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/xmedia-kitConfigVersion.cmake"
               "${CMAKE_SOURCE_DIR}/cmake/FindFFmpeg.cmake"
               "${CMAKE_SOURCE_DIR}/cmake/FindLinuxMediaDeps.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/avbase)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/xmedia-kit)
 
-configure_file(cmake/avbase.pc.in "${CMAKE_CURRENT_BINARY_DIR}/avbase.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/avbase.pc"
+configure_file(cmake/xmedia.pc.in "${CMAKE_CURRENT_BINARY_DIR}/xmedia.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/xmedia.pc"
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 ```
 
 下游：
 
 ```cmake
-find_package(avbase 0.1 REQUIRED)
-target_link_libraries(my_app PRIVATE avbase::avbase)
+find_package(xmedia-kit 0.1 REQUIRED)
+target_link_libraries(my_app PRIVATE xmedia::xmedia-kit)
 ```
 
 或不用 CMake：
 
 ```bash
-g++ -std=c++20 -fno-exceptions -fno-rtti main.cc $(pkg-config --cflags --libs avbase) -o app
+g++ -std=c++20 -fno-exceptions -fno-rtti main.cc $(pkg-config --cflags --libs xmedia-kit) -o app
 ```
 
 ---
@@ -1330,16 +1330,16 @@ lcov --capture --directory build/coverage -o cov.info && genhtml cov.info -o cov
 
 | 产物 | 内容 | 大小估算 |
 |---|---|---|
-| `libavbase_base.a` | `base/` | ~600 KB |
-| `libavbase_media.a` | `media/base` + `media/filters`（非 FFmpeg）+ `media/audio` + `media/renderers` | ~1.4 MB |
-| `libavbase_player.a` | `player/` | ~500 KB |
-| `libavbase_platform_null.a` | Null 后端 | ~30 KB |
-| `libavbase_platform_ffmpeg.a` | FFmpeg 适配 | ~450 KB |
-| `libavbase_platform_sdl2.a` | SDL2 后端 | ~180 KB |
-| `libavbase_platform_linux.a` | 原生 GL + X11/Wayland + ALSA/Pulse | ~700 KB |
-| `libavbase.so`（静态链 FFmpeg，符号隐藏） | 全部 | ~3.8 MB（strip 后 ~1.9 MB） |
-| `include/avbase/{player/public,media/base,base}/*.h` | 公开头（~60 个） | ~5000 行 |
-| `avbaseConfig.cmake` / `avbase.pc` | 集成入口 | — |
+| `libxmedia_base.a` | `base/` | ~600 KB |
+| `libxmedia_media.a` | `media/base` + `media/filters`（非 FFmpeg）+ `media/audio` + `media/renderers` | ~1.4 MB |
+| `libxmedia_player.a` | `player/` | ~500 KB |
+| `libxmedia_platform_null.a` | Null 后端 | ~30 KB |
+| `libxmedia_platform_ffmpeg.a` | FFmpeg 适配 | ~450 KB |
+| `libxmedia_platform_sdl2.a` | SDL2 后端 | ~180 KB |
+| `libxmedia_platform_linux.a` | 原生 GL + X11/Wayland + ALSA/Pulse | ~700 KB |
+| `libxmedia.so`（静态链 FFmpeg，符号隐藏） | 全部 | ~3.8 MB（strip 后 ~1.9 MB） |
+| `include/xmedia-kit/{player/public,media/base,base}/*.h` | 公开头（~60 个） | ~5000 行 |
+| `xmedia-kitConfig.cmake` / `xmedia.pc` | 集成入口 | — |
 
 对比：ijkplayer 的 `libijkplayer.so` + `libijkffmpeg.so` 通常 8–15 MB。
 
@@ -1350,7 +1350,7 @@ lcov --capture --directory build/coverage -o cov.info && genhtml cov.info -o cov
 | 依赖 | 用途 | 引入方式 | 理由 |
 |---|---|---|---|
 | FFmpeg | 解复用/解码 | **系统**（`find_package`） | 用户已选定；避免 FetchContent 编译 15 分钟 |
-| SDL2 | Linux 快速后端 | 系统 | 可选（`AVBASE_ENABLE_SDL2`） |
+| SDL2 | Linux 快速后端 | 系统 | 可选（`XMEDIA_ENABLE_SDL2`） |
 | OpenGL/EGL/X11/Wayland/ALSA/Pulse | Linux 原生后端 | 系统 + **dlopen** | 弱依赖，单个 .so 到处能跑 |
 | GoogleTest / GoogleMock | 测试 | `FetchContent` + `FIND_PACKAGE_ARGS` | 优先系统包 |
 | Google Benchmark | 基准 | 同上 | — |

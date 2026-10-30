@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Lives in media/base: media::Demuxer produces it. player/public/media_info.h
 // re-exports it (invariant C22).
 
-#ifndef AVBASE_MEDIA_BASE_MEDIA_INFO_H_
-#define AVBASE_MEDIA_BASE_MEDIA_INFO_H_
+#ifndef XMEDIA_MEDIA_BASE_MEDIA_INFO_H_
+#define XMEDIA_MEDIA_BASE_MEDIA_INFO_H_
 
 #include <stdint.h>
 
@@ -20,11 +20,11 @@
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 enum class StreamKind { kUnknown, kAudio, kVideo, kText };
 
-struct AVBASE_MEDIA_EXPORT StreamInfo {
+struct XMEDIA_MEDIA_EXPORT StreamInfo {
   int index{-1};
   StreamKind kind{StreamKind::kUnknown};
   std::string codec_name;  // "h264", "hevc", "aac", "opus", "subrip"...
@@ -66,7 +66,7 @@ struct AVBASE_MEDIA_EXPORT StreamInfo {
 
 // Everything the container told us, as one immutable snapshot. Replaces
 // ijkplayer's ijkmeta.c plus a dozen ijkmp_get_* accessors.
-struct AVBASE_MEDIA_EXPORT MediaInfo {
+struct XMEDIA_MEDIA_EXPORT MediaInfo {
   base::TimeDelta duration;
   // Live streams report a zero duration; use |is_live| rather than testing it.
   bool is_live{false};
@@ -87,6 +87,6 @@ struct AVBASE_MEDIA_EXPORT MediaInfo {
   bool duration_is_estimate{false};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_MEDIA_INFO_H_
+#endif  // XMEDIA_MEDIA_BASE_MEDIA_INFO_H_

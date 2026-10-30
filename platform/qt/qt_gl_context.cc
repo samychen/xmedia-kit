@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include <QOpenGLContext>
 #include <QSurface>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 QtGLContext::QtGLContext(QOpenGLContext* context, int drawable_width,
                          int drawable_height)
@@ -49,4 +49,4 @@ std::string QtGLContext::GetError() {
   return std::string();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

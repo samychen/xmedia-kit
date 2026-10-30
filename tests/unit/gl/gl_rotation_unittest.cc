@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.
 //
@@ -27,20 +27,20 @@
 #include "media/gl/gl_present.h"
 #include "media/gl/gl_scene.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-using ::avbase::test::Describe;
-using ::avbase::test::GlTestWindow;
-using ::avbase::test::kBlackLuma;
-using ::avbase::test::kBrightThreshold;
-using ::avbase::test::kDarkThreshold;
-using ::avbase::test::kNeutralChroma;
-using ::avbase::test::kSampleInset;
-using ::avbase::test::kWhiteLuma;
-using ::avbase::test::MakeTopHalfFrameRotated;
-using ::avbase::test::ReadPixel;
-using ::avbase::test::Rgb;
+using ::xmedia::test::Describe;
+using ::xmedia::test::GlTestWindow;
+using ::xmedia::test::kBlackLuma;
+using ::xmedia::test::kBrightThreshold;
+using ::xmedia::test::kDarkThreshold;
+using ::xmedia::test::kNeutralChroma;
+using ::xmedia::test::kSampleInset;
+using ::xmedia::test::kWhiteLuma;
+using ::xmedia::test::MakeTopHalfFrameRotated;
+using ::xmedia::test::ReadPixel;
+using ::xmedia::test::Rgb;
 using gl::GlApi;
 
 constexpr int kCanvasSize = 64;
@@ -272,4 +272,4 @@ TEST_F(RotationTest, TheSingleFramePathHonoursTheFramesRotation) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

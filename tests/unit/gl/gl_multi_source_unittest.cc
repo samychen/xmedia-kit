@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.
 //
@@ -27,7 +27,7 @@
 #include "media/gl/gl_scene_engine.h"
 #include "render/gl/gl_api.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // The size asked of the window -- NOT the size of the drawable. On a HiDPI
@@ -347,4 +347,4 @@ TEST_F(MultiSourceTest, ClearingTheHookLeavesTheLastPlacementStanding) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

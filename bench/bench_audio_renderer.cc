@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -21,7 +21,7 @@
 // Nor is `BM_AudioRenderCallback` here: that is the device-thread Render()
 // with a populated ring, which needs AudioRendererImpl plus the fake decoder
 // and fake sink from tests/support -- and this target is configured with
-// AVBASE_BUILD_TESTS=OFF by both gate_local and CI (no test support target
+// XMEDIA_BUILD_TESTS=OFF by both gate_local and CI (no test support target
 // exists there). Duplicating the fakes into bench/ would drift from the
 // copies the unit tests use. The entry stays open in docs/04 §8 with that
 // reason recorded.
@@ -42,14 +42,14 @@
 
 namespace {
 
-using avbase::base::scoped_refptr;
-using avbase::base::TimeDelta;
-using avbase::media::AudioBuffer;
-using avbase::media::AudioBus;
-using avbase::media::AudioParameters;
-using avbase::media::AudioRendererAlgorithm;
-using avbase::media::ChannelLayout;
-using avbase::media::SampleFormat;
+using xmedia::base::scoped_refptr;
+using xmedia::base::TimeDelta;
+using xmedia::media::AudioBuffer;
+using xmedia::media::AudioBus;
+using xmedia::media::AudioParameters;
+using xmedia::media::AudioRendererAlgorithm;
+using xmedia::media::ChannelLayout;
+using xmedia::media::SampleFormat;
 
 // The reference configuration from docs/04 §8: 48 kHz stereo, planar float.
 constexpr int kChannels = 2;
@@ -101,7 +101,7 @@ scoped_refptr<AudioBuffer> MakeSineBuffer(int frames, int64_t start_sample) {
       /*serial=*/0, std::move(data));
 }
 
-AVBASE_BENCH(BM_AudioRendererAlgorithm_FillBuffer) {
+XMEDIA_BENCH(BM_AudioRendererAlgorithm_FillBuffer) {
   AudioRendererAlgorithm algorithm;
   algorithm.Initialize(StereoParams());
   auto dest = AudioBus::Create(kChannels, kFramesPerCall);
@@ -136,7 +136,7 @@ AVBASE_BENCH(BM_AudioRendererAlgorithm_FillBuffer) {
         algorithm.FillBuffer(dest.get(), 0, kFramesPerCall, 1.0);
     sink += static_cast<uint64_t>(rendered);
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
 }
 
 }  // namespace

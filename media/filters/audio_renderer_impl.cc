@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,7 +25,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The device-facing callback (Render), its arithmetic helpers and the device
 // error latch live in audio_renderer_impl_render.cc, so the S4 callback stays
@@ -86,14 +86,14 @@ void AudioRendererImpl::Initialize(DemuxerStream* stream,
 void AudioRendererImpl::OnDecoderInitialized(InitializeCB cb,
                                              DecoderStatus status) {
   if (!status.is_ok()) {
-    LOG(ERROR) << "avbase.adec: audio decoder failed to initialize: "
+    LOG(ERROR) << "xmedia.adec: audio decoder failed to initialize: "
                << decoder_stream_.GetDisplayName() << " ("
                << status.AsDebugString() << ")";
     std::move(cb).Run(PipelineStatus::kAudioRendererInitializationError);
     return;
   }
   initialized_ = true;
-  LOG(INFO) << "avbase.adec: audio decoder ready ("
+  LOG(INFO) << "xmedia.adec: audio decoder ready ("
             << decoder_stream_.GetDisplayName() << ")";
   // Hand the sink its parameters NOW, while still preparing. For a device
   // backed sink this is what opens the device (paused -- see
@@ -344,7 +344,7 @@ void AudioRendererImpl::OnDecoderOutput(
       // the video side has the same tolerance for the same reason.
       return;
     }
-    LOG(ERROR) << "avbase.adec: decode failed (" << status.AsDebugString()
+    LOG(ERROR) << "xmedia.adec: decode failed (" << status.AsDebugString()
                << "), reporting to the pipeline";
     // DecoderStream has already run its fallback chain by the time it reports a
     // non-ok status here, so this is terminal rather than recoverable. The
@@ -369,7 +369,7 @@ void AudioRendererImpl::OnDecoderOutput(
       // fall back to the unfiltered path and say so once.
       if (!filter_) {
         if (!filter_factory_) {
-          LOG(ERROR) << "avbase.afilter: filter_graph set but no stage "
+          LOG(ERROR) << "xmedia.afilter: filter_graph set but no stage "
                         "factory was injected (no-ffmpeg build?); playing "
                         "unfiltered";
           filter_graph_.clear();
@@ -382,7 +382,7 @@ void AudioRendererImpl::OnDecoderOutput(
         if (!filter_->Initialize(filter_graph_, buffer->sample_rate(),
                                  buffer->channel_count(),
                                  params_.frames_per_buffer())) {
-          LOG(ERROR) << "avbase.afilter: graph \"" << filter_graph_
+          LOG(ERROR) << "xmedia.afilter: graph \"" << filter_graph_
                      << "\" failed to start; playing unfiltered";
           filter_.reset();
           filter_graph_.clear();
@@ -432,14 +432,14 @@ void AudioRendererImpl::OnDecoderOutput(
 
 void AudioRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
   if (event == DecoderStreamEvent::kNoDecoderAvailable) {
-    LOG(ERROR) << "avbase.adec: every audio decoder candidate failed";
+    LOG(ERROR) << "xmedia.adec: every audio decoder candidate failed";
     return;
   }
   if (!decoder_event_cb_) {
     return;
   }
   if (event == DecoderStreamEvent::kDecoderOpened) {
-    LOG(INFO) << "avbase.adec: decoder opened -> "
+    LOG(INFO) << "xmedia.adec: decoder opened -> "
               << decoder_stream_.GetDisplayName();
     // Audio frames are always CPU-readable, so the opaque flag is false here
     // -- stated rather than guessed; see the trait.
@@ -449,7 +449,7 @@ void AudioRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
     return;
   }
   // A fallback is not an error, but it must be observable.
-  LOG(WARNING) << "avbase.adec: " << GetDecoderStreamEventName(event) << " -> "
+  LOG(WARNING) << "xmedia.adec: " << GetDecoderStreamEventName(event) << " -> "
                << decoder_stream_.GetDisplayName();
   decoder_event_cb_.Run(DemuxerStreamType::kAudio,
                         decoder_stream_.failed_decoder(),
@@ -457,4 +457,4 @@ void AudioRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
                         GetDecoderStreamEventName(event), false);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

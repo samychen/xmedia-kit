@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_TEXT_DECODER_H_
-#define AVBASE_MEDIA_FFMPEG_TEXT_DECODER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_TEXT_DECODER_H_
+#define XMEDIA_MEDIA_FFMPEG_TEXT_DECODER_H_
 
 #include <memory>
 #include <string>
@@ -12,13 +12,13 @@
 #include "media/base/text_decoder.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // FFmpeg-backed subtitle decoder (subrip/srt, mov_text/tx3g, ass, webvtt --
 // whatever the linked FFmpeg build enables). Synchronous push-through: one
 // subtitle packet in, the cues it displays out. Packets must carry
 // ff::AvPacketStorage, exactly like the audio/video decoders' input contract.
-class AVBASE_MEDIA_EXPORT FFmpegTextDecoder final : public TextDecoder {
+class XMEDIA_MEDIA_EXPORT FFmpegTextDecoder final : public TextDecoder {
  public:
   FFmpegTextDecoder();
   FFmpegTextDecoder(const FFmpegTextDecoder&) = delete;
@@ -38,7 +38,7 @@ class AVBASE_MEDIA_EXPORT FFmpegTextDecoder final : public TextDecoder {
 
 // Factory wired by the FFmpeg layer (see text_decoder.h for why the factory
 // indirection exists).
-class AVBASE_MEDIA_EXPORT FFmpegTextDecoderFactory final
+class XMEDIA_MEDIA_EXPORT FFmpegTextDecoderFactory final
     : public TextDecoderFactory {
  public:
   std::unique_ptr<TextDecoder>
@@ -50,6 +50,6 @@ class AVBASE_MEDIA_EXPORT FFmpegTextDecoderFactory final
   ~FFmpegTextDecoderFactory() override = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_TEXT_DECODER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_TEXT_DECODER_H_

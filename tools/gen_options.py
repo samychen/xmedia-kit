@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Generates the OptionRegistry table, and checks it against both authorities.
@@ -9,18 +9,12 @@ player/public/option_registry.h says:
     The table is generated from player_config.h by tools/gen_options.py so the
     typed fields and the string keys can never drift apart (rule C13).
 
-and player/option_registry.cc said the same while promising it "at M1". The tool
-did not exist and the table was hand-written, so it covered 9 of the ~60 keys in
-docs/05 table 4 -- which makes acceptance criterion A10 ("every legacy option
-has an equivalent entry point") 9/60, and because behaviour difference Δ2 turns
-an unknown key into an error rather than a silent no-op, most existing
-ijkplayer configurations would fail outright on migration.
+Once a hand-written migration table (docs/05) also served as the
+specification source; that narrative retired with the ijkplayer rebrand, and
+the reconciliation is now two-source:
 
-Three sources are reconciled here:
-
-    docs/05 table 4   (the specification, header says 已核对原文)
-    player_config.h   (the code: field names, types, defaults)
-    tools/option_map.py (the mapping between them, including the transforms)
+    player_config.h     (the code: field names, types, defaults)
+    tools/option_map.py (the mapping, including the transforms)
 
 --check reports every disagreement: a key in the doc with no mapping, a mapped
 field that does not exist, a kind whose value type does not match the field's C++
@@ -55,7 +49,6 @@ from option_map import (  # noqa: E402
 
 CONFIG_H = "player/public/player_config.h"
 REGISTRY_CC = "player/option_registry.cc"
-DOCS_05 = "docs/05-迁移对照表.md"
 OUT_INC = "player/option_registry.inc"
 
 # Which C++ field types each kind may legally write. A mismatch means the map
@@ -82,7 +75,7 @@ ENUM_FIELD_TYPES = {"DecoderPreference", "HwCodecMask", "OverlayFormat",
                     "HdrToneMapping"}
 
 STRUCT_RE = re.compile(
-    r"^\s*(?:struct|class)\s+(?:AVBASE_PLAYER_EXPORT\s+)?(\w+)[^{;]*\{")
+    r"^\s*(?:struct|class)\s+(?:XMEDIA_PLAYER_EXPORT\s+)?(\w+)[^{;]*\{")
 # The initialiser group is optional on purpose: a std::string or a
 # base::TimeDelta member is often declared bare ("std::string filter_graph;"),
 # and requiring an initialiser silently drops every such field -- which then
@@ -173,68 +166,6 @@ def parse_player_config(root: pathlib.Path) -> dict:
     return out
 
 
-def parse_docs_table41(root: pathlib.Path) -> dict:
-    """Parses the §4.1 PLAYER table: key -> (field, lo, hi, default, negated).
-
-    Only §4.1 is parsed because it is the one table with a uniform
-    "类型/范围/默认" column; §4.3-§4.7 mix several keys per row and put the
-    transform in prose, so those come from tools/option_map.py and are checked
-    for *presence* against the doc instead (every key the doc names must be in
-    the map).
-    """
-    path = root / DOCS_05
-    if not path.exists():
-        return {}
-    text = path.read_text(encoding="utf-8", errors="replace")
-    section = text.split("### 4.1", 1)[-1].split("### 4.2", 1)[0]
-    out = {}
-    for line in section.splitlines():
-        m = DOC_ROW_RE.match(line)
-        if not m:
-            continue
-        key, typ, field_cell = m.group(1), m.group(2), m.group(3)
-        if key.startswith("---") or key in ("原选项名",):
-            continue
-        fm = re.search(r"`([^`]+)`", field_cell)
-        field = fm.group(1) if fm else ""
-        negated = "取反" in field_cell
-        lo = hi = default = None
-        # docs/05 writes ranges with a Unicode minus (−1..120), which a plain
-        # "-?" does not match; normalising first is what makes the range check
-        # able to disagree with the map at all instead of silently passing.
-        normalised = typ.replace("\u2212", "-").replace("\u2013", "-")
-        rm = re.search(r"(-?\d+)\s*\.\.\s*(-?\d+)", normalised)
-        if rm:
-            lo, hi = int(rm.group(1)), int(rm.group(2))
-        dm = re.search(r"/\s*([^|]+)$", typ.strip())
-        if dm:
-            default = dm.group(1).strip()
-        out[key] = {"field": field, "lo": lo, "hi": hi, "default": default,
-                    "negated": negated}
-    return out
-
-
-def doc_keys_all_sections(root: pathlib.Path) -> set:
-    """Every `key` the whole of docs/05 §4 names, for the presence check."""
-    path = root / DOCS_05
-    if not path.exists():
-        return set()
-    text = path.read_text(encoding="utf-8", errors="replace")
-    section = text.split("## 表 4 ·", 1)[-1].split("## 表 5 ·", 1)[0]
-    keys = set()
-    for m in re.finditer(r"`([a-z][\w.-]{1,40})`", section):
-        candidate = m.group(1)
-        if candidate.startswith(("config.", "render.", "audio.", "video.",
-                                 "net.", "buffer.", "demux.", "seek.")):
-            continue                      # a field path, not an option key
-        if candidate in ("avbase", "ffplay", "kAll", "kAuto", "kSdl2", "kGl",
-                         "kAlsa", "kPulse", "kPipeWire", "kHardwareFirst",
-                         "kOpenSLES", "kAudio", "kVideo", "kExternal"):
-            continue
-        keys.add(candidate)
-    return keys
-
-
 def parse_registry_keys(root: pathlib.Path) -> set:
     path = root / REGISTRY_CC
     if not path.exists():
@@ -250,7 +181,6 @@ def parse_registry_keys(root: pathlib.Path) -> set:
 def check(root: pathlib.Path) -> list:
     findings = []
     fields = parse_player_config(root)
-    docs41 = parse_docs_table41(root)
     implemented = parse_registry_keys(root)
     mapped = by_key()
 
@@ -271,45 +201,12 @@ def check(root: pathlib.Path) -> list:
             findings.append(("TYPE_MISMATCH", where,
                              f"kind {opt.kind} expects an enum field, "
                              f"got {ctype}"))
-        doc = docs41.get(opt.key)
-        if doc:
-            if doc["field"] and doc["field"] != opt.field:
-                findings.append(("DOC_FIELD_DIFFERS", where,
-                                 f"docs/05 §4.1 says {doc['field']}"))
-            if doc["negated"] != (opt.kind == KIND_BOOL_NEGATED):
-                findings.append(("DOC_NEGATION_DIFFERS", where,
-                                 "docs/05 marks 取反 but the map does not"
-                                 if doc["negated"] else
-                                 "the map negates but docs/05 does not"))
-            check_range(findings, opt, doc, where)
 
-    for key, doc in docs41.items():
-        if key not in mapped:
-            findings.append(("KEY_UNMAPPED", key,
-                             f"in docs/05 §4.1 (field {doc['field']}) but not "
-                             f"in tools/option_map.py"))
     unmapped_fields = sorted(
         f for f in fields
         if f not in {o.field for o in OPTIONS}
         and not f.startswith("extra_"))
     return findings, implemented, unmapped_fields, fields
-
-
-def check_range(findings, opt, doc, where):
-    for name, mine, theirs in (("lo", opt.lo, doc["lo"]),
-                               ("hi", opt.hi, doc["hi"])):
-        if theirs is not None and mine is not None and int(theirs) != int(mine):
-            findings.append(("RANGE_DIFFERS", where,
-                             f"{name}: map says {mine}, docs/05 says {theirs}"))
-    if doc["default"] is None or opt.default is None:
-        return
-    theirs = doc["default"]
-    mine = opt.default
-    numeric = re.fullmatch(r"-?\d+", str(theirs))
-    if numeric and isinstance(mine, (int, float)) and not isinstance(mine, bool):
-        if int(theirs) != int(mine):
-            findings.append(("DEFAULT_DIFFERS", where,
-                             f"map says {mine}, docs/05 says {theirs}"))
 
 
 def coverage(implemented, findings) -> tuple:
@@ -327,7 +224,7 @@ def print_report(findings, have, missing, extra, unmapped_fields, fields) -> int
         for key in sorted(missing):
             print(f"    {key}")
     if extra:
-        print(f"\nimplemented but absent from docs/05 table 4 ({len(extra)}):")
+        print(f"\nimplemented but absent from the option map ({len(extra)}):")
         for key in sorted(extra):
             print(f"    {key}")
     print(f"\nPlayerConfig fields with no legacy key ({len(unmapped_fields)}):")
@@ -373,13 +270,13 @@ def emit(root: pathlib.Path) -> str:
         "// and check for drift with:",
         "//   python3 tools/gen_options.py --check",
         "//",
-        "// Provenance: docs/05 table 4 (specification), %s" % CONFIG_H,
+        "// Provenance: %s" % CONFIG_H,
         "// (fields), tools/option_map.py (mapping and transforms). All three",
         "// reconciled by --check, so this file cannot silently disagree with",
         "// either authority (invariant C13).",
         "",
-        "#ifndef AVBASE_PLAYER_OPTION_REGISTRY_INC_",
-        "#define AVBASE_PLAYER_OPTION_REGISTRY_INC_",
+        "#ifndef XMEDIA_PLAYER_OPTION_REGISTRY_INC_",
+        "#define XMEDIA_PLAYER_OPTION_REGISTRY_INC_",
         "",
         "// One id per PlayerConfig field the table writes.",
         "enum class GeneratedField : uint16_t {",
@@ -466,7 +363,7 @@ def emit(root: pathlib.Path) -> str:
         '               "run tools/gen_options.py --emit");',
         "}",
         "",
-        "#endif  // AVBASE_PLAYER_OPTION_REGISTRY_INC_",
+        "#endif  // XMEDIA_PLAYER_OPTION_REGISTRY_INC_",
         "",
     ]
     return wrap_emitted("\n".join(out))
@@ -523,7 +420,7 @@ def emit_one_case(opt, ctype, shared_field) -> list:
         return [f"{guard}{{ const int64_t* i = std::get_if<int64_t>(&v);",
                 f'        if (!i) return TypeMismatch({key}, "an integer");',
                 f"        {range_check(opt, key)}"
-                "        // Δ6: the legacy range is 0..100, avbase's is 0.0..1.0.\n"
+                "        // Δ6: the legacy range is 0..100, xmedia-kit's is 0.0..1.0.\n"
                 f"        c->{opt.field} = static_cast<double>(*i) / 100.0;",
                 f"        return OkStatus(); }}{tail}"]
     if kind == KIND_DOUBLE:
@@ -535,7 +432,7 @@ def emit_one_case(opt, ctype, shared_field) -> list:
                 f'        if (!s) return TypeMismatch({key}, "a string");',
                 f"        c->{opt.field} = *s; return OkStatus(); }}{tail}"]
     if kind == KIND_STRING_MAP:
-        # The legacy value is one blob of "Name: value" lines; avbase keeps a
+        # The legacy value is one blob of "Name: value" lines; xmedia-kit keeps a
         # parsed map. The splitting itself is NOT generated -- a generator
         # should emit data and mechanical dispatch, not string algorithms, and
         # the one non-mechanical piece belongs in hand-written code where it can
@@ -722,13 +619,13 @@ def escape(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 SELFTEST_CONFIG = """
-namespace avbase {
-struct AVBASE_PLAYER_EXPORT BufferConfig {
+namespace xmedia {
+struct XMEDIA_PLAYER_EXPORT BufferConfig {
   bool enabled{true};
   size_t max_bytes{15 * 1024 * 1024};
   base::TimeDelta first_high_water_mark{base::Milliseconds(100)};
 };
-struct AVBASE_PLAYER_EXPORT PlayerConfig {
+struct XMEDIA_PLAYER_EXPORT PlayerConfig {
   BufferConfig buffer;
   bool fast{false};
   int loop_count{1};
@@ -736,24 +633,9 @@ struct AVBASE_PLAYER_EXPORT PlayerConfig {
 }
 """
 
-SELFTEST_DOCS = """
-### 4.1 PLAYER 类
-
-| 原选项名 | 类型/范围/默认 | `PlayerConfig` 字段 | Chromium 对应 | 状态 |
-|---|---|---|---|---|
-| `packet-buffering` | INT 0..1 / 1 | `buffer.enabled` | x | ✅ |
-| `max-buffer-size` | INT / 15728640 | `buffer.max_bytes` | x | 🔧 |
-| `an` | INT 0..1 / 0 | `audio.disabled`（取反） | x | 🔧 |
-
-### 4.2 next
-"""
-
-
 def selftest(tmp: pathlib.Path) -> list:
     (tmp / "player/public").mkdir(parents=True, exist_ok=True)
-    (tmp / "docs").mkdir(parents=True, exist_ok=True)
     (tmp / "player/public/player_config.h").write_text(SELFTEST_CONFIG)
-    (tmp / "docs/05-迁移对照表.md").write_text(SELFTEST_DOCS)
     failures = []
     fields = parse_player_config(tmp)
     for path, ctype in (("buffer.enabled", "bool"),
@@ -766,17 +648,6 @@ def selftest(tmp: pathlib.Path) -> list:
             failures.append(f"{path}: type {fields[path][0]}, want {ctype}")
     if "buffer" not in fields.get("buffer.enabled", ("", "", ""))[2]:
         pass
-    docs = parse_docs_table41(tmp)
-    if docs.get("packet-buffering", {}).get("field") != "buffer.enabled":
-        failures.append(f"docs parse field: {docs.get('packet-buffering')}")
-    if docs.get("packet-buffering", {}).get("lo") != 0:
-        failures.append("docs parse lost the 0..1 range")
-    if docs.get("max-buffer-size", {}).get("default") != "15728640":
-        failures.append(f"docs parse default: {docs.get('max-buffer-size')}")
-    if not docs.get("an", {}).get("negated"):
-        failures.append("docs parse lost the 取反 negation marker")
-    if "4.2" in docs or any("next" in str(v) for v in docs.values()):
-        failures.append("docs parse ran past §4.1")
     if enum_id("buffer.first_high_water_mark") != "kBufferFirstHighWaterMark":
         failures.append(f"enum_id: {enum_id('buffer.first_high_water_mark')}")
     # The FourCC formula, pinned against the values ijksdl_fourcc.h produces.
@@ -817,7 +688,7 @@ def main() -> int:
         if failures:
             return 1
         print("# selftest OK: player_config.h field paths (prefix derived from "
-              "PlayerConfig members), docs/05 §4.1 range/default/negation, "
+              "PlayerConfig members), enum ids, "
               "section boundary, enum ids")
 
     if args.emit:

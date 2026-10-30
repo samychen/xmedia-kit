@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_QT_QT_GL_CONTEXT_H_
-#define AVBASE_PLATFORM_QT_QT_GL_CONTEXT_H_
+#ifndef XMEDIA_PLATFORM_QT_QT_GL_CONTEXT_H_
+#define XMEDIA_PLATFORM_QT_QT_GL_CONTEXT_H_
 
 #include <string>
 
@@ -11,13 +11,13 @@
 
 class QOpenGLContext;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // NativeGLContext backed by a Qt Quick scene-graph context.
 //
 // The fourth of these adapters, and the two files next to this one are worth
 // comparing with it: SDL2, GLFW and EGL each OWN the swap (an embedder hands
-// over a window and avbase paints into it, then calls SwapBuffers), while Qt
+// over a window and xmedia-kit paints into it, then calls SwapBuffers), while Qt
 // owns the whole frame. A Qt host draws video INSIDE its scene graph, into a
 // framebuffer object Qt bound, on a thread Qt runs, and Qt presents once for
 // everything in the window. So this adapter is the first one where two of the
@@ -76,6 +76,6 @@ class QtGLContext final : public gl::NativeGLContext {
   int height_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_QT_QT_GL_CONTEXT_H_
+#endif  // XMEDIA_PLATFORM_QT_QT_GL_CONTEXT_H_

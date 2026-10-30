@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_VIDEO_FILTER_H_
-#define AVBASE_MEDIA_FFMPEG_VIDEO_FILTER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_VIDEO_FILTER_H_
+#define XMEDIA_MEDIA_FFMPEG_VIDEO_FILTER_H_
 
 #include <optional>
 #include <string>
@@ -12,7 +12,7 @@
 #include "media/base/video_frame.h"
 #include "media/filters/video_filter_stage.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // avfilter-backed VideoFilterStage: the "vf" half of the filter-graph
 // capability. Constrains the sink to the input format and geometry, so a
@@ -50,6 +50,6 @@ class FFmpegVideoFilter final : public VideoFilterStage {
   std::optional<VideoFilterState> last_rejection_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_VIDEO_FILTER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_VIDEO_FILTER_H_

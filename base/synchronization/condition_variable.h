@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
-#define AVBASE_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
+#ifndef XMEDIA_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
+#define XMEDIA_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 
 #include <condition_variable>
 
@@ -11,7 +11,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // ConditionVariable pairs with a base::Lock, not a raw std::mutex, so the
 // lock-order checker still sees it.
@@ -48,6 +48,6 @@ class ConditionVariable {
   raw_ptr<Lock> lock_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
+#endif  // XMEDIA_BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 #include "media/filters/external_text_track.h"
 #include "player/public/player_config.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // Loads a local subtitle file. External subtitles are local in every
@@ -165,4 +165,4 @@ void PlayerImpl::ExternalTextTick() {
       base::Milliseconds(100));
 }
 
-}  // namespace avbase
+}  // namespace xmedia

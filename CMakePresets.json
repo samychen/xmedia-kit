@@ -13,8 +13,8 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "AVBASE_BUILD_TESTS": "ON",
-        "AVBASE_BUILD_EXAMPLES": "ON"
+        "XMEDIA_BUILD_TESTS": "ON",
+        "XMEDIA_BUILD_EXAMPLES": "ON"
       }
     },
     {
@@ -29,9 +29,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_STRICT_WARNINGS": "ON",
-        "AVBASE_WERROR": "ON"
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_STRICT_WARNINGS": "ON",
+        "XMEDIA_WERROR": "ON"
       }
     },
     {
@@ -39,10 +39,10 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "AVBASE_ENABLE_LTO": "ON",
-        "AVBASE_ENABLE_DCHECK": "OFF",
-        "AVBASE_BUILD_TESTS": "OFF",
-        "AVBASE_BUILD_SHARED": "ON"
+        "XMEDIA_ENABLE_LTO": "ON",
+        "XMEDIA_ENABLE_DCHECK": "OFF",
+        "XMEDIA_BUILD_TESTS": "OFF",
+        "XMEDIA_BUILD_SHARED": "ON"
       }
     },
     {
@@ -50,7 +50,7 @@
       "inherits": "base",
       "displayName": "Core only - no FFmpeg needed",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "OFF"
+        "XMEDIA_ENABLE_FFMPEG": "OFF"
       }
     },
     {
@@ -58,16 +58,16 @@
       "inherits": "default",
       "displayName": "System FFmpeg (distro packages), no window system",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "ON"
+        "XMEDIA_ENABLE_FFMPEG": "ON"
       }
     },
     {
       "name": "linux-sdl2",
       "inherits": "default",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_ENABLE_SDL2": "ON",
-        "AVBASE_ENABLE_LINUX_NATIVE": "OFF"
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_ENABLE_SDL2": "ON",
+        "XMEDIA_ENABLE_LINUX_NATIVE": "OFF"
       }
     },
     {
@@ -75,8 +75,8 @@
       "inherits": "default",
       "displayName": "macOS windowed player (SDL2); see docs/12 4.2",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_ENABLE_SDL2": "ON"
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_ENABLE_SDL2": "ON"
       }
     },
     {
@@ -84,8 +84,8 @@
       "inherits": "default",
       "displayName": "C ABI enabled (docs/08 M15); ctest proves the C boundary",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_ENABLE_CAPI": "ON"
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_ENABLE_CAPI": "ON"
       }
     },
     {
@@ -93,57 +93,57 @@
       "inherits": "default",
       "displayName": "Qt Quick host app + qt_unittests (Qt 6.4+; no FFmpeg, no display)",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "OFF",
-        "AVBASE_ENABLE_QT": "ON",
-        "AVBASE_BUILD_QT_PLAYER": "ON"
+        "XMEDIA_ENABLE_FFMPEG": "OFF",
+        "XMEDIA_ENABLE_QT": "ON",
+        "XMEDIA_BUILD_QT_PLAYER": "ON"
       }
     },
     {
       "name": "linux-native",
       "inherits": "default",
       "cacheVariables": {
-        "AVBASE_ENABLE_LINUX_NATIVE": "ON",
-        "AVBASE_ENABLE_SDL2": "OFF"
+        "XMEDIA_ENABLE_LINUX_NATIVE": "ON",
+        "XMEDIA_ENABLE_SDL2": "OFF"
       }
     },
     {
       "name": "linux-all",
       "inherits": "default",
       "cacheVariables": {
-        "AVBASE_ENABLE_LINUX_NATIVE": "ON",
-        "AVBASE_ENABLE_SDL2": "ON"
+        "XMEDIA_ENABLE_LINUX_NATIVE": "ON",
+        "XMEDIA_ENABLE_SDL2": "ON"
       }
     },
     {
       "name": "asan",
       "inherits": "debug",
       "cacheVariables": {
-        "AVBASE_SANITIZERS": "address;undefined",
-        "AVBASE_WERROR": "OFF"
+        "XMEDIA_SANITIZERS": "address;undefined",
+        "XMEDIA_WERROR": "OFF"
       }
     },
     {
       "name": "tsan",
       "inherits": "debug",
       "cacheVariables": {
-        "AVBASE_SANITIZERS": "thread",
-        "AVBASE_WERROR": "OFF"
+        "XMEDIA_SANITIZERS": "thread",
+        "XMEDIA_WERROR": "OFF"
       }
     },
     {
       "name": "ubsan",
       "inherits": "debug",
       "cacheVariables": {
-        "AVBASE_SANITIZERS": "undefined",
-        "AVBASE_WERROR": "OFF"
+        "XMEDIA_SANITIZERS": "undefined",
+        "XMEDIA_WERROR": "OFF"
       }
     },
     {
       "name": "coverage",
       "inherits": "debug",
       "cacheVariables": {
-        "AVBASE_COVERAGE": "ON",
-        "AVBASE_WERROR": "OFF"
+        "XMEDIA_COVERAGE": "ON",
+        "XMEDIA_WERROR": "OFF"
       }
     },
     {
@@ -154,20 +154,20 @@
         "ANDROID_ABI": "arm64-v8a",
         "ANDROID_PLATFORM": "android-21",
         "ANDROID_STL": "c++_shared",
-        "AVBASE_ENABLE_ANDROID": "ON",
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/android/arm64-v8a",
-        "AVBASE_BUILD_TESTS": "OFF",
-        "AVBASE_BUILD_EXAMPLES": "OFF"
+        "XMEDIA_ENABLE_ANDROID": "ON",
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_FFMPEG_ROOT": "${sourceDir}/prebuilt/ffmpeg/android/arm64-v8a",
+        "XMEDIA_BUILD_TESTS": "OFF",
+        "XMEDIA_BUILD_EXAMPLES": "OFF"
       }
     },
     {
       "name": "linux-ffmpeg711",
       "inherits": "default",
-      "displayName": "FFmpeg 7.1.1 pinned via AVBASE_FFMPEG_ROOT",
+      "displayName": "FFmpeg 7.1.1 pinned via XMEDIA_FFMPEG_ROOT",
       "cacheVariables": {
-        "AVBASE_ENABLE_FFMPEG": "ON",
-        "AVBASE_FFMPEG_ROOT": "$env{AVBASE_FFMPEG_ROOT}"
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_FFMPEG_ROOT": "$env{XMEDIA_FFMPEG_ROOT}"
       }
     },
     {
@@ -175,7 +175,7 @@
       "inherits": "macos-sdl2",
       "displayName": "Everything: FFmpeg + SDL2 player + tests + examples + fuzz",
       "cacheVariables": {
-        "AVBASE_BUILD_FUZZ": "ON"
+        "XMEDIA_BUILD_FUZZ": "ON"
       }
     }
   ],

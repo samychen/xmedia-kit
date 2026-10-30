@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Converts the Doxygen XML of the SDK surface into docs/API.md.
@@ -105,7 +105,7 @@ def _walk(elem: ET.Element, parts: list[str]) -> None:
     elif tag == "sp":
         # Doxygen's highlighted program listings encode spaces as an empty
         # <sp/> element, which itertext() skips -- that is how
-        # "avbase::Playerplayer;" happened.
+        # "xmedia::Playerplayer;" happened.
         parts.append(" ")
     elif tag == "ndash":
         # `--` in a comment becomes an en dash element; itertext() drops it.
@@ -128,7 +128,7 @@ def _walk(elem: ET.Element, parts: list[str]) -> None:
         _children(elem, parts)
     # The tail is text that FOLLOWS this element inside its parent; dropping
     # it silently eats the prose between two refs, which is how
-    # "avbase_source_release()avbase_player_set_data_source()" happened.
+    # "xmedia_source_release()xmedia_player_set_data_source()" happened.
     if elem.tail:
         parts.append(elem.tail)
 
@@ -327,7 +327,7 @@ def main() -> int:
                     sections.setdefault(header, []).extend(
                         render_file_member(member))
     out: list[str] = []
-    out.append("# avbase API 参考")
+    out.append("# xmedia-kit API 参考")
     out.append("")
     out.append("> **本文件由工具生成，勿手改。** 管线：`tools/gen_api_docs.sh` →")
     out.append("> Doxygen（`docs/Doxyfile`，XML 后端，INPUT_FILTER 把 public 头的")

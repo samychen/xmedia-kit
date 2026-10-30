@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // The QML video surface, GPU version: a QQuickFramebufferObject whose renderer
 // uploads the newest frame's three planes as textures and draws them through
-// avbase's own YUV->RGB shader, inside Qt's framebuffer, on Qt's render thread.
+// xmedia-kit's own YUV->RGB shader, inside Qt's framebuffer, on Qt's render thread.
 //
 // WHY THIS REPLACES video_item.cc RATHER THAN EXTENDING IT. The software item
 // converts every pixel on the CPU and then hands QPainter a QImage: at 1080p
@@ -14,7 +14,7 @@
 // three glTexSubImage2D calls the decoder's bytes force anyway. The two items
 // stay side by side because the software one is the ORACLE: it is simple
 // enough to be obviously right, and the GPU one is checked against its output
-// with AVBASE_QT_GRAB_REF (see main.cc).
+// with XMEDIA_QT_GRAB_REF (see main.cc).
 //
 // WHAT DOES NOT TRAVEL THROUGH GlPresenter. GlPresenter ends in "blit the
 // canvas to the default framebuffer and swap", and inside a Quick item there
@@ -29,8 +29,8 @@
 // thread; the only thing crossing between them is the FrameMailbox, which is
 // already a mutex-guarded one-slot hand-off.
 
-#ifndef AVBASE_PLAYER_QT_GL_VIDEO_ITEM_H_
-#define AVBASE_PLAYER_QT_GL_VIDEO_ITEM_H_
+#ifndef XMEDIA_PLAYER_QT_GL_VIDEO_ITEM_H_
+#define XMEDIA_PLAYER_QT_GL_VIDEO_ITEM_H_
 
 #include <stdint.h>
 
@@ -43,18 +43,18 @@
 
 class QTimer;
 
-namespace avbase::gl {
+namespace xmedia::gl {
 class GlApi;
 class GlProgram;
 class GlQuad;
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-namespace avbase::media {
+namespace xmedia::media {
 class GlVideoLayer;
 class QtGLContext;
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 class GlVideoItem : public QQuickFramebufferObject {
   Q_OBJECT
@@ -106,6 +106,6 @@ class GlVideoItem : public QQuickFramebufferObject {
   QString renderer_info_{QStringLiteral("pending")};
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_GL_VIDEO_ITEM_H_
+#endif  // XMEDIA_PLAYER_QT_GL_VIDEO_ITEM_H_

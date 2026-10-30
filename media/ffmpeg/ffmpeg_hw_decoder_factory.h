@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_
-#define AVBASE_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_
+#define XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -11,7 +11,7 @@
 #include "media/ffmpeg/ffmpeg_hw_video_decoder.h"
 #include "media/filters/decoder_selector.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // ONE hardware factory, parameterized by FFmpegHwDecoderSpec. The three
 // platform backends (videotoolbox / vaapi / d3d11) differ only in the spec --
@@ -53,6 +53,6 @@ class FFmpegHwVideoDecoderFactory final : public media::VideoDecoderFactory {
   media::HwCodecMask allowed_codecs_;
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_DECODER_FACTORY_H_

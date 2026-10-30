@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "media/base/native_display.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 const char* RendererTypeToString(RendererType type) {
   switch (type) {
@@ -69,11 +69,11 @@ void Renderer::SetCdm(CdmContext* cdm_context,
   // prevent ("leak a thread rather than hang the caller" -- and here there is
   // not even a thread to leak, just a promise never kept).
   (void)cdm_context;
-  LOG(WARNING) << "avbase.pipeline: SetCdm() ignored; DRM is not implemented "
+  LOG(WARNING) << "xmedia.pipeline: SetCdm() ignored; DRM is not implemented "
                   "in this build (decision D8)";
   if (cdm_attached_cb) {
     std::move(cdm_attached_cb).Run(false);
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

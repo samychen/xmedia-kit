@@ -1,22 +1,22 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // task_demo.cc — 演示 base/task/ 的全部功能与用法。
 //
-// base/task 是 avbase 的「消息循环 / 任务投递」层，对应 Chromium 的
+// base/task 是 xmedia-kit 的「消息循环 / 任务投递」层，对应 Chromium 的
 // base/task。它定义了三条核心契约：
 //   1. TaskRunner      —— 投递任务的终点；PostTask 是跨序列触碰对象的
 //                         唯一被认可的方式，配合 base::WeakPtr 能在结构上
 //                         消灭「player 已释放、回调还在飞」那类崩溃。
 //   2. SequencedTaskRunner —— 串行执行上下文（一个接一个、按投递序）；
-//                         avbase 里每个序列在构造上都是单线程的。
+//                         xmedia-kit 里每个序列在构造上都是单线程的。
 //   3. TaskQueue       —— 最终的消息循环实现（消息泵 + 队列合一），
 //                         生产路径由 base::Thread 在其专属线程上调 Run()。
 //
 // 运行方式（手动，针对已构建的 build/full；库里已含 DCHECK）：
-//   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
-//       examples/base/task/task_demo.cc build/full/lib/libavbase_base.a \
+//   clang++ -std=c++20 -DXMEDIA_ENABLE_DCHECK -I. \
+//       examples/base/task/task_demo.cc build/full/lib/libxmedia_base.a \
 //       -lpthread -o /tmp/task_demo
 //   /tmp/task_demo
 //
@@ -31,7 +31,7 @@
 //     才吐出 stderr，通过的测试日志会被缓冲而“看似没打”。此时要么直接跑
 //     build/full/bin/<name>_unittests --gtest_filter=...，要么 ctest
 //     --output-on-failure。
-//   * DLOG(INFO) 仅在 DCHECK 开启（debug / AVBASE_ENABLE_DCHECK）时打印，
+//   * DLOG(INFO) 仅在 DCHECK 开启（debug / XMEDIA_ENABLE_DCHECK）时打印，
 //     release 构建整段塌空；VLOG(n) 默认关闭，需先
 //     base::logging::SetMinVLogLevel(n)。
 //
@@ -60,7 +60,7 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 
-namespace base = avbase::base;
+namespace base = xmedia::base;
 
 // ---------------------------------------------------------------------------
 // ManualClock —— 受控单调时钟，仅用于本 demo 的确定性驱动。
@@ -335,7 +335,7 @@ static void Part6_RealRunLoop() {
   // base::Thread 就是「一条专享线程 + 它自己的 TaskQueue」：线程体跑
   // queue->Run()，Stop() 内部 Quit()+join。用它是 C30 / docs/10 §12 V7 的
   // 要求，也正是生产路径的写法（宿主没有理由自己 new 一条裸线程）。
-  base::Thread runner("avbase-demo-runner");
+  base::Thread runner("xmedia-demo-runner");
   CHECK(runner.Start());
   base::TaskQueue* queue = runner.queue();
   std::atomic<int> executed{0};
@@ -385,12 +385,12 @@ static void Part7_DefaultRunner() {
   auto got = base::SequencedTaskRunner::GetCurrentDefault();
   LOG(INFO) << "(c) GetCurrentDefault() 非空 = " << (got.get() != nullptr);
 
-  // (d) SingleThreadTaskRunner 只是 SequencedTaskRunner 的类型别名：avbase
+  // (d) SingleThreadTaskRunner 只是 SequencedTaskRunner 的类型别名：xmedia-kit
   // 在类型
   //     层面不区分「序列」与「线程」，因为这里每个序列在构造上都是单线程的。
   static_assert(
       std::is_same_v<base::SingleThreadTaskRunner, base::SequencedTaskRunner>,
-      "SingleThreadTaskRunner must alias SequencedTaskRunner in avbase");
+      "SingleThreadTaskRunner must alias SequencedTaskRunner in xmedia-kit");
   LOG(INFO) << "(d) SingleThreadTaskRunner 是 SequencedTaskRunner 的类型别名";
 
   base::SequencedTaskRunner::SetCurrentDefault(nullptr);  // 清理全局状态

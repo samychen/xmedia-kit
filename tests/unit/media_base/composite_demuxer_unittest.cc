@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -23,7 +23,7 @@
 #include "tests/support/fake_demuxer_stream.h"
 #include "tests/support/text_fake_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 using test::FakeDemuxerStream;
@@ -396,7 +396,7 @@ TEST_F(TwoTextSourcesTest, MergedInfoNumbersEverySourceAndMarksWhichIsWhich) {
   // Source-major: a kind's first stream is still source 0's.
   EXPECT_EQ(info.FirstStreamOfKind(StreamKind::kText), 2);
   EXPECT_EQ(info.streams[3].index, kStride + 3);
-  const auto owner = info.streams[3].metadata.find("avbase:source");
+  const auto owner = info.streams[3].metadata.find("xmedia-kit:source");
   ASSERT_NE(owner, info.streams[3].metadata.end());
   EXPECT_EQ(owner->second, "1");
 }
@@ -525,7 +525,7 @@ TEST(CompositeDemuxerTest, TheLongestDurationSurvivesAMediaInfoSnapshot) {
 //       own number, so RoutingReachesTheChildThatOwnsTheIndex fails
 //       (expects the child saw 2, it saw stride+2). Restore.
 //   M6: stop offsetting in MergeMediaInfo -- `info.index = info.index;` and
-//       drop the `"avbase:source"` metadata.
+//       drop the `"xmedia-kit:source"` metadata.
 //       MergedInfoNumbersEverySourceAndMarksWhichIsWhich fails
 //       (streams[3].index is 3 not stride+3, and the source owner lookup is
 //       absent). Restore.
@@ -545,4 +545,4 @@ TEST(CompositeDemuxerTest, TheLongestDurationSurvivesAMediaInfoSnapshot) {
 // ---------------------------------------------------------------------------
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

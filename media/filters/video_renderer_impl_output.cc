@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 base::scoped_refptr<VideoFrame>
 VideoRendererImpl::Render(base::TimeTicks deadline_min,
@@ -74,8 +74,8 @@ void VideoRendererImpl::OnFrameSubmitFailure() {
   // long as the surface is broken.
   const uint64_t n = submit_failures_.fetch_add(1) + 1;
   if (n == 1 || n % 100 == 0) {
-    LOG(WARNING) << "avbase.vout: frame submit failed (" << n << " times)";
+    LOG(WARNING) << "xmedia.vout: frame submit failed (" << n << " times)";
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

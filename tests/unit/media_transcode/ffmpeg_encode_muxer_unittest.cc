@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@
 #include "media/transcode/ffmpeg_audio_encoder.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kRate = 48000;
@@ -244,4 +244,4 @@ TEST(EncodeMuxerTest, KeyFrameFlagIsInheritedFromEncoderNotHardcoded) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

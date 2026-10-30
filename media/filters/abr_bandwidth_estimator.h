@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_
-#define AVBASE_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_
+#ifndef XMEDIA_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_
+#define XMEDIA_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_
 
 #include <stdint.h>
 
 #include "base/time/time.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Throughput estimate for ABR -- the port of CicadaPlayer's
 // AbrRefererData/bandwidth tracking. Callers feed one sample per segment
@@ -21,7 +21,7 @@ namespace avbase::media {
 // Pure logic: no clock of its own, no threads -- the caller decides when a
 // download "ended" and what duration to charge (CicadaPlayer charges the
 // segment's download wall time; a test charges whatever it wants).
-class AVBASE_MEDIA_EXPORT AbrBandwidthEstimator {
+class XMEDIA_MEDIA_EXPORT AbrBandwidthEstimator {
  public:
   struct Config {
     // Samples before bits_per_second() answers at all.
@@ -46,6 +46,6 @@ class AVBASE_MEDIA_EXPORT AbrBandwidthEstimator {
   int64_t estimate_bps_ = 0;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_
+#endif  // XMEDIA_MEDIA_FILTERS_ABR_BANDWIDTH_ESTIMATOR_H_

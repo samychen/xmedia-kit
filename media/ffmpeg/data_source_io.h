@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_DATA_SOURCE_IO_H_
-#define AVBASE_MEDIA_FFMPEG_DATA_SOURCE_IO_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_DATA_SOURCE_IO_H_
+#define XMEDIA_MEDIA_FFMPEG_DATA_SOURCE_IO_H_
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@
 struct AVFormatContext;
 struct AVIOContext;
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // Bridges a media::DataSource into FFmpeg's AVIOContext, so the demuxer can
 // read through host-supplied byte sources -- a memory buffer, an fd, or an
@@ -74,6 +74,6 @@ class DataSourceIO {
   uint8_t* io_buffer_{nullptr};
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_DATA_SOURCE_IO_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_DATA_SOURCE_IO_H_

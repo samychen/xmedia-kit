@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@ extern "C" {
 #include <libavutil/aes.h>  // this build's aes.h has no own extern "C"
 }
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 namespace {
 
 constexpr size_t kBlock = 16;
@@ -102,4 +102,4 @@ Aes128CbcDecrypter::Decrypt(const std::vector<uint8_t>& cipher) {
   return plain;
 }
 
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls

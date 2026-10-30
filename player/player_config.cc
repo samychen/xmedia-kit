@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <utility>
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 void Add(std::vector<ConfigIssue>* out, std::string field, std::string problem,
@@ -92,4 +92,4 @@ std::vector<ConfigIssue> ValidateConfig(const PlayerConfig& c) {
   return issues;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

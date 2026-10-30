@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -6,8 +6,8 @@
 // FFmpeg type appears above platform/. Retrieval is by TypeId address
 // comparison, not RTTI (which is disabled project-wide).
 
-#ifndef AVBASE_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_
-#define AVBASE_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_
+#define XMEDIA_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_
 
 #include <memory>
 #include <span>
@@ -16,7 +16,7 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 class AvPacketStorage final : public media::DecoderBuffer::Storage {
  public:
@@ -48,6 +48,6 @@ class AvPacketStorage final : public media::DecoderBuffer::Storage {
   std::unique_ptr<AVPacket, PacketDeleter> packet_;
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_AV_PACKET_STORAGE_H_

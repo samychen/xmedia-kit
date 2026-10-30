@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -28,7 +28,7 @@
 #include <memory>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/waitable_event.h"
@@ -42,17 +42,17 @@
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_glue.h"
 
-#if !AVBASE_ENABLE_FFMPEG
-#error "fuzz_demuxer requires AVBASE_ENABLE_FFMPEG"
+#if !XMEDIA_ENABLE_FFMPEG
+#error "fuzz_demuxer requires XMEDIA_ENABLE_FFMPEG"
 #endif
 
 namespace {
 
 using namespace std::chrono_literals;  // NOLINT -- a fuzz target.
 
-using avbase::media::Demuxer;
-using avbase::media::DemuxerStream;
-using avbase::media::DemuxerStreamType;
+using xmedia::media::Demuxer;
+using xmedia::media::DemuxerStream;
+using xmedia::media::DemuxerStreamType;
 
 // Per-input budgets. The fuzzer's job is finding crashes, not measuring
 // speed; the soak/corpus runs care about never wedging.
@@ -64,60 +64,60 @@ constexpr int kMaxReadRounds = 8;
 // Demuxer::Host that records what arrived and never blocks.
 class FuzzHost : public Demuxer::Host {
  public:
-  void SetDuration(avbase::base::TimeDelta duration) override {
+  void SetDuration(xmedia::base::TimeDelta duration) override {
     std::scoped_lock scoped(lock_);
     duration_ = duration;
   }
-  void OnBufferedTimeUpdate(avbase::base::TimeDelta buffered,
-                            avbase::base::TimeDelta playback_time) override {
+  void OnBufferedTimeUpdate(xmedia::base::TimeDelta buffered,
+                            xmedia::base::TimeDelta playback_time) override {
     (void)buffered;
     (void)playback_time;
   }
-  void OnDemuxerError(avbase::media::MediaError error) override {
+  void OnDemuxerError(xmedia::media::MediaError error) override {
     std::scoped_lock scoped(lock_);
     error_ = std::move(error);
   }
 
  private:
   mutable std::mutex lock_;
-  avbase::base::TimeDelta duration_;
-  avbase::media::MediaError error_;
+  xmedia::base::TimeDelta duration_;
+  xmedia::media::MediaError error_;
 };
 
 // Shared across inputs: FFmpeg global init runs once, the media thread (the
 // demuxer's runner) lives as long as the process.
 struct DemuxHarness {
   DemuxHarness() : media_thread_("fuzz-media") {
-    avbase::media::ffmpeg::InitializeFFmpeg();
+    xmedia::media::ffmpeg::InitializeFFmpeg();
     media_thread_.Start();
   }
 
-  avbase::base::Thread media_thread_;
+  xmedia::base::Thread media_thread_;
 };
 
 // Waits for |event| up to |timeout|; false means "give up on this input".
-bool WaitFor(avbase::base::WaitableEvent& event,
+bool WaitFor(xmedia::base::WaitableEvent& event,
              std::chrono::milliseconds timeout) {
-  return event.TimedWait(avbase::base::Milliseconds(static_cast<int64_t>(
+  return event.TimedWait(xmedia::base::Milliseconds(static_cast<int64_t>(
       std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count())));
 }
 
 // Destroys the demuxer and its byte buffer ON the media thread, FIFO after
 // every task the input posted. |bytes| backs the MemoryDataSource; both die
 // together.
-void RetireOnMediaThread(avbase::base::Thread& media_thread,
-                         std::unique_ptr<avbase::media::FFmpegDemuxer> demuxer,
+void RetireOnMediaThread(xmedia::base::Thread& media_thread,
+                         std::unique_ptr<xmedia::media::FFmpegDemuxer> demuxer,
                          std::unique_ptr<std::vector<uint8_t>> bytes) {
   media_thread.task_runner()->PostTask(
       FROM_HERE,
-      avbase::base::BindOnce([](std::unique_ptr<avbase::media::FFmpegDemuxer> d,
+      xmedia::base::BindOnce([](std::unique_ptr<xmedia::media::FFmpegDemuxer> d,
                                 std::unique_ptr<std::vector<uint8_t>> b) {},
                              std::move(demuxer), std::move(bytes)));
-  avbase::base::WaitableEvent drained;
+  xmedia::base::WaitableEvent drained;
   media_thread.task_runner()->PostTask(
       FROM_HERE,
-      avbase::base::BindOnce(
-          [](avbase::base::WaitableEvent* e) { e->Signal(); }, &drained));
+      xmedia::base::BindOnce(
+          [](xmedia::base::WaitableEvent* e) { e->Signal(); }, &drained));
   WaitFor(drained, kDrainTimeout);
 }
 
@@ -135,27 +135,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // The copy that outlives the input buffer.
   auto bytes = std::make_unique<std::vector<uint8_t>>(data, data + size);
-  auto source = avbase::base::MakeRefCounted<avbase::media::MemoryDataSource>(
+  auto source = xmedia::base::MakeRefCounted<xmedia::media::MemoryDataSource>(
       bytes->data(), bytes->size());
-  auto descriptor = avbase::media::DataSourceDescriptor::FromSource(source);
+  auto descriptor = xmedia::media::DataSourceDescriptor::FromSource(source);
 
   FuzzHost host;
-  auto demuxer = std::make_unique<avbase::media::FFmpegDemuxer>(
-      avbase::base::MakeRefCounted<avbase::media::MediaLog>());
+  auto demuxer = std::make_unique<xmedia::media::FFmpegDemuxer>(
+      xmedia::base::MakeRefCounted<xmedia::media::MediaLog>());
 
   // Heap-held: a callback may fire long after this input gave up waiting,
   // and the event must outlive the stack frame (the retire task below keeps
   // the demuxer alive exactly that long).
-  auto init_done = std::make_shared<avbase::base::WaitableEvent>();
+  auto init_done = std::make_shared<xmedia::base::WaitableEvent>();
   harness->media_thread_.task_runner()->PostTask(
       FROM_HERE,
-      avbase::base::BindOnce(
-          &Demuxer::Initialize, avbase::base::Unretained(demuxer.get()),
-          descriptor, avbase::media::DemuxerOptions{}, &host,
+      xmedia::base::BindOnce(
+          &Demuxer::Initialize, xmedia::base::Unretained(demuxer.get()),
+          descriptor, xmedia::media::DemuxerOptions{}, &host,
           harness->media_thread_.task_runner(),
-          avbase::base::BindOnce(
-              [](std::shared_ptr<avbase::base::WaitableEvent> done,
-                 avbase::media::Status status) {
+          xmedia::base::BindOnce(
+              [](std::shared_ptr<xmedia::base::WaitableEvent> done,
+                 xmedia::media::Status status) {
                 (void)status;  // A failed open is a finding too.
                 done->Signal();
               },
@@ -171,13 +171,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       if (!stream) {
         continue;
       }
-      auto read_done = std::make_shared<avbase::base::WaitableEvent>();
+      auto read_done = std::make_shared<xmedia::base::WaitableEvent>();
       stream->Read(
-          4, avbase::base::BindOnce(
-                 [](std::shared_ptr<avbase::base::WaitableEvent> done,
+          4, xmedia::base::BindOnce(
+                 [](std::shared_ptr<xmedia::base::WaitableEvent> done,
                     DemuxerStream::Status,
-                    std::vector<avbase::base::scoped_refptr<
-                        avbase::media::DecoderBuffer>>) { done->Signal(); },
+                    std::vector<xmedia::base::scoped_refptr<
+                        xmedia::media::DecoderBuffer>>) { done->Signal(); },
                  read_done));
       if (!WaitFor(*read_done, kReadTimeout)) {
         break;
@@ -190,8 +190,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // non-blocking and posted like every other entry point; the retire task
   // FIFO-guarantees it ran before the demuxer and its bytes go away.
   harness->media_thread_.task_runner()->PostTask(
-      FROM_HERE, avbase::base::BindOnce(
-                     &Demuxer::Stop, avbase::base::Unretained(demuxer.get())));
+      FROM_HERE, xmedia::base::BindOnce(
+                     &Demuxer::Stop, xmedia::base::Unretained(demuxer.get())));
   RetireOnMediaThread(harness->media_thread_, std::move(demuxer),
                       std::move(bytes));
   return 0;

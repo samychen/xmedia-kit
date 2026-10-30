@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 #include "base/functional/bind.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media::curl {
+namespace xmedia::media::curl {
 namespace {
 
 std::once_flag& GlobalInitOnce() {
@@ -82,7 +82,7 @@ bool CurlDataSource::SupportsUri(std::string_view uri) {
 CurlDataSource::CurlDataSource(std::string uri, Config config)
     : uri_(std::move(uri)),
       config_(config),
-      async_("avbase-curl-src",
+      async_("xmedia-curl-src",
              base::BindRepeating(&CurlDataSource::ReadBlocking,
                                  base::Unretained(this))) {
   std::call_once(GlobalInitOnce(),
@@ -457,4 +457,4 @@ MediaError CurlDataSource::HttpErrorLocked(int status,
                         "inspect the status code and server logs");
 }
 
-}  // namespace avbase::media::curl
+}  // namespace xmedia::media::curl

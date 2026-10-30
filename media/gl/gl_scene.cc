@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "media/gl/gl_layer_geometry.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 namespace {
 
@@ -350,7 +350,7 @@ void GlScene::Compose(int dst_width, int dst_height) {
   // say how big it is. Told once per scene rather than once per frame: the
   // size is a property of the target, not of the moment.
   if (dst_width <= 0 || dst_height <= 0) {
-    LOG(WARNING) << "avbase.scene: Compose() without a destination size; "
+    LOG(WARNING) << "xmedia.scene: Compose() without a destination size; "
                     "every layer will stretch to its rect instead of fitting";
   }
 
@@ -426,4 +426,4 @@ void GlScene::Compose(int dst_width, int dst_height) {
   gl_->context().Disable(GL_BLEND);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

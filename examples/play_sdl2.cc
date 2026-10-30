@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // SDL2 playback: the M11 acceptance example. The host owns the window and
-// renderer (embedding is the core mode, docs/archive/09 §2), avbase renders
+// renderer (embedding is the core mode, docs/archive/09 §2), xmedia-kit renders
 // into them, and the main thread's only jobs are SDL_PollEvent and quitting.
 //
 //   ./play_sdl2 --url video.mp4 [--max-seconds n] [--gl] [--stats]
@@ -38,19 +38,19 @@ namespace {
 
 using namespace std::chrono_literals;  // NOLINT — an example, not the SDK.
 
-using avbase::examples::sdl2::CreateSdlWindow;
-using avbase::examples::sdl2::FindDemoFont;
-using avbase::examples::sdl2::g_completed;
-using avbase::examples::sdl2::g_error;
-using avbase::examples::sdl2::g_font_path;
-using avbase::examples::sdl2::g_overlay;
-using avbase::examples::sdl2::g_player;
-using avbase::examples::sdl2::g_print_stats;
-using avbase::examples::sdl2::g_quit;
-using avbase::examples::sdl2::g_scene;
-using avbase::examples::sdl2::OnPlayerEvent;
-using avbase::examples::sdl2::Options;
-using avbase::examples::sdl2::ParseOptions;
+using xmedia::examples::sdl2::CreateSdlWindow;
+using xmedia::examples::sdl2::FindDemoFont;
+using xmedia::examples::sdl2::g_completed;
+using xmedia::examples::sdl2::g_error;
+using xmedia::examples::sdl2::g_font_path;
+using xmedia::examples::sdl2::g_overlay;
+using xmedia::examples::sdl2::g_player;
+using xmedia::examples::sdl2::g_print_stats;
+using xmedia::examples::sdl2::g_quit;
+using xmedia::examples::sdl2::g_scene;
+using xmedia::examples::sdl2::OnPlayerEvent;
+using xmedia::examples::sdl2::Options;
+using xmedia::examples::sdl2::ParseOptions;
 
 constexpr auto kEventPollInterval = 10ms;
 
@@ -102,19 +102,19 @@ int main(int argc, char** argv) {
   surface.canvas_width = options.canvas_width;
   surface.canvas_height = options.canvas_height;
   g_font_path = FindDemoFont();
-  auto display = avbase::media::NativeDisplay::FromSdl2Window(&surface);
+  auto display = xmedia::media::NativeDisplay::FromSdl2Window(&surface);
 
-  auto deps = std::make_unique<avbase::Deps>();
+  auto deps = std::make_unique<xmedia::Deps>();
   if (!options.scene.empty()) {
-    g_scene = std::make_unique<avbase::examples::SceneDemo>(options.scene);
+    g_scene = std::make_unique<xmedia::examples::SceneDemo>(options.scene);
   }
   // The backend is all this host has to name: the scene is on the Player, so
   // the demo does not have to unwrap the sink this factory produces.
   deps->video_sink_factory =
-      std::make_shared<avbase::media::Sdl2VideoSinkFactory>();
+      std::make_shared<xmedia::media::Sdl2VideoSinkFactory>();
   deps->audio_sink_factory =
-      std::make_shared<avbase::media::Sdl2AudioSinkFactory>();
-  avbase::Player player(avbase::PlayerConfig(), std::move(deps));
+      std::make_shared<xmedia::media::Sdl2AudioSinkFactory>();
+  xmedia::Player player(xmedia::PlayerConfig(), std::move(deps));
   g_player = &player;
   if (g_scene != nullptr) {
     // Before SetDataSource/PrepareAsync: that is when the second source
@@ -122,15 +122,15 @@ int main(int argc, char** argv) {
     g_scene->set_second_url(options.second);
     g_scene->Install(player);
   }
-  player.SetEventHandler(avbase::base::BindRepeating(&OnPlayerEvent));
+  player.SetEventHandler(xmedia::base::BindRepeating(&OnPlayerEvent));
   g_print_stats.store(options.stats);
   player.SetVideoSurface(display);
-  if (const avbase::Status s = player.SetDataSource(options.url); !s) {
+  if (const xmedia::Status s = player.SetDataSource(options.url); !s) {
     std::fprintf(stderr, "SetDataSource failed: %s\n",
                  s.error().ToString().c_str());
     return 1;
   }
-  if (const avbase::Status s = player.PrepareAsync(); !s) {
+  if (const xmedia::Status s = player.PrepareAsync(); !s) {
     std::fprintf(stderr, "PrepareAsync failed: %s\n",
                  s.error().ToString().c_str());
     return 1;
@@ -142,9 +142,9 @@ int main(int argc, char** argv) {
   // until the pipeline actually finished stopping (see player.h for the
   // Stop/StopSync contract). Every source stops with the one pipeline --
   // there is no second producer to quieten first.
-  player.StopSync(avbase::base::Seconds(5));
+  player.StopSync(xmedia::base::Seconds(5));
   if (g_scene != nullptr && g_scene->second_source()) {
-    avbase::examples::ReportSecondSource(*g_scene->second_source());
+    xmedia::examples::ReportSecondSource(*g_scene->second_source());
   }
 
   if (gl_context) {

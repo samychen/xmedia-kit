@@ -1,4 +1,4 @@
-# Doxygen configuration for the avbase SDK API reference.
+# Doxygen configuration for the xmedia-kit SDK API reference.
 #
 # Regenerate with:
 #     tools/gen_api_docs.sh            # doxygen + zero-warning assert + docs/API.md
@@ -14,7 +14,7 @@
 # (see tools/doxygen_comment_filter.py for the exact rules and what is left
 # alone).
 
-PROJECT_NAME           = avbase
+PROJECT_NAME           = xmedia-kit
 PROJECT_NUMBER         = 0.1.0
 PROJECT_BRIEF          = "Chromium-style layered C++ media player SDK"
 
@@ -24,8 +24,8 @@ PROJECT_BRIEF          = "Chromium-style layered C++ media player SDK"
 # header (opaque struct definitions) and its macro-only export header carry
 # nothing a consumer includes directly.
 INPUT                  = player/public
-EXCLUDE                = player/public/c/avbase_c_internal.h \
-                         player/public/c/avbase_c_export.h
+EXCLUDE                = player/public/c/xmedia_c_internal.h \
+                         player/public/c/xmedia_c_export.h
 RECURSIVE              = YES
 FILE_PATTERNS          = *.h
 EXAMPLE_PATH           =
@@ -40,15 +40,15 @@ INPUT_FILTER           = "python3 tools/doxygen_comment_filter.py"
 FILTER_PATTERNS        = *.h="python3 tools/doxygen_comment_filter.py"
 
 # Expand the visibility macros away so signatures read `class Player`, not
-# `class AVBASE_PLAYER_EXPORT Player`. EXPAND_ONLY_PREDEF keeps every other
+# `class XMEDIA_PLAYER_EXPORT Player`. EXPAND_ONLY_PREDEF keeps every other
 # macro untouched.
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = AVBASE_PLAYER_EXPORT= \
-                         AVBASE_MEDIA_EXPORT= \
-                         AVBASE_BASE_EXPORT= \
-                         AVBASE_C_API= \
-                         AVBASE_CABI_EXPORT=
+PREDEFINED             = XMEDIA_PLAYER_EXPORT= \
+                         XMEDIA_MEDIA_EXPORT= \
+                         XMEDIA_BASE_EXPORT= \
+                         XMEDIA_C_API= \
+                         XMEDIA_CABI_EXPORT=
 
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO

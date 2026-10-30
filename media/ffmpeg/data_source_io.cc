@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // The AVIO buffer size. FFmpeg's own file protocol uses 32 KB; probing an MP4
@@ -149,4 +149,4 @@ int64_t DataSourceIO::Seek(void* opaque, int64_t offset, int whence) {
   return target;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

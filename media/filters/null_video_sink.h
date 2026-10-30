@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_NULL_VIDEO_SINK_H_
-#define AVBASE_MEDIA_FILTERS_NULL_VIDEO_SINK_H_
+#ifndef XMEDIA_MEDIA_FILTERS_NULL_VIDEO_SINK_H_
+#define XMEDIA_MEDIA_FILTERS_NULL_VIDEO_SINK_H_
 
 #include <atomic>
 #include <memory>
@@ -20,7 +20,7 @@
 #include "media/base/video_sink_gate.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A video sink that renders nowhere but still drives the presentation cadence.
 //
@@ -38,7 +38,7 @@ namespace avbase::media {
 // (Δ18: the sink drives frame selection; the compositor decides). It reports
 // no vsync interval (GetDisplayInterval() is false), so the compositor falls
 // back to container-timestamp-driven cadence.
-class AVBASE_MEDIA_EXPORT NullVideoSink final : public VideoRendererSink {
+class XMEDIA_MEDIA_EXPORT NullVideoSink final : public VideoRendererSink {
  public:
   // |always_discard| answers a different question from
   // SetOutputTarget(nullptr): "this sink must never count a frame as shown,
@@ -97,7 +97,7 @@ class AVBASE_MEDIA_EXPORT NullVideoSink final : public VideoRendererSink {
   base::TimeTicks next_frame_deadline_;
 };
 
-class AVBASE_MEDIA_EXPORT NullVideoSinkFactory final
+class XMEDIA_MEDIA_EXPORT NullVideoSinkFactory final
     : public VideoRendererSinkFactory {
  public:
   std::unique_ptr<VideoRendererSink>
@@ -105,6 +105,6 @@ class AVBASE_MEDIA_EXPORT NullVideoSinkFactory final
   const char* name() const override { return "null"; }
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_NULL_VIDEO_SINK_H_
+#endif  // XMEDIA_MEDIA_FILTERS_NULL_VIDEO_SINK_H_

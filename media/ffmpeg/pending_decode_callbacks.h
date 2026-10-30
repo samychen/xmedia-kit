@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_
-#define AVBASE_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_
+#define XMEDIA_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_
 
 #include <deque>
 #include <utility>
@@ -12,7 +12,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/video_decoder.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Owns the queue of outstanding Decode() callbacks for an FFmpeg video decoder
 // and posts them (never inline) on the decoder's sequence. Software and
@@ -44,6 +44,6 @@ class PendingDecodeCallbacks {
   std::deque<VideoDecoder::DecodeCB> pending_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_PENDING_DECODE_CALLBACKS_H_

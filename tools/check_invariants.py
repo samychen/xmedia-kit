@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Enforces the structural invariants from docs/02 §2.1 and docs/06 §9.
@@ -17,7 +17,7 @@ build system or the compiler cannot catch on its own:
   C25  every .cc in the tree is compiled by some target
   C26  media/ never includes platform/ (the media layer stays portable)
   C27  core media never includes media/ffmpeg/ (the quarantine is a directory)
-  C28  render/ never includes media/, platform/ or base/ (avbase_gl stays
+  C28  render/ never includes media/, platform/ or base/ (xmedia_gl stays
        zero-dependency and therefore independently distributable)
   C29  player/public/ names no OTHER module's export macro (docs/10 §12, V6:
        the SDK facade does not leak another layer's ABI markers)
@@ -62,7 +62,7 @@ LINE_LIMIT_ALLOWLIST = {
     # is now gated by tools/check_comment_coverage.py. The alternative --
     # compressing those comments to fit -- was rejected: they are the reason
     # the file exists.
-    "player/public/c/avbase_c.h": (
+    "player/public/c/xmedia_c.h": (
         545, "C ABI contract header: one file IS the ABI, and V9 "
              "(docs/10 §5) four-question comments on all 60 entry points "
              "took it 441 -> 539 (2026-10-18, V9 gate)."),
@@ -154,9 +154,9 @@ PLATFORM_SUFFIX_RE = re.compile(
 # media/transcode/ used to need a per-file exemption here:
 # video_encoder_factory.{h,cc} picked its hardware encoder list under
 # #if defined(__APPLE__) / __linux__. Round 73 moved that choice onto the
-# build's own AVBASE_ENABLE_* flags -- the vocabulary
+# build's own XMEDIA_ENABLE_* flags -- the vocabulary
 # player/video_decoder_defaults.cc already assembles its decoder list with --
-# so the host knowledge now lives in cmake/AvbaseOptions.cmake and the
+# so the host knowledge now lives in cmake/XmediaOptions.cmake and the
 # exemption is gone. The fuller split the decoder side has (specs in
 # platform/hwaccel/, assembly at an injection point above media/) waits for a
 # transcode consumer up there; docs/12 §5 E5b records why forcing it now
@@ -270,9 +270,9 @@ def check_file(path: pathlib.Path, rel: str, report: Report) -> None:
         # covered them while they sat under platform/, and a directory move is
         # not the moment to change what this rule enforces. The rule's job is to
         # keep the PORTABLE layers portable, and media/ffmpeg/ is opt-in
-        # (AVBASE_ENABLE_FFMPEG) rather than portable. media/transcode/ has no
+        # (XMEDIA_ENABLE_FFMPEG) rather than portable. media/transcode/ has no
         # exemption at all any more (see the note above the DRAFT_FILES list):
-        # its encoder factory selects hardware through AVBASE_ENABLE_* flags,
+        # its encoder factory selects hardware through XMEDIA_ENABLE_* flags,
         # which are the build's vocabulary, not the host's.
         is_platform_tu = rel.startswith("base/") and bool(
             PLATFORM_SUFFIX_RE.search(rel))
@@ -332,14 +332,14 @@ def check_file(path: pathlib.Path, rel: str, report: Report) -> None:
         # C4 catches a libav* include, but a core file can pull the whole
         # vendor layer in through media/ffmpeg/<helper>.h without ever naming
         # libav* itself, and C4 cannot see that. This is what makes G2 hold:
-        # avbase_media carries no FFmpeg symbols because nothing in the three
+        # xmedia_media carries no FFmpeg symbols because nothing in the three
         # PORTABLE media directories may even name a file inside it.
         #
         # media/transcode/ is intentionally absent from the list below. It is a
         # fourth media directory that DOES name media/ffmpeg/ files, on purpose:
         # it is built on av_includes.h / compat.h / video_convert.h and lives
-        # under AVBASE_ENABLE_FFMPEG. What keeps G2 true is that it is its own
-        # target (avbase_transcode), which avbase_media never links -- not that
+        # under XMEDIA_ENABLE_FFMPEG. What keeps G2 true is that it is its own
+        # target (xmedia_transcode), which xmedia_media never links -- not that
         # it is forbidden from crossing the boundary.
         if (rel.startswith(("media/base/", "media/filters/", "media/renderers/"))
                 and not is_test):
@@ -347,22 +347,22 @@ def check_file(path: pathlib.Path, rel: str, report: Report) -> None:
                 report.add("C27", path, i,
                            "core media includes media/ffmpeg/ — the FFmpeg "
                            "quarantine is a directory boundary; only "
-                           "avbase_ffmpeg (and avbase_transcode, which builds "
+                           "xmedia_ffmpeg (and xmedia_transcode, which builds "
                            "on it) may cross it")
 
-        # C28: render/ must include nothing from another avbase layer. This is
+        # C28: render/ must include nothing from another xmedia-kit layer. This is
         # the property the module is SOLD on -- docs/02 §6.2 states it and
         # docs/13 builds a distribution contract on top of it
-        # (find_package(avbase_gl), avbase::gl) -- but until now only prose
+        # (find_package(xmedia_gl), xmedia::gl) -- but until now only prose
         # enforced it: no rule in this file mentioned render/ at all. A claim
         # that is written down and never checked is the kind that quietly
         # stops being true, and the failure is silent: one #include of
         # media/base/video_frame.h compiles fine and only shows up when a
-        # consumer outside the tree tries to link avbase_gl on its own.
+        # consumer outside the tree tries to link xmedia_gl on its own.
         #
         # Deliberately also bars base/ even though base/ is the lowest layer:
         # "zero dependency" means the module needs nothing but the platform
-        # GL headers, and letting base/ in would make avbase_gl a two-target
+        # GL headers, and letting base/ in would make xmedia_gl a two-target
         # distribution for no reason -- everything render/gl actually needs
         # from base/ is a std type in disguise.
         if rel.startswith("render/") and not rel.startswith(
@@ -370,7 +370,7 @@ def check_file(path: pathlib.Path, rel: str, report: Report) -> None:
             for layer in ("media/", "platform/", "base/", "player/"):
                 if re.search(r'#\s*include\s*"%s' % layer, raw_line):
                     report.add("C28", path, i,
-                               "render/ includes %s — avbase_gl must stay "
+                               "render/ includes %s — xmedia_gl must stay "
                                "zero-dependency so it can be distributed "
                                "alone (docs/13); everything shaped by a "
                                "VideoFrame belongs in media/gl/" % layer)
@@ -390,7 +390,7 @@ def load_column_baseline(root: pathlib.Path) -> dict:
     return out
 
 
-# Target names may contain hyphens (avbase-inspect), and a source path may not
+# Target names may contain hyphens (xmedia-inspect), and a source path may not
 # contain whitespace -- the first version of this rule allowed spaces in the
 # path character class, so it captured the indentation along with the filename
 # and reported every source in the tree as missing. A rule that reports
@@ -413,7 +413,7 @@ def cmake_source_paths(text: str, base=None):
     Two things are deliberately not yielded. A path containing a $ or { is
     variable-driven and cannot be resolved here. And the tail of a
     ${VAR}/path expression is skipped: CMAKE_SOURCE_RE matches the longest run
-    of path characters, so "${AVBASE_GLAD_DIR}/src/gl.c" yields "/src/gl.c" --
+    of path characters, so "${XMEDIA_GLAD_DIR}/src/gl.c" yields "/src/gl.c" --
     a path that only looks absolute and exists nowhere. The run's preceding
     `}` is what gives it away, and a real literal path never starts right
     after one.
@@ -553,7 +553,7 @@ def check_sources_in_a_target(root: pathlib.Path, report: Report) -> None:
                       cm.read_text(encoding="utf-8", errors="replace"))
         covered.update(globbed_sources(cm, text))
         # Whole-file, not "inside add_library": the test suites pass their
-        # sources through the avbase_add_unittest() helper, so the only
+        # sources through the xmedia_add_unittest() helper, so the only
         # add_executable in tests/CMakeLists.txt is the one inside the function
         # body with ${T_SOURCES} -- a target-body-only scan reported all seven
         # files listed there as uncompiled. What the rule needs to know is
@@ -585,10 +585,10 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
     written, which is the interesting part:
 
     V6 said "player/public/*.h contains no 'AV[A-Z]'". Taken literally that
-    forbids the include guards and AVBASE_PLAYER_EXPORT themselves, so the
+    forbids the include guards and XMEDIA_PLAYER_EXPORT themselves, so the
     claim could never be held by any real header. The property actually
     wanted is narrower and checkable: the facade must not name ANOTHER
-    module's export macro. media/base's AVBASE_MEDIA_EXPORT appearing in a
+    module's export macro. media/base's XMEDIA_MEDIA_EXPORT appearing in a
     public header would mean a host including <player/public/player.h>
     transitively depends on media's ABI markers, and the facade's job
     (docs/02 §2.1) is to be the ONLY thing a host sees. The include guard
@@ -613,7 +613,7 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
     were reported for merely holding an id.
     """
     # C29: no other module's export macro in the public facade.
-    export_re = re.compile(r"\bAVBASE_([A-Z][A-Z0-9]*)_EXPORT\b")
+    export_re = re.compile(r"\bXMEDIA_([A-Z][A-Z0-9]*)_EXPORT\b")
     for path in sorted(root.glob("player/public/**/*.h")):
         if any(part in (".git", "build") for part in path.parts):
             continue
@@ -624,7 +624,7 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
                 if module == "PLAYER":
                     continue
                 report.add("C29", path, i,
-                           f"AVBASE_{module}_EXPORT in a player/public header "
+                           f"XMEDIA_{module}_EXPORT in a player/public header "
                            "— the facade must not name another module's "
                            "export macro (docs/10 §12 V6)")
 

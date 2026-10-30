@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 
 #include "base/functional/bind.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Abort() must bound every wait (Δ15); the edge wait polls in slices of
@@ -22,7 +22,7 @@ constexpr std::chrono::milliseconds kEdgeWaitSlice(10);
 
 LiveDataSource::LiveDataSource()
     : data_cv_(&lock_),
-      async_("avbase-live-src",
+      async_("xmedia-live-src",
              base::BindRepeating(&LiveDataSource::ReadBlocking,
                                  base::Unretained(this))) {}
 
@@ -128,4 +128,4 @@ void LiveDataSource::Read(int64_t offset, size_t size, uint8_t* data,
   async_.Read(offset, size, data, std::move(task_runner), std::move(read_cb));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

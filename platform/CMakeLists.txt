@@ -5,7 +5,7 @@
 # docs/archive/09 for the decision that moved it there.
 
 # The shared GL rendering layer used to live here as platform/gl/. It moved to
-# render/gl/ (target avbase::gl): this directory holds what the HOST
+# render/gl/ (target xmedia::gl): this directory holds what the HOST
 # SELECTS, and that layer is chosen by nobody -- every backend links it and it
 # carries no window-system SDK at all. See render/CMakeLists.txt and docs/02 §6.
 
@@ -21,145 +21,145 @@
 # The interface it implements lives in media/gl/gl_hw_texture_importer.h, which
 # is where the shape can live and the implementation cannot: invariant C5 keeps
 # OpenGL/CoreVideo headers out of media/.
-add_library(avbase_platform_hwimport
+add_library(xmedia_platform_hwimport
     "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/hw_importer_factory.cc")
-add_library(avbase::platform_hwimport ALIAS avbase_platform_hwimport)
-target_include_directories(avbase_platform_hwimport PUBLIC
+add_library(xmedia::platform_hwimport ALIAS xmedia_platform_hwimport)
+target_include_directories(xmedia_platform_hwimport PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-target_link_libraries(avbase_platform_hwimport PUBLIC avbase::media)
+target_link_libraries(xmedia_platform_hwimport PUBLIC xmedia::media)
 if(APPLE)
-  target_sources(avbase_platform_hwimport PRIVATE
+  target_sources(xmedia_platform_hwimport PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/cgl_iosurface_importer.cc")
   # OpenGL for CGLTexImageIOSurface2D, CoreVideo for CVPixelBuffer, IOSurface
   # because that is what a CVPixelBuffer hands out on macOS.
-  target_link_libraries(avbase_platform_hwimport PRIVATE
+  target_link_libraries(xmedia_platform_hwimport PRIVATE
       "-framework OpenGL" "-framework CoreVideo" "-framework IOSurface"
       "-framework CoreFoundation")
 endif()
-avbase_configure_target(avbase_platform_hwimport)
+xmedia_configure_target(xmedia_platform_hwimport)
 
 # SDL2 backend (M11). The window and renderer belong to the host in embedding
 # mode; see platform/sdl2/surface.h for the two threading rules.
-if(AVBASE_ENABLE_SDL2)
+if(XMEDIA_ENABLE_SDL2)
   find_package(SDL2 REQUIRED)
   # One directory, one target -- the option above gates the target, not any file
   # inside it -- so sdl2/ is globbed (docs/06 §7.6) and a new sink needs no edit.
-  file(GLOB AVBASE_SDL2_SOURCES CONFIGURE_DEPENDS
+  file(GLOB XMEDIA_SDL2_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/sdl2/*.cc")
-  add_library(avbase_platform_sdl2 ${AVBASE_SDL2_SOURCES})
-  add_library(avbase::platform_sdl2 ALIAS avbase_platform_sdl2)
-  target_include_directories(avbase_platform_sdl2 PUBLIC
+  add_library(xmedia_platform_sdl2 ${XMEDIA_SDL2_SOURCES})
+  add_library(xmedia::platform_sdl2 ALIAS xmedia_platform_sdl2)
+  target_include_directories(xmedia_platform_sdl2 PUBLIC
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-  target_link_libraries(avbase_platform_sdl2 PUBLIC avbase::media avbase::gl SDL2::SDL2)
+  target_link_libraries(xmedia_platform_sdl2 PUBLIC xmedia::media xmedia::gl SDL2::SDL2)
   # The zero-copy import path; the sink builds one and hands it to the presenter.
-  target_link_libraries(avbase_platform_sdl2 PRIVATE avbase::platform_hwimport)
-  target_compile_definitions(avbase_platform_sdl2 PRIVATE AVBASE_ENABLE_SDL2=1)
+  target_link_libraries(xmedia_platform_sdl2 PRIVATE xmedia::platform_hwimport)
+  target_compile_definitions(xmedia_platform_sdl2 PRIVATE XMEDIA_ENABLE_SDL2=1)
   # Optional FreeType: the subtitle overlay's CPU rasterizer (text_raster.cc).
   # Without it the overlay slot still works with host-supplied bitmaps; only
   # TextRaster::Rasterize() is compiled out.
   find_package(Freetype QUIET)
   if(Freetype_FOUND)
-    target_link_libraries(avbase_platform_sdl2 PRIVATE Freetype::Freetype)
-    target_compile_definitions(avbase_platform_sdl2 PUBLIC
-        AVBASE_HAVE_FREETYPE=1)
+    target_link_libraries(xmedia_platform_sdl2 PRIVATE Freetype::Freetype)
+    target_compile_definitions(xmedia_platform_sdl2 PUBLIC
+        XMEDIA_HAVE_FREETYPE=1)
     message(STATUS "FreeType found -- TextRaster enabled")
   else()
     message(STATUS "FreeType not found -- TextRaster compiled out")
   endif()
-  avbase_configure_target(avbase_platform_sdl2)
+  xmedia_configure_target(xmedia_platform_sdl2)
 endif()
 
 # GLFW backend: OPTIONAL. The host owns the GLFWwindow and its GL context; this
-# backend only adapts them to NativeGLContext. Enable with -DAVBASE_ENABLE_GLFW=ON.
+# backend only adapts them to NativeGLContext. Enable with -DXMEDIA_ENABLE_GLFW=ON.
 # Skipped (warning, no FATAL) when glfw3 is not installed, so a host without
 # GLFW still builds the rest of the tree. The glob below lets check_invariants
 # (C25) see the sources even when this backend is off.
-option(AVBASE_ENABLE_GLFW "Build the GLFW GL backend" OFF)
-if(AVBASE_ENABLE_GLFW)
+option(XMEDIA_ENABLE_GLFW "Build the GLFW GL backend" OFF)
+if(XMEDIA_ENABLE_GLFW)
   find_package(glfw3 QUIET)
   if(glfw3_FOUND)
-    file(GLOB AVBASE_GLFW_SOURCES CONFIGURE_DEPENDS
+    file(GLOB XMEDIA_GLFW_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/glfw/*.cc")
-    add_library(avbase_platform_glfw ${AVBASE_GLFW_SOURCES})
-    add_library(avbase::platform_glfw ALIAS avbase_platform_glfw)
-    target_include_directories(avbase_platform_glfw PUBLIC
+    add_library(xmedia_platform_glfw ${XMEDIA_GLFW_SOURCES})
+    add_library(xmedia::platform_glfw ALIAS xmedia_platform_glfw)
+    target_include_directories(xmedia_platform_glfw PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
     # 注意 target 名是 `glfw` 而不是 `glfw3`：GLFW 官方的 CMake 包导出的 imported
     # target 叫 glfw，与它产出物的文件名 libglfw3.a 不一致。写成 glfw3 时 CMake 会
     # 把它降级为裸 `-lglfw3`，既不传 GLFW 的 include 目录也不传 -L，表现为编译期
     # 'GLFW/glfw3.h' file not found。
-    target_link_libraries(avbase_platform_glfw
-        PUBLIC avbase::media avbase::gl glfw)
-    target_link_libraries(avbase_platform_glfw
-        PRIVATE avbase::platform_hwimport)
-    avbase_configure_target(avbase_platform_glfw)
+    target_link_libraries(xmedia_platform_glfw
+        PUBLIC xmedia::media xmedia::gl glfw)
+    target_link_libraries(xmedia_platform_glfw
+        PRIVATE xmedia::platform_hwimport)
+    xmedia_configure_target(xmedia_platform_glfw)
   else()
     message(WARNING
-        "AVBASE_ENABLE_GLFW=ON but glfw3 not found; GLFW backend skipped")
+        "XMEDIA_ENABLE_GLFW=ON but glfw3 not found; GLFW backend skipped")
   endif()
 endif()
 
 # EGL backend: OPTIONAL. Same adaptation role as the others; the host owns the
-# EGLDisplay/EGLSurface/EGLContext. Enable with -DAVBASE_ENABLE_EGL=ON; skipped
+# EGLDisplay/EGLSurface/EGLContext. Enable with -DXMEDIA_ENABLE_EGL=ON; skipped
 # if EGL is not installed.
-option(AVBASE_ENABLE_EGL "Build the EGL GL backend" OFF)
-if(AVBASE_ENABLE_EGL)
+option(XMEDIA_ENABLE_EGL "Build the EGL GL backend" OFF)
+if(XMEDIA_ENABLE_EGL)
   find_package(EGL QUIET)
   if(EGL_FOUND)
-    file(GLOB AVBASE_EGL_SOURCES CONFIGURE_DEPENDS
+    file(GLOB XMEDIA_EGL_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/egl/*.cc")
-    add_library(avbase_platform_egl ${AVBASE_EGL_SOURCES})
-    add_library(avbase::platform_egl ALIAS avbase_platform_egl)
-    target_include_directories(avbase_platform_egl PUBLIC
+    add_library(xmedia_platform_egl ${XMEDIA_EGL_SOURCES})
+    add_library(xmedia::platform_egl ALIAS xmedia_platform_egl)
+    target_include_directories(xmedia_platform_egl PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-    target_link_libraries(avbase_platform_egl
-        PUBLIC avbase::media avbase::gl EGL::EGL)
-    target_link_libraries(avbase_platform_egl
-        PRIVATE avbase::platform_hwimport)
-    avbase_configure_target(avbase_platform_egl)
+    target_link_libraries(xmedia_platform_egl
+        PUBLIC xmedia::media xmedia::gl EGL::EGL)
+    target_link_libraries(xmedia_platform_egl
+        PRIVATE xmedia::platform_hwimport)
+    xmedia_configure_target(xmedia_platform_egl)
   else()
     message(WARNING
-        "AVBASE_ENABLE_EGL=ON but EGL not found; EGL backend skipped")
+        "XMEDIA_ENABLE_EGL=ON but EGL not found; EGL backend skipped")
   endif()
 endif()
 
 # Qt backend: OPTIONAL, and the odd one out among the adapters.
 #
-# SDL2, GLFW and EGL are embeddable -- a host hands over a window and avbase
+# SDL2, GLFW and EGL are embeddable -- a host hands over a window and xmedia-kit
 # presents into it, swapping when it is done. Qt is not: the host is a scene
-# graph, avbase draws inside a framebuffer object Qt bound, on a thread Qt
+# graph, xmedia-kit draws inside a framebuffer object Qt bound, on a thread Qt
 # runs, and Qt presents once for the whole window. So QtGLContext's SwapBuffers
 # and MakeCurrent are deliberately inert (see platform/qt/qt_gl_context.h) and
 # a Qt host drives the YUV layer itself rather than going through GlPresenter,
 # whose contract ends in "blit to the default framebuffer and swap".
 #
-# Gated on AVBASE_ENABLE_QT because it is the only target in this tree that
+# Gated on XMEDIA_ENABLE_QT because it is the only target in this tree that
 # needs Qt to exist; a host without Qt still builds everything else.
-option(AVBASE_ENABLE_QT "Build the Qt GL backend (needs Qt 6.4+)" OFF)
-if(AVBASE_ENABLE_QT)
+option(XMEDIA_ENABLE_QT "Build the Qt GL backend (needs Qt 6.4+)" OFF)
+if(XMEDIA_ENABLE_QT)
   find_package(Qt6 6.4 QUIET COMPONENTS Core Gui)
   if(Qt6_FOUND)
-    file(GLOB AVBASE_QT_SOURCES CONFIGURE_DEPENDS
+    file(GLOB XMEDIA_QT_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/qt/*.cc")
-    add_library(avbase_platform_qt ${AVBASE_QT_SOURCES})
-    add_library(avbase::platform_qt ALIAS avbase_platform_qt)
-    target_include_directories(avbase_platform_qt PUBLIC
+    add_library(xmedia_platform_qt ${XMEDIA_QT_SOURCES})
+    add_library(xmedia::platform_qt ALIAS xmedia_platform_qt)
+    target_include_directories(xmedia_platform_qt PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-    target_link_libraries(avbase_platform_qt
-        PUBLIC avbase::media avbase::gl Qt6::Gui)
+    target_link_libraries(xmedia_platform_qt
+        PUBLIC xmedia::media xmedia::gl Qt6::Gui)
     # The library's compiler contract, unchanged: this target has no Q_OBJECT,
     # no moc output and no dynamic_cast, so -fno-rtti -fno-exceptions is still
     # the right contract here. The RTTI exception belongs to the Qt Quick APP,
     # whose moc-generated casts do need it -- see apps/player_qt/CMakeLists.txt.
-    avbase_configure_target(avbase_platform_qt)
+    xmedia_configure_target(xmedia_platform_qt)
   else()
     message(WARNING
-        "AVBASE_ENABLE_QT=ON but Qt6 not found; Qt backend skipped")
+        "XMEDIA_ENABLE_QT=ON but Qt6 not found; Qt backend skipped")
   endif()
 endif()
 
-if(AVBASE_ENABLE_LINUX_NATIVE)
-  message(FATAL_ERROR "AVBASE_ENABLE_LINUX_NATIVE is scheduled for milestone M12")
+if(XMEDIA_ENABLE_LINUX_NATIVE)
+  message(FATAL_ERROR "XMEDIA_ENABLE_LINUX_NATIVE is scheduled for milestone M12")
 endif()
 # The FFmpeg adapter target used to live here. It moved to media/ffmpeg/:
 # FFmpeg is not a platform backend but a portable framework, and the

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,8 +13,8 @@
 // (microseconds / milliseconds / stream ticks / seconds-as-double) is only
 // discoverable by reading the callee. See docs/01 §2 病灶 5.
 
-#ifndef AVBASE_BASE_TIME_TIME_H_
-#define AVBASE_BASE_TIME_TIME_H_
+#ifndef XMEDIA_BASE_TIME_TIME_H_
+#define XMEDIA_BASE_TIME_TIME_H_
 
 #include <stdint.h>
 
@@ -25,12 +25,12 @@
 
 #include "base/base_export.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // ---------------------------------------------------------------------------
 // TimeDelta
 // ---------------------------------------------------------------------------
-class AVBASE_BASE_EXPORT TimeDelta {
+class XMEDIA_BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() noexcept = default;
 
@@ -219,12 +219,12 @@ constexpr TimeDelta Minutes(int64_t m) noexcept {
   return TimeDelta::FromMinutes(m);
 }
 
-AVBASE_BASE_EXPORT std::ostream& operator<<(std::ostream& os, TimeDelta d);
+XMEDIA_BASE_EXPORT std::ostream& operator<<(std::ostream& os, TimeDelta d);
 
 // ---------------------------------------------------------------------------
 // TimeTicks — monotonic. Use for scheduling, deadlines and elapsed time.
 // ---------------------------------------------------------------------------
-class AVBASE_BASE_EXPORT TimeTicks {
+class XMEDIA_BASE_EXPORT TimeTicks {
  public:
   constexpr TimeTicks() noexcept = default;
 
@@ -265,13 +265,13 @@ class AVBASE_BASE_EXPORT TimeTicks {
   int64_t micros_{0};
 };
 
-AVBASE_BASE_EXPORT std::ostream& operator<<(std::ostream& os, TimeTicks t);
+XMEDIA_BASE_EXPORT std::ostream& operator<<(std::ostream& os, TimeTicks t);
 
 // ---------------------------------------------------------------------------
 // Time — calendar wall clock (microseconds since Windows epoch, as in
 // Chromium, so that serialized values are comparable across the two).
 // ---------------------------------------------------------------------------
-class AVBASE_BASE_EXPORT Time {
+class XMEDIA_BASE_EXPORT Time {
  public:
   constexpr Time() noexcept = default;
   static Time Now();
@@ -304,6 +304,6 @@ class AVBASE_BASE_EXPORT Time {
   int64_t micros_{0};
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_TIME_TIME_H_
+#endif  // XMEDIA_BASE_TIME_TIME_H_

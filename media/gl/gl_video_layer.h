@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_VIDEO_LAYER_H_
-#define AVBASE_MEDIA_GL_GL_VIDEO_LAYER_H_
+#ifndef XMEDIA_MEDIA_GL_GL_VIDEO_LAYER_H_
+#define XMEDIA_MEDIA_GL_GL_VIDEO_LAYER_H_
 
 #include <array>
 #include <memory>
@@ -16,7 +16,7 @@
 #include "render/gl/gl_program.h"
 #include "render/gl/gl_texture.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The YUV->RGB fragment stage a GlVideoLayer is drawn with -- ONE body, for
 // both texture targets, parameterised by three macros (SAMPLER_TYPE,
@@ -40,19 +40,19 @@ namespace avbase::media {
 // Prefer CreateVideoLayerProgram() below over assembling it by hand: the
 // vertex stage and this one carry a uniform contract (uRect / uTexY..V /
 // uMatrix / uOffset / uOpacity) that only matches as a pair.
-AVBASE_MEDIA_EXPORT extern const char* const kYuvFragmentShaderBody;
+XMEDIA_MEDIA_EXPORT extern const char* const kYuvFragmentShaderBody;
 
 // Ordinary textures: a coordinate is already normalised, so it is used as it
 // arrives. uTexSize / uChromaSize are declared by the body but unused here, and
 // the linker drops them -- which is why GlVideoLayer::Bind() only bothers
 // setting them for the rectangle case.
-AVBASE_MEDIA_EXPORT extern const char* const kYuvSampler2DDefines;
+XMEDIA_MEDIA_EXPORT extern const char* const kYuvSampler2DDefines;
 
 // Rectangle textures: addressed in TEXELS, so a coordinate has to be scaled by
 // the plane's own size. There are two because the chroma plane is half the
 // luma one and a rect sampler cannot derive that the way a normalised [0,1]
 // coordinate implicitly does.
-AVBASE_MEDIA_EXPORT extern const char* const kYuvSamplerRectDefines;
+XMEDIA_MEDIA_EXPORT extern const char* const kYuvSamplerRectDefines;
 
 // Builds the program a GlVideoLayer is drawn with: the *rect* vertex stage,
 // so a layer can be placed anywhere in the target rather than only filling it,
@@ -62,7 +62,7 @@ AVBASE_MEDIA_EXPORT extern const char* const kYuvSamplerRectDefines;
 // presenter and a multi-layer scene -- which is the point: the presenter's
 // one layer and a scene's first layer are then the same code, not two things
 // that have to be kept in agreement.
-AVBASE_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
+XMEDIA_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
 CreateVideoLayerProgram(const gl::GlApi& gl, std::string* error);
 
 // The same, over kYuvSamplerRectDefines: the program for a layer whose
@@ -70,13 +70,13 @@ CreateVideoLayerProgram(const gl::GlApi& gl, std::string* error);
 // so it shares the vertex stage and every uniform name with the one above
 // except the two plane sizes, and a caller's placement code does not change
 // with the target.
-AVBASE_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
+XMEDIA_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
 CreateVideoLayerRectProgram(const gl::GlApi& gl, std::string* error);
 
 // The three planar layouts a GlVideoLayer can upload. Stated once, so the
 // format gate cannot mean one thing where the sink decides what it accepts and
 // another where the upload happens.
-AVBASE_MEDIA_EXPORT bool IsPlanarYuv(VideoFormat format);
+XMEDIA_MEDIA_EXPORT bool IsPlanarYuv(VideoFormat format);
 
 // One video source: three plane textures plus the colour conversion that turns
 // them back into RGB.
@@ -94,7 +94,7 @@ AVBASE_MEDIA_EXPORT bool IsPlanarYuv(VideoFormat format);
 //
 // THREADING: not thread-safe. Every method runs on whichever thread has the GL
 // context current -- the sink's render thread.
-class AVBASE_MEDIA_EXPORT GlVideoLayer {
+class XMEDIA_MEDIA_EXPORT GlVideoLayer {
  public:
   static std::unique_ptr<GlVideoLayer> Create(const gl::GlApi& gl);
   GlVideoLayer(const GlVideoLayer&) = delete;
@@ -249,6 +249,6 @@ class AVBASE_MEDIA_EXPORT GlVideoLayer {
   std::array<float, 3> offset_{};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_VIDEO_LAYER_H_
+#endif  // XMEDIA_MEDIA_GL_GL_VIDEO_LAYER_H_

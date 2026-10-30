@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_TEXT_DECODER_H_
-#define AVBASE_MEDIA_BASE_TEXT_DECODER_H_
+#ifndef XMEDIA_MEDIA_BASE_TEXT_DECODER_H_
+#define XMEDIA_MEDIA_BASE_TEXT_DECODER_H_
 
 #include <memory>
 #include <string>
@@ -17,14 +17,14 @@
 #include "media/base/timed_text.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The text-track half of the decoder family. Deliberately SYNCHRONOUS, unlike
 // Audio/VideoDecoder: subtitle packets are tiny, decoders are stateless
 // push-through, and the text leg has no pacing problem to solve -- an async
 // contract here would be ceremony without a consumer (the leg lives on S1 and
 // returns cues directly to the client).
-class AVBASE_MEDIA_EXPORT TextDecoder {
+class XMEDIA_MEDIA_EXPORT TextDecoder {
  public:
   TextDecoder(const TextDecoder&) = delete;
   TextDecoder& operator=(const TextDecoder&) = delete;
@@ -43,9 +43,9 @@ class AVBASE_MEDIA_EXPORT TextDecoder {
 };
 
 // Mirrors VideoDecoderFactory; factories exist because RendererImpl (inside
-// avbase_media) must not construct the FFmpeg implementation itself -- the
+// xmedia_media) must not construct the FFmpeg implementation itself -- the
 // factory object is built by whoever links the FFmpeg layer.
-class AVBASE_MEDIA_EXPORT TextDecoderFactory
+class XMEDIA_MEDIA_EXPORT TextDecoderFactory
     : public base::RefCountedThreadSafe<TextDecoderFactory> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -63,6 +63,6 @@ class AVBASE_MEDIA_EXPORT TextDecoderFactory
   virtual ~TextDecoderFactory() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_TEXT_DECODER_H_
+#endif  // XMEDIA_MEDIA_BASE_TEXT_DECODER_H_

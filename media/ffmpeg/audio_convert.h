@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -6,7 +6,7 @@
 // stateful wrapper over libswresample (SwrContext). This is the audio mirror
 // of media/ffmpeg/video_convert.h (VideoConverter over libswscale): both live
 // in the vendor-quarantine layer (C4) and expose FFmpeg types only at their
-// own boundary, never to avbase's media/base or media/filters layers.
+// own boundary, never to xmedia-kit's media/base or media/filters layers.
 //
 // Why a dedicated class when the transcode path used to inline the Swr setup:
 // the architecture doc (docs/02 §4.1) lists ffmpeg_audio_converter ->
@@ -24,8 +24,8 @@
 // frames); that concern is deliberately NOT here, because frame_size belongs
 // to the encoder, not to the resampler.
 
-#ifndef AVBASE_MEDIA_FFMPEG_AUDIO_CONVERT_H_
-#define AVBASE_MEDIA_FFMPEG_AUDIO_CONVERT_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_AUDIO_CONVERT_H_
+#define XMEDIA_MEDIA_FFMPEG_AUDIO_CONVERT_H_
 
 #include <cstdint>
 #include <memory>
@@ -35,13 +35,13 @@
 #include "media/ffmpeg/compat.h"
 #include "media/media_export.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // RAII sample-rate / channel-layout converter. Configure() pins the in->out
 // geometry; Push() converts one input frame into zero or more resampled
 // output frames; Flush() drains the resampler's tail. Every produced frame is
 // an owned AVFrame (FramePtr) in the configured output format.
-class AVBASE_MEDIA_EXPORT AudioConverter {
+class XMEDIA_MEDIA_EXPORT AudioConverter {
  public:
   AudioConverter();
   ~AudioConverter();
@@ -82,6 +82,6 @@ class AVBASE_MEDIA_EXPORT AudioConverter {
   AVSampleFormat out_fmt_{AV_SAMPLE_FMT_NONE};
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_AUDIO_CONVERT_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_AUDIO_CONVERT_H_

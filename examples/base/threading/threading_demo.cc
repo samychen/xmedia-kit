@@ -14,9 +14,9 @@
 // 确定性来自“先等到完成信号再继续”，而非计时。
 //
 // 手动编译（无需 CMake，链接 base 静态库）：
-//   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
+//   clang++ -std=c++20 -DXMEDIA_ENABLE_DCHECK -I. \
 //       examples/base/threading/threading_demo.cc
-//       build/full/lib/libavbase_base.a \ -lpthread -o /tmp/threading_demo
+//       build/full/lib/libxmedia_base.a \ -lpthread -o /tmp/threading_demo
 //
 // 通过 CMake 构建：
 //   cmake --build build/full --target threading_demo
@@ -37,7 +37,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 
-using namespace avbase;  // 示例而非 SDK：base/ 直接以 base:: 引用
+using namespace xmedia;  // 示例而非 SDK：base/ 直接以 base:: 引用
 
 // ======================================================================
 // WaitableEvent 总览 —— 本 demo 用它在跨线程场景里“精确等某件事发生”
@@ -46,7 +46,7 @@ using namespace avbase;  // 示例而非 SDK：base/ 直接以 base:: 引用
 //       (waitable_event.h:11-12, 84-87)，即“一个带条件的布尔标志”。
 //
 // 作用：一个线程喊“某件事发生了”，另一个线程精确地在那件事发生后才被唤醒，
-//       既不忙等(spin 烧 CPU)也不瞎 sleep 猜时间。在 avbase 里主要用于
+//       既不忙等(spin 烧 CPU)也不瞎 sleep 猜时间。在 xmedia-kit 里主要用于
 //       “有界关闭等待”——让 ~Player() 永不无限阻塞 (waitable_event.h:18-20,
 //       docs/04 §5.4, Δ15)。
 //
@@ -105,7 +105,7 @@ int main() {
   // ----------------------------------------------------------------------
   LOG(INFO) << "(a) 基本生命周期";
   {
-    base::Thread worker("avbase-demo");
+    base::Thread worker("xmedia-demo");
     LOG(INFO) << "   构造后 IsRunning() = " << worker.IsRunning();
     LOG(INFO) << "   构造后即可拿到 task_runner(): "
               << (worker.task_runner() != nullptr);
@@ -125,7 +125,7 @@ int main() {
   // ----------------------------------------------------------------------
   LOG(INFO) << "(b) 提前投递（Start 前 PostTask 被缓存）";
   {
-    base::Thread w("avbase-pre");
+    base::Thread w("xmedia-pre");
     std::atomic<int> pre{0};
     // Start 前投递 —— 此时线程还没跑，但 task_runner() 已可用。
     w.task_runner()->PostTask(FROM_HERE,
@@ -144,7 +144,7 @@ int main() {
   // ----------------------------------------------------------------------
   LOG(INFO) << "(c) 顺序保证 + 同一线程（serialized sequence）";
   {
-    base::Thread w("avbase-seq");
+    base::Thread w("xmedia-seq");
     CHECK(w.Start());
     std::vector<int> order;
     std::vector<std::thread::id> ids(5);
@@ -178,7 +178,7 @@ int main() {
   // ----------------------------------------------------------------------
   LOG(INFO) << "(d) 序列判定与诊断 API";
   {
-    base::Thread w("avbase-diag");
+    base::Thread w("xmedia-diag");
     CHECK(w.Start());
     std::atomic<bool> inside_seq{false};
     std::atomic<bool> outside_seq{false};
@@ -227,7 +227,7 @@ int main() {
   LOG(INFO) << "(e) 真实跨线程投递与关闭语义";
   {
     // (e1) 优雅关闭
-    base::Thread w("avbase-grace");
+    base::Thread w("xmedia-grace");
     CHECK(w.Start());
     std::atomic<int> count{0};
     base::WaitableEvent all_done(
@@ -245,7 +245,7 @@ int main() {
     // (e2) Stop 丢弃 pending：投递 5 个延迟任务（50ms 后才就绪），主线程
     //      立即 Stop。Run 循环在顶部看到 quit_ 为真即 break，未就绪的任务
     //      一个都不会被弹出执行。
-    base::Thread w2("avbase-drop");
+    base::Thread w2("xmedia-drop");
     CHECK(w2.Start());
     std::atomic<int> dropped{0};
     for (int i = 0; i < 5; ++i) {
@@ -269,12 +269,12 @@ int main() {
   LOG(INFO) << "(f) platform_thread：OS 可见线程名与优先级";
   {
     // 在主线程上设名并读回（截断到 15 字，这里用 11 字的安全名）
-    base::platform_thread::SetName("avbase-main");
-    LOG(INFO) << "   SetName(\"avbase-main\") 后 GetName() = "
+    base::platform_thread::SetName("xmedia-main");
+    LOG(INFO) << "   SetName(\"xmedia-main\") 后 GetName() = "
               << base::platform_thread::GetName();
 
     // 在 worker 内部读取它被 Thread::ThreadMain 自动设置的 OS 名
-    base::Thread w("avbase-named");
+    base::Thread w("xmedia-named");
     CHECK(w.Start());
     std::string worker_name;
     base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
@@ -296,7 +296,7 @@ int main() {
   // ----------------------------------------------------------------------
   // (g) Thread::Options 与 StartWithOptions：自定义 name / priority /
   // stack_size。
-  //     avbase 每 Player 恰好创建 6 条线程（docs/04 §2），优先级分三档。
+  //     xmedia-kit 每 Player 恰好创建 6 条线程（docs/04 §2），优先级分三档。
   // ----------------------------------------------------------------------
   LOG(INFO) << "(g) Thread::Options 与三档优先级";
   {
@@ -305,9 +305,9 @@ int main() {
         base::ThreadPriority::kDisplayCritical,  // 音视频渲染线程用这一档
     };
     for (base::ThreadPriority p : levels) {
-      base::Thread t("avbase-prio");
+      base::Thread t("xmedia-prio");
       base::Thread::Options opt;
-      opt.name = "avbase-prio";
+      opt.name = "xmedia-prio";
       opt.priority = p;
       CHECK(t.StartWithOptions(opt));
       LOG(INFO) << "   优先级档位 " << static_cast<int>(p)
@@ -323,7 +323,7 @@ int main() {
   // DCHECK 是否仍是同一线程；不一致即 debug 下断言失败。它不提供任何锁、不
   // 阻止并发，只是开发期把“方法被用错线程/序列”提前炸出来。
   //
-  // 为什么用线程 id 当 sequence：avbase 每条逻辑 sequence 都绑定一条专享线程
+  // 为什么用线程 id 当 sequence：xmedia-kit 每条逻辑 sequence 都绑定一条专享线程
   // （docs/04 §2），线程身份就是 Chromium sequence 令牌的忠实替身 —— 这正是
   // Thread 的价值所在。
   //
@@ -337,7 +337,7 @@ int main() {
   // ----------------------------------------------------------------------
   LOG(INFO) << "(h) 一个 Thread = 一条 sequence（SEQUENCE_CHECKER 基础）";
   {
-    base::Thread w("avbase-seqbound");
+    base::Thread w("xmedia-seqbound");
     CHECK(w.Start());
     base::SequenceChecker sc;  // 局部变量；运行时判定与 DCHECK 开关无关
     std::atomic<bool> bound_ok{false};

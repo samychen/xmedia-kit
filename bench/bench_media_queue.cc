@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,7 +12,7 @@
 // WHY THESE THREE AND NOT THE END-TO-END ONES: the remaining entries in that
 // list (BM_EndToEnd_1080p_NullSink, BM_FirstFrameLatency, BM_SeekLatency,
 // BM_MemoryPerInstance) all need a real decoder, and this target builds with
-// AVBASE_ENABLE_FFMPEG=OFF on purpose -- it is a micro-benchmark gate, and
+// XMEDIA_ENABLE_FFMPEG=OFF on purpose -- it is a micro-benchmark gate, and
 // making it depend on FFmpeg would make it depend on the pinned-FFmpeg setup
 // step. These three need media/base only.
 //
@@ -37,14 +37,14 @@
 
 namespace {
 
-using avbase::base::Microseconds;
-using avbase::base::scoped_refptr;
-using avbase::media::DecoderBuffer;
-using avbase::media::DecoderBufferQueue;
-using avbase::media::DemuxerStreamType;
-using avbase::media::MediaLog;
-using avbase::media::VideoFormat;
-using avbase::media::VideoFrame;
+using xmedia::base::Microseconds;
+using xmedia::base::scoped_refptr;
+using xmedia::media::DecoderBuffer;
+using xmedia::media::DecoderBufferQueue;
+using xmedia::media::DemuxerStreamType;
+using xmedia::media::MediaLog;
+using xmedia::media::VideoFormat;
+using xmedia::media::VideoFrame;
 
 // One compressed packet, ~ a 1080p I-frame's worth of bytes. Reused across
 // iterations: the thing being timed is the queue's bookkeeping, not the copy.
@@ -59,10 +59,10 @@ scoped_refptr<DecoderBuffer> MakeBuffer() {
 DecoderBufferQueue MakeQueue() {
   return DecoderBufferQueue("bench", /*max_buffers=*/4096,
                             /*max_bytes=*/0,
-                            avbase::base::MakeRefCounted<MediaLog>());
+                            xmedia::base::MakeRefCounted<MediaLog>());
 }
 
-AVBASE_BENCH(BM_DecoderBufferQueue_PushPop) {
+XMEDIA_BENCH(BM_DecoderBufferQueue_PushPop) {
   DecoderBufferQueue queue = MakeQueue();
   scoped_refptr<DecoderBuffer> buffer = MakeBuffer();
   uint64_t sink = 0;
@@ -80,14 +80,14 @@ AVBASE_BENCH(BM_DecoderBufferQueue_PushPop) {
     }
     sink += out.size();
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
   queue.Abort();
 }
 
 // The packet hand-off itself: one refptr move-construct + one move-assign,
 // which is what a demuxer→decoder hop costs on top of the queue. Budget is
 // "0 allocations" -- a refcount bump, not a copy.
-AVBASE_BENCH(BM_DecoderBuffer_MoveConstruct) {
+XMEDIA_BENCH(BM_DecoderBuffer_MoveConstruct) {
   scoped_refptr<DecoderBuffer> held = MakeBuffer();
   uint64_t sink = 0;
   for (uint64_t i = 0; i < iters; ++i) {
@@ -97,16 +97,16 @@ AVBASE_BENCH(BM_DecoderBuffer_MoveConstruct) {
     // null refptr would time a branch, not a refcount.
     held = std::move(moved);
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
 }
 
 // One frame, AddRef'd and released through a second handle. This is the cost a
 // compositor pays to keep a frame alive across a present -- every frame, and
 // the reason VideoFrame is refcounted rather than copied.
-AVBASE_BENCH(BM_VideoFrame_RefCountChurn) {
+XMEDIA_BENCH(BM_VideoFrame_RefCountChurn) {
   scoped_refptr<VideoFrame> frame = VideoFrame::CreateBlackFrame(
-      VideoFormat::kI420, avbase::media::Size{1920, 1080},
-      avbase::media::Size{1920, 1080}, avbase::media::Rational{30, 1},
+      VideoFormat::kI420, xmedia::media::Size{1920, 1080},
+      xmedia::media::Size{1920, 1080}, xmedia::media::Rational{30, 1},
       Microseconds(0), Microseconds(33333), 0);
   if (!frame) {
     return;  // No frame allocator compiled in; nothing to measure.
@@ -118,7 +118,7 @@ AVBASE_BENCH(BM_VideoFrame_RefCountChurn) {
       sink += static_cast<uint64_t>(second->coded_size().width);
     }  // release
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
 }
 
 }  // namespace

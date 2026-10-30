@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PLAYER_IMPL_H_
-#define AVBASE_PLAYER_PLAYER_IMPL_H_
+#ifndef XMEDIA_PLAYER_PLAYER_IMPL_H_
+#define XMEDIA_PLAYER_PLAYER_IMPL_H_
 
 #include <atomic>
 #include <map>
@@ -28,7 +28,7 @@
 #include "player/seek_controller.h"
 #include "player/state_machine.h"
 
-namespace avbase {
+namespace xmedia {
 
 // Everything behind the Player facade: the S1/S3/S4 threads, the event hub,
 // the renderer factory and the pipeline.
@@ -410,6 +410,6 @@ class PlayerImpl final : public media::Pipeline::Client {
   player::SeekController accurate_seek_;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PLAYER_IMPL_H_
+#endif  // XMEDIA_PLAYER_PLAYER_IMPL_H_

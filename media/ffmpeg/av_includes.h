@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// THE ONLY PLACE IN AVBASE THAT INCLUDES FFmpeg HEADERS.
+// THE ONLY PLACE IN XMEDIA-KIT THAT INCLUDES FFmpeg HEADERS.
 //
 // Two jobs:
 //   1. Wrap the C headers in extern "C". FFmpeg's own headers do not do this,
@@ -12,8 +12,8 @@
 //      C8 fails the build if `#if LIBAV*_VERSION` appears anywhere else, so all
 //      4.4-to-8.x differences are reviewable in one file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_AV_INCLUDES_H_
-#define AVBASE_MEDIA_FFMPEG_AV_INCLUDES_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_AV_INCLUDES_H_
+#define XMEDIA_MEDIA_FFMPEG_AV_INCLUDES_H_
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -49,48 +49,48 @@ extern "C" {
 // AVChannelLayout struct. This is the single largest source of 4.x/5.x+ churn.
 #if (LIBAVUTIL_VERSION_MAJOR > 57) || \
     (LIBAVUTIL_VERSION_MAJOR == 57 && LIBAVUTIL_VERSION_MINOR >= 28)
-#define AVBASE_FFMPEG_HAS_CHANNEL_LAYOUT 1
+#define XMEDIA_FFMPEG_HAS_CHANNEL_LAYOUT 1
 #else
-#define AVBASE_FFMPEG_HAS_CHANNEL_LAYOUT 0
+#define XMEDIA_FFMPEG_HAS_CHANNEL_LAYOUT 0
 #endif
 
 // FFmpeg 4.4 (libavcodec 58) widened AVPacket's pts/dts/duration to int64_t.
 #if LIBAVCODEC_VERSION_MAJOR >= 58
-#define AVBASE_FFMPEG_PACKET_INT64 1
+#define XMEDIA_FFMPEG_PACKET_INT64 1
 #else
-#define AVBASE_FFMPEG_PACKET_INT64 0
+#define XMEDIA_FFMPEG_PACKET_INT64 0
 #endif
 
 // FFmpeg 7.x (libavcodec 61): ticks_per_frame deprecated, various cleanups.
 #if LIBAVCODEC_VERSION_MAJOR >= 61
-#define AVBASE_FFMPEG_7_OR_NEWER 1
+#define XMEDIA_FFMPEG_7_OR_NEWER 1
 #else
-#define AVBASE_FFMPEG_7_OR_NEWER 0
+#define XMEDIA_FFMPEG_7_OR_NEWER 0
 #endif
 
 // av_dict_iterate() was added in libavutil 58 (FFmpeg 6.0). Earlier releases
 // must iterate with av_dict_get(..., AV_DICT_IGNORE_SUFFIX).
 #if LIBAVUTIL_VERSION_MAJOR >= 58
-#define AVBASE_FFMPEG_HAS_DICT_ITERATE 1
+#define XMEDIA_FFMPEG_HAS_DICT_ITERATE 1
 #else
-#define AVBASE_FFMPEG_HAS_DICT_ITERATE 0
+#define XMEDIA_FFMPEG_HAS_DICT_ITERATE 0
 #endif
 
 // av_register_all() was removed in FFmpeg 4.0; guard so the glue never calls
 // it.
 #if LIBAVFORMAT_VERSION_MAJOR < 58
-#define AVBASE_FFMPEG_NEEDS_REGISTER_ALL 1
+#define XMEDIA_FFMPEG_NEEDS_REGISTER_ALL 1
 #else
-#define AVBASE_FFMPEG_NEEDS_REGISTER_ALL 0
+#define XMEDIA_FFMPEG_NEEDS_REGISTER_ALL 0
 #endif
 
 // FFmpeg 6.1 (libavformat 60.16) deprecated av_stream_get_side_data() in favour
 // of av_packet_side_data_get() over the stream's codecpar side data.
 #if LIBAVFORMAT_VERSION_MAJOR > 60 || \
     (LIBAVFORMAT_VERSION_MAJOR == 60 && LIBAVFORMAT_VERSION_MINOR >= 16)
-#define AVBASE_FFMPEG_HAS_CODECPAR_SIDE_DATA 1
+#define XMEDIA_FFMPEG_HAS_CODECPAR_SIDE_DATA 1
 #else
-#define AVBASE_FFMPEG_HAS_CODECPAR_SIDE_DATA 0
+#define XMEDIA_FFMPEG_HAS_CODECPAR_SIDE_DATA 0
 #endif
 
 // Reads a stream's side data of |type|: returns nullptr when it is absent and
@@ -98,15 +98,15 @@ extern "C" {
 // version switch stays in this file (rule C8) and callers read the same either
 // way. The modern branch is codecpar's array, which is where FFmpeg 6.1 moved
 // stream side data to.
-// snake_case with an avbase_ prefix on purpose: this is a drop-in stand-in
-// for an FFmpeg function, and the prefix is what marks it as avbase's
+// snake_case with an xmedia_ prefix on purpose: this is a drop-in stand-in
+// for an FFmpeg function, and the prefix is what marks it as xmedia-kit's
 // replacement rather than FFmpeg's own.
 // NOLINTNEXTLINE
-inline const uint8_t* avbase_stream_side_data(const AVStream* stream,
+inline const uint8_t* xmedia_stream_side_data(const AVStream* stream,
                                               AVPacketSideDataType type,
                                               size_t* size) {
   *size = 0;
-#if AVBASE_FFMPEG_HAS_CODECPAR_SIDE_DATA
+#if XMEDIA_FFMPEG_HAS_CODECPAR_SIDE_DATA
   if (!stream || !stream->codecpar) {
     return nullptr;
   }
@@ -123,4 +123,4 @@ inline const uint8_t* avbase_stream_side_data(const AVStream* stream,
 #endif
 }
 
-#endif  // AVBASE_MEDIA_FFMPEG_AV_INCLUDES_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_AV_INCLUDES_H_

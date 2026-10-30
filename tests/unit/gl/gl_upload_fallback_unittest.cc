@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -42,7 +42,7 @@
 #include "media/gl/gl_hw_texture_importer.h"
 #include "media/gl/gl_present.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kWindowSize = 64;
@@ -252,4 +252,4 @@ TEST_F(UploadFallbackTest, AFrameThatCannotBeReadBackIsReportedNotDrawn) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

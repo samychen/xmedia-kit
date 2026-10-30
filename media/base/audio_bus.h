@@ -1,21 +1,21 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/audio_bus.h` (BSD-3-Clause): deinterleaved
 // float32 audio, which is the format AudioRendererSink::RenderCallback fills.
 
-#ifndef AVBASE_MEDIA_BASE_AUDIO_BUS_H_
-#define AVBASE_MEDIA_BASE_AUDIO_BUS_H_
+#ifndef XMEDIA_MEDIA_BASE_AUDIO_BUS_H_
+#define XMEDIA_MEDIA_BASE_AUDIO_BUS_H_
 
 #include <memory>
 #include <vector>
 
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
-class AVBASE_MEDIA_EXPORT AudioBus {
+class XMEDIA_MEDIA_EXPORT AudioBus {
  public:
   AudioBus(const AudioBus&) = delete;
   AudioBus& operator=(const AudioBus&) = delete;
@@ -45,6 +45,6 @@ class AVBASE_MEDIA_EXPORT AudioBus {
   std::vector<std::vector<float>> data_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_AUDIO_BUS_H_
+#endif  // XMEDIA_MEDIA_BASE_AUDIO_BUS_H_

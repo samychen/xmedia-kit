@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
-#define AVBASE_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
+#define XMEDIA_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
 
 #include <atomic>
 #include <cstdint>
@@ -20,7 +20,7 @@
 #include "media/media_export.h"
 #include "media/transcode/video_encoder_factory.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Offline transcode job: the E3 slab. Mirrors ffmpeg.c's transcode() loop and
 // transcode.cc's TranscodeTask — a synchronous, run-to-completion pipeline
@@ -44,7 +44,7 @@ namespace avbase::media {
 // Copy mode: SetAudioCodec("copy") / SetVideoCodec("copy") enables stream
 // copy (RemuxContainer's path, inlined so trim still works). No decode or
 // encode happens for copy streams — packets go straight to the muxer.
-struct AVBASE_MEDIA_EXPORT TranscodeParams {
+struct XMEDIA_MEDIA_EXPORT TranscodeParams {
   // Output path; the container follows the extension (mp4/mkv/adts...).
   // Network outputs (rtmp://...) carry no extension: set |output_format|
   // explicitly ("flv" for RTMP) or the muxer open fails.
@@ -135,7 +135,7 @@ using TranscodeProgressCB = std::function<void(int)>;
 // while a job runs on another thread; a null token never cancels, which is
 // what keeps Transcode()'s synchronous callers (and every existing test)
 // unchanged.
-class AVBASE_MEDIA_EXPORT TranscodeCancelToken {
+class XMEDIA_MEDIA_EXPORT TranscodeCancelToken {
  public:
   void Cancel() { cancelled_.store(true, std::memory_order_relaxed); }
   bool IsCancelled() const {
@@ -149,7 +149,7 @@ class AVBASE_MEDIA_EXPORT TranscodeCancelToken {
 // Runs the transcode synchronously. Returns OkStatus on success and
 // ErrorCode::kCancelled when |cancel| fires. The caller's thread blocks until
 // the job completes, fails, or is cancelled.
-AVBASE_MEDIA_EXPORT Status
+XMEDIA_MEDIA_EXPORT Status
 Transcode(const std::string& input_uri, const TranscodeParams& params,
           TranscodeProgressCB progress_cb = nullptr,
           const TranscodeCancelToken* cancel = nullptr);
@@ -170,7 +170,7 @@ using TranscodeDoneCB = std::function<void(Status)>;
 // returns immediately; the worker stops at the next packet boundary, or the
 // next AVIO read, and reports ErrorCode::kCancelled. A partially written
 // output is left in place -- deleting it is the host's call.
-class AVBASE_MEDIA_EXPORT TranscodeJob {
+class XMEDIA_MEDIA_EXPORT TranscodeJob {
  public:
   TranscodeJob();
   TranscodeJob(const TranscodeJob&) = delete;
@@ -199,6 +199,6 @@ class AVBASE_MEDIA_EXPORT TranscodeJob {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_TRANSCODE_JOB_H_

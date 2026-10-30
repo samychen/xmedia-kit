@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // first frame take" could only be answered by grepping timestamps by hand.
 // Events recorded here feed both base/logging and Player::DumpDiagnostics().
 
-#ifndef AVBASE_MEDIA_BASE_MEDIA_LOG_H_
-#define AVBASE_MEDIA_BASE_MEDIA_LOG_H_
+#ifndef XMEDIA_MEDIA_BASE_MEDIA_LOG_H_
+#define XMEDIA_MEDIA_BASE_MEDIA_LOG_H_
 
 #include <stdint.h>
 
@@ -30,12 +30,12 @@
 #include "media/base/media_constants.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One structured media event. The (type, properties) shape is what makes the
 // first-frame breakdown and decoder-fallback history queryable instead of
 // buried in prose.
-struct AVBASE_MEDIA_EXPORT MediaLogEvent {
+struct XMEDIA_MEDIA_EXPORT MediaLogEvent {
   enum class Level { kInfo, kWarning, kError };
   enum class Type {
     kOpenInput,
@@ -61,12 +61,12 @@ struct AVBASE_MEDIA_EXPORT MediaLogEvent {
   base::TimeTicks wall_time;
 };
 
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 GetMediaLogEventTypeName(MediaLogEvent::Type type);
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 GetMediaLogLevelName(MediaLogEvent::Level level);
 
-class AVBASE_MEDIA_EXPORT MediaLog
+class XMEDIA_MEDIA_EXPORT MediaLog
     : public base::RefCountedThreadSafe<MediaLog> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -100,7 +100,7 @@ class AVBASE_MEDIA_EXPORT MediaLog
 };
 
 // Streaming record helper, matching Chromium's MEDIA_LOG macro shape.
-class AVBASE_MEDIA_EXPORT MediaLogRecord {
+class XMEDIA_MEDIA_EXPORT MediaLogRecord {
  public:
   MediaLogRecord(MediaLogEvent::Level level, MediaLogEvent::Type type,
                  MediaLog* log);
@@ -126,7 +126,7 @@ class AVBASE_MEDIA_EXPORT MediaLogRecord {
 };
 
 // Discards the record when |log| is null, so call sites need no null check.
-class AVBASE_MEDIA_EXPORT NullMediaLogRecord {
+class XMEDIA_MEDIA_EXPORT NullMediaLogRecord {
  public:
   template <typename T>
   NullMediaLogRecord& operator<<(const T&) {
@@ -136,27 +136,27 @@ class AVBASE_MEDIA_EXPORT NullMediaLogRecord {
   NullMediaLogRecord& With(std::string, int64_t) { return *this; }
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-// Unparenthesised for the same reason AVBASE_LAZY_STREAM is (see
+// Unparenthesised for the same reason XMEDIA_LAZY_STREAM is (see
 // base/logging.h): the `<<` is written outside the macro, and parenthesising
 // the ternary makes it apply to a void expression.
 // NOLINTBEGIN
 #define MEDIA_LOG(level, log)                                       \
   !(log) ? (void)0                                                  \
-         : ::avbase::base::logging::LogMessageVoidify() &           \
-               ::avbase::media::MediaLogRecord(                     \
-                   ::avbase::media::MediaLogEvent::Level::k##level, \
-                   ::avbase::media::MediaLogEvent::Type::kProperty, (log))
+         : ::xmedia::base::logging::LogMessageVoidify() &           \
+               ::xmedia::media::MediaLogRecord(                     \
+                   ::xmedia::media::MediaLogEvent::Level::k##level, \
+                   ::xmedia::media::MediaLogEvent::Type::kProperty, (log))
 // NOLINTEND
 
 // NOLINTBEGIN
 #define MEDIA_LOG_EVENT(level, type, log)                           \
   !(log) ? (void)0                                                  \
-         : ::avbase::base::logging::LogMessageVoidify() &           \
-               ::avbase::media::MediaLogRecord(                     \
-                   ::avbase::media::MediaLogEvent::Level::k##level, \
-                   ::avbase::media::MediaLogEvent::Type::k##type, (log))
+         : ::xmedia::base::logging::LogMessageVoidify() &           \
+               ::xmedia::media::MediaLogRecord(                     \
+                   ::xmedia::media::MediaLogEvent::Level::k##level, \
+                   ::xmedia::media::MediaLogEvent::Type::k##type, (log))
 // NOLINTEND
 
-#endif  // AVBASE_MEDIA_BASE_MEDIA_LOG_H_
+#endif  // XMEDIA_MEDIA_BASE_MEDIA_LOG_H_

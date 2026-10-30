@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_RECORD_TAP_H_
-#define AVBASE_MEDIA_FILTERS_RECORD_TAP_H_
+#ifndef XMEDIA_MEDIA_FILTERS_RECORD_TAP_H_
+#define XMEDIA_MEDIA_FILTERS_RECORD_TAP_H_
 
 #include <functional>
 #include <string>
@@ -13,7 +13,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The playback-side recording tap: the packets a viewer actually sees, as
 // they leave the demuxer stream and enter the decoder stream -- after the
@@ -22,7 +22,7 @@ namespace avbase::media {
 //
 // Pure media types only: the recorder that consumes these lives behind the
 // opt-in transcode target and turns them into container packets.
-struct AVBASE_MEDIA_EXPORT RecordStreamHeader {
+struct XMEDIA_MEDIA_EXPORT RecordStreamHeader {
   bool video = false;
   std::string codec_name;  // Decode-side name ("aac", "h264", ...).
   int width = 0;
@@ -41,7 +41,7 @@ struct AVBASE_MEDIA_EXPORT RecordStreamHeader {
 // sequence (S3/S4); the recorder marshals.
 // Pipeline-level tap: the video flag travels with the packet, because one
 // recorder serves both legs.
-struct AVBASE_MEDIA_EXPORT RecordTap {
+struct XMEDIA_MEDIA_EXPORT RecordTap {
   std::function<void(const RecordStreamHeader&)> on_stream;
   std::function<void(bool video, base::scoped_refptr<DecoderBuffer> buffer)>
       on_packet;
@@ -50,7 +50,7 @@ struct AVBASE_MEDIA_EXPORT RecordTap {
 // Decoder-stream-level tap: the stream knows its own kind, so its packet
 // callback carries no flag. The renderer binds the flag when applying a
 // pipeline-level tap (BindTap below).
-struct AVBASE_MEDIA_EXPORT StreamRecordTap {
+struct XMEDIA_MEDIA_EXPORT StreamRecordTap {
   std::function<void(const RecordStreamHeader&)> on_stream;
   std::function<void(base::scoped_refptr<DecoderBuffer>)> on_packet;
 };
@@ -66,6 +66,6 @@ inline StreamRecordTap BindTap(const RecordTap& tap, bool video) {
   return stream_tap;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_RECORD_TAP_H_
+#endif  // XMEDIA_MEDIA_FILTERS_RECORD_TAP_H_

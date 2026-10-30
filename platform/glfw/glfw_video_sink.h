@@ -1,22 +1,22 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_
-#define AVBASE_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_
+#ifndef XMEDIA_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_
+#define XMEDIA_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_
 
 #include "media/base/video_renderer_sink.h"
 #include "media/gl/gl_output_target.h"
 #include "media/gl/gl_video_sink.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The GLFW output target (docs/archive/09 §2 embedding mode): the host owns the
 // GLFWwindow and its GL context, and this hands the sink a context adapter over
 // them. GLFW is a GL-only backend, so has_gl_route() is unconditional -- the
 // distinction exists for SDL2, which can be on either side of it.
-class AVBASE_MEDIA_EXPORT GlfwOutputTarget final : public GlOutputTarget {
+class XMEDIA_MEDIA_EXPORT GlfwOutputTarget final : public GlOutputTarget {
  public:
   void SetSurface(void* raw) override { raw_ = raw; }
   bool has_gl_route() const override { return true; }
@@ -34,7 +34,7 @@ class AVBASE_MEDIA_EXPORT GlfwOutputTarget final : public GlOutputTarget {
 // GLFW video output endpoint: a GlfwOutputTarget behind the shared GlVideoSink
 // loop. Every method that matters lives there; see Sdl2VideoSink's comment for
 // why a backend is a target and not a second sink.
-class AVBASE_MEDIA_EXPORT GlfwVideoSink final : public GlVideoSink {
+class XMEDIA_MEDIA_EXPORT GlfwVideoSink final : public GlVideoSink {
  public:
   explicit GlfwVideoSink(base::scoped_refptr<NativeDisplay> display);
   GlfwVideoSink(const GlfwVideoSink&) = delete;
@@ -42,7 +42,7 @@ class AVBASE_MEDIA_EXPORT GlfwVideoSink final : public GlVideoSink {
   ~GlfwVideoSink() override = default;
 };
 
-class AVBASE_MEDIA_EXPORT GlfwVideoSinkFactory final
+class XMEDIA_MEDIA_EXPORT GlfwVideoSinkFactory final
     : public VideoRendererSinkFactory {
  public:
   std::unique_ptr<VideoRendererSink>
@@ -50,6 +50,6 @@ class AVBASE_MEDIA_EXPORT GlfwVideoSinkFactory final
   const char* name() const override { return "glfw"; }
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_
+#endif  // XMEDIA_PLATFORM_GLFW_GLFW_VIDEO_SINK_H_

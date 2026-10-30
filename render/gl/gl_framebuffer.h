@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_FRAMEBUFFER_H_
-#define AVBASE_RENDER_GL_GL_FRAMEBUFFER_H_
+#ifndef XMEDIA_RENDER_GL_GL_FRAMEBUFFER_H_
+#define XMEDIA_RENDER_GL_GL_FRAMEBUFFER_H_
 
 #include <memory>
 #include <string>
@@ -12,7 +12,7 @@
 #include "render/gl/gl_export.h"
 #include "render/gl/gl_texture.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // An off-screen RGBA8 render target: one colour texture attached to one
 // framebuffer object.
@@ -38,7 +38,7 @@ namespace avbase::gl {
 // pixels rather than left to inspection.
 //
 // Borrows the GlApi; both must be destroyed while the context is current.
-class AVBASE_GL_EXPORT GlFramebuffer {
+class XMEDIA_GL_EXPORT GlFramebuffer {
  public:
   static std::unique_ptr<GlFramebuffer> Create(const GlApi& gl);
   GlFramebuffer(const GlFramebuffer&) = delete;
@@ -85,6 +85,6 @@ class AVBASE_GL_EXPORT GlFramebuffer {
   int height_{0};
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_FRAMEBUFFER_H_
+#endif  // XMEDIA_RENDER_GL_GL_FRAMEBUFFER_H_

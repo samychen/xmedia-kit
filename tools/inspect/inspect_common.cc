@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 #include "base/logging.h"
 #include "media/base/data_source_descriptor.h"
 
-namespace avbase {
+namespace xmedia {
 
 // The single copy of the numeric parsers the subcommands used to redefine.
 // Both are strict on purpose: atof/atoi turn garbage into 0, which reads as a
@@ -92,22 +92,22 @@ const char* StreamKindName(media::StreamKind kind) {
 
 void Usage() {
   printf(
-      "avbase-inspect -- diagnostics over the real avbase media stack\n"
+      "xmedia-inspect -- diagnostics over the real xmedia-kit media stack\n"
       "\n"
       "usage:\n"
-      "  avbase-inspect probe  <file>\n"
+      "  xmedia-inspect probe  <file>\n"
       "      Print container and per-stream information.\n"
       "\n"
-      "  avbase-inspect decode <file> [--video|--audio] [--limit N]\n"
+      "  xmedia-inspect decode <file> [--video|--audio] [--limit N]\n"
       "      Demux and decode, then report per-stream frame counts,\n"
       "      timestamp range and monotonicity.\n"
       "\n"
-      "  avbase-inspect sync   <file> [--limit N]\n"
+      "  xmedia-inspect sync   <file> [--limit N]\n"
       "      Decode both streams and drive AvSyncController with the\n"
       "      real timestamps, printing the resolved master clock and\n"
       "      the audio sample correction at each step.\n"
       "\n"
-      "  avbase-inspect transcode <input> -o <output> [options]\n"
+      "  xmedia-inspect transcode <input> -o <output> [options]\n"
       "      Run the offline transcode line (media/transcode) end to end,\n"
       "      then re-open the output to prove it is readable media.\n"
       "\n"
@@ -133,7 +133,7 @@ void Usage() {
       "                       machine with no VT session)\n"
       "    --faststart        movflags=+faststart (mp4)\n"
       "\n"
-      "  avbase-inspect preview <input> -o <dir> [options]\n"
+      "  xmedia-inspect preview <input> -o <dir> [options]\n"
       "      Grab a batch of frames around a seek point and write them as\n"
       "      JPEGs (seek preview / filmstrip). Reuses TakeSnapshot's encoder.\n"
       "\n"
@@ -144,7 +144,7 @@ void Usage() {
       "                       consecutive frames (one seek per point)\n"
       "    --prefix NAME      file name prefix (default \"preview\")\n"
       "\n"
-      "  avbase-inspect publish <input> -o <url> [options]\n"
+      "  xmedia-inspect publish <input> -o <url> [options]\n"
       "      Push a file to an RTMP endpoint (or write any container).\n"
       "      A URL has no extension, so --format is required for rtmp://.\n"
       "\n"
@@ -158,7 +158,7 @@ void Usage() {
       "                       targets want this; live peers do not)\n"
       "    --encopt KEY=VALUE private encoder option, repeatable\n"
       "\n"
-      "  avbase-inspect record <input> -o <output> [options]\n"
+      "  xmedia-inspect record <input> -o <output> [options]\n"
       "      Capture a file or a live URL to a file for a bounded window.\n"
       "      Reads the SOURCE; it does not tap a playing session.\n"
       "\n"
@@ -173,7 +173,7 @@ void Usage() {
       "options:\n"
       "  --limit N   Stop after N decoded outputs per stream (default "
       "100000).\n"
-      "  --verbose   Enable avbase INFO logging.\n"
+      "  --verbose   Enable xmedia-kit INFO logging.\n"
       "  -h, --help  This text.\n");
 }
 
@@ -264,4 +264,4 @@ bool OpenDemuxer(media::FFmpegDemuxer* demuxer, const std::string& path,
   return true;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

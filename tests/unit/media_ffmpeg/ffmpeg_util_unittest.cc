@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // The bridges exist because each of these tables used to be written out once
@@ -37,7 +37,7 @@ TEST(FfmpegUtilTest, PixelFormatRoundTrip) {
 }
 
 TEST(FfmpegUtilTest, PixelFormatYV12SharesYUV420P) {
-  // Not a round trip: avbase's YV12 is YUV420P with V and U swapped, which the
+  // Not a round trip: xmedia-kit's YV12 is YUV420P with V and U swapped, which the
   // table deliberately collapses. Anything that reads planes positionally must
   // not rely on this entry surviving a rename.
   EXPECT_EQ(ToAvPixelFormat(media::VideoFormat::kYV12), AV_PIX_FMT_YUV420P);
@@ -103,4 +103,4 @@ TEST(FfmpegUtilTest, AsFormatContextRoundTripsTheHandle) {
 }
 
 }  // namespace
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

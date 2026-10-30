@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 SdlGLContext::SdlGLContext(void* window, void* context)
     : window_(window), context_(context) {}
@@ -46,4 +46,4 @@ std::string SdlGLContext::GetError() {
   return std::string(SDL_GetError());
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

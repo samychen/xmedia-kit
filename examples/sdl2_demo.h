@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,8 +20,8 @@
 // main thread, which is exactly the two-thread shape docs/04 §2 describes for
 // a host. inline variables (C++17) keep one definition between the two TUs.
 
-#ifndef AVBASE_EXAMPLES_SDL2_DEMO_H_
-#define AVBASE_EXAMPLES_SDL2_DEMO_H_
+#ifndef XMEDIA_EXAMPLES_SDL2_DEMO_H_
+#define XMEDIA_EXAMPLES_SDL2_DEMO_H_
 
 #include <algorithm>
 #include <atomic>
@@ -43,7 +43,7 @@
 #include "platform/sdl2/text_raster.h"
 #include "player/public/player.h"
 
-namespace avbase::examples::sdl2 {
+namespace xmedia::examples::sdl2 {
 
 constexpr int kWindowWidth = 960;
 constexpr int kWindowHeight = 540;
@@ -59,17 +59,17 @@ inline std::atomic<bool> g_print_stats{false};
 // The subtitle overlay the host publishes into (surface.h's TextOverlaySlot
 // contract): kTimedText events rasterize into it, kStats media time expires
 // it. Lives as long as |surface| in play_sdl2.cc.
-inline avbase::gl::TextOverlaySlot g_overlay;
-inline avbase::media::TimedTextCue g_current_cue;
+inline xmedia::gl::TextOverlaySlot g_overlay;
+inline xmedia::media::TimedTextCue g_current_cue;
 inline std::string g_font_path;
 inline bool g_text_track_selected{false};
 inline int g_video_width{0};
 inline int g_video_height{0};
-inline avbase::Player* g_player{nullptr};  // Set in main; outlives the loop.
+inline xmedia::Player* g_player{nullptr};  // Set in main; outlives the loop.
 
 // --scene: the multi-source demo. Held by the process rather than by main
 // because the scene outlives main's locals -- the player owns the scene.
-inline std::unique_ptr<avbase::examples::SceneDemo> g_scene;
+inline std::unique_ptr<xmedia::examples::SceneDemo> g_scene;
 
 // The second source used to live here -- the SceneSource the layer's frames
 // arrive in, the URL they come from, and the second Player instance that
@@ -92,21 +92,21 @@ inline std::string FindDemoFont() {
   return "";
 }
 
-inline void OnTimedText(const avbase::TimedTextPayload& payload) {
+inline void OnTimedText(const xmedia::TimedTextPayload& payload) {
   if (g_font_path.empty()) {
     return;
   }
   std::fprintf(stderr, "subtitle: %s\n", payload.text.c_str());
-  avbase::media::TextRaster raster;
-  avbase::media::RgbaBitmap bitmap;
+  xmedia::media::TextRaster raster;
+  xmedia::media::RgbaBitmap bitmap;
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   if (!raster.Rasterize(g_font_path, 28, white, payload.text, &bitmap) ||
       bitmap.rgba.empty()) {
     g_overlay.Clear();
-    g_current_cue = avbase::media::TimedTextCue();
+    g_current_cue = xmedia::media::TimedTextCue();
     return;
   }
-  avbase::gl::TextOverlay overlay;
+  xmedia::gl::TextOverlay overlay;
   overlay.width = bitmap.width;
   overlay.height = bitmap.height;
   overlay.rgba = std::move(bitmap.rgba);
@@ -179,7 +179,7 @@ inline bool ParseOptions(int argc, char** argv, Options* out) {
       }
     } else if (arg == "--scene" && i + 1 < argc) {
       out->scene = argv[++i];
-      if (!avbase::examples::SceneDemo::IsKnownMode(out->scene)) {
+      if (!xmedia::examples::SceneDemo::IsKnownMode(out->scene)) {
         std::fprintf(stderr, "--scene wants pip or fade\n");
         return false;
       }
@@ -224,54 +224,54 @@ inline bool ParseOptions(int argc, char** argv, Options* out) {
   return true;
 }
 
-inline void OnPlayerEvent(const avbase::PlayerEvent& e) {
-  if (e.type == avbase::EventType::kError) {
-    if (const auto* payload = avbase::AsError(e)) {
+inline void OnPlayerEvent(const xmedia::PlayerEvent& e) {
+  if (e.type == xmedia::EventType::kError) {
+    if (const auto* payload = xmedia::AsError(e)) {
       std::fprintf(stderr, "error: %s\n", payload->error.ToString().c_str());
     }
     g_error.store(true);
-  } else if (e.type == avbase::EventType::kCompleted) {
+  } else if (e.type == xmedia::EventType::kCompleted) {
     g_completed.store(true);
     // The kPrepared branch that used to be here STARTED A SECOND PLAYER for
     // --second. There is nothing left for it to do: the second source belongs
     // to this pipeline, so preparing one prepared both.
-  } else if (e.type == avbase::EventType::kStateChanged) {
+  } else if (e.type == xmedia::EventType::kStateChanged) {
     // One-shot: auto-select the first text track once the pipeline is
     // prepared, so the demo shows subtitles without extra flags. A real
     // host drives this from its own track-picker UI.
-    const auto* state = avbase::AsStateChanged(e);
+    const auto* state = xmedia::AsStateChanged(e);
     if (!g_text_track_selected && state &&
-        state->to == avbase::PlayerState::kPrepared) {
+        state->to == xmedia::PlayerState::kPrepared) {
       g_text_track_selected = true;
       if (const auto info = g_player->media_info()) {
         const int text_index =
-            info->FirstStreamOfKind(avbase::media::StreamKind::kText);
+            info->FirstStreamOfKind(xmedia::media::StreamKind::kText);
         if (text_index >= 0) {
-          g_player->SelectTrack(avbase::media::DemuxerStreamType::kText,
+          g_player->SelectTrack(xmedia::media::DemuxerStreamType::kText,
                                 text_index);
         }
       }
     }
-  } else if (e.type == avbase::EventType::kVideoSizeChanged) {
-    if (const auto* payload = avbase::AsVideoSizeChanged(e)) {
+  } else if (e.type == xmedia::EventType::kVideoSizeChanged) {
+    if (const auto* payload = xmedia::AsVideoSizeChanged(e)) {
       g_video_width = payload->natural_size.width;
       g_video_height = payload->natural_size.height;
     }
-  } else if (e.type == avbase::EventType::kTimedText) {
-    if (const auto* payload = avbase::AsTimedText(e)) {
+  } else if (e.type == xmedia::EventType::kTimedText) {
+    if (const auto* payload = xmedia::AsTimedText(e)) {
       OnTimedText(*payload);
     }
-  } else if (e.type == avbase::EventType::kStats) {
+  } else if (e.type == xmedia::EventType::kStats) {
     // Expire the published cue once the media clock passes its end. The 1 Hz
     // stats cadence makes this coarse by up to a second; a host that cares
     // schedules against its own clock instead.
-    if (g_current_cue.duration > avbase::base::TimeDelta() &&
+    if (g_current_cue.duration > xmedia::base::TimeDelta() &&
         e.media_time > g_current_cue.pts + g_current_cue.duration) {
       g_overlay.Clear();
-      g_current_cue = avbase::media::TimedTextCue();
+      g_current_cue = xmedia::media::TimedTextCue();
     }
     if (g_print_stats.load()) {
-      if (const auto* payload = avbase::AsStats(e)) {
+      if (const auto* payload = xmedia::AsStats(e)) {
         std::printf("stats %s\n", payload->stats.ToJson().c_str());
       }
       return;
@@ -348,7 +348,7 @@ inline bool CreateSdlWindow(bool want_gl, SDL_Window** window,
                         SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     *window = SDL_CreateWindow(
-        "avbase", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
+        "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
         kWindowHeight,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
     if (*window) {
@@ -374,7 +374,7 @@ inline bool CreateSdlWindow(bool want_gl, SDL_Window** window,
     // Fall through to the SDL_Renderer path.
   }
   *window = SDL_CreateWindow(
-      "avbase", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
+      "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
       kWindowHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   *renderer = SDL_CreateRenderer(
       *window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -385,6 +385,6 @@ inline bool CreateSdlWindow(bool want_gl, SDL_Window** window,
   return true;
 }
 
-}  // namespace avbase::examples::sdl2
+}  // namespace xmedia::examples::sdl2
 
-#endif  // AVBASE_EXAMPLES_SDL2_DEMO_H_
+#endif  // XMEDIA_EXAMPLES_SDL2_DEMO_H_

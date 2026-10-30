@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_
-#define AVBASE_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_
+#ifndef XMEDIA_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_
+#define XMEDIA_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -19,7 +19,7 @@
 #include "media/base/media_info.h"
 #include "tests/support/fake_demuxer_stream.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 // A Demuxer whose only streams are scripted text streams (FakeDemuxerStream),
 // numbered from |first_index| -- deliberately NOT zero-based in the tests
@@ -74,6 +74,6 @@ class TextFakeDemuxer : public Demuxer {
   int active_calls_{0};
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_
+#endif  // XMEDIA_TESTS_SUPPORT_TEXT_FAKE_DEMUXER_H_

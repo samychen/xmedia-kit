@@ -14,13 +14,13 @@
 //
 // 与 base/threading 的关系：threading 是“线程外壳”，synchronization 是“线程
 // 之间如何正确地共享状态”——锁、条件变量、原子标志、原子计数器。其中 Lock 还
-// 内置死锁顺序检查（lock.cc 的 LockOrderChecker），正是 avbase “所有锁必须
+// 内置死锁顺序检查（lock.cc 的 LockOrderChecker），正是 xmedia-kit “所有锁必须
 // 遵循 docs/04 §3.1 单一全局顺序”这一硬规矩在 debug 构建里的执行点。
 //
 // 手动编译（无需 CMake，链接 base 静态库）：
-//   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
+//   clang++ -std=c++20 -DXMEDIA_ENABLE_DCHECK -I. \
 //       examples/base/synchronization/synchronization_demo.cc \
-//       build/full/lib/libavbase_base.a -lpthread -o /tmp/sync_demo
+//       build/full/lib/libxmedia_base.a -lpthread -o /tmp/sync_demo
 //
 // 通过 CMake 构建：
 //   cmake --build build/full --target synchronization_demo
@@ -43,7 +43,7 @@
 #include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 
-using namespace avbase;  // 示例而非 SDK：base/ 直接以 base:: 引用
+using namespace xmedia;  // 示例而非 SDK：base/ 直接以 base:: 引用
 
 namespace {
 
@@ -70,7 +70,7 @@ void DemoLock() {
   std::vector<std::unique_ptr<base::Thread>> ts;
   for (int i = 0; i < 8; ++i) {
     ts.push_back(
-        std::make_unique<base::Thread>("avbase-lock-" + std::to_string(i)));
+        std::make_unique<base::Thread>("xmedia-lock-" + std::to_string(i)));
     base::Thread* t = ts.back().get();
     CHECK(t->Start());
     t->task_runner()->PostTask(FROM_HERE, base::BindOnce([&lock, &counter] {
@@ -111,7 +111,7 @@ void DemoLock() {
 // ----------------------------------------------------------------------
 // (b) Lock 顺序检查 —— 逐方法解释 base/synchronization/lock.cc
 // ----------------------------------------------------------------------
-// lock.cc 在 AVBASE_ENABLE_DCHECK 开启时定义了四个东西（关闭时两个成员方法
+// lock.cc 在 XMEDIA_ENABLE_DCHECK 开启时定义了四个东西（关闭时两个成员方法
 // 退化成空实现，见 lock.cc:83-84，零开销但不抓反转）：
 //
 //  1) HeldStack() —— 每个线程一个 thread_local<std::vector<const Lock*>>，
@@ -174,7 +174,7 @@ void DemoConditionVariable() {
   std::vector<std::unique_ptr<base::WaitableEvent>> finished;
   for (int i = 0; i < kTotal; ++i) {
     consumers.push_back(
-        std::make_unique<base::Thread>("avbase-cv-" + std::to_string(i)));
+        std::make_unique<base::Thread>("xmedia-cv-" + std::to_string(i)));
     base::Thread* t = consumers.back().get();
     CHECK(t->Start());
     finished.push_back(std::make_unique<base::WaitableEvent>(
@@ -210,8 +210,8 @@ void DemoConditionVariable() {
 // ----------------------------------------------------------------------
 // (d) AtomicFlag —— 跨线程取消 / 中断标志
 // ----------------------------------------------------------------------
-// AtomicFlag（atomic_flag.h:22）是跨线程的“一次性布尔旗”。avbase 每 Player
-// 用三个，分别覆盖“停止 / 暂停 / 缓冲结束”等取消点。与 Chromium 不同，avbase
+// AtomicFlag（atomic_flag.h:22）是跨线程的“一次性布尔旗”。xmedia-kit 每 Player
+// 用三个，分别覆盖“停止 / 暂停 / 缓冲结束”等取消点。与 Chromium 不同，xmedia-kit
 // 额外提供 Reset()：因为 demuxer 的“中断标志”必须在每次 seek 前清掉——它被用来
 // 打断阻塞的 av_read_frame，用完要清掉让下次读取能继续；停止标志则实践中始终
 // 单向、从不 Reset。
@@ -222,7 +222,7 @@ void DemoAtomicFlag() {
   base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
   std::atomic<int> work{0};
 
-  base::Thread worker("avbase-flag");
+  base::Thread worker("xmedia-flag");
   CHECK(worker.Start());
   worker.task_runner()->PostTask(
       FROM_HERE, base::BindOnce([&started, &stop, &work, &done] {
@@ -266,7 +266,7 @@ void DemoAtomicSequenceNumber() {
   std::vector<std::unique_ptr<base::Thread>> ts;
   for (int i = 0; i < 4; ++i) {
     ts.push_back(
-        std::make_unique<base::Thread>("avbase-serial-" + std::to_string(i)));
+        std::make_unique<base::Thread>("xmedia-serial-" + std::to_string(i)));
     base::Thread* t = ts.back().get();
     CHECK(t->Start());
     t->task_runner()->PostTask(

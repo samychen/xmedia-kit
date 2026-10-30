@@ -3,358 +3,358 @@
   "generated_by_commit": "b0ed0205d793d9e81b5d21fc122fa289e5b01565",
   "schema": 1,
   "symbols": {
-    "C:avbase_c_version": {
+    "C:xmedia_c_version": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_c_version",
+      "qualified": "xmedia_c_version",
       "sigs": [
         "const char*\u001f(void)\u001f"
       ]
     },
-    "C:avbase_engine_version": {
+    "C:xmedia_engine_version": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_engine_version",
+      "qualified": "xmedia_engine_version",
       "sigs": [
         "const char*\u001f(void)\u001f"
       ]
     },
-    "C:avbase_global_init": {
+    "C:xmedia_global_init": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_global_init",
+      "qualified": "xmedia_global_init",
       "sigs": [
         "void\u001f(void)\u001f"
       ]
     },
-    "C:avbase_player_buffered_time_ms": {
+    "C:xmedia_player_buffered_time_ms": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_buffered_time_ms",
+      "qualified": "xmedia_player_buffered_time_ms",
       "sigs": [
-        "int64_t\u001f(const AvbasePlayer*)\u001f"
+        "int64_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_create": {
+    "C:xmedia_player_create": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_create",
+      "qualified": "xmedia_player_create",
       "sigs": [
-        "AvbasePlayer*\u001f(void)\u001f"
+        "XmediaPlayer*\u001f(void)\u001f"
       ]
     },
-    "C:avbase_player_destroy": {
+    "C:xmedia_player_destroy": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_destroy",
+      "qualified": "xmedia_player_destroy",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_dump_diagnostics": {
+    "C:xmedia_player_dump_diagnostics": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_dump_diagnostics",
+      "qualified": "xmedia_player_dump_diagnostics",
       "sigs": [
-        "int32_t\u001f(const AvbasePlayer*, char*, int32_t)\u001f"
+        "int32_t\u001f(const XmediaPlayer*, char*, int32_t)\u001f"
       ]
     },
-    "C:avbase_player_duration_ms": {
+    "C:xmedia_player_duration_ms": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_duration_ms",
+      "qualified": "xmedia_player_duration_ms",
       "sigs": [
-        "int64_t\u001f(const AvbasePlayer*)\u001f"
+        "int64_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_is_live": {
+    "C:xmedia_player_is_live": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_is_live",
+      "qualified": "xmedia_player_is_live",
       "sigs": [
-        "int\u001f(const AvbasePlayer*)\u001f"
+        "int\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_is_playing": {
+    "C:xmedia_player_is_playing": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_is_playing",
+      "qualified": "xmedia_player_is_playing",
       "sigs": [
-        "int\u001f(const AvbasePlayer*)\u001f"
+        "int\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_media_time_ms": {
+    "C:xmedia_player_media_time_ms": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_media_time_ms",
+      "qualified": "xmedia_player_media_time_ms",
       "sigs": [
-        "int64_t\u001f(const AvbasePlayer*)\u001f"
+        "int64_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_muted": {
+    "C:xmedia_player_muted": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_muted",
+      "qualified": "xmedia_player_muted",
       "sigs": [
-        "int\u001f(const AvbasePlayer*)\u001f"
+        "int\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_pause": {
+    "C:xmedia_player_pause": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_pause",
+      "qualified": "xmedia_player_pause",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_playback_rate": {
+    "C:xmedia_player_playback_rate": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_playback_rate",
+      "qualified": "xmedia_player_playback_rate",
       "sigs": [
-        "double\u001f(const AvbasePlayer*)\u001f"
+        "double\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_prepare": {
+    "C:xmedia_player_prepare": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_prepare",
+      "qualified": "xmedia_player_prepare",
       "sigs": [
-        "AvbaseStatus\u001f(AvbasePlayer*)\u001f"
+        "XmediaStatus\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_prepare_sync": {
+    "C:xmedia_player_prepare_sync": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_prepare_sync",
+      "qualified": "xmedia_player_prepare_sync",
       "sigs": [
-        "AvbaseStatus\u001f(AvbasePlayer*, int64_t)\u001f"
+        "XmediaStatus\u001f(XmediaPlayer*, int64_t)\u001f"
       ]
     },
-    "C:avbase_player_reconnect_now": {
+    "C:xmedia_player_reconnect_now": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_reconnect_now",
+      "qualified": "xmedia_player_reconnect_now",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_reset": {
+    "C:xmedia_player_reset": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_reset",
+      "qualified": "xmedia_player_reset",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_seek_to": {
+    "C:xmedia_player_seek_to": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_seek_to",
+      "qualified": "xmedia_player_seek_to",
       "sigs": [
-        "void\u001f(AvbasePlayer*, int64_t)\u001f"
+        "void\u001f(XmediaPlayer*, int64_t)\u001f"
       ]
     },
-    "C:avbase_player_select_track": {
+    "C:xmedia_player_select_track": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_select_track",
+      "qualified": "xmedia_player_select_track",
       "sigs": [
-        "AvbaseStatus\u001f(AvbasePlayer*, int, int)\u001f"
+        "XmediaStatus\u001f(XmediaPlayer*, int, int)\u001f"
       ]
     },
-    "C:avbase_player_set_data_source": {
+    "C:xmedia_player_set_data_source": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_data_source",
+      "qualified": "xmedia_player_set_data_source",
       "sigs": [
-        "AvbaseStatus\u001f(AvbasePlayer*, const char*)\u001f"
+        "XmediaStatus\u001f(XmediaPlayer*, const char*)\u001f"
       ]
     },
-    "C:avbase_player_set_loop_count": {
+    "C:xmedia_player_set_loop_count": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_loop_count",
+      "qualified": "xmedia_player_set_loop_count",
       "sigs": [
-        "void\u001f(AvbasePlayer*, int)\u001f"
+        "void\u001f(XmediaPlayer*, int)\u001f"
       ]
     },
-    "C:avbase_player_set_muted": {
+    "C:xmedia_player_set_muted": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_muted",
+      "qualified": "xmedia_player_set_muted",
       "sigs": [
-        "void\u001f(AvbasePlayer*, int)\u001f"
+        "void\u001f(XmediaPlayer*, int)\u001f"
       ]
     },
-    "C:avbase_player_set_playback_rate": {
+    "C:xmedia_player_set_playback_rate": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_playback_rate",
+      "qualified": "xmedia_player_set_playback_rate",
       "sigs": [
-        "void\u001f(AvbasePlayer*, double)\u001f"
+        "void\u001f(XmediaPlayer*, double)\u001f"
       ]
     },
-    "C:avbase_player_set_video_surface": {
+    "C:xmedia_player_set_video_surface": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_video_surface",
+      "qualified": "xmedia_player_set_video_surface",
       "sigs": [
-        "void\u001f(AvbasePlayer*, AvbaseNativeDisplay*)\u001f"
+        "void\u001f(XmediaPlayer*, XmediaNativeDisplay*)\u001f"
       ]
     },
-    "C:avbase_player_set_volume": {
+    "C:xmedia_player_set_volume": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_set_volume",
+      "qualified": "xmedia_player_set_volume",
       "sigs": [
-        "void\u001f(AvbasePlayer*, double)\u001f"
+        "void\u001f(XmediaPlayer*, double)\u001f"
       ]
     },
-    "C:avbase_player_start": {
+    "C:xmedia_player_start": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_start",
+      "qualified": "xmedia_player_start",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_state": {
+    "C:xmedia_player_state": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_state",
+      "qualified": "xmedia_player_state",
       "sigs": [
-        "int\u001f(const AvbasePlayer*)\u001f"
+        "int\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_step_once": {
+    "C:xmedia_player_step_once": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_step_once",
+      "qualified": "xmedia_player_step_once",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_stop": {
+    "C:xmedia_player_stop": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_stop",
+      "qualified": "xmedia_player_stop",
       "sigs": [
-        "void\u001f(AvbasePlayer*)\u001f"
+        "void\u001f(XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_stop_sync": {
+    "C:xmedia_player_stop_sync": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_stop_sync",
+      "qualified": "xmedia_player_stop_sync",
       "sigs": [
-        "void\u001f(AvbasePlayer*, int64_t)\u001f"
+        "void\u001f(XmediaPlayer*, int64_t)\u001f"
       ]
     },
-    "C:avbase_player_take_snapshot": {
+    "C:xmedia_player_take_snapshot": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_take_snapshot",
+      "qualified": "xmedia_player_take_snapshot",
       "sigs": [
-        "AvbaseStatus\u001f(AvbasePlayer*, int64_t, const char*)\u001f"
+        "XmediaStatus\u001f(XmediaPlayer*, int64_t, const char*)\u001f"
       ]
     },
-    "C:avbase_player_title": {
+    "C:xmedia_player_title": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_title",
+      "qualified": "xmedia_player_title",
       "sigs": [
-        "int32_t\u001f(AvbasePlayer*, char*, int32_t)\u001f"
+        "int32_t\u001f(XmediaPlayer*, char*, int32_t)\u001f"
       ]
     },
-    "C:avbase_player_video_height": {
+    "C:xmedia_player_video_height": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_video_height",
+      "qualified": "xmedia_player_video_height",
       "sigs": [
-        "int32_t\u001f(const AvbasePlayer*)\u001f"
+        "int32_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_video_rotation": {
+    "C:xmedia_player_video_rotation": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_video_rotation",
+      "qualified": "xmedia_player_video_rotation",
       "sigs": [
-        "int32_t\u001f(const AvbasePlayer*)\u001f"
+        "int32_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_video_width": {
+    "C:xmedia_player_video_width": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_video_width",
+      "qualified": "xmedia_player_video_width",
       "sigs": [
-        "int32_t\u001f(const AvbasePlayer*)\u001f"
+        "int32_t\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_player_volume": {
+    "C:xmedia_player_volume": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_player_volume",
+      "qualified": "xmedia_player_volume",
       "sigs": [
-        "double\u001f(const AvbasePlayer*)\u001f"
+        "double\u001f(const XmediaPlayer*)\u001f"
       ]
     },
-    "C:avbase_status_message": {
+    "C:xmedia_status_message": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_status_message",
+      "qualified": "xmedia_status_message",
       "sigs": [
-        "const char*\u001f(AvbaseStatus)\u001f"
+        "const char*\u001f(XmediaStatus)\u001f"
       ]
     },
-    "C:avbase_status_name": {
+    "C:xmedia_status_name": {
       "is_virtual": false,
       "kind": "function",
       "lang": "c",
-      "qualified": "avbase_status_name",
+      "qualified": "xmedia_status_name",
       "sigs": [
-        "const char*\u001f(AvbaseStatus)\u001f"
+        "const char*\u001f(XmediaStatus)\u001f"
       ]
     },
-    "E:avbase::AudioBackend": {
+    "E:xmedia::AudioBackend": {
       "enumerators": {
         "kAAudio": 6,
         "kAlsa": 1,
@@ -367,9 +367,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::AudioBackend"
+      "qualified": "xmedia::AudioBackend"
     },
-    "E:avbase::EventType": {
+    "E:xmedia::EventType": {
       "enumerators": {
         "kAccurateSeekCompleted": 19,
         "kBufferedBytesUpdate": 16,
@@ -400,9 +400,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::EventType"
+      "qualified": "xmedia::EventType"
     },
-    "E:avbase::HdrToneMapping": {
+    "E:xmedia::HdrToneMapping": {
       "enumerators": {
         "kAuto": 2,
         "kNone": 0,
@@ -410,9 +410,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::HdrToneMapping"
+      "qualified": "xmedia::HdrToneMapping"
     },
-    "E:avbase::LinuxVideoBackend": {
+    "E:xmedia::LinuxVideoBackend": {
       "enumerators": {
         "kAuto": 0,
         "kGl": 2,
@@ -420,9 +420,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::LinuxVideoBackend"
+      "qualified": "xmedia::LinuxVideoBackend"
     },
-    "E:avbase::OptionCategory": {
+    "E:xmedia::OptionCategory": {
       "enumerators": {
         "kCodec": 2,
         "kFormat": 1,
@@ -431,9 +431,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::OptionCategory"
+      "qualified": "xmedia::OptionCategory"
     },
-    "E:avbase::OptionDescriptor::Type": {
+    "E:xmedia::OptionDescriptor::Type": {
       "enumerators": {
         "kBool": 0,
         "kDouble": 3,
@@ -444,9 +444,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::OptionDescriptor::Type"
+      "qualified": "xmedia::OptionDescriptor::Type"
     },
-    "E:avbase::OverlayFormat": {
+    "E:xmedia::OverlayFormat": {
       "enumerators": {
         "kI420": 3,
         "kNative": 5,
@@ -457,9 +457,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::OverlayFormat"
+      "qualified": "xmedia::OverlayFormat"
     },
-    "E:avbase::PlayerState": {
+    "E:xmedia::PlayerState": {
       "enumerators": {
         "kBuffering": 6,
         "kCompleted": 9,
@@ -476,15 +476,15 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::PlayerState"
+      "qualified": "xmedia::PlayerState"
     },
-    "E:avbase::SceneContentMode": {
+    "E:xmedia::SceneContentMode": {
       "enumerators": {},
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::SceneContentMode"
+      "qualified": "xmedia::SceneContentMode"
     },
-    "E:avbase::SeekMode": {
+    "E:xmedia::SeekMode": {
       "enumerators": {
         "kAccurate": 2,
         "kAnyFrame": 1,
@@ -492,9 +492,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::SeekMode"
+      "qualified": "xmedia::SeekMode"
     },
-    "E:avbase::StageReachedPayload::Stage": {
+    "E:xmedia::StageReachedPayload::Stage": {
       "enumerators": {
         "kComponentOpen": 2,
         "kFindStreamInfo": 1,
@@ -502,9 +502,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::StageReachedPayload::Stage"
+      "qualified": "xmedia::StageReachedPayload::Stage"
     },
-    "E:avbase::SyncMasterType": {
+    "E:xmedia::SyncMasterType": {
       "enumerators": {
         "kAudio": 0,
         "kExternal": 2,
@@ -512,9 +512,9 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::SyncMasterType"
+      "qualified": "xmedia::SyncMasterType"
     },
-    "E:avbase::WaitingPayload::Reason": {
+    "E:xmedia::WaitingPayload::Reason": {
       "enumerators": {
         "kBuffering": 0,
         "kDecoderStalled": 1,
@@ -523,292 +523,292 @@
       },
       "kind": "enum",
       "lang": "cpp",
-      "qualified": "avbase::WaitingPayload::Reason"
+      "qualified": "xmedia::WaitingPayload::Reason"
     },
-    "F:avbase::AVBASE_DECLARE_EVENT_ACCESSOR": {
+    "F:xmedia::XMEDIA_DECLARE_EVENT_ACCESSOR": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::AVBASE_DECLARE_EVENT_ACCESSOR",
+      "qualified": "xmedia::XMEDIA_DECLARE_EVENT_ACCESSOR",
       "sigs": [
         "\u001f(AsAccurateSeekCompleted, AccurateSeekCompletedPayload)\u001f"
       ]
     },
-    "F:avbase::GetEventTypeName": {
+    "F:xmedia::GetEventTypeName": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::GetEventTypeName",
+      "qualified": "xmedia::GetEventTypeName",
       "sigs": [
         "const char*\u001f(EventType)\u001f"
       ]
     },
-    "F:avbase::GetFFmpegVersion": {
+    "F:xmedia::GetFFmpegVersion": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::GetFFmpegVersion",
+      "qualified": "xmedia::GetFFmpegVersion",
       "sigs": [
         "const char*\u001f()\u001f"
       ]
     },
-    "F:avbase::GetPlayerStateName": {
+    "F:xmedia::GetPlayerStateName": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::GetPlayerStateName",
+      "qualified": "xmedia::GetPlayerStateName",
       "sigs": [
         "const char*\u001f(PlayerState)\u001f"
       ]
     },
-    "F:avbase::GetVersion": {
+    "F:xmedia::GetVersion": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::GetVersion",
+      "qualified": "xmedia::GetVersion",
       "sigs": [
         "const char*\u001f()\u001f"
       ]
     },
-    "F:avbase::GlobalInit": {
+    "F:xmedia::GlobalInit": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::GlobalInit",
+      "qualified": "xmedia::GlobalInit",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "F:avbase::ToLegacyEvent": {
+    "F:xmedia::ToLegacyEvent": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::ToLegacyEvent",
+      "qualified": "xmedia::ToLegacyEvent",
       "sigs": [
         "bool\u001f(const PlayerEvent&, LegacyEvent*)\u001f"
       ]
     },
-    "F:avbase::TranscodeMedia": {
+    "F:xmedia::TranscodeMedia": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::TranscodeMedia",
+      "qualified": "xmedia::TranscodeMedia",
       "sigs": [
         "PlayerStatus\u001f(const std::string&, const media::TranscodeParams&, media::TranscodeProgressCB, const media::TranscodeCancelToken*)\u001f"
       ]
     },
-    "F:avbase::ValidateConfig": {
+    "F:xmedia::ValidateConfig": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase::ValidateConfig",
+      "qualified": "xmedia::ValidateConfig",
       "sigs": [
         "std::vector<ConfigIssue>\u001f(const PlayerConfig&)\u001f"
       ]
     },
-    "F:avbase_display_debug_string": {
+    "F:xmedia_display_debug_string": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_debug_string",
+      "qualified": "xmedia_display_debug_string",
       "sigs": [
-        "int32_t\u001f(const AvbaseNativeDisplay*, char*, int32_t)\u001f"
+        "int32_t\u001f(const XmediaNativeDisplay*, char*, int32_t)\u001f"
       ]
     },
-    "F:avbase_display_from_android_native_window": {
+    "F:xmedia_display_from_android_native_window": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_android_native_window",
+      "qualified": "xmedia_display_from_android_native_window",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_android_surface": {
+    "F:xmedia_display_from_android_surface": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_android_surface",
+      "qualified": "xmedia_display_from_android_surface",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_caeagl_layer": {
+    "F:xmedia_display_from_caeagl_layer": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_caeagl_layer",
+      "qualified": "xmedia_display_from_caeagl_layer",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_cametal_layer": {
+    "F:xmedia_display_from_cametal_layer": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_cametal_layer",
+      "qualified": "xmedia_display_from_cametal_layer",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_egl": {
+    "F:xmedia_display_from_egl": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_egl",
+      "qualified": "xmedia_display_from_egl",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_glfw": {
+    "F:xmedia_display_from_glfw": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_glfw",
+      "qualified": "xmedia_display_from_glfw",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_hwnd": {
+    "F:xmedia_display_from_hwnd": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_hwnd",
+      "qualified": "xmedia_display_from_hwnd",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_sdl2": {
+    "F:xmedia_display_from_sdl2": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_sdl2",
+      "qualified": "xmedia_display_from_sdl2",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*)\u001f"
       ]
     },
-    "F:avbase_display_from_wayland": {
+    "F:xmedia_display_from_wayland": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_wayland",
+      "qualified": "xmedia_display_from_wayland",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*, void*, int32_t, int32_t)\u001f"
+        "XmediaNativeDisplay*\u001f(void*, void*, int32_t, int32_t)\u001f"
       ]
     },
-    "F:avbase_display_from_x11": {
+    "F:xmedia_display_from_x11": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_from_x11",
+      "qualified": "xmedia_display_from_x11",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*, uintptr_t)\u001f"
+        "XmediaNativeDisplay*\u001f(void*, uintptr_t)\u001f"
       ]
     },
-    "F:avbase_display_is_valid": {
+    "F:xmedia_display_is_valid": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_is_valid",
+      "qualified": "xmedia_display_is_valid",
       "sigs": [
-        "int\u001f(const AvbaseNativeDisplay*)\u001f"
+        "int\u001f(const XmediaNativeDisplay*)\u001f"
       ]
     },
-    "F:avbase_display_kind": {
+    "F:xmedia_display_kind": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_kind",
+      "qualified": "xmedia_display_kind",
       "sigs": [
-        "int\u001f(const AvbaseNativeDisplay*)\u001f"
+        "int\u001f(const XmediaNativeDisplay*)\u001f"
       ]
     },
-    "F:avbase_display_none": {
+    "F:xmedia_display_none": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_none",
+      "qualified": "xmedia_display_none",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void)\u001f"
+        "XmediaNativeDisplay*\u001f(void)\u001f"
       ]
     },
-    "F:avbase_display_release": {
+    "F:xmedia_display_release": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_release",
+      "qualified": "xmedia_display_release",
       "sigs": [
-        "void\u001f(AvbaseNativeDisplay*)\u001f"
+        "void\u001f(XmediaNativeDisplay*)\u001f"
       ]
     },
-    "F:avbase_display_wrap": {
+    "F:xmedia_display_wrap": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_display_wrap",
+      "qualified": "xmedia_display_wrap",
       "sigs": [
-        "AvbaseNativeDisplay*\u001f(void*, int, void (*release)(void*raw, void*user_data), void*)\u001f"
+        "XmediaNativeDisplay*\u001f(void*, int, void (*release)(void*raw, void*user_data), void*)\u001f"
       ]
     },
-    "F:avbase_player_add_source": {
+    "F:xmedia_player_add_source": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_player_add_source",
+      "qualified": "xmedia_player_add_source",
       "sigs": [
-        "AvbaseSource*\u001f(AvbasePlayer*, const char*, const char*, int32_t)\u001f"
+        "XmediaSource*\u001f(XmediaPlayer*, const char*, const char*, int32_t)\u001f"
       ]
     },
-    "F:avbase_player_get_media_info": {
+    "F:xmedia_player_get_media_info": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_player_get_media_info",
+      "qualified": "xmedia_player_get_media_info",
       "sigs": [
-        "AvbaseStatus\u001f(const AvbasePlayer*, AvbaseMediaInfo*)\u001f"
+        "XmediaStatus\u001f(const XmediaPlayer*, XmediaMediaInfo*)\u001f"
       ]
     },
-    "F:avbase_player_set_event_callback": {
+    "F:xmedia_player_set_event_callback": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_player_set_event_callback",
+      "qualified": "xmedia_player_set_event_callback",
       "sigs": [
-        "void\u001f(AvbasePlayer*, AvbaseEventCallback, void*)\u001f"
+        "void\u001f(XmediaPlayer*, XmediaEventCallback, void*)\u001f"
       ]
     },
-    "F:avbase_source_release": {
+    "F:xmedia_source_release": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_source_release",
+      "qualified": "xmedia_source_release",
       "sigs": [
-        "void\u001f(AvbaseSource*)\u001f"
+        "void\u001f(XmediaSource*)\u001f"
       ]
     },
-    "F:avbase_source_set_uri": {
+    "F:xmedia_source_set_uri": {
       "is_virtual": false,
       "kind": "function",
       "lang": "cpp",
-      "qualified": "avbase_source_set_uri",
+      "qualified": "xmedia_source_set_uri",
       "sigs": [
-        "AvbaseStatus\u001f(AvbaseSource*, const char*)\u001f"
+        "XmediaStatus\u001f(XmediaSource*, const char*)\u001f"
       ]
     },
-    "M:avbase::Deps::CreateDefault": {
+    "M:xmedia::Deps::CreateDefault": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Deps::CreateDefault",
+      "qualified": "xmedia::Deps::CreateDefault",
       "sigs": [
         "static Deps\u001f()\u001f"
       ]
     },
-    "M:avbase::Deps::Deps": {
+    "M:xmedia::Deps::Deps": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Deps::Deps",
+      "qualified": "xmedia::Deps::Deps",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(const Deps&)\u001f",
@@ -816,220 +816,220 @@
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::EventDispatcher::EventDispatcher": {
+    "M:xmedia::EventDispatcher::EventDispatcher": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::EventDispatcher::EventDispatcher",
+      "qualified": "xmedia::EventDispatcher::EventDispatcher",
       "sigs": [
         "\u001f(const EventDispatcher&)\u001f"
       ]
     },
-    "M:avbase::EventDispatcher::Flush": {
+    "M:xmedia::EventDispatcher::Flush": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::EventDispatcher::Flush",
+      "qualified": "xmedia::EventDispatcher::Flush",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::EventDispatcher::Post": {
+    "M:xmedia::EventDispatcher::Post": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::EventDispatcher::Post",
+      "qualified": "xmedia::EventDispatcher::Post",
       "sigs": [
         "void\u001f(base::OnceClosure)\u001f"
       ]
     },
-    "M:avbase::GlobalGuard::GlobalGuard": {
+    "M:xmedia::GlobalGuard::GlobalGuard": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::GlobalGuard::GlobalGuard",
+      "qualified": "xmedia::GlobalGuard::GlobalGuard",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(const GlobalGuard&)\u001f",
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::OptionRegistry::Describe": {
+    "M:xmedia::OptionRegistry::Describe": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::Describe",
+      "qualified": "xmedia::OptionRegistry::Describe",
       "sigs": [
         "std::vector<OptionDescriptor>\u001f()\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::Dump": {
+    "M:xmedia::OptionRegistry::Dump": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::Dump",
+      "qualified": "xmedia::OptionRegistry::Dump",
       "sigs": [
         "std::map<std::string, std::string>\u001f(const PlayerConfig&, OptionCategory)\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::GetInstance": {
+    "M:xmedia::OptionRegistry::GetInstance": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::GetInstance",
+      "qualified": "xmedia::OptionRegistry::GetInstance",
       "sigs": [
         "static const OptionRegistry&\u001f()\u001f"
       ]
     },
-    "M:avbase::OptionRegistry::OptionRegistry": {
+    "M:xmedia::OptionRegistry::OptionRegistry": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::OptionRegistry",
+      "qualified": "xmedia::OptionRegistry::OptionRegistry",
       "sigs": [
         "\u001f(const OptionRegistry&)\u001f"
       ]
     },
-    "M:avbase::OptionRegistry::SetDouble": {
+    "M:xmedia::OptionRegistry::SetDouble": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::SetDouble",
+      "qualified": "xmedia::OptionRegistry::SetDouble",
       "sigs": [
         "Status\u001f(PlayerConfig*, OptionCategory, std::string_view, double)\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::SetInt": {
+    "M:xmedia::OptionRegistry::SetInt": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::SetInt",
+      "qualified": "xmedia::OptionRegistry::SetInt",
       "sigs": [
         "Status\u001f(PlayerConfig*, OptionCategory, std::string_view, int64_t)\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::SetString": {
+    "M:xmedia::OptionRegistry::SetString": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::SetString",
+      "qualified": "xmedia::OptionRegistry::SetString",
       "sigs": [
         "Status\u001f(PlayerConfig*, OptionCategory, std::string_view, std::string_view)\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::SetValue": {
+    "M:xmedia::OptionRegistry::SetValue": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::SetValue",
+      "qualified": "xmedia::OptionRegistry::SetValue",
       "sigs": [
         "Status\u001f(PlayerConfig*, OptionCategory, std::string_view, const OptionValue&)\u001fC"
       ]
     },
-    "M:avbase::OptionRegistry::SuggestNearestKey": {
+    "M:xmedia::OptionRegistry::SuggestNearestKey": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::OptionRegistry::SuggestNearestKey",
+      "qualified": "xmedia::OptionRegistry::SuggestNearestKey",
       "sigs": [
         "std::string\u001f(std::string_view)\u001fC"
       ]
     },
-    "M:avbase::PlaybackStats::ToJson": {
+    "M:xmedia::PlaybackStats::ToJson": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlaybackStats::ToJson",
+      "qualified": "xmedia::PlaybackStats::ToJson",
       "sigs": [
         "std::string\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::AddObserver": {
+    "M:xmedia::Player::AddObserver": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::AddObserver",
+      "qualified": "xmedia::Player::AddObserver",
       "sigs": [
         "[[nodiscard]] Subscription\u001f(PlayerObserver*)\u001f"
       ]
     },
-    "M:avbase::Player::AddSource": {
+    "M:xmedia::Player::AddSource": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::AddSource",
+      "qualified": "xmedia::Player::AddSource",
       "sigs": [
         "std::shared_ptr<SceneSource>\u001f(const DataSourceDescriptor&, std::string, int)\u001f"
       ]
     },
-    "M:avbase::Player::DumpDiagnostics": {
+    "M:xmedia::Player::DumpDiagnostics": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::DumpDiagnostics",
+      "qualified": "xmedia::Player::DumpDiagnostics",
       "sigs": [
         "std::string\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::GetBufferedTime": {
+    "M:xmedia::Player::GetBufferedTime": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::GetBufferedTime",
+      "qualified": "xmedia::Player::GetBufferedTime",
       "sigs": [
         "base::TimeDelta\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::GetDuration": {
+    "M:xmedia::Player::GetDuration": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::GetDuration",
+      "qualified": "xmedia::Player::GetDuration",
       "sigs": [
         "base::TimeDelta\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::GetMediaTime": {
+    "M:xmedia::Player::GetMediaTime": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::GetMediaTime",
+      "qualified": "xmedia::Player::GetMediaTime",
       "sigs": [
         "base::TimeDelta\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::GetPlaybackStats": {
+    "M:xmedia::Player::GetPlaybackStats": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::GetPlaybackStats",
+      "qualified": "xmedia::Player::GetPlaybackStats",
       "sigs": [
         "PlaybackStats\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::IsPlaying": {
+    "M:xmedia::Player::IsPlaying": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::IsPlaying",
+      "qualified": "xmedia::Player::IsPlaying",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::Pause": {
+    "M:xmedia::Player::Pause": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Pause",
+      "qualified": "xmedia::Player::Pause",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::Player": {
+    "M:xmedia::Player::Player": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Player",
+      "qualified": "xmedia::Player::Player",
       "sigs": [
         "\u001f()\u001f",
         "explicit\u001f(const PlayerConfig&)\u001f",
@@ -1038,184 +1038,184 @@
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::PrepareAsync": {
+    "M:xmedia::Player::PrepareAsync": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::PrepareAsync",
+      "qualified": "xmedia::Player::PrepareAsync",
       "sigs": [
         "Status\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::PrepareSync": {
+    "M:xmedia::Player::PrepareSync": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::PrepareSync",
+      "qualified": "xmedia::Player::PrepareSync",
       "sigs": [
         "Status\u001f(base::TimeDelta)\u001f"
       ]
     },
-    "M:avbase::Player::ReconnectNow": {
+    "M:xmedia::Player::ReconnectNow": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::ReconnectNow",
+      "qualified": "xmedia::Player::ReconnectNow",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::Reset": {
+    "M:xmedia::Player::Reset": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Reset",
+      "qualified": "xmedia::Player::Reset",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::RunUntilIdle": {
+    "M:xmedia::Player::RunUntilIdle": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::RunUntilIdle",
+      "qualified": "xmedia::Player::RunUntilIdle",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::SeekTo": {
+    "M:xmedia::Player::SeekTo": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SeekTo",
+      "qualified": "xmedia::Player::SeekTo",
       "sigs": [
         "Result<int64_t>\u001f(base::TimeDelta, SeekMode, SeekCB)\u001f",
         "void\u001f(base::TimeDelta)\u001f"
       ]
     },
-    "M:avbase::Player::SelectTrack": {
+    "M:xmedia::Player::SelectTrack": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SelectTrack",
+      "qualified": "xmedia::Player::SelectTrack",
       "sigs": [
         "Status\u001f(media::DemuxerStreamType, int)\u001f"
       ]
     },
-    "M:avbase::Player::SetDataSource": {
+    "M:xmedia::Player::SetDataSource": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetDataSource",
+      "qualified": "xmedia::Player::SetDataSource",
       "sigs": [
         "Status\u001f(std::string_view)\u001f",
         "Status\u001f(const DataSourceDescriptor&)\u001f"
       ]
     },
-    "M:avbase::Player::SetEventHandler": {
+    "M:xmedia::Player::SetEventHandler": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetEventHandler",
+      "qualified": "xmedia::Player::SetEventHandler",
       "sigs": [
         "void\u001f(EventHandler)\u001f"
       ]
     },
-    "M:avbase::Player::SetLoopCount": {
+    "M:xmedia::Player::SetLoopCount": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetLoopCount",
+      "qualified": "xmedia::Player::SetLoopCount",
       "sigs": [
         "void\u001f(int)\u001f"
       ]
     },
-    "M:avbase::Player::SetMuted": {
+    "M:xmedia::Player::SetMuted": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetMuted",
+      "qualified": "xmedia::Player::SetMuted",
       "sigs": [
         "void\u001f(bool)\u001f"
       ]
     },
-    "M:avbase::Player::SetPlaybackRate": {
+    "M:xmedia::Player::SetPlaybackRate": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetPlaybackRate",
+      "qualified": "xmedia::Player::SetPlaybackRate",
       "sigs": [
         "void\u001f(double)\u001f"
       ]
     },
-    "M:avbase::Player::SetVideoSurface": {
+    "M:xmedia::Player::SetVideoSurface": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetVideoSurface",
+      "qualified": "xmedia::Player::SetVideoSurface",
       "sigs": [
         "void\u001f(base::scoped_refptr<NativeDisplay>)\u001f"
       ]
     },
-    "M:avbase::Player::SetVolume": {
+    "M:xmedia::Player::SetVolume": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::SetVolume",
+      "qualified": "xmedia::Player::SetVolume",
       "sigs": [
         "void\u001f(double)\u001f"
       ]
     },
-    "M:avbase::Player::Start": {
+    "M:xmedia::Player::Start": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Start",
+      "qualified": "xmedia::Player::Start",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::StepOnce": {
+    "M:xmedia::Player::StepOnce": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::StepOnce",
+      "qualified": "xmedia::Player::StepOnce",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::Stop": {
+    "M:xmedia::Player::Stop": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Stop",
+      "qualified": "xmedia::Player::Stop",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::StopSync": {
+    "M:xmedia::Player::StopSync": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::StopSync",
+      "qualified": "xmedia::Player::StopSync",
       "sigs": [
         "void\u001f(base::TimeDelta)\u001f"
       ]
     },
-    "M:avbase::Player::Subscription::Reset": {
+    "M:xmedia::Player::Subscription::Reset": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Subscription::Reset",
+      "qualified": "xmedia::Player::Subscription::Reset",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::Subscription::Subscription": {
+    "M:xmedia::Player::Subscription::Subscription": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Subscription::Subscription",
+      "qualified": "xmedia::Player::Subscription::Subscription",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(Subscription&&)\u001f",
@@ -1223,685 +1223,685 @@
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::Subscription::active": {
+    "M:xmedia::Player::Subscription::active": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::Subscription::active",
+      "qualified": "xmedia::Player::Subscription::active",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::TakeSnapshot": {
+    "M:xmedia::Player::TakeSnapshot": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::TakeSnapshot",
+      "qualified": "xmedia::Player::TakeSnapshot",
       "sigs": [
         "Status\u001f(base::TimeDelta, std::string)\u001f"
       ]
     },
-    "M:avbase::Player::UpdateConfig": {
+    "M:xmedia::Player::UpdateConfig": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::UpdateConfig",
+      "qualified": "xmedia::Player::UpdateConfig",
       "sigs": [
         "Status\u001f(const PlayerConfig&)\u001f"
       ]
     },
-    "M:avbase::Player::audio_decoder_name": {
+    "M:xmedia::Player::audio_decoder_name": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::audio_decoder_name",
+      "qualified": "xmedia::Player::audio_decoder_name",
       "sigs": [
         "std::string\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::config": {
+    "M:xmedia::Player::config": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::config",
+      "qualified": "xmedia::Player::config",
       "sigs": [
         "const PlayerConfig&\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::decoder_fallback_count": {
+    "M:xmedia::Player::decoder_fallback_count": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::decoder_fallback_count",
+      "qualified": "xmedia::Player::decoder_fallback_count",
       "sigs": [
         "int\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::is_live": {
+    "M:xmedia::Player::is_live": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::is_live",
+      "qualified": "xmedia::Player::is_live",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::media_info": {
+    "M:xmedia::Player::media_info": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::media_info",
+      "qualified": "xmedia::Player::media_info",
       "sigs": [
         "std::optional<MediaInfo>\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::muted": {
+    "M:xmedia::Player::muted": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::muted",
+      "qualified": "xmedia::Player::muted",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::playback_rate": {
+    "M:xmedia::Player::playback_rate": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::playback_rate",
+      "qualified": "xmedia::Player::playback_rate",
       "sigs": [
         "double\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::scene": {
+    "M:xmedia::Player::scene": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::scene",
+      "qualified": "xmedia::Player::scene",
       "sigs": [
         "Scene*\u001f()\u001f"
       ]
     },
-    "M:avbase::Player::state": {
+    "M:xmedia::Player::state": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::state",
+      "qualified": "xmedia::Player::state",
       "sigs": [
         "PlayerState\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::video_coded_size": {
+    "M:xmedia::Player::video_coded_size": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::video_coded_size",
+      "qualified": "xmedia::Player::video_coded_size",
       "sigs": [
         "media::Size\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::video_decoder_name": {
+    "M:xmedia::Player::video_decoder_name": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::video_decoder_name",
+      "qualified": "xmedia::Player::video_decoder_name",
       "sigs": [
         "std::string\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::video_decoder_opaque": {
+    "M:xmedia::Player::video_decoder_opaque": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::video_decoder_opaque",
+      "qualified": "xmedia::Player::video_decoder_opaque",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::video_natural_size": {
+    "M:xmedia::Player::video_natural_size": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::video_natural_size",
+      "qualified": "xmedia::Player::video_natural_size",
       "sigs": [
         "media::Size\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::video_rotation": {
+    "M:xmedia::Player::video_rotation": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::video_rotation",
+      "qualified": "xmedia::Player::video_rotation",
       "sigs": [
         "int\u001f()\u001fC"
       ]
     },
-    "M:avbase::Player::volume": {
+    "M:xmedia::Player::volume": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Player::volume",
+      "qualified": "xmedia::Player::volume",
       "sigs": [
         "double\u001f()\u001fC"
       ]
     },
-    "M:avbase::PlayerBuilder::Build": {
+    "M:xmedia::PlayerBuilder::Build": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::Build",
+      "qualified": "xmedia::PlayerBuilder::Build",
       "sigs": [
         "Result<std::unique_ptr<Player>>\u001f()\u001f"
       ]
     },
-    "M:avbase::PlayerBuilder::PlayerBuilder": {
+    "M:xmedia::PlayerBuilder::PlayerBuilder": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::PlayerBuilder",
+      "qualified": "xmedia::PlayerBuilder::PlayerBuilder",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(const PlayerBuilder&)\u001f",
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::PlayerBuilder::SetConfig": {
+    "M:xmedia::PlayerBuilder::SetConfig": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::SetConfig",
+      "qualified": "xmedia::PlayerBuilder::SetConfig",
       "sigs": [
         "PlayerBuilder&\u001f(PlayerConfig)\u001f"
       ]
     },
-    "M:avbase::PlayerBuilder::SetDeps": {
+    "M:xmedia::PlayerBuilder::SetDeps": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::SetDeps",
+      "qualified": "xmedia::PlayerBuilder::SetDeps",
       "sigs": [
         "PlayerBuilder&\u001f(std::unique_ptr<Deps>)\u001f"
       ]
     },
-    "M:avbase::PlayerBuilder::SetLogLevel": {
+    "M:xmedia::PlayerBuilder::SetLogLevel": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::SetLogLevel",
+      "qualified": "xmedia::PlayerBuilder::SetLogLevel",
       "sigs": [
         "PlayerBuilder&\u001f(base::logging::LogSeverity)\u001f"
       ]
     },
-    "M:avbase::PlayerBuilder::SetOption": {
+    "M:xmedia::PlayerBuilder::SetOption": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerBuilder::SetOption",
+      "qualified": "xmedia::PlayerBuilder::SetOption",
       "sigs": [
         "Status\u001f(OptionCategory, std::string_view, const OptionValue&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnBufferingProgress": {
+    "M:xmedia::PlayerObserver::OnBufferingProgress": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnBufferingProgress",
+      "qualified": "xmedia::PlayerObserver::OnBufferingProgress",
       "sigs": [
         "void\u001f(const BufferingProgressPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnCompleted": {
+    "M:xmedia::PlayerObserver::OnCompleted": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnCompleted",
+      "qualified": "xmedia::PlayerObserver::OnCompleted",
       "sigs": [
         "void\u001f(const CompletedPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnError": {
+    "M:xmedia::PlayerObserver::OnError": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnError",
+      "qualified": "xmedia::PlayerObserver::OnError",
       "sigs": [
         "void\u001f(const ErrorPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnEvent": {
+    "M:xmedia::PlayerObserver::OnEvent": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnEvent",
+      "qualified": "xmedia::PlayerObserver::OnEvent",
       "sigs": [
         "void\u001f(const PlayerEvent&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnPrepared": {
+    "M:xmedia::PlayerObserver::OnPrepared": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnPrepared",
+      "qualified": "xmedia::PlayerObserver::OnPrepared",
       "sigs": [
         "void\u001f(const PreparedPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnSeekCompleted": {
+    "M:xmedia::PlayerObserver::OnSeekCompleted": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnSeekCompleted",
+      "qualified": "xmedia::PlayerObserver::OnSeekCompleted",
       "sigs": [
         "void\u001f(const SeekCompletedPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnStateChanged": {
+    "M:xmedia::PlayerObserver::OnStateChanged": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnStateChanged",
+      "qualified": "xmedia::PlayerObserver::OnStateChanged",
       "sigs": [
         "void\u001f(const StateChangedPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnStats": {
+    "M:xmedia::PlayerObserver::OnStats": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnStats",
+      "qualified": "xmedia::PlayerObserver::OnStats",
       "sigs": [
         "void\u001f(const StatsPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnTimedText": {
+    "M:xmedia::PlayerObserver::OnTimedText": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnTimedText",
+      "qualified": "xmedia::PlayerObserver::OnTimedText",
       "sigs": [
         "void\u001f(const TimedTextPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::OnVideoSizeChanged": {
+    "M:xmedia::PlayerObserver::OnVideoSizeChanged": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::OnVideoSizeChanged",
+      "qualified": "xmedia::PlayerObserver::OnVideoSizeChanged",
       "sigs": [
         "void\u001f(const VideoSizeChangedPayload&)\u001f"
       ]
     },
-    "M:avbase::PlayerObserver::PlayerObserver": {
+    "M:xmedia::PlayerObserver::PlayerObserver": {
       "is_virtual": true,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerObserver::PlayerObserver",
+      "qualified": "xmedia::PlayerObserver::PlayerObserver",
       "sigs": [
         "\u001f(const PlayerObserver&)\u001f",
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::PlayerTranscoder::Cancel": {
+    "M:xmedia::PlayerTranscoder::Cancel": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerTranscoder::Cancel",
+      "qualified": "xmedia::PlayerTranscoder::Cancel",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::PlayerTranscoder::IsRunning": {
+    "M:xmedia::PlayerTranscoder::IsRunning": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerTranscoder::IsRunning",
+      "qualified": "xmedia::PlayerTranscoder::IsRunning",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::PlayerTranscoder::PlayerTranscoder": {
+    "M:xmedia::PlayerTranscoder::PlayerTranscoder": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerTranscoder::PlayerTranscoder",
+      "qualified": "xmedia::PlayerTranscoder::PlayerTranscoder",
       "sigs": [
         "explicit\u001f(const PlayerConfig&)\u001f",
         "\u001f(const PlayerTranscoder&)\u001f",
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::PlayerTranscoder::Start": {
+    "M:xmedia::PlayerTranscoder::Start": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerTranscoder::Start",
+      "qualified": "xmedia::PlayerTranscoder::Start",
       "sigs": [
         "bool\u001f(const std::string&, const media::TranscodeParams&, media::TranscodeProgressCB, media::TranscodeDoneCB)\u001f"
       ]
     },
-    "M:avbase::PlayerTranscoder::Wait": {
+    "M:xmedia::PlayerTranscoder::Wait": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::PlayerTranscoder::Wait",
+      "qualified": "xmedia::PlayerTranscoder::Wait",
       "sigs": [
         "void\u001f()\u001f"
       ]
     },
-    "M:avbase::Scene::AddSource": {
+    "M:xmedia::Scene::AddSource": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::AddSource",
+      "qualified": "xmedia::Scene::AddSource",
       "sigs": [
         "std::shared_ptr<SceneSource>\u001f(std::string, int)\u001f"
       ]
     },
-    "M:avbase::Scene::Describe": {
+    "M:xmedia::Scene::Describe": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::Describe",
+      "qualified": "xmedia::Scene::Describe",
       "sigs": [
         "std::string\u001f()\u001fC"
       ]
     },
-    "M:avbase::Scene::FindSource": {
+    "M:xmedia::Scene::FindSource": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::FindSource",
+      "qualified": "xmedia::Scene::FindSource",
       "sigs": [
         "std::shared_ptr<SceneSource>\u001f(std::string_view)\u001fC"
       ]
     },
-    "M:avbase::Scene::RemoveSource": {
+    "M:xmedia::Scene::RemoveSource": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::RemoveSource",
+      "qualified": "xmedia::Scene::RemoveSource",
       "sigs": [
         "bool\u001f(const std::shared_ptr<SceneSource>&)\u001f"
       ]
     },
-    "M:avbase::Scene::Scene": {
+    "M:xmedia::Scene::Scene": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::Scene",
+      "qualified": "xmedia::Scene::Scene",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(const Scene&)\u001f",
         "~\u001f()\u001f"
       ]
     },
-    "M:avbase::Scene::SetBackgroundColor": {
+    "M:xmedia::Scene::SetBackgroundColor": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::SetBackgroundColor",
+      "qualified": "xmedia::Scene::SetBackgroundColor",
       "sigs": [
         "bool\u001f(float, float, float, float)\u001f"
       ]
     },
-    "M:avbase::Scene::SetUpdateCallback": {
+    "M:xmedia::Scene::SetUpdateCallback": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::SetUpdateCallback",
+      "qualified": "xmedia::Scene::SetUpdateCallback",
       "sigs": [
         "void\u001f(SceneUpdateCallback)\u001f"
       ]
     },
-    "M:avbase::Scene::source_count": {
+    "M:xmedia::Scene::source_count": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::Scene::source_count",
+      "qualified": "xmedia::Scene::source_count",
       "sigs": [
         "size_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneFrame::AddLayer": {
+    "M:xmedia::SceneFrame::AddLayer": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::AddLayer",
+      "qualified": "xmedia::SceneFrame::AddLayer",
       "sigs": [
         "SceneLayer\u001f(int)\u001f"
       ]
     },
-    "M:avbase::SceneFrame::RemoveLayer": {
+    "M:xmedia::SceneFrame::RemoveLayer": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::RemoveLayer",
+      "qualified": "xmedia::SceneFrame::RemoveLayer",
       "sigs": [
         "bool\u001f(SceneLayer)\u001f"
       ]
     },
-    "M:avbase::SceneFrame::SceneFrame": {
+    "M:xmedia::SceneFrame::SceneFrame": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::SceneFrame",
+      "qualified": "xmedia::SceneFrame::SceneFrame",
       "sigs": [
         "\u001f()\u001f",
         "\u001f(const SceneFrame&)\u001f"
       ]
     },
-    "M:avbase::SceneFrame::layer_count": {
+    "M:xmedia::SceneFrame::layer_count": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::layer_count",
+      "qualified": "xmedia::SceneFrame::layer_count",
       "sigs": [
         "size_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneFrame::layer_of": {
+    "M:xmedia::SceneFrame::layer_of": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::layer_of",
+      "qualified": "xmedia::SceneFrame::layer_of",
       "sigs": [
         "SceneLayer\u001f(const SceneSource&)\u001f"
       ]
     },
-    "M:avbase::SceneFrame::layer_with_id": {
+    "M:xmedia::SceneFrame::layer_with_id": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::layer_with_id",
+      "qualified": "xmedia::SceneFrame::layer_with_id",
       "sigs": [
         "SceneLayer\u001f(uint64_t)\u001f"
       ]
     },
-    "M:avbase::SceneFrame::main_layer": {
+    "M:xmedia::SceneFrame::main_layer": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneFrame::main_layer",
+      "qualified": "xmedia::SceneFrame::main_layer",
       "sigs": [
         "SceneLayer\u001f()\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SceneLayer": {
+    "M:xmedia::SceneLayer::SceneLayer": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SceneLayer",
+      "qualified": "xmedia::SceneLayer::SceneLayer",
       "sigs": [
         "\u001f()\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetContentMode": {
+    "M:xmedia::SceneLayer::SetContentMode": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetContentMode",
+      "qualified": "xmedia::SceneLayer::SetContentMode",
       "sigs": [
         "bool\u001f(SceneContentMode)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetOpacity": {
+    "M:xmedia::SceneLayer::SetOpacity": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetOpacity",
+      "qualified": "xmedia::SceneLayer::SetOpacity",
       "sigs": [
         "bool\u001f(float)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetRect": {
+    "M:xmedia::SceneLayer::SetRect": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetRect",
+      "qualified": "xmedia::SceneLayer::SetRect",
       "sigs": [
         "bool\u001f(float, float, float, float)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetRotation": {
+    "M:xmedia::SceneLayer::SetRotation": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetRotation",
+      "qualified": "xmedia::SceneLayer::SetRotation",
       "sigs": [
         "bool\u001f(std::optional<int>)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetSourceRect": {
+    "M:xmedia::SceneLayer::SetSourceRect": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetSourceRect",
+      "qualified": "xmedia::SceneLayer::SetSourceRect",
       "sigs": [
         "bool\u001f(float, float, float, float)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetVisible": {
+    "M:xmedia::SceneLayer::SetVisible": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetVisible",
+      "qualified": "xmedia::SceneLayer::SetVisible",
       "sigs": [
         "bool\u001f(bool)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::SetZ": {
+    "M:xmedia::SceneLayer::SetZ": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::SetZ",
+      "qualified": "xmedia::SceneLayer::SetZ",
       "sigs": [
         "bool\u001f(int)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::Upload": {
+    "M:xmedia::SceneLayer::Upload": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::Upload",
+      "qualified": "xmedia::SceneLayer::Upload",
       "sigs": [
         "bool\u001f(const media::VideoFrame&)\u001f"
       ]
     },
-    "M:avbase::SceneLayer::id": {
+    "M:xmedia::SceneLayer::id": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::id",
+      "qualified": "xmedia::SceneLayer::id",
       "sigs": [
         "uint64_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneLayer::operator bool": {
+    "M:xmedia::SceneLayer::operator bool": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::operator bool",
+      "qualified": "xmedia::SceneLayer::operator bool",
       "sigs": [
         "explicit\u001f()\u001f"
       ]
     },
-    "M:avbase::SceneLayer::rotation": {
+    "M:xmedia::SceneLayer::rotation": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::rotation",
+      "qualified": "xmedia::SceneLayer::rotation",
       "sigs": [
         "int\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneLayer::valid": {
+    "M:xmedia::SceneLayer::valid": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneLayer::valid",
+      "qualified": "xmedia::SceneLayer::valid",
       "sigs": [
         "bool\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneSource::Publish": {
+    "M:xmedia::SceneSource::Publish": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::Publish",
+      "qualified": "xmedia::SceneSource::Publish",
       "sigs": [
         "bool\u001f(base::scoped_refptr<media::VideoFrame>)\u001f"
       ]
     },
-    "M:avbase::SceneSource::frames_consumed": {
+    "M:xmedia::SceneSource::frames_consumed": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::frames_consumed",
+      "qualified": "xmedia::SceneSource::frames_consumed",
       "sigs": [
         "uint64_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneSource::frames_published": {
+    "M:xmedia::SceneSource::frames_published": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::frames_published",
+      "qualified": "xmedia::SceneSource::frames_published",
       "sigs": [
         "uint64_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneSource::frames_superseded": {
+    "M:xmedia::SceneSource::frames_superseded": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::frames_superseded",
+      "qualified": "xmedia::SceneSource::frames_superseded",
       "sigs": [
         "uint64_t\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneSource::name": {
+    "M:xmedia::SceneSource::name": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::name",
+      "qualified": "xmedia::SceneSource::name",
       "sigs": [
         "const std::string&\u001f()\u001fC"
       ]
     },
-    "M:avbase::SceneSource::z": {
+    "M:xmedia::SceneSource::z": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SceneSource::z",
+      "qualified": "xmedia::SceneSource::z",
       "sigs": [
         "int\u001f()\u001fC"
       ]
     },
-    "M:avbase::SeekConfig::Seconds": {
+    "M:xmedia::SeekConfig::Seconds": {
       "is_virtual": false,
       "kind": "method",
       "lang": "cpp",
-      "qualified": "avbase::SeekConfig::Seconds",
+      "qualified": "xmedia::SeekConfig::Seconds",
       "sigs": [
         "base::\u001f(5)\u001f"
       ]

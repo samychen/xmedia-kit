@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,20 +18,20 @@
 #include <string>
 #include <utility>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/time/default_tick_clock.h"
 #include "media/base/media_error.h"
 #include "media/base/media_log.h"
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/ffmpeg_decoder_factories.h"
 #include "media/ffmpeg/ffmpeg_text_decoder.h"
 #endif
 
 #include "player/video_decoder_defaults.h"
 
-namespace avbase {
+namespace xmedia {
 
 // const& on purpose: by-value would copy |config| for a move nothing needs.
 // NOLINTNEXTLINE
@@ -39,9 +39,9 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
     : config_(config),
       deps_(deps ? std::move(deps)
                  : std::make_unique<Deps>(Deps::CreateDefault())),
-      media_thread_("avbase-media"),
-      video_thread_("avbase-video"),
-      audio_thread_("avbase-audio"),
+      media_thread_("xmedia-media"),
+      video_thread_("xmedia-video"),
+      audio_thread_("xmedia-audio"),
       // Built from config.buffer so the three-tier marks mirror BufferConfig's
       // first/next/last_high_water_mark and packet-buffering maps to enabled.
       // Listed last because buffer_controller_ is declared after the members
@@ -62,7 +62,7 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
     deps_->tick_clock = std::shared_ptr<const base::TickClock>(
         base::DefaultTickClock::GetInstance(), [](const base::TickClock*) {});
   }
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
   // The software FFmpeg decoders are the fallback chain's tail; anything the
   // host injected keeps its place ahead of them (Δ12), and the platform's
   // hardware factories slot in between when the preference allows hardware.
@@ -237,7 +237,7 @@ Result<int64_t> PlayerImpl::SeekTo(base::TimeDelta position, SeekMode mode,
   const bool accurate = mode == SeekMode::kAccurate && config_.seek.accurate;
   if (mode == SeekMode::kAccurate && !accurate &&
       !accurate_seek_veto_logged_.exchange(true)) {
-    LOG(WARNING) << "avbase: SeekMode::kAccurate degraded to the keyframe "
+    LOG(WARNING) << "xmedia-kit: SeekMode::kAccurate degraded to the keyframe "
                     "landing; config.seek.accurate is false";
   }
   {
@@ -273,4 +273,4 @@ Result<int64_t> PlayerImpl::SeekTo(base::TimeDelta position, SeekMode mode,
   return id;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

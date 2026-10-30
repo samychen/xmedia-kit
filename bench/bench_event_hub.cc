@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -40,15 +40,15 @@
 
 namespace {
 
-using avbase::EventHub;
-using avbase::EventPayload;
-using avbase::EventType;
-using avbase::PlayerEvent;
-using avbase::StateChangedPayload;
-using avbase::base::BindOnce;
-using avbase::base::BindRepeating;
-using avbase::base::TimeDelta;
-using avbase::base::WaitableEvent;
+using xmedia::EventHub;
+using xmedia::EventPayload;
+using xmedia::EventType;
+using xmedia::PlayerEvent;
+using xmedia::StateChangedPayload;
+using xmedia::base::BindOnce;
+using xmedia::base::BindRepeating;
+using xmedia::base::TimeDelta;
+using xmedia::base::WaitableEvent;
 
 // One hub for the whole process, not one per timed round. Two measurements
 // say why, and the second is the one that matters:
@@ -93,7 +93,7 @@ HubFixture& SharedHub() {
   return *fixture;
 }
 
-AVBASE_BENCH(BM_EventHub_PostVisit) {
+XMEDIA_BENCH(BM_EventHub_PostVisit) {
   HubFixture& fixture = SharedHub();
   // kStateChanged on purpose: the smallest alternative that still exercises
   // the variant (PreparedPayload carries a whole MediaInfo), and the event the
@@ -109,7 +109,7 @@ AVBASE_BENCH(BM_EventHub_PostVisit) {
   fixture.hub.PostClosure(
       BindOnce([](WaitableEvent* e) { e->Signal(); }, &drained));
   drained.Wait();
-  avbase::bench::Sink(fixture.visits.load(std::memory_order_relaxed));
+  xmedia::bench::Sink(fixture.visits.load(std::memory_order_relaxed));
 }
 
 }  // namespace

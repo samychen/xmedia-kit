@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.
 
@@ -8,7 +8,7 @@
 
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 VideoFilterStageRunner::VideoFilterStageRunner(std::string graph,
                                                VideoFilterStageFactory factory)
@@ -17,7 +17,7 @@ VideoFilterStageRunner::VideoFilterStageRunner(std::string graph,
     return;  // Nothing was requested; state_ stays kOff.
   }
   if (!factory_) {
-    LOG(ERROR) << "avbase.vfilter: filter_graph set but no stage factory was "
+    LOG(ERROR) << "xmedia.vfilter: filter_graph set but no stage factory was "
                   "injected (no-ffmpeg build?); playing unfiltered";
     graph_.clear();
     state_ = VideoFilterState::kRefusedNoFactory;
@@ -49,7 +49,7 @@ bool VideoFilterStageRunner::Filter(base::scoped_refptr<VideoFrame>* frame) {
       // that repeats at frame rate is a log nobody reads.
       state_ = VideoFilterState::kRefusedHardwareFrame;
       if (!hardware_notice_logged_) {
-        LOG(ERROR) << "avbase.vfilter: graph \"" << graph_
+        LOG(ERROR) << "xmedia.vfilter: graph \"" << graph_
                    << "\" filters CPU planes but the decoder is producing "
                       "hardware frames (zero-copy); showing the picture "
                       "unfiltered. Disable hwaccel to apply the graph.";
@@ -60,7 +60,7 @@ bool VideoFilterStageRunner::Filter(base::scoped_refptr<VideoFrame>* frame) {
     stage_ = factory_();
     if (!stage_->Initialize(graph_, (*frame)->format(),
                             (*frame)->coded_size())) {
-      LOG(ERROR) << "avbase.vfilter: graph \"" << graph_
+      LOG(ERROR) << "xmedia.vfilter: graph \"" << graph_
                  << "\" failed to start; playing unfiltered";
       stage_.reset();
       graph_.clear();
@@ -76,7 +76,7 @@ bool VideoFilterStageRunner::Filter(base::scoped_refptr<VideoFrame>* frame) {
   // what is left to show is the frame that went in.
   base::scoped_refptr<VideoFrame> input = *frame;
   if (!stage_->Process(std::move(input), &filtered)) {
-    LOG(ERROR) << "avbase.vfilter: dropping the filter stage after a "
+    LOG(ERROR) << "xmedia.vfilter: dropping the filter stage after a "
                   "processing failure; playing unfiltered";
     stage_.reset();
     graph_.clear();
@@ -94,4 +94,4 @@ bool VideoFilterStageRunner::Filter(base::scoped_refptr<VideoFrame>* frame) {
   return true;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

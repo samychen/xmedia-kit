@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // The rasterizer needs a real font file; this suite runs wherever one of the
@@ -43,9 +43,9 @@ TEST(TextRasterTest, RasterizesSingleLine) {
   }
   TextRaster raster;
   RgbaBitmap bitmap;
-#ifdef AVBASE_HAVE_FREETYPE
+#ifdef XMEDIA_HAVE_FREETYPE
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  ASSERT_TRUE(raster.Rasterize(font, 28, white, "avbase", &bitmap));
+  ASSERT_TRUE(raster.Rasterize(font, 28, white, "xmedia-kit", &bitmap));
   EXPECT_GT(bitmap.width, 0);
   EXPECT_GT(bitmap.height, 0);
   EXPECT_EQ(bitmap.rgba.size(),
@@ -54,7 +54,7 @@ TEST(TextRasterTest, RasterizesSingleLine) {
   EXPECT_GT(CountNonTransparent(bitmap), 100);
 #else
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  EXPECT_FALSE(raster.Rasterize(font, 28, white, "avbase", &bitmap));
+  EXPECT_FALSE(raster.Rasterize(font, 28, white, "xmedia-kit", &bitmap));
 #endif
 }
 
@@ -63,7 +63,7 @@ TEST(TextRasterTest, MultilineGrowsHeight) {
   if (!FindFont(&font)) {
     GTEST_SKIP() << "no known system font on this host";
   }
-#ifdef AVBASE_HAVE_FREETYPE
+#ifdef XMEDIA_HAVE_FREETYPE
   TextRaster raster;
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   RgbaBitmap one_line;
@@ -78,7 +78,7 @@ TEST(TextRasterTest, MultilineGrowsHeight) {
 }
 
 TEST(TextRasterTest, InvalidFontFails) {
-#ifdef AVBASE_HAVE_FREETYPE
+#ifdef XMEDIA_HAVE_FREETYPE
   TextRaster raster;
   RgbaBitmap bitmap;
   const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -92,4 +92,4 @@ TEST(TextRasterTest, InvalidFontFails) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

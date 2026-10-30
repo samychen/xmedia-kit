@@ -1,13 +1,13 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_
-#define AVBASE_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_
+#ifndef XMEDIA_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_
+#define XMEDIA_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_
 
 #include <atomic>
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // Atomic counter used for seek generation numbers (`serial`) and request ids.
 class AtomicSequenceNumber {
@@ -26,6 +26,6 @@ class AtomicSequenceNumber {
   std::atomic<int> seq_{0};
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_
+#endif  // XMEDIA_BASE_SYNCHRONIZATION_ATOMIC_SEQUENCE_NUMBER_H_

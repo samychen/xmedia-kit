@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,11 +10,11 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/tone_map.h"
 
-#if defined(AVBASE_HAVE_LIBYUV)
+#if defined(XMEDIA_HAVE_LIBYUV)
 #include <libyuv.h>
 #endif
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 namespace {
 
@@ -30,7 +30,7 @@ bool StridesTopDown(const AVFrame& src) {
   return src.linesize[0] >= 0 && src.linesize[1] >= 0 && src.linesize[2] >= 0;
 }
 
-#if defined(AVBASE_HAVE_LIBYUV)
+#if defined(XMEDIA_HAVE_LIBYUV)
 
 // Maps an AVFrame's declared colorspace/range onto libyuv's YuvConstants.
 // Returns nullptr for combinations libyuv cannot express (full-range BT.709/
@@ -54,7 +54,7 @@ const libyuv::YuvConstants* SelectYuvMatrix(const AVFrame& src) {
   }
 }
 
-#endif  // defined(AVBASE_HAVE_LIBYUV)
+#endif  // defined(XMEDIA_HAVE_LIBYUV)
 
 }  // namespace
 
@@ -162,7 +162,7 @@ bool VideoConverter::ConvertHdr(const AVFrame& src, uint8_t* const dst_data[4],
 
 bool VideoConverter::TryLibyuv(const AVFrame& src, uint8_t* const dst_data[4],
                                const int dst_linesize[4]) {
-#if !defined(AVBASE_HAVE_LIBYUV)
+#if !defined(XMEDIA_HAVE_LIBYUV)
   (void)src;
   (void)dst_data;
   (void)dst_linesize;
@@ -280,7 +280,7 @@ bool VideoConverter::TryLibyuv(const AVFrame& src, uint8_t* const dst_data[4],
                               dst_data[0], dst_linesize[0], dst_w_,
                               dst_h_) == 0;
   }
-#endif  // defined(AVBASE_HAVE_LIBYUV)
+#endif  // defined(XMEDIA_HAVE_LIBYUV)
   return false;
 }
 
@@ -328,4 +328,4 @@ bool VideoConverter::ConvertSws(const AVFrame& src, uint8_t* const dst_data[4],
                    dst_linesize) == src.height;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

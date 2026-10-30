@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_
-#define AVBASE_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_
+#ifndef XMEDIA_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_
+#define XMEDIA_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_
 
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // How one plane's texture has to be set up, as the caller's shader contract
 // requires it.
@@ -18,7 +18,7 @@ namespace avbase::media {
 // put the signature at seven parameters and, worse, made every call site a row
 // of bare integers whose order nothing enforced -- GL_R8 and GL_RED are one
 // transposition apart and both compile.
-struct AVBASE_MEDIA_EXPORT PlaneUploadLayout {
+struct XMEDIA_MEDIA_EXPORT PlaneUploadLayout {
   unsigned int internal_format{0};
   unsigned int format{0};
   unsigned int type{0};
@@ -30,7 +30,7 @@ struct AVBASE_MEDIA_EXPORT PlaneUploadLayout {
 // The seam between the GL video path and a host's GPU-interop API.
 //
 // A hardware-decoded frame never reaches CPU memory -- VideoFrame carries a
-// typed NativeHandle for exactly that reason (avbase §6.2). An importer takes
+// typed NativeHandle for exactly that reason (xmedia-kit §6.2). An importer takes
 // that handle and points GL textures at the SAME graphics surface the decoder
 // wrote, so the pixels go GPU to GPU with no readback and no upload. That is
 // the whole of "zero copy", and it is what UploadPath::kHwZeroCopy reports.
@@ -45,7 +45,7 @@ struct AVBASE_MEDIA_EXPORT PlaneUploadLayout {
 // this from needing a registration hook or a weak symbol.
 //
 // THREADING: every method runs on the thread that has the GL context current --
-// in avbase, the sink's render thread. CanImport() reads only the frame, so any
+// in xmedia-kit, the sink's render thread. CanImport() reads only the frame, so any
 // thread may ask it while the frame is alive; frames are immutable once
 // published, which is what makes that safe.
 //
@@ -57,7 +57,7 @@ struct AVBASE_MEDIA_EXPORT PlaneUploadLayout {
 // importing on every upload, immediately before the draw pass -- the only place
 // the plane textures are read -- so no drawn frame ever samples a texture whose
 // surface has been released.
-class AVBASE_MEDIA_EXPORT GlHwTextureImporter {
+class XMEDIA_MEDIA_EXPORT GlHwTextureImporter {
  public:
   virtual ~GlHwTextureImporter() = default;
 
@@ -104,6 +104,6 @@ class AVBASE_MEDIA_EXPORT GlHwTextureImporter {
   virtual const char* name() const = 0;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_
+#endif  // XMEDIA_MEDIA_GL_GL_HW_TEXTURE_IMPORTER_H_

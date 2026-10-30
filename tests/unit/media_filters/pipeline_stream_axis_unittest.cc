@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Add/Remove{Video,Audio,Text}Stream are declared on the frozen Pipeline
-// interface but describe an axis avbase does not have: `id` would select among
+// interface but describe an axis xmedia-kit does not have: `id` would select among
 // several streams of one type, and Demuxer::GetStream(type) returns ONE stream
 // per type. A second picture is a second URL -- a second Demuxer, or a second
 // Player feeding the scene's mailbox -- not a second id.
@@ -19,7 +19,7 @@
 
 #include "gtest/gtest.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Deliberately a pipeline that was NEVER STARTED: no demuxer, no renderer, no
@@ -74,4 +74,4 @@ TEST_F(PipelineStreamAxisTest, OutOfRangeIdIsRejectedTheSameWay) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

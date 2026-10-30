@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,10 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 }  // namespace
 
@@ -90,7 +90,7 @@ bool FFmpegAudioEncoder::Encode(base::scoped_refptr<AudioBuffer> in,
   // M10's deeper fix: ff::MakeFrame CHECKs internally (this site keeps a raw
   // pointer for the unref below); there is no failure mode to report.
   AVFrame* frame = av_frame_alloc();
-  CHECK(frame) << "avbase.transcode: av_frame_alloc failed (OOM)";
+  CHECK(frame) << "xmedia.transcode: av_frame_alloc failed (OOM)";
   frame->format = ctx_->codec->sample_fmt;
   frame->sample_rate = ctx_->codec->sample_rate;
   frame->nb_samples = in->frame_count();
@@ -168,4 +168,4 @@ bool FFmpegAudioEncoder::Flush(std::vector<EncodedPacket>* out) {
   return true;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

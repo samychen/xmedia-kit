@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -34,29 +34,29 @@
 #include <memory>
 #include <string>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "gtest/gtest.h"
 #include "player/public/player_config.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // Same reason as player_prepare_teardown_unittest.cc: preparing needs a
 // demuxer, so without FFmpeg there is no autostart to race. Compiles to
 // nothing rather than registering tests that would have to skip.
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // Opens successfully so OnPipelineReady actually runs; the file is tiny and
 // fully local, and nothing here decodes or presents a frame. The path comes
-// from AVBASE_TESTDATA_DIR because ctest runs from the build tree, where a
+// from XMEDIA_TESTDATA_DIR because ctest runs from the build tree, where a
 // relative "tests/testdata/..." resolves to nothing -- and a test that
 // depends on its working directory passes under ./bin/foo and fails under
 // ctest, which is the worst possible place to learn that.
-#ifndef AVBASE_TESTDATA_DIR
-#error "player_unittests must define AVBASE_TESTDATA_DIR for this suite"
+#ifndef XMEDIA_TESTDATA_DIR
+#error "player_unittests must define XMEDIA_TESTDATA_DIR for this suite"
 #endif
-const char* const kLocalUri = AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+const char* const kLocalUri = XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
 
 TEST(PrepareAutostartTest, PrepareSyncSucceedsWhicheverSideOfTheRaceItWakes) {
   int saw_prepared = 0;
@@ -147,6 +147,6 @@ TEST(PrepareAutostartTest,
 
 }  // namespace
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG

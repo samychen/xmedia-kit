@@ -1,14 +1,14 @@
 include(GoogleTest)
 
-function(avbase_add_unittest name)
+function(xmedia_add_unittest name)
   cmake_parse_arguments(PARSE_ARGV 1 T "" "" "SOURCES;DEPS")
   add_executable(${name} ${T_SOURCES})
   # gtest_main carries GTest::gtest in its INTERFACE, and base_test_support
-  # carries avbase::base: naming both sides again made ld report "ignoring
+  # carries xmedia::base: naming both sides again made ld report "ignoring
   # duplicate libraries" on every test link.
   target_link_libraries(${name} PRIVATE ${T_DEPS} GTest::gtest_main)
   target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR})
-  avbase_configure_target(${name})
+  xmedia_configure_target(${name})
   gtest_discover_tests(${name} PROPERTIES TIMEOUT 120)
 endfunction()
 
@@ -16,17 +16,17 @@ endfunction()
 # Test doubles used by more than one suite: a scripted demuxer stream and the
 # resource that hands it out, scriptable decoder factories, the two sinks, and
 # the renderer client. One directory, one target, so tests/support/ is globbed
-# (docs/06 §7.6). This is its own target rather than part of avbase_media so that
+# (docs/06 §7.6). This is its own target rather than part of xmedia_media so that
 # no fake can ever reach a shipped binary -- the same reason base/ keeps
-# avbase_base_test_support separate.
-file(GLOB AVBASE_TEST_SUPPORT_SOURCES CONFIGURE_DEPENDS
+# xmedia_base_test_support separate.
+file(GLOB XMEDIA_TEST_SUPPORT_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/support/*.cc")
-add_library(avbase_media_test_support ${AVBASE_TEST_SUPPORT_SOURCES})
-add_library(avbase::media_test_support ALIAS avbase_media_test_support)
-target_include_directories(avbase_media_test_support PUBLIC
+add_library(xmedia_media_test_support ${XMEDIA_TEST_SUPPORT_SOURCES})
+add_library(xmedia::media_test_support ALIAS xmedia_media_test_support)
+target_include_directories(xmedia_media_test_support PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-target_link_libraries(avbase_media_test_support PUBLIC avbase::media)
-avbase_configure_target(avbase_media_test_support)
+target_link_libraries(xmedia_media_test_support PUBLIC xmedia::media)
+xmedia_configure_target(xmedia_media_test_support)
 
 # Source listing (docs/06 §7.6): every directory under unit/ is globbed now.
 # The rule is the one the library directories already follow -- all the .cc in
@@ -39,85 +39,85 @@ avbase_configure_target(avbase_media_test_support)
 # there would have dragged those into the no-ffmpeg gate (G2) and the
 # directory had to be written out file by file. The suites now sit where what
 # they link does: the core media ones stay in unit/media_filters/ and land in
-# avbase_media, the FFmpeg ones moved to unit/media_ffmpeg/, and the offline
-# transcode ones to unit/media_transcode/ beside the avbase_transcode sources.
+# xmedia_media, the FFmpeg ones moved to unit/media_ffmpeg/, and the offline
+# transcode ones to unit/media_transcode/ beside the xmedia_transcode sources.
 #
 # Membership is by TARGET, not by subject. pipeline_throttle/track/text read
 # real containers under tests/testdata/, so they need the FFmpeg target even
 # though what they exercise is core media -- splitting by subject would have
 # put them in the wrong binary.
 
-if(AVBASE_BUILD_TESTS)
+if(XMEDIA_BUILD_TESTS)
 # ---- base ----
-file(GLOB AVBASE_BASE_UNITTEST_SOURCES CONFIGURE_DEPENDS
+file(GLOB XMEDIA_BASE_UNITTEST_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/base/*.cc")
-avbase_add_unittest(base_unittests
-    SOURCES ${AVBASE_BASE_UNITTEST_SOURCES}
-    DEPS avbase::base_test_support)
+xmedia_add_unittest(base_unittests
+    SOURCES ${XMEDIA_BASE_UNITTEST_SOURCES}
+    DEPS xmedia::base_test_support)
 
 # ---- media ----
-file(GLOB AVBASE_MEDIA_UNITTEST_SOURCES CONFIGURE_DEPENDS
+file(GLOB XMEDIA_MEDIA_UNITTEST_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_base/*.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_filters/*.cc"
     # unit/media_gl/: what needs media/gl but NOT a GL context -- the sink's
     # routing, which is decided before any context exists. The suites that do
     # need pixels stay in unit/gl/ under the GLFW gate.
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_gl/*.cc")
-avbase_add_unittest(media_unittests
-    SOURCES ${AVBASE_MEDIA_UNITTEST_SOURCES}
-    DEPS avbase::media_test_support avbase::base_test_support)
-# avbase::media is not named here on purpose: media_test_support carries it in its
+xmedia_add_unittest(media_unittests
+    SOURCES ${XMEDIA_MEDIA_UNITTEST_SOURCES}
+    DEPS xmedia::media_test_support xmedia::base_test_support)
+# xmedia::media is not named here on purpose: media_test_support carries it in its
 # INTERFACE, and naming both sides again makes ld report "ignoring duplicate
 # libraries" on this link -- the same lesson the function comment above records
 # for base_test_support.
 
-# ---- player: the SDK facade. avbase::player links avbase::media PUBLIC, so the
+# ---- player: the SDK facade. xmedia::player links xmedia::media PUBLIC, so the
 # media types this suite needs come along without being listed twice.
-file(GLOB AVBASE_PLAYER_UNITTEST_SOURCES CONFIGURE_DEPENDS
+file(GLOB XMEDIA_PLAYER_UNITTEST_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/unit/player/*.cc")
-avbase_add_unittest(player_unittests
-    SOURCES ${AVBASE_PLAYER_UNITTEST_SOURCES}
-    DEPS avbase::player avbase::base_test_support)
+xmedia_add_unittest(player_unittests
+    SOURCES ${XMEDIA_PLAYER_UNITTEST_SOURCES}
+    DEPS xmedia::player xmedia::base_test_support)
 # prepare_autostart_unittest.cc prepares a REAL container, so it needs the
 # testdata directory resolved at compile time -- ctest runs from the build
 # tree, where a relative "tests/testdata/..." does not exist. Same macro the
 # media/ffmpeg suites use, and the same reason: the working directory of a
 # test is not a thing a test may depend on.
 target_compile_definitions(player_unittests PRIVATE
-    AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+    XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
 
 # ---- platform/sdl2: CPU-side pieces of the SDL2 backend (the text
 # rasterizer). Runs headless; the GL presentation itself has no window in CI.
-if(AVBASE_ENABLE_SDL2)
-  file(GLOB AVBASE_SDL2_UNITTEST_SOURCES CONFIGURE_DEPENDS
+if(XMEDIA_ENABLE_SDL2)
+  file(GLOB XMEDIA_SDL2_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/sdl2/*.cc")
-  avbase_add_unittest(sdl2_unittests
-      SOURCES ${AVBASE_SDL2_UNITTEST_SOURCES}
-      DEPS avbase::platform_sdl2)
+  xmedia_add_unittest(sdl2_unittests
+      SOURCES ${XMEDIA_SDL2_UNITTEST_SOURCES}
+      DEPS xmedia::platform_sdl2)
 endif()
 
 # ---- player/qt: the Qt facade. Qt Core only -- the model carries no widget,
 # so this needs no screen and CI can run it.
 #
-# It links avbase::qtfacade rather than compiling player/qt/timeline_model.cc
+# It links xmedia::qtfacade rather than compiling player/qt/timeline_model.cc
 # directly: the test then exercises the same object the host links, and a
 # header/source drift inside the library cannot hide behind a second copy.
 #
-# Deliberately NOT built through avbase_add_unittest(): that helper ends in
-# avbase_configure_target(), which adds -fno-rtti, and moc's generated casts
+# Deliberately NOT built through xmedia_add_unittest(): that helper ends in
+# xmedia_configure_target(), which adds -fno-rtti, and moc's generated casts
 # need RTTI -- the same reason the facade and the app skip it, see the header
 # comment in player/qt/CMakeLists.txt. The ABI macros still have to match,
 # so the one call that is safe is the one that only defines macros.
-if(AVBASE_BUILD_QT_FACADE)
+if(XMEDIA_BUILD_QT_FACADE)
   # Every Qt module the FACADE links, not the ones this test uses: linking
-  # avbase::qtfacade makes CMake evaluate its INTERFACE link libraries, and
+  # xmedia::qtfacade makes CMake evaluate its INTERFACE link libraries, and
   # Qt6::Quick's own interface mentions Qt6::QmlIntegration -- an imported
   # target that only exists if Quick was found. Finding Core alone fails at
   # GENERATE time with "Target Qt6::QmlIntegration not found", which is a
   # confusing error for a test that includes nothing but Core headers.
   # (The test still needs no screen: none of these are instantiated.)
   find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick OpenGL)
-  file(GLOB AVBASE_QT_UNITTEST_SOURCES CONFIGURE_DEPENDS
+  file(GLOB XMEDIA_QT_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/qt/*.cc")
   # The header is listed as a source on purpose: AUTOMOC finds the Q_OBJECT it
   # must run on by looking for a header beside each source file, and here the
@@ -126,12 +126,12 @@ if(AVBASE_BUILD_QT_FACADE)
   # link fails with "missing vtable for TimelineModel", which says nothing
   # about the real cause.
   add_executable(qt_unittests
-      ${AVBASE_QT_UNITTEST_SOURCES}
+      ${XMEDIA_QT_UNITTEST_SOURCES}
       "${CMAKE_SOURCE_DIR}/player/qt/timeline_model.h")
   target_link_libraries(qt_unittests PRIVATE
-      Qt6::Core GTest::gtest_main avbase::qtfacade)
+      Qt6::Core GTest::gtest_main xmedia::qtfacade)
   target_include_directories(qt_unittests PRIVATE ${CMAKE_SOURCE_DIR})
-  avbase_configure_abi_definitions(qt_unittests)
+  xmedia_configure_abi_definitions(qt_unittests)
   # Target-scoped rather than directory-scoped: the other suites in this
   # directory have no Q_OBJECT and no Qt dependency, so AUTOMOC belongs to the
   # one target that needs it.
@@ -149,16 +149,16 @@ endif()
 # a host without glfw3 has no context to hand over, and a test that cannot run
 # there would have to be skipped anyway. Where it does build, it runs
 # unskipped.
-if(AVBASE_ENABLE_GLFW)
-  file(GLOB AVBASE_GL_UNITTEST_SOURCES CONFIGURE_DEPENDS
+if(XMEDIA_ENABLE_GLFW)
+  file(GLOB XMEDIA_GL_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/gl/*.cc")
-  avbase_add_unittest(gl_unittests
-      SOURCES ${AVBASE_GL_UNITTEST_SOURCES}
+  xmedia_add_unittest(gl_unittests
+      SOURCES ${XMEDIA_GL_UNITTEST_SOURCES}
       # platform_hwimport for gl_hw_import_unittest.cc, which builds a real
       # CVPixelBuffer to import from. A test that faked the buffer would prove
       # the plumbing and not the import, and the import is the part with an
       # orientation to get wrong.
-      DEPS avbase::platform_glfw avbase::platform_hwimport)
+      DEPS xmedia::platform_glfw xmedia::platform_hwimport)
   if(APPLE)
     # The test allocates the pixel buffer itself, so it needs the framework
     # rather than only the library that wraps it: hwimport links these
@@ -170,65 +170,65 @@ if(AVBASE_ENABLE_GLFW)
 endif()
 
 # ---- media + curl: the libcurl HTTP(S) data source, opt-in with the
-# AVBASE_ENABLE_CURL build. The suites drive a real loopback HTTP server
+# XMEDIA_ENABLE_CURL build. The suites drive a real loopback HTTP server
 # (tests/support/local_http_server.h) so the Range/keep-alive/abort semantics
 # are observed through actual sockets.
-if(AVBASE_ENABLE_CURL)
-  file(GLOB AVBASE_MEDIA_CURL_UNITTEST_SOURCES CONFIGURE_DEPENDS
+if(XMEDIA_ENABLE_CURL)
+  file(GLOB XMEDIA_MEDIA_CURL_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_curl/*.cc")
-  avbase_add_unittest(media_curl_unittests
-      SOURCES ${AVBASE_MEDIA_CURL_UNITTEST_SOURCES}
-      DEPS avbase::curl avbase::media_test_support
-           avbase::base_test_support)
+  xmedia_add_unittest(media_curl_unittests
+      SOURCES ${XMEDIA_MEDIA_CURL_UNITTEST_SOURCES}
+      DEPS xmedia::curl xmedia::media_test_support
+           xmedia::base_test_support)
 endif()
 
 # ---- media + FFmpeg: real containers, labelled needs-ffmpeg so the
 # no-ffmpeg gate (design goal G2) skips them.
-if(AVBASE_ENABLE_FFMPEG)
-  file(GLOB AVBASE_MEDIA_FFMPEG_UNITTEST_SOURCES CONFIGURE_DEPENDS
+if(XMEDIA_ENABLE_FFMPEG)
+  file(GLOB XMEDIA_MEDIA_FFMPEG_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_ffmpeg/*.cc")
-  avbase_add_unittest(media_ffmpeg_unittests
-      SOURCES ${AVBASE_MEDIA_FFMPEG_UNITTEST_SOURCES}
-      # avbase::ffmpeg is named here directly. It used to arrive through
-      # avbase::transcode, which this target no longer links now that the
+  xmedia_add_unittest(media_ffmpeg_unittests
+      SOURCES ${XMEDIA_MEDIA_FFMPEG_UNITTEST_SOURCES}
+      # xmedia::ffmpeg is named here directly. It used to arrive through
+      # xmedia::transcode, which this target no longer links now that the
       # transcode suites have the binary below to themselves.
-      DEPS avbase::ffmpeg avbase::media_test_support
-           avbase::base_test_support)
+      DEPS xmedia::ffmpeg xmedia::media_test_support
+           xmedia::base_test_support)
   target_compile_definitions(media_ffmpeg_unittests PRIVATE
-      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-  # The vendor headers are PRIVATE to avbase_ffmpeg; tests that touch
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+  # The vendor headers are PRIVATE to xmedia_ffmpeg; tests that touch
   # AVFrame fields need them explicitly, and pinned-prefix headers beat
   # whatever /usr/local/include happens to hold.
   target_include_directories(media_ffmpeg_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 
-  # ---- offline transcode: its own binary, mirroring avbase_transcode being a
+  # ---- offline transcode: its own binary, mirroring xmedia_transcode being a
   # target of its own. These suites name media/transcode/ headers only and use
   # no tests/support fixtures, which is why media_test_support is not named --
-  # and avbase::ffmpeg is not named either, because avbase::transcode carries
+  # and xmedia::ffmpeg is not named either, because xmedia::transcode carries
   # it PUBLIC; listing both sides is what makes ld report "ignoring duplicate
   # libraries" (see the helper's header).
-  file(GLOB AVBASE_MEDIA_TRANSCODE_UNITTEST_SOURCES CONFIGURE_DEPENDS
+  file(GLOB XMEDIA_MEDIA_TRANSCODE_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_transcode/*.cc")
-  avbase_add_unittest(media_transcode_unittests
-      SOURCES ${AVBASE_MEDIA_TRANSCODE_UNITTEST_SOURCES}
-      DEPS avbase::transcode avbase::base_test_support)
+  xmedia_add_unittest(media_transcode_unittests
+      SOURCES ${XMEDIA_MEDIA_TRANSCODE_UNITTEST_SOURCES}
+      DEPS xmedia::transcode xmedia::base_test_support)
   target_compile_definitions(media_transcode_unittests PRIVATE
-      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
   target_include_directories(media_transcode_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API
-  # surface (avbase_player_transcode). Its own binary for the same reason as
+  # surface (xmedia_player_transcode). Its own binary for the same reason as
   # media_transcode_unittests -- and because unit/player/ stays globbed into
   # player_unittests, which must keep linking without the transcode target.
-  file(GLOB AVBASE_PLAYER_FFMPEG_UNITTEST_SOURCES CONFIGURE_DEPENDS
+  file(GLOB XMEDIA_PLAYER_FFMPEG_UNITTEST_SOURCES CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/unit/player_ffmpeg/*.cc")
-  avbase_add_unittest(player_ffmpeg_unittests
-      SOURCES ${AVBASE_PLAYER_FFMPEG_UNITTEST_SOURCES}
-      DEPS avbase::player_transcode avbase::base_test_support)
+  xmedia_add_unittest(player_ffmpeg_unittests
+      SOURCES ${XMEDIA_PLAYER_FFMPEG_UNITTEST_SOURCES}
+      DEPS xmedia::player_transcode xmedia::base_test_support)
   target_compile_definitions(player_ffmpeg_unittests PRIVATE
-      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
   target_include_directories(player_ffmpeg_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 endif()
@@ -241,41 +241,41 @@ endif()
 # mutator driver (fixed-seed mutations over the seed corpus, no runtime
 # dependency, runs under the asan/tsan presets like any test). Corpus seeds
 # are real containers under fuzz/seeds/ and grow in-repo.
-if(AVBASE_BUILD_FUZZ AND AVBASE_ENABLE_FFMPEG)
+if(XMEDIA_BUILD_FUZZ AND XMEDIA_ENABLE_FFMPEG)
   include(CheckCXXSourceCompiles)
   set(CMAKE_REQUIRED_FLAGS "-fsanitize=fuzzer")
   check_cxx_source_compiles("int main(){return 0;}"
-      AVBASE_HAVE_LIBFUZZER_RUNTIME)
+      XMEDIA_HAVE_LIBFUZZER_RUNTIME)
   unset(CMAKE_REQUIRED_FLAGS)
 
-  add_executable(avbase_fuzz_demuxer fuzz/fuzz_demuxer.cc)
-  target_include_directories(avbase_fuzz_demuxer PRIVATE
+  add_executable(xmedia_fuzz_demuxer fuzz/fuzz_demuxer.cc)
+  target_include_directories(xmedia_fuzz_demuxer PRIVATE
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-  target_link_libraries(avbase_fuzz_demuxer PRIVATE avbase::ffmpeg)
-  target_compile_definitions(avbase_fuzz_demuxer PRIVATE
-      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-  avbase_configure_target(avbase_fuzz_demuxer)
+  target_link_libraries(xmedia_fuzz_demuxer PRIVATE xmedia::ffmpeg)
+  target_compile_definitions(xmedia_fuzz_demuxer PRIVATE
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+  xmedia_configure_target(xmedia_fuzz_demuxer)
 
   # The harness has no main(); the two drivers link it separately. The
   # libFuzzer binary may be EXCLUDE_FROM_ALL (no runtime on this host), so the
   # standalone compiles the source itself rather than sharing an object.
-  add_executable(avbase_fuzz_demuxer_standalone
+  add_executable(xmedia_fuzz_demuxer_standalone
       fuzz/fuzz_standalone_main.cc fuzz/fuzz_demuxer.cc)
-  target_include_directories(avbase_fuzz_demuxer_standalone PRIVATE
+  target_include_directories(xmedia_fuzz_demuxer_standalone PRIVATE
       $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-  target_link_libraries(avbase_fuzz_demuxer_standalone PRIVATE
-      avbase::ffmpeg)
-  target_compile_definitions(avbase_fuzz_demuxer_standalone PRIVATE
-      AVBASE_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata"
-      AVBASE_SEEDS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fuzz/seeds")
-  avbase_configure_target(avbase_fuzz_demuxer_standalone)
+  target_link_libraries(xmedia_fuzz_demuxer_standalone PRIVATE
+      xmedia::ffmpeg)
+  target_compile_definitions(xmedia_fuzz_demuxer_standalone PRIVATE
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata"
+      XMEDIA_SEEDS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fuzz/seeds")
+  xmedia_configure_target(xmedia_fuzz_demuxer_standalone)
 
-  if(AVBASE_HAVE_LIBFUZZER_RUNTIME)
-    target_compile_options(avbase_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
-    target_link_options(avbase_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
+  if(XMEDIA_HAVE_LIBFUZZER_RUNTIME)
+    target_compile_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
+    target_link_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
   else()
     message(STATUS "libFuzzer runtime unavailable; building the standalone "
                    "fuzz driver only (CI Linux has the runtime)")
-    set_target_properties(avbase_fuzz_demuxer PROPERTIES EXCLUDE_FROM_ALL ON)
+    set_target_properties(xmedia_fuzz_demuxer PROPERTIES EXCLUDE_FROM_ALL ON)
   endif()
 endif()

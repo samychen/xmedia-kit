@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
 # Builds a pinned FFmpeg from source into a prefix, so that every developer and
 # every CI job compiles against the SAME version. Distro packages drift
-# (Debian 12 ships 5.1, Ubuntu 24.04 ships 6.1), and avbase's compat layer is
+# (Debian 12 ships 5.1, Ubuntu 24.04 ships 6.1), and xmedia-kit's compat layer is
 # only meaningful if the version under test is known.
 #
 # Usage:
@@ -16,7 +16,7 @@
 # The default prefix is the repo-local tools/build (MediaComponent's
 # convention): no sudo, per-checkout, and FindFFmpeg prefers it over system
 # packages automatically. Pass an explicit prefix (e.g. /opt/ffmpeg-7.1.1)
-# to install outside the checkout, then point AVBASE_FFMPEG_ROOT at it.
+# to install outside the checkout, then point XMEDIA_FFMPEG_ROOT at it.
 #
 # The default component list is deliberately minimal: it covers everything the
 # demuxer/decoder tests need and keeps the build near 3 minutes on 2 cores.
@@ -27,7 +27,7 @@
 # default path stays fast. Everything selected is built from source into the
 # SAME prefix as FFmpeg, and the matching FFmpeg configure flags are appended
 # automatically:
-#   AVBASE_FFMPEG_DEPS="openssl x264 fdk-aac opus librtmp mbedtls srt"
+#   XMEDIA_FFMPEG_DEPS="openssl x264 fdk-aac opus librtmp mbedtls srt"
 #     openssl   TLS backend + https protocol (preferred over mbedtls)
 #     mbedtls   alternative TLS backend; auto-selected for srt when openssl
 #               is not in the list
@@ -41,13 +41,13 @@
 #               video_convert falls back to sws_scale)
 #
 # Caching and link mode:
-#   AVBASE_FFMPEG_SRC_DIR  persistent scratch dir for the tarball + extracted
+#   XMEDIA_FFMPEG_SRC_DIR  persistent scratch dir for the tarball + extracted
 #                          source + per-mode build trees (default tools/deps).
 #                          Second runs skip the download and rebuild incrementally.
-#   AVBASE_FFMPEG_LINK     shared (default) | static | both. "static" adds
+#   XMEDIA_FFMPEG_LINK     shared (default) | static | both. "static" adds
 #                          --enable-pic so the .a is safe to link into shared
-#                          objects (avbase sets CMAKE_POSITION_INDEPENDENT_CODE).
-#   AVBASE_FFMPEG_SHA256   expected checksum, overriding the built-in pin.
+#                          objects (xmedia-kit sets CMAKE_POSITION_INDEPENDENT_CODE).
+#   XMEDIA_FFMPEG_SHA256   expected checksum, overriding the built-in pin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -67,15 +67,15 @@ case "${PREFIX}" in
   /*) ;;
   *) PREFIX="$(cd "${SCRIPT_DIR}/.." && pwd)/${PREFIX}" ;;
 esac
-LINK="${AVBASE_FFMPEG_LINK:-shared}"
+LINK="${XMEDIA_FFMPEG_LINK:-shared}"
 SRC_URL="https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.xz"
-SRC_DIR="${AVBASE_FFMPEG_SRC_DIR:-${SCRIPT_DIR}/deps}"
+SRC_DIR="${XMEDIA_FFMPEG_SRC_DIR:-${SCRIPT_DIR}/deps}"
 DOWNLOADS="${SRC_DIR}/downloads"
 TARBALL="${DOWNLOADS}/ffmpeg-${VERSION}.tar.xz"
 
 case "${LINK}" in
   shared|static|both) ;;
-  *) echo "error: AVBASE_FFMPEG_LINK must be shared, static or both (got '${LINK}')" >&2
+  *) echo "error: XMEDIA_FFMPEG_LINK must be shared, static or both (got '${LINK}')" >&2
      exit 1 ;;
 esac
 
@@ -97,7 +97,7 @@ pinned_sha256() {
     *)     return 1 ;;
   esac
 }
-EXPECTED_SHA256="${AVBASE_FFMPEG_SHA256:-}"
+EXPECTED_SHA256="${XMEDIA_FFMPEG_SHA256:-}"
 if [ -z "${EXPECTED_SHA256}" ]; then
   EXPECTED_SHA256="$(pinned_sha256 "${VERSION}" 2>/dev/null || true)"
 fi
@@ -178,11 +178,11 @@ dep_commit() {
   esac
 }
 
-# Normalize + validate AVBASE_FFMPEG_DEPS into dependency-safe order, with the
+# Normalize + validate XMEDIA_FFMPEG_DEPS into dependency-safe order, with the
 # implicit requirements pulled in explicitly (a notice beats a mystery link
 # error 20 minutes in).
 SUPPORTED_DEPS=" openssl mbedtls x264 fdk-aac opus librtmp srt libyuv "
-REQUESTED_DEPS="$(echo "${AVBASE_FFMPEG_DEPS:-}" | tr ',+' '  ')"
+REQUESTED_DEPS="$(echo "${XMEDIA_FFMPEG_DEPS:-}" | tr ',+' '  ')"
 # What the caller actually asked for, BEFORE the implicit requirements below
 # add anything. The distinction matters for FFmpeg's own TLS backend: mbedtls
 # auto-added for libsrt must NOT also become FFmpeg's --enable-mbedtls (that
@@ -194,7 +194,7 @@ DEPS=""
 for dep in ${REQUESTED_DEPS}; do
   case "${SUPPORTED_DEPS}" in
     *" ${dep} "*) ;;
-    *) echo "error: unsupported AVBASE_FFMPEG_DEPS entry '${dep}' (supported: openssl mbedtls x264 fdk-aac opus librtmp srt libyuv)" >&2
+    *) echo "error: unsupported XMEDIA_FFMPEG_DEPS entry '${dep}' (supported: openssl mbedtls x264 fdk-aac opus librtmp srt libyuv)" >&2
        exit 1 ;;
   esac
   case " ${DEPS} " in
@@ -275,7 +275,7 @@ fetch_git_dep() {  # <name>
 build_dep() {  # <name>
   local dep="$1" dest stamp
   dest="${SRC_DIR}/deps/${dep}"
-  stamp="${dest}/.avbase-built"
+  stamp="${dest}/.xmedia-built"
   if [ -f "${stamp}" ] && [ "$(cat "${stamp}")" = "${PREFIX}|$(dep_commit "${dep}")" ]; then
     echo "==> ${dep}: up to date in ${PREFIX}"
     return
@@ -417,7 +417,7 @@ if [ -f "${TARBALL}" ] && [ -n "${EXPECTED_SHA256}" ] \
    && echo "${EXPECTED_SHA256}  ${TARBALL}" | shasum -a 256 -c >/dev/null 2>&1; then
   echo "    reusing cached ${TARBALL} (sha256 ok)"
 elif [ -f "${TARBALL}" ] && [ -z "${EXPECTED_SHA256}" ]; then
-  echo "    reusing cached ${TARBALL} (no pin for ${VERSION}; set AVBASE_FFMPEG_SHA256)"
+  echo "    reusing cached ${TARBALL} (no pin for ${VERSION}; set XMEDIA_FFMPEG_SHA256)"
 else
   if command -v curl >/dev/null 2>&1; then
     curl -fSL --retry 3 -o "${TARBALL}.part" "${SRC_URL}"
@@ -440,11 +440,11 @@ if [ -n "${EXPECTED_SHA256}" ]; then
 else
   ACTUAL="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"
   echo "==> WARNING: no pinned sha256 for ${VERSION}; got ${ACTUAL}"
-  echo "             pin it in pinned_sha256() or export AVBASE_FFMPEG_SHA256=${ACTUAL}"
+  echo "             pin it in pinned_sha256() or export XMEDIA_FFMPEG_SHA256=${ACTUAL}"
 fi
 
 SRC_TREE="${SRC_DIR}/ffmpeg-${VERSION}"
-EXTRACT_STAMP="${SRC_TREE}/.avbase-extracted"
+EXTRACT_STAMP="${SRC_TREE}/.xmedia-extracted"
 if [ -f "${EXTRACT_STAMP}" ]; then
   echo "==> Reusing extracted source at ${SRC_TREE}"
 else
@@ -455,13 +455,13 @@ else
   touch "${EXTRACT_STAMP}"
 fi
 
-# NOTE: without AVBASE_FFMPEG_DEPS there is no TLS backend, so https/tls are
+# NOTE: without XMEDIA_FFMPEG_DEPS there is no TLS backend, so https/tls are
 # unavailable (tests use file:// and http:// only). Add "openssl" (or
-# "mbedtls") to AVBASE_FFMPEG_DEPS to switch them on.
+# "mbedtls") to XMEDIA_FFMPEG_DEPS to switch them on.
 #
 # The hardware-decode hwaccels are HOST flags rather than dependency flags:
 # VideoToolbox needs no third-party source, only the Apple SDK already present
-# on a Mac. They are what makes avbase's zero-copy path reachable at all --
+# on a Mac. They are what makes xmedia-kit's zero-copy path reachable at all --
 # without them every frame this build decodes is a software frame, and
 # UploadPath::kHwZeroCopy could never be exercised outside a unit test.
 hwaccel_flags() {
@@ -519,7 +519,7 @@ host_encoder_flags() {
 # conflicts with librtmp (rtmp_protocol_conflict in configure), so the librtmp
 # dep below replaces these names with librtmp:// -- keeping the native ones
 # here means rtmp:// works out of the box. SRT is the exception: libsrt is an
-# external dependency, so it stays opt-in via AVBASE_FFMPEG_DEPS="srt".
+# external dependency, so it stays opt-in via XMEDIA_FFMPEG_DEPS="srt".
 configure_flags() {
   cat <<FLAGS
 --prefix="${PREFIX}"
@@ -565,7 +565,7 @@ build_one() {
   esac
 
   local build_dir="${SRC_DIR}/ffmpeg-${VERSION}-build-${mode}"
-  local stamp="${build_dir}/.avbase-configured"
+  local stamp="${build_dir}/.xmedia-configured"
 
   echo "==> Configuring (${mode}) into ${build_dir}"
   local flags_fingerprint
@@ -596,4 +596,4 @@ echo "==> Installed:"
 ls "${PREFIX}/lib" | grep -E '\.(so\.[0-9]+|dylib|a)$' | head -40 || true
 grep -m1 LIBAVCODEC_VERSION_MAJOR "${PREFIX}/include/libavcodec/version_major.h"
 echo
-echo "Now run:  cmake --preset linux-ffmpeg711   (auto-detected; or -DAVBASE_FFMPEG_ROOT=${PREFIX})"
+echo "Now run:  cmake --preset linux-ffmpeg711   (auto-detected; or -DXMEDIA_FFMPEG_ROOT=${PREFIX})"

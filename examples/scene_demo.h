@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -39,8 +39,8 @@
 // is undefined behaviour the moment the default nodeps player gets its
 // NullVideoSink instead. See docs/TODO.md §2.
 
-#ifndef AVBASE_EXAMPLES_SCENE_DEMO_H_
-#define AVBASE_EXAMPLES_SCENE_DEMO_H_
+#ifndef XMEDIA_EXAMPLES_SCENE_DEMO_H_
+#define XMEDIA_EXAMPLES_SCENE_DEMO_H_
 
 #include <cmath>
 #include <cstddef>
@@ -61,7 +61,7 @@
 #include "player/public/player.h"
 #include "player/public/scene.h"
 
-namespace avbase::examples {
+namespace xmedia::examples {
 
 class SceneDemo {
  public:
@@ -96,7 +96,7 @@ class SceneDemo {
   // Everything past registration is unchanged by that: the callback and the
   // source are plumbed into whichever renderer gets built later, and into the
   // next one if the player is reset.
-  void Install(avbase::Player& player) {
+  void Install(xmedia::Player& player) {
     if (!enabled()) {
       return;
     }
@@ -107,7 +107,7 @@ class SceneDemo {
       // is whichever URL SetDataSource() gets; this is source 1, and its
       // decoded video lands in the layer this returns.
       second_ =
-          player.AddSource(avbase::DataSourceDescriptor::FromUri(second_url_),
+          player.AddSource(xmedia::DataSourceDescriptor::FromUri(second_url_),
                            "second", kSecondZ);
       if (!second_) {
         std::fprintf(stderr,
@@ -118,7 +118,7 @@ class SceneDemo {
   }
 
   void set_second_url(std::string url) { second_url_ = std::move(url); }
-  std::shared_ptr<avbase::SceneSource> second_source() const { return second_; }
+  std::shared_ptr<xmedia::SceneSource> second_source() const { return second_; }
   // How many frames the hook actually placed a second layer on. The number
   // that tells a host "the scene ran" from "the scene was configured and
   // nothing happened": 0 with a bound scene means the hook never fired.
@@ -130,12 +130,12 @@ class SceneDemo {
   // is synced by the scene, which is the whole point of registering one -- the
   // hook's job is placement, and the only upload here is the fallback path that
   // feeds the layer from the ring when no second source was wired up.
-  void OnFrame(avbase::SceneFrame& frame,
+  void OnFrame(xmedia::SceneFrame& frame,
                const base::scoped_refptr<media::VideoFrame>& main_frame) {
     if (!enabled()) {
       return;
     }
-    avbase::SceneLayer second;
+    xmedia::SceneLayer second;
     if (second_ != nullptr) {
       second = frame.layer_of(*second_);
       if (!second) {
@@ -174,7 +174,7 @@ class SceneDemo {
       second.SetRect(0.62f, 0.54f, 0.34f, 0.42f);
       // Fit rather than stretch: the inset is not the canvas's shape, and
       // the demo exists partly to show that the choice is visible.
-      second.SetContentMode(avbase::SceneContentMode::kFit);
+      second.SetContentMode(xmedia::SceneContentMode::kFit);
     } else {
       second.SetRect(0.0f, 0.0f, 1.0f, 1.0f);
       if (start_.is_null()) {
@@ -204,7 +204,7 @@ class SceneDemo {
   // A layer id rather than a SceneLayer: the frame object differs every frame,
   // so only the id carries across.
   uint64_t second_layer_{0};
-  std::shared_ptr<avbase::SceneSource> second_;
+  std::shared_ptr<xmedia::SceneSource> second_;
   uint64_t frames_placed_{0};
   base::TimeTicks start_;  // Set on the first frame; the fade's phase zero.
 };
@@ -216,7 +216,7 @@ class SceneDemo {
 // pipeline now, so there is nothing whose producer has to be quietened first:
 // stopping the player stops every source at once. That simplification is most
 // of what stage 3 was for.
-inline void ReportSecondSource(avbase::SceneSource& source) {
+inline void ReportSecondSource(xmedia::SceneSource& source) {
   // published - consumed - superseded == still waiting (0 or 1). Printed once,
   // at the end, because that is the only number that says whether the second
   // decoder really fed the second layer: a source that produced N frames and
@@ -232,6 +232,6 @@ inline void ReportSecondSource(avbase::SceneSource& source) {
                static_cast<unsigned long long>(source.frames_superseded()));
 }
 
-}  // namespace avbase::examples
+}  // namespace xmedia::examples
 
-#endif  // AVBASE_EXAMPLES_SCENE_DEMO_H_
+#endif  // XMEDIA_EXAMPLES_SCENE_DEMO_H_

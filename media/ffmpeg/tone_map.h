@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -34,15 +34,15 @@
 // be. The demuxer's mastering-display side data carries the real number when
 // present; 0 here means "use the transfer function's own default".
 
-#ifndef AVBASE_MEDIA_FFMPEG_TONE_MAP_H_
-#define AVBASE_MEDIA_FFMPEG_TONE_MAP_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_TONE_MAP_H_
+#define XMEDIA_MEDIA_FFMPEG_TONE_MAP_H_
 
 #include <memory>
 #include <string>
 
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // Which curve compresses the luminance range. The choice is visible in the
 // diagnostics line a host can print, because the three look different:
@@ -121,6 +121,6 @@ class ToneMapper {
   int configured_transfer_{0};
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_TONE_MAP_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_TONE_MAP_H_

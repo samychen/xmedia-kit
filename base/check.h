@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/check.h` and `base/check_op.h`
 // (BSD-3-Clause, Copyright The Chromium Authors).
 //
-// avbase is built with -fno-exceptions, so a failed check aborts the process
+// xmedia-kit is built with -fno-exceptions, so a failed check aborts the process
 // after logging, exactly like Chromium.
 
-#ifndef AVBASE_BASE_CHECK_H_
-#define AVBASE_BASE_CHECK_H_
+#ifndef XMEDIA_BASE_CHECK_H_
+#define XMEDIA_BASE_CHECK_H_
 
 #include <cstdlib>
 #include <sstream>
@@ -20,7 +20,7 @@
 // must never be false, including on untrusted input that has already been
 // validated by an earlier layer.
 #define CHECK(condition)                                       \
-  ::avbase::base::internal::CheckOpStreamHelper(!!(condition)) \
+  ::xmedia::base::internal::CheckOpStreamHelper(!!(condition)) \
       << "Check failed: " #condition ". "
 
 #define CHECK_EQ(a, b) CHECK((a) == (b))
@@ -30,8 +30,8 @@
 #define CHECK_GT(a, b) CHECK((a) > (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
 
-// DCHECK() is only active when AVBASE_ENABLE_DCHECK is defined.
-#if defined(AVBASE_ENABLE_DCHECK)
+// DCHECK() is only active when XMEDIA_ENABLE_DCHECK is defined.
+#if defined(XMEDIA_ENABLE_DCHECK)
 #define DCHECK(condition) CHECK(condition)
 #define DCHECK_EQ(a, b) CHECK_EQ(a, b)
 #define DCHECK_NE(a, b) CHECK_NE(a, b)
@@ -40,7 +40,7 @@
 #define DCHECK_GT(a, b) CHECK_GT(a, b)
 #define DCHECK_GE(a, b) CHECK_GE(a, b)
 #else
-#define DCHECK(condition) ::avbase::base::internal::NullCheckStream()
+#define DCHECK(condition) ::xmedia::base::internal::NullCheckStream()
 #define DCHECK_EQ(a, b) DCHECK(true)
 #define DCHECK_NE(a, b) DCHECK(true)
 #define DCHECK_LT(a, b) DCHECK(true)
@@ -50,10 +50,10 @@
 #endif
 
 #define NOTREACHED()                                   \
-  ::avbase::base::internal::CheckOpStreamHelper(false) \
+  ::xmedia::base::internal::CheckOpStreamHelper(false) \
       << "NOTREACHED() hit at " << __FILE__ << ":" << __LINE__ << ". "
 
-namespace avbase {
+namespace xmedia {
 namespace base {
 namespace internal {
 
@@ -89,6 +89,6 @@ class NullCheckStream {
 
 }  // namespace internal
 }  // namespace base
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_BASE_CHECK_H_
+#endif  // XMEDIA_BASE_CHECK_H_

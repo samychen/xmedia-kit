@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/logging.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_LOGGING_H_
-#define AVBASE_BASE_LOGGING_H_
+#ifndef XMEDIA_BASE_LOGGING_H_
+#define XMEDIA_BASE_LOGGING_H_
 
 #include <memory>
 #include <ostream>
@@ -15,7 +15,7 @@
 
 #include "base/base_export.h"
 
-namespace avbase {
+namespace xmedia {
 namespace base {
 namespace logging {
 
@@ -37,9 +37,9 @@ enum LogSeverity : int {
 };
 // NOLINTEND
 
-// Embedders install a delegate to route avbase logs into their own logging
+// Embedders install a delegate to route xmedia-kit logs into their own logging
 // system (Android logcat, spdlog, journald, ...). See docs/10 §11.1.
-class AVBASE_BASE_EXPORT LoggingDelegate {
+class XMEDIA_BASE_EXPORT LoggingDelegate {
  public:
   virtual ~LoggingDelegate() = default;
   virtual void OnLogMessage(LogSeverity severity, const char* file, int line,
@@ -48,18 +48,18 @@ class AVBASE_BASE_EXPORT LoggingDelegate {
 
 // Takes ownership. Pass nullptr to restore the default stderr logger.
 // Thread-safe. Must not be called from inside a log statement.
-AVBASE_BASE_EXPORT void SetDelegate(std::unique_ptr<LoggingDelegate> delegate);
+XMEDIA_BASE_EXPORT void SetDelegate(std::unique_ptr<LoggingDelegate> delegate);
 
-AVBASE_BASE_EXPORT void SetMinLogLevel(LogSeverity severity);
-AVBASE_BASE_EXPORT LogSeverity GetMinLogLevel();
-AVBASE_BASE_EXPORT bool ShouldCreateLogMessage(LogSeverity severity);
+XMEDIA_BASE_EXPORT void SetMinLogLevel(LogSeverity severity);
+XMEDIA_BASE_EXPORT LogSeverity GetMinLogLevel();
+XMEDIA_BASE_EXPORT bool ShouldCreateLogMessage(LogSeverity severity);
 
 // VLOG(n) is enabled when n <= GetMinVLogLevel(). Default: 0 (VLOG off).
-AVBASE_BASE_EXPORT void SetMinVLogLevel(int level);
-AVBASE_BASE_EXPORT int GetMinVLogLevel();
-AVBASE_BASE_EXPORT bool ShouldCreateVerboseMessage(int verbosity);
+XMEDIA_BASE_EXPORT void SetMinVLogLevel(int level);
+XMEDIA_BASE_EXPORT int GetMinVLogLevel();
+XMEDIA_BASE_EXPORT bool ShouldCreateVerboseMessage(int verbosity);
 
-class AVBASE_BASE_EXPORT LogMessage {
+class XMEDIA_BASE_EXPORT LogMessage {
  public:
   LogMessage(const char* file, int line, LogSeverity severity);
   LogMessage(const LogMessage&) = delete;
@@ -90,14 +90,14 @@ class LogMessageVoidify {
 
 }  // namespace logging
 }  // namespace base
-}  // namespace avbase
+}  // namespace xmedia
 
-#define AVBASE_LOG_STREAM(severity) \
-  ::avbase::base::logging::LogMessage(__FILE__, __LINE__, severity).stream()
+#define XMEDIA_LOG_STREAM(severity) \
+  ::xmedia::base::logging::LogMessage(__FILE__, __LINE__, severity).stream()
 
-#define AVBASE_LOG_IS_ON(severity)                 \
-  ::avbase::base::logging::ShouldCreateLogMessage( \
-      ::avbase::base::logging::LOG_##severity)
+#define XMEDIA_LOG_IS_ON(severity)                 \
+  ::xmedia::base::logging::ShouldCreateLogMessage( \
+      ::xmedia::base::logging::LOG_##severity)
 
 // Deliberately NOT parenthesised as a whole, even though the replacement list
 // is one ternary. Callers write the `<<` OUTSIDE the macro (`LOG(INFO) << x`),
@@ -109,39 +109,39 @@ class LogMessageVoidify {
 // suppressed as a block: a next-line suppression would have to sit inside
 // the backslash continuation to reach that line.
 // NOLINTBEGIN
-#define AVBASE_LAZY_STREAM(stream, condition) \
+#define XMEDIA_LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0                      \
-               : ::avbase::base::logging::LogMessageVoidify() & (stream)
+               : ::xmedia::base::logging::LogMessageVoidify() & (stream)
 // NOLINTEND
 
 #define LOG(severity)                                             \
-  AVBASE_LAZY_STREAM(                                             \
-      AVBASE_LOG_STREAM(::avbase::base::logging::LOG_##severity), \
-      AVBASE_LOG_IS_ON(severity))
+  XMEDIA_LAZY_STREAM(                                             \
+      XMEDIA_LOG_STREAM(::xmedia::base::logging::LOG_##severity), \
+      XMEDIA_LOG_IS_ON(severity))
 
 #define LOG_IF(severity, condition) !(condition) ? (void)0 : LOG(severity)
 
-#if defined(AVBASE_ENABLE_DCHECK)
+#if defined(XMEDIA_ENABLE_DCHECK)
 #define DLOG(severity) LOG(severity)
 #else
 #define DLOG(severity) \
-  AVBASE_LAZY_STREAM(  \
-      AVBASE_LOG_STREAM(::avbase::base::logging::LOG_##severity), false)
+  XMEDIA_LAZY_STREAM(  \
+      XMEDIA_LOG_STREAM(::xmedia::base::logging::LOG_##severity), false)
 #endif
 
 #define VLOG_IS_ON(verbosity) \
-  ::avbase::base::logging::ShouldCreateVerboseMessage(verbosity)
+  ::xmedia::base::logging::ShouldCreateVerboseMessage(verbosity)
 
 #define VLOG(verbosity)                                                       \
-  AVBASE_LAZY_STREAM(AVBASE_LOG_STREAM(::avbase::base::logging::LOG_VERBOSE), \
+  XMEDIA_LAZY_STREAM(XMEDIA_LOG_STREAM(::xmedia::base::logging::LOG_VERBOSE), \
                      VLOG_IS_ON(verbosity))
 
-#if defined(AVBASE_ENABLE_DCHECK)
+#if defined(XMEDIA_ENABLE_DCHECK)
 #define DVLOG(verbosity) VLOG(verbosity)
 #else
 #define DVLOG(verbosity)                                                      \
-  AVBASE_LAZY_STREAM(AVBASE_LOG_STREAM(::avbase::base::logging::LOG_VERBOSE), \
+  XMEDIA_LAZY_STREAM(XMEDIA_LOG_STREAM(::xmedia::base::logging::LOG_VERBOSE), \
                      false)
 #endif
 
-#endif  // AVBASE_BASE_LOGGING_H_
+#endif  // XMEDIA_BASE_LOGGING_H_

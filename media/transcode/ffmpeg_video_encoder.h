@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_H_
-#define AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_H_
+#define XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_H_
 
 #include <cstdint>
 #include <map>
@@ -18,13 +18,13 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Video encoder over libavcodec — the video half of the E1 encoder layer.
 // |codec_name| selects the encoder: "mjpeg" works in the base pinned build,
 // "libx264" when the x264 dependency layer is on (tools/setup_ffmpeg.sh).
 // Input: I420 VideoFrames (converted internally to the encoder's format).
-class AVBASE_MEDIA_EXPORT FFmpegVideoEncoder {
+class XMEDIA_MEDIA_EXPORT FFmpegVideoEncoder {
  public:
   struct Params {
     std::string codec_name = "libx264";
@@ -79,6 +79,6 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoEncoder {
   std::unique_ptr<Context> ctx_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -25,7 +25,7 @@
 #include <memory>
 #include <string>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
@@ -34,27 +34,27 @@
 #include "player/public/player_config.h"
 #include "player/public/player_event.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // Detection lives in the FFmpeg demuxer, so without it there is nothing to
 // gate. Compiling to nothing keeps the suite from reporting a skip on every
 // no-ffmpeg build (same reasoning as prepare_autostart_unittest.cc).
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
-#ifndef AVBASE_TESTDATA_DIR
-#error "player_unittests must define AVBASE_TESTDATA_DIR for this suite"
+#ifndef XMEDIA_TESTDATA_DIR
+#error "player_unittests must define XMEDIA_TESTDATA_DIR for this suite"
 #endif
 // A 1 s 320x240 HEVC file with colour_transfer=smpte2084 (PQ) and BT.2020
 // primaries, 23 KB. Committed rather than generated at test time: the seed set
 // in tests/testdata is what encodes "these are the dimensions we care about",
 // and an HDR sample is now one of them.
-const char* const kHdrUri = AVBASE_TESTDATA_DIR "/hdr_pq_320x240_1s.mp4";
-const char* const kSdrUri = AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+const char* const kHdrUri = XMEDIA_TESTDATA_DIR "/hdr_pq_320x240_1s.mp4";
+const char* const kSdrUri = XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
 // The same 1 s clip with a 90-degree display matrix, for kRotationChanged.
 const char* const kRotatedUri =
-    AVBASE_TESTDATA_DIR "/rotated90_hdr_320x240_1s.mp4";
+    XMEDIA_TESTDATA_DIR "/rotated90_hdr_320x240_1s.mp4";
 
 // The handler runs on the player's event sequence; these outlive it and are
 // read after StopSync, which is why they are atomics rather than plain ints.
@@ -156,7 +156,7 @@ TEST(PlayerRotationChangedTest, RotatedSourceReportsTheEvent) {
   EXPECT_EQ(probe.rotation_events.load(), 1)
       << "a rotated source produced no kRotationChanged event";
   // 270, not 90, and that is not a bug: av_display_rotation_get() reports the
-  // angle COUNTERCLOCKWISE, while avbase's rotation is CLOCKWISE everywhere it
+  // angle COUNTERCLOCKWISE, while xmedia-kit's rotation is CLOCKWISE everywhere it
   // is consumed (gl_layer_geometry.cc's kCosSin table is labelled clockwise,
   // and NaturalSizeForRotation only cares about quarter turns). The demuxer
   // negates to convert, so a 90-degree counterclockwise display matrix is a
@@ -197,6 +197,6 @@ TEST(PlayerHdrUnsupportedTest, SdrSourceReportsNoEvent) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_ENABLE_FFMPEG
+#endif  // XMEDIA_ENABLE_FFMPEG

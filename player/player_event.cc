@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "player/public/player_event.h"
 
-namespace avbase {
+namespace xmedia {
 
 const char* GetPlayerStateName(PlayerState state) {
   switch (state) {
@@ -106,38 +106,38 @@ const T* PayloadIf(const PlayerEvent& event, EventType expected) {
 
 }  // namespace
 
-#define AVBASE_DEFINE_EVENT_ACCESSOR(Name, Type, Kind) \
+#define XMEDIA_DEFINE_EVENT_ACCESSOR(Name, Type, Kind) \
   const Type* Name(const PlayerEvent& event) {         \
     return PayloadIf<Type>(event, EventType::Kind);    \
   }
 
-AVBASE_DEFINE_EVENT_ACCESSOR(AsPrepared, PreparedPayload, kPrepared)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsError, ErrorPayload, kError)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload, kStateChanged)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsPrepared, PreparedPayload, kPrepared)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsError, ErrorPayload, kError)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload, kStateChanged)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload,
                              kVideoSizeChanged)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload,
                              kRotationChanged)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload,
                              kRenderingStarted)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload,
                              kDecodingStarted)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload, kStageReached)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload, kStageReached)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload,
                              kBufferingProgress)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload,
                              kBufferedTimeUpdate)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload,
                              kSeekCompleted)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsAccurateSeekCompleted,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsAccurateSeekCompleted,
                              AccurateSeekCompletedPayload,
                              kAccurateSeekCompleted)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload, kTimedText)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload, kTrackChanged)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload,
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload, kTimedText)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload, kTrackChanged)
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload,
                              kSnapshotCompleted)
-AVBASE_DEFINE_EVENT_ACCESSOR(AsStats, StatsPayload, kStats)
-#undef AVBASE_DEFINE_EVENT_ACCESSOR
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsStats, StatsPayload, kStats)
+#undef XMEDIA_DEFINE_EVENT_ACCESSOR
 
 bool ToLegacyEvent(const PlayerEvent& event, LegacyEvent* out) {
   if (!out) {
@@ -253,7 +253,7 @@ bool ToLegacyEvent(const PlayerEvent& event, LegacyEvent* out) {
   case EventType::kDecoderOpened:
     out->what = 10001;
     return true;
-  // New in avbase; no ijkplayer equivalent.
+  // New in xmedia-kit; no ijkplayer equivalent.
   case EventType::kDecoderFallback:
   case EventType::kWaiting:
   case EventType::kBufferedBytesUpdate:
@@ -267,4 +267,4 @@ bool ToLegacyEvent(const PlayerEvent& event, LegacyEvent* out) {
   return false;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

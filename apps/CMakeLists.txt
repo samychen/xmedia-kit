@@ -6,6 +6,6 @@
 # Each app is gated by its own option so a machine without the toolkit still
 # builds the rest of the tree.
 
-if(AVBASE_BUILD_QT_PLAYER)
+if(XMEDIA_BUILD_QT_PLAYER)
   add_subdirectory(player_qt)
 endif()

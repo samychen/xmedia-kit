@@ -6,24 +6,24 @@
 >
 > 每条格式：**场景 → 代码 → 注意 → 相关配置**。代码省略了 `#include
 > "player/public/player.h"` 与 `main()` 的外壳，默认都在 `int main()` 里、
-> `using namespace avbase;` 之下。
+> `using namespace xmedia;` 之下。
 
 **通用骨架**（后面各条只写差异部分）：
 
 ```cpp
-avbase::PlayerConfig config;
-auto deps = std::make_unique<avbase::Deps>();
-avbase::Player player(config, std::move(deps));
-player.SetEventHandler(avbase::base::BindRepeating(
-    [](const avbase::PlayerEvent& e) {
-      if (e.type == avbase::EventType::kError) {
-        if (const auto* p = avbase::AsError(e)) {
+xmedia::PlayerConfig config;
+auto deps = std::make_unique<xmedia::Deps>();
+xmedia::Player player(config, std::move(deps));
+player.SetEventHandler(xmedia::base::BindRepeating(
+    [](const xmedia::PlayerEvent& e) {
+      if (e.type == xmedia::EventType::kError) {
+        if (const auto* p = xmedia::AsError(e)) {
           std::fprintf(stderr, "error: %s\n", p->error.ToString().c_str());
         }
       }
     }));
-if (const avbase::Status s = player.SetDataSource(url); !s) { /* 三段式错误 */ }
-if (const avbase::Status s = player.PrepareAsync(); !s) { /* ... */ }
+if (const xmedia::Status s = player.SetDataSource(url); !s) { /* 三段式错误 */ }
+if (const xmedia::Status s = player.PrepareAsync(); !s) { /* ... */ }
 ```
 
 > `Status` 是 `base::expected<void, MediaError>`：`!s` 即失败，`s.error()` 取
@@ -36,7 +36,7 @@ if (const avbase::Status s = player.PrepareAsync(); !s) { /* ... */ }
 ## 1. 播放一个本地文件
 
 ```cpp
-if (const avbase::Status s = player.SetDataSource("/path/video.mp4"); !s) {
+if (const xmedia::Status s = player.SetDataSource("/path/video.mp4"); !s) {
   return 1;
 }
 player.PrepareAsync();   // kPrepared 事件到达即可 Start()
@@ -51,12 +51,12 @@ player.PrepareAsync();   // kPrepared 事件到达即可 Start()
 ## 2. 播放网络流（HLS/RTMP/RTSP/SRT）
 
 ```cpp
-avbase::PlayerConfig config;
+xmedia::PlayerConfig config;
 config.net.user_agent = "my-host/1.0";
 config.net.headers = {{"Referer", "https://example.com/"}};
 config.net.reconnect = true;
 config.net.reconnect_max_retries = 5;
-config.net.reconnect_delay = avbase::base::Milliseconds(200);
+config.net.reconnect_delay = xmedia::base::Milliseconds(200);
 // 之后用同一 config 构造 player，SetDataSource("https://.../index.m3u8")
 ```
 
@@ -70,8 +70,8 @@ config.net.reconnect_delay = avbase::base::Milliseconds(200);
 ```cpp
 // data 需在播放期间有效：MemoryDataSource 不拷贝（与 libFuzzer 的
 // fuzz_demuxer.cc 同一约定）。
-const avbase::Status s = player.SetDataSource(
-    avbase::DataSourceDescriptor::FromMemory(bytes.data(), bytes.size()));
+const xmedia::Status s = player.SetDataSource(
+    xmedia::DataSourceDescriptor::FromMemory(bytes.data(), bytes.size()));
 ```
 
 **注意**：`FromMemory` 收 `(const uint8_t*, size_t)`，不是 span。
@@ -82,15 +82,15 @@ const avbase::Status s = player.SetDataSource(
 实现 `media::DataSource`（`media/base/data_source.h`，纯虚 8 个）并挂进 Deps：
 
 ```cpp
-class MySource : public avbase::media::DataSource {
+class MySource : public xmedia::media::DataSource {
  public:
   void SetHost(Host* host) override { host_ = host; }
   void Read(int64_t offset, size_t size, uint8_t* data,
-            avbase::base::scoped_refptr<avbase::base::TaskRunner> runner,
+            xmedia::base::scoped_refptr<xmedia::base::TaskRunner> runner,
             ReadCB read_cb) override {
     // 异步读：read_cb 在 runner 上跑，绝不在线内联；0 == EOF
     runner->PostTask(FROM_HERE,
-                     avbase::base::BindOnce(std::move(read_cb),
+                     xmedia::base::BindOnce(std::move(read_cb),
                                             ReadResult(0)));
   }
   ReadResult ReadBlocking(int64_t offset, size_t size,
@@ -108,8 +108,8 @@ class MySource : public avbase::media::DataSource {
   int bitrate_{0};
 };
 
-auto deps = std::make_unique<avbase::Deps>();
-deps->data_source = avbase::base::MakeRefCounted<MySource>();
+auto deps = std::make_unique<xmedia::Deps>();
+deps->data_source = xmedia::base::MakeRefCounted<MySource>();
 ```
 
 **注意**：`Deps` 持有一个实例而非工厂（一个 Player 一个源）。多源用
@@ -120,17 +120,17 @@ deps->data_source = avbase::base::MakeRefCounted<MySource>();
 
 ## 5. 渲染到自己的窗口
 
-avbase 不建窗口，宿主建窗并把 handle 包成 `NativeDisplay`：
+xmedia-kit 不建窗口，宿主建窗并把 handle 包成 `NativeDisplay`：
 
 ```cpp
 // SDL2：
-auto display = avbase::media::NativeDisplay::FromSdl2Window(sdl_window);
+auto display = xmedia::media::NativeDisplay::FromSdl2Window(sdl_window);
 // GLFW：
-auto display = avbase::media::NativeDisplay::FromGlfwWindow(glfw_window);
+auto display = xmedia::media::NativeDisplay::FromGlfwWindow(glfw_window);
 // EGL surface（Linux）：
-auto display = avbase::media::NativeDisplay::FromEglSurface(egl_surface);
+auto display = xmedia::media::NativeDisplay::FromEglSurface(egl_surface);
 // DRM master fd（Linux 直出）：
-auto display = avbase::media::NativeDisplay::FromDrmMaster(drm_fd, crtc_id);
+auto display = xmedia::media::NativeDisplay::FromDrmMaster(drm_fd, crtc_id);
 
 player.SetVideoSurface(display);   // 运行期可换；nullptr 即停止上屏
 ```
@@ -146,7 +146,7 @@ player.SetVideoSurface(display);   // 运行期可换；nullptr 即停止上屏
 ```cpp
 // 第二个源进同一条管线（docs/14 stage 3 之后没有第二个 Player）：
 auto scene_source = player.AddSource(
-    avbase::DataSourceDescriptor::FromUri(second_url), /*layer=*/1);
+    xmedia::DataSourceDescriptor::FromUri(second_url), /*layer=*/1);
 // 之后 scene_source->Publish(frame) 把自己的帧送进 SceneSource；
 // 完整可运行形态见 examples/play_sdl2.cc --scene pip|fade 与
 // examples/scene_demo.h。
@@ -160,7 +160,7 @@ auto scene_source = player.AddSource(
 ## 7. 只要音频不要画面
 
 ```cpp
-avbase::PlayerConfig config;
+xmedia::PlayerConfig config;
 config.render.disable_video_output = true;   // "nodisp"
 ```
 
@@ -172,8 +172,8 @@ config.render.disable_video_output = true;   // "nodisp"
 ## 8. 抽帧 / 截图
 
 ```cpp
-if (const avbase::Status s =
-        player.TakeSnapshot(avbase::base::Seconds(3), "/tmp/frame.png");
+if (const xmedia::Status s =
+        player.TakeSnapshot(xmedia::base::Seconds(3), "/tmp/frame.png");
     !s) { /* 失败也带三段式 */ }
 // 完成事件：kSnapshotCompleted（携带 path 与 MediaError）
 ```
@@ -186,9 +186,9 @@ if (const avbase::Status s =
 
 ```cpp
 // 返回值是请求 id（用于把结果匹配回请求），不是帧序号：
-const avbase::Result<int64_t> id =
-    player.SeekTo(avbase::base::Seconds(90), avbase::SeekMode::kAccurate,
-                  avbase::base::BindOnce([](avbase::Status s) {
+const xmedia::Result<int64_t> id =
+    player.SeekTo(xmedia::base::Seconds(90), xmedia::SeekMode::kAccurate,
+                  xmedia::base::BindOnce([](xmedia::Status s) {
                     if (!s) {
                       // s.error() 三段式：summary / detail / suggestion
                     }
@@ -217,7 +217,7 @@ player.StepOnce();   // 每次一帧；仅暂停态合法
 
 ```cpp
 player.SetPlaybackRate(2.0);   // [0.25, 4.0]
-avbase::PlayerConfig config;
+xmedia::PlayerConfig config;
 config.audio.tempo_stretch = true;    // 变速时拉伸音频而非重采样
 config.audio.preserves_pitch = true;  // 保音调（WSOLA 变基）
 ```
@@ -231,11 +231,11 @@ config.audio.preserves_pitch = true;  // 保音调（WSOLA 变基）
 ```cpp
 if (const auto info = player.media_info()) {
   for (const auto& s : info->streams) {
-    // s.kind == avbase::media::StreamKind::kAudio / kVideo / kText
+    // s.kind == xmedia::media::StreamKind::kAudio / kVideo / kText
     // s.index / s.codec_name / s.language / s.title / s.duration
   }
 }
-player.SelectTrack(avbase::media::DemuxerStreamType::kAudio, /*index=*/1);
+player.SelectTrack(xmedia::media::DemuxerStreamType::kAudio, /*index=*/1);
 // 生效事件：kTrackChanged
 ```
 
@@ -248,12 +248,12 @@ examples/play_sdl2.cc 的 kStateChanged 分支。
 ## 13. 监听卡顿与缓冲进度
 
 ```cpp
-player.SetEventHandler([](const avbase::PlayerEvent& e) {
+player.SetEventHandler([](const xmedia::PlayerEvent& e) {
   switch (e.type) {
-    case avbase::EventType::kBufferingStarted: /* 进入 kBuffering */ break;
-    case avbase::EventType::kBufferingEnded:   /* 恢复播放 */ break;
-    case avbase::EventType::kBufferingProgress: /* 进度 */ break;
-    case avbase::EventType::kWaiting:           /* 等数据/等解码 */ break;
+    case xmedia::EventType::kBufferingStarted: /* 进入 kBuffering */ break;
+    case xmedia::EventType::kBufferingEnded:   /* 恢复播放 */ break;
+    case xmedia::EventType::kBufferingProgress: /* 进度 */ break;
+    case xmedia::EventType::kWaiting:           /* 等数据/等解码 */ break;
     default: break;
   }
 });
@@ -266,12 +266,12 @@ player.SetEventHandler([](const avbase::PlayerEvent& e) {
 ## 14. 上报首帧耗时与 QoS
 
 ```cpp
-const avbase::PlaybackStats st = player.GetPlaybackStats();
+const xmedia::PlaybackStats st = player.GetPlaybackStats();
 // 分段计时（prepare → 上屏）：
-avbase::base::TimeDelta t = st.stages.total_first_frame;
+xmedia::base::TimeDelta t = st.stages.total_first_frame;
 // 或单独看某段：st.stages.open_input_to_stream_info 等
 // 首帧延迟（另一口径，含起播决策）：
-avbase::base::TimeDelta lat = st.first_frame_latency;
+xmedia::base::TimeDelta lat = st.first_frame_latency;
 // JSON 一键上报：
 std::string json = st.ToJson();
 ```
@@ -283,8 +283,8 @@ std::string json = st.ToJson();
 ## 15. 检测爆音
 
 ```cpp
-const avbase::PlaybackStats st = player.GetPlaybackStats();
-const avbase::media::AudioGlitchInfo& g = st.audio_glitches;
+const xmedia::PlaybackStats st = player.GetPlaybackStats();
+const xmedia::media::AudioGlitchInfo& g = st.audio_glitches;
 // g 内含 underrun/glitch 计数（音频 sink 直供，1 Hz 随 kStats 更新）
 ```
 
@@ -305,12 +305,12 @@ player.SetLoopCount(-1);   // 无限循环；0 = 不循环；n = n 次
 ## 17. 弱网调优
 
 ```cpp
-avbase::PlayerConfig config;
+xmedia::PlayerConfig config;
 config.buffer.enabled = true;                 // 总开关（"packet-buffering"）
 config.buffer.max_bytes = 30 * 1024 * 1024;   // 全播放器字节预算（按流拆分）
-config.buffer.first_high_water_mark = avbase::base::Milliseconds(100);
-config.buffer.next_high_water_mark = avbase::base::Seconds(1);
-config.buffer.last_high_water_mark = avbase::base::Seconds(5);
+config.buffer.first_high_water_mark = xmedia::base::Milliseconds(100);
+config.buffer.next_high_water_mark = xmedia::base::Seconds(1);
+config.buffer.last_high_water_mark = xmedia::base::Seconds(5);
 config.buffer.unlimited = false;              // true = "infbuf"：不设字节上限
 config.net.reconnect_max_retries = 8;
 ```
@@ -325,7 +325,7 @@ config.net.reconnect_max_retries = 8;
 ## 18. 直播追帧
 
 ```cpp
-config.net.live_max_latency = avbase::base::Seconds(3);  // 0 = 不追边缘
+config.net.live_max_latency = xmedia::base::Seconds(3);  // 0 = 不追边缘
 ```
 
 **注意**：非零时播放器会主动 seek 到「当前边缘减 latency」，代价是
@@ -336,12 +336,12 @@ config.net.live_max_latency = avbase::base::Seconds(3);  // 0 = 不追边缘
 ## 19. 强制软解 / 强制硬解
 
 ```cpp
-avbase::PlayerConfig config;
-config.video.decoder_preference = avbase::DecoderPreference::kSoftware;
+xmedia::PlayerConfig config;
+config.video.decoder_preference = xmedia::DecoderPreference::kSoftware;
 // kAuto（默认，硬解优先回落）/ kHardwareFirst（回落时告警）/
 // kHardwareOnly（失败即报错，不回落）
-config.video.hw_codecs = static_cast<avbase::HwCodecMask>(
-    avbase::HwCodecFlag::kHevc);   // 只允许 HEVC 走硬解
+config.video.hw_codecs = static_cast<xmedia::HwCodecMask>(
+    xmedia::HwCodecFlag::kHevc);   // 只允许 HEVC 走硬解
 // 监听回落：kDecoderFallback 事件（携带原因）
 ```
 
@@ -354,21 +354,21 @@ config.video.hw_codecs = static_cast<avbase::HwCodecMask>(
 ## 20. 把日志接到自己的日志系统
 
 ```cpp
-class MyLog : public avbase::base::logging::LoggingDelegate {
+class MyLog : public xmedia::base::logging::LoggingDelegate {
  public:
-  void OnLogMessage(avbase::base::logging::LogSeverity severity,
+  void OnLogMessage(xmedia::base::logging::LogSeverity severity,
                     const char* file, int line,
                     std::string_view message) override {
     my_log(severity, file, line, message);   // 你的落点
   }
 };
 
-auto deps = std::make_unique<avbase::Deps>();
+auto deps = std::make_unique<xmedia::Deps>();
 deps->logging_delegate = std::make_unique<MyLog>();
 ```
 
 **注意**：`OnLogMessage` 会在多个线程被调，实现需线程安全；不要在回调里
-再打 avbase 日志。`base::logging::SetMinLogLevel()` 可全局调级别。
+再打 xmedia-kit 日志。`base::logging::SetMinLogLevel()` 可全局调级别。
 **相关配置**：无。
 
 ## 21. 线上问题排查
@@ -376,9 +376,9 @@ deps->logging_delegate = std::make_unique<MyLog>();
 ```cpp
 std::string dump = player.DumpDiagnostics();   // 播放中随时可取
 // 命令行离线诊断（不需要写宿主）：
-//   avbase-inspect probe  <url>    容器/流信息
-//   avbase-inspect decode <url>    解码链路 smoke
-//   avbase-inspect dump   <url>    全量诊断
+//   xmedia-inspect probe  <url>    容器/流信息
+//   xmedia-inspect decode <url>    解码链路 smoke
+//   xmedia-inspect dump   <url>    全量诊断
 ```
 
 **注意**：`DumpDiagnostics()` 含各队列水位、线程状态与统计快照，是
@@ -388,19 +388,19 @@ std::string dump = player.DumpDiagnostics();   // 播放中随时可取
 ## 22. 从 ijkplayer 迁移配置
 
 ```cpp
-avbase::PlayerBuilder builder;   // SetOption 在 builder 上，不在 Player 上
+xmedia::PlayerBuilder builder;   // SetOption 在 builder 上，不在 Player 上
 builder.SetConfig(config);
 // 四个 category：kPlayer / kFormat / kCodec / kScaler
-builder.SetOption(avbase::OptionCategory::kFormat, "analyzeduration",
+builder.SetOption(xmedia::OptionCategory::kFormat, "analyzeduration",
                   int64_t{500});
-builder.SetOption(avbase::OptionCategory::kPlayer, "max-buffer-size",
+builder.SetOption(xmedia::OptionCategory::kPlayer, "max-buffer-size",
                   int64_t{30 * 1024 * 1024});
-builder.SetOption(avbase::OptionCategory::kPlayer, "nodisp", true);
+builder.SetOption(xmedia::OptionCategory::kPlayer, "nodisp", true);
 auto built = builder.Build();    // Result<std::unique_ptr<Player>>
 if (!built) {
   return 1;  // 未知 key 在此报错（带 "did you mean" 建议，Δ2）
 }
-std::unique_ptr<avbase::Player> player = std::move(*built);
+std::unique_ptr<xmedia::Player> player = std::move(*built);
 ```
 
 **注意**：注册表内 9 个 key 全部有真实读取者（docs/TODO §2 列表），

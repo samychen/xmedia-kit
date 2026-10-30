@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_SCENE_H_
-#define AVBASE_PLAYER_PUBLIC_SCENE_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_SCENE_H_
+#define XMEDIA_PLAYER_PUBLIC_SCENE_H_
 
 #include <array>
 #include <cstdint>
@@ -19,7 +19,7 @@
 #include "media/base/video_frame.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 // The media-layer types the scene is built on. Named here, not included: none
 // of them appears in a public signature, so an SDK caller never has to have
@@ -61,7 +61,7 @@ enum class SceneContentMode {
 //
 // VALIDITY: only inside the callback it came from. That is enforced rather
 // than merely documented -- see SceneFrame.
-class AVBASE_PLAYER_EXPORT SceneLayer {
+class XMEDIA_PLAYER_EXPORT SceneLayer {
  public:
   SceneLayer() = default;
 
@@ -140,7 +140,7 @@ class AVBASE_PLAYER_EXPORT SceneLayer {
 // than a warning: SceneLayer keeps a pointer back here, and this object is
 // marked dead when the callback returns. A handle kept past the callback fails
 // every call instead of reaching into a frame that has gone.
-class AVBASE_PLAYER_EXPORT SceneFrame {
+class XMEDIA_PLAYER_EXPORT SceneFrame {
  public:
   SceneFrame() = default;
   SceneFrame(const SceneFrame&) = delete;
@@ -212,7 +212,7 @@ using SceneUpdateCallback = base::RepeatingCallback<void(
 // which happens on every Prepare, because the sink belongs to the renderer and
 // the renderer belongs to the pipeline. Hiding that churn is most of why this
 // class exists.
-class AVBASE_PLAYER_EXPORT SceneSource
+class XMEDIA_PLAYER_EXPORT SceneSource
     : public std::enable_shared_from_this<SceneSource> {
  public:
   // The name this source was registered under (not unique; see FindSource).
@@ -291,7 +291,7 @@ class AVBASE_PLAYER_EXPORT SceneSource
 // that had to re-register everything each cycle would be writing lifecycle
 // code it has no business writing. Sources and the update callback are
 // re-plumbed into each new pipeline automatically.
-class AVBASE_PLAYER_EXPORT Scene {
+class XMEDIA_PLAYER_EXPORT Scene {
  public:
   Scene();
   Scene(const Scene&) = delete;
@@ -395,6 +395,6 @@ class AVBASE_PLAYER_EXPORT Scene {
   media::GlSceneEngine* engine_ GUARDED_BY(lock_){nullptr};
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_SCENE_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_SCENE_H_

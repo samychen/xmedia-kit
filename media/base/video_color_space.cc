@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // The size-class ladder. Evaluated top to bottom; the first row whose height
@@ -116,7 +116,7 @@ std::string VideoColorSpace::AsDebugString() const {
 VideoColorSpace GuessColorSpaceFallback(int coded_width, int coded_height,
                                         bool has_hdr_metadata) {
   // The current ladder is size- and HDR-based only, which covers every
-  // container avbase's testdata and the common streaming profiles exercise.
+  // container xmedia-kit's testdata and the common streaming profiles exercise.
   (void)coded_width;
   for (const FallbackRow& row : kFallbackTable) {
     if (row.hdr_only && !has_hdr_metadata) {
@@ -129,4 +129,4 @@ VideoColorSpace GuessColorSpaceFallback(int coded_width, int coded_height,
   return VideoColorSpace{};
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

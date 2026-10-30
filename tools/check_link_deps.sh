@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
 # V3 (docs/10 §12): "the minimal integration needs FFmpeg only; ldd
-# libavbase.so shows no SDL2/GL/X11/ALSA". This tree ships STATIC libraries,
+# libxmedia.so shows no SDL2/GL/X11/ALSA". This tree ships STATIC libraries,
 # so ldd has nothing to say; the property is checked where it actually lives:
 # the undefined symbols the core archives carry, and the headers a host must
 # include.
@@ -19,8 +19,8 @@
 #      to install SDL2 just to call SetDataSource is the same bug one layer up.
 #
 # WHY THIS IS A SCRIPT: the first version of the LINK half was a one-line grep
-# with -i, and it "found" two violations that were avbase's OWN symbols --
-# avbase::gl::GlApi::Load(NativeGLContext*) matched "egl" case-insensitively
+# with -i, and it "found" two violations that were xmedia-kit's OWN symbols --
+# xmedia::gl::GlApi::Load(NativeGLContext*) matched "egl" case-insensitively
 # on the "eGL" inside NativeGLContext. A gate that fires on its own codebase's
 # names trains people to widen the regex until it passes. So: demangle first,
 # match case-sensitively, and name the exact prefixes that are somebody
@@ -38,16 +38,16 @@ if [[ ! -d "$BUILD/lib" ]]; then
 fi
 
 # ---- half 1: undefined symbols of the core archives ----------------------
-# Case-SENSITIVE, on demangled names. avbase's own GL abstraction is
-# avbase::gl::*; the platform GL APIs are glX*/egl*/SDL_*/pa_*/snd_pcm_*/
-# XOpenDisplay/wl_*. Nothing in avbase:: or the C++ runtime should match.
+# Case-SENSITIVE, on demangled names. xmedia-kit's own GL abstraction is
+# xmedia::gl::*; the platform GL APIs are glX*/egl*/SDL_*/pa_*/snd_pcm_*/
+# XOpenDisplay/wl_*. Nothing in xmedia:: or the C++ runtime should match.
 BACKEND_RE='SDL_[A-Z]|glX[A-Z]|egl[A-Z]|pa_[a-z]|snd_pcm_|XOpenDisplay|XCreateWindow|wl_[a-z_]+'
 
-for lib in libavbase_base.a libavbase_media.a libavbase_player.a; do
+for lib in libxmedia_base.a libxmedia_media.a libxmedia_player.a; do
   path="$BUILD/lib/$lib"
   [[ -f "$path" ]] || continue
   # nm -g gives global (exported+undefined) symbols; " U " is undefined.
-  # c++filt demangles so the match sees avbase::gl::GlApi, not _ZN6avbase...
+  # c++filt demangles so the match sees xmedia::gl::GlApi, not _ZN6xmedia...
   hits=$(nm -g "$path" 2>/dev/null | grep ' U ' | c++filt \
       | grep -E "$BACKEND_RE" || true)
   if [[ -n "$hits" ]]; then

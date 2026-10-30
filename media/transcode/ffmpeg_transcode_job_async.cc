@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include <thread>
 #include <utility>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The async half of E3b: it owns the worker thread that drives the synchronous
 // Transcode() pump in ffmpeg_transcode_job.cc, plus the cancellation plumbing
@@ -94,4 +94,4 @@ bool TranscodeJob::IsRunning() const {
   return impl_->running.load(std::memory_order_acquire);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

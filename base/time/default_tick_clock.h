@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_BASE_TIME_DEFAULT_TICK_CLOCK_H_
-#define AVBASE_BASE_TIME_DEFAULT_TICK_CLOCK_H_
+#ifndef XMEDIA_BASE_TIME_DEFAULT_TICK_CLOCK_H_
+#define XMEDIA_BASE_TIME_DEFAULT_TICK_CLOCK_H_
 
 #include "base/base_export.h"
 #include "base/time/tick_clock.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
-class AVBASE_BASE_EXPORT DefaultTickClock final : public TickClock {
+class XMEDIA_BASE_EXPORT DefaultTickClock final : public TickClock {
  public:
   DefaultTickClock() = default;
   DefaultTickClock(const DefaultTickClock&) = delete;
@@ -23,6 +23,6 @@ class AVBASE_BASE_EXPORT DefaultTickClock final : public TickClock {
   static const DefaultTickClock* GetInstance();
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_TIME_DEFAULT_TICK_CLOCK_H_
+#endif  // XMEDIA_BASE_TIME_DEFAULT_TICK_CLOCK_H_

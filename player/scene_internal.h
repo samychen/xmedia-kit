@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,8 +8,8 @@
 // PublisherSink plumbing -- which is exactly what docs/14 stage 3 retired from
 // the public SceneSource API (MakePublisherFactory).
 
-#ifndef AVBASE_PLAYER_SCENE_INTERNAL_H_
-#define AVBASE_PLAYER_SCENE_INTERNAL_H_
+#ifndef XMEDIA_PLAYER_SCENE_INTERNAL_H_
+#define XMEDIA_PLAYER_SCENE_INTERNAL_H_
 
 #include <memory>
 #include <vector>
@@ -17,7 +17,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "player/public/scene.h"
 
-namespace avbase {
+namespace xmedia {
 
 // Builds a sink factory that, for every secondary leg (source id >= 1), returns
 // a sink that PUBLISHES the leg's decoded frame into the matching SceneSource
@@ -30,6 +30,6 @@ namespace avbase {
 std::shared_ptr<media::VideoRendererSinkFactory>
 CreateSecondarySinkFactory(std::vector<std::shared_ptr<SceneSource>> sources);
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_SCENE_INTERNAL_H_
+#endif  // XMEDIA_PLAYER_SCENE_INTERNAL_H_

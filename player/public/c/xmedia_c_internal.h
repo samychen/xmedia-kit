@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,8 +12,8 @@
 // public header's typedefs already bind these names, and re-declaring them
 // inside a namespace would make every unqualified use ambiguous.
 
-#ifndef AVBASE_PLAYER_PUBLIC_C_AVBASE_C_INTERNAL_H_
-#define AVBASE_PLAYER_PUBLIC_C_AVBASE_C_INTERNAL_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_C_XMEDIA_C_INTERNAL_H_
+#define XMEDIA_PLAYER_PUBLIC_C_XMEDIA_C_INTERNAL_H_
 
 #include <algorithm>
 #include <cstring>
@@ -27,9 +27,9 @@
 #include "media/base/media_types.h"
 #include "media/base/native_display.h"
 #include "media/base/video_frame.h"
-#include "player/public/c/avbase_c.h"
+#include "player/public/c/xmedia_c.h"
 
-#include "player/public/c/avbase_c.h"
+#include "player/public/c/xmedia_c.h"
 
 #include <algorithm>
 #include <cstring>
@@ -54,16 +54,16 @@
 // Defined at GLOBAL scope, not in an anonymous namespace: the header's typedefs
 // already bind these names in C, and re-declaring them inside a namespace makes
 // every unqualified use ambiguous.
-struct AvbasePlayer {
-  std::unique_ptr<avbase::Player> player;
+struct XmediaPlayer {
+  std::unique_ptr<xmedia::Player> player;
 };
 
-struct AvbaseNativeDisplay {
-  avbase::base::scoped_refptr<avbase::media::NativeDisplay> display;
+struct XmediaNativeDisplay {
+  xmedia::base::scoped_refptr<xmedia::media::NativeDisplay> display;
 };
 
-struct AvbaseSource {
-  std::shared_ptr<avbase::SceneSource> source;
+struct XmediaSource {
+  std::shared_ptr<xmedia::SceneSource> source;
 };
 
 namespace {
@@ -81,110 +81,110 @@ namespace {
 // that does not call one sees an unused static function and warns. It is also
 // what makes the definitions legal here at all -- a non-inline definition in a
 // header included by three translation units is a duplicate symbol. Neither
-// showed up before, because AVBASE_ENABLE_CAPI was OFF in every preset, so
+// showed up before, because XMEDIA_ENABLE_CAPI was OFF in every preset, so
 // these three files had never been compiled by any gate.
-inline AvbaseStatus ToC(avbase::ErrorCode code) {
+inline XmediaStatus ToC(xmedia::ErrorCode code) {
   switch (code) {
-  case avbase::ErrorCode::kOk:
-    return AVBASE_OK;
-  case avbase::ErrorCode::kInvalidArgument:
-    return AVBASE_ERR_INVALID_ARGUMENT;
-  case avbase::ErrorCode::kInvalidState:
-    return AVBASE_ERR_INVALID_STATE;
-  case avbase::ErrorCode::kNotImplemented:
-    return AVBASE_ERR_NOT_IMPLEMENTED;
-  case avbase::ErrorCode::kOutOfMemory:
-    return AVBASE_ERR_OUT_OF_MEMORY;
-  case avbase::ErrorCode::kAborted:
-    return AVBASE_ERR_ABORTED;
-  case avbase::ErrorCode::kTimeout:
-    return AVBASE_ERR_TIMEOUT;
-  case avbase::ErrorCode::kSourceOpenFailed:
-    return AVBASE_ERR_SOURCE_OPEN_FAILED;
-  case avbase::ErrorCode::kSourceNotFound:
-    return AVBASE_ERR_SOURCE_NOT_FOUND;
-  case avbase::ErrorCode::kSourceReadFailed:
-    return AVBASE_ERR_SOURCE_READ_FAILED;
-  case avbase::ErrorCode::kDecoderNotFound:
-    return AVBASE_ERR_DECODER_NOT_FOUND;
-  case avbase::ErrorCode::kDecoderOpenFailed:
-    return AVBASE_ERR_DECODER_OPEN_FAILED;
-  case avbase::ErrorCode::kDecodeFailed:
-    return AVBASE_ERR_DECODE_FAILED;
-  case avbase::ErrorCode::kDecoderUnsupportedCodec:
-    return AVBASE_ERR_DECODER_UNSUPPORTED_CODEC;
-  case avbase::ErrorCode::kSinkNotAttached:
-    return AVBASE_ERR_SINK_NOT_ATTACHED;
-  case avbase::ErrorCode::kStreamNotFound:
-    return AVBASE_ERR_STREAM_NOT_FOUND;
-  case avbase::ErrorCode::kTrackNotFound:
-    return AVBASE_ERR_TRACK_NOT_FOUND;
-  case avbase::ErrorCode::kConfigInvalid:
-    return AVBASE_ERR_CONFIG_INVALID;
-  case avbase::ErrorCode::kEos:
-  case avbase::ErrorCode::kSourceEos:
-    return AVBASE_ERR_EOS;
+  case xmedia::ErrorCode::kOk:
+    return XMEDIA_OK;
+  case xmedia::ErrorCode::kInvalidArgument:
+    return XMEDIA_ERR_INVALID_ARGUMENT;
+  case xmedia::ErrorCode::kInvalidState:
+    return XMEDIA_ERR_INVALID_STATE;
+  case xmedia::ErrorCode::kNotImplemented:
+    return XMEDIA_ERR_NOT_IMPLEMENTED;
+  case xmedia::ErrorCode::kOutOfMemory:
+    return XMEDIA_ERR_OUT_OF_MEMORY;
+  case xmedia::ErrorCode::kAborted:
+    return XMEDIA_ERR_ABORTED;
+  case xmedia::ErrorCode::kTimeout:
+    return XMEDIA_ERR_TIMEOUT;
+  case xmedia::ErrorCode::kSourceOpenFailed:
+    return XMEDIA_ERR_SOURCE_OPEN_FAILED;
+  case xmedia::ErrorCode::kSourceNotFound:
+    return XMEDIA_ERR_SOURCE_NOT_FOUND;
+  case xmedia::ErrorCode::kSourceReadFailed:
+    return XMEDIA_ERR_SOURCE_READ_FAILED;
+  case xmedia::ErrorCode::kDecoderNotFound:
+    return XMEDIA_ERR_DECODER_NOT_FOUND;
+  case xmedia::ErrorCode::kDecoderOpenFailed:
+    return XMEDIA_ERR_DECODER_OPEN_FAILED;
+  case xmedia::ErrorCode::kDecodeFailed:
+    return XMEDIA_ERR_DECODE_FAILED;
+  case xmedia::ErrorCode::kDecoderUnsupportedCodec:
+    return XMEDIA_ERR_DECODER_UNSUPPORTED_CODEC;
+  case xmedia::ErrorCode::kSinkNotAttached:
+    return XMEDIA_ERR_SINK_NOT_ATTACHED;
+  case xmedia::ErrorCode::kStreamNotFound:
+    return XMEDIA_ERR_STREAM_NOT_FOUND;
+  case xmedia::ErrorCode::kTrackNotFound:
+    return XMEDIA_ERR_TRACK_NOT_FOUND;
+  case xmedia::ErrorCode::kConfigInvalid:
+    return XMEDIA_ERR_CONFIG_INVALID;
+  case xmedia::ErrorCode::kEos:
+  case xmedia::ErrorCode::kSourceEos:
+    return XMEDIA_ERR_EOS;
   default:
     // Codes the ABI does not name yet still have to produce something a C
     // host can branch on, and "failed" is the only honest answer.
-    return AVBASE_ERR_FAILED;
+    return XMEDIA_ERR_FAILED;
   }
 }
 
-inline AvbaseStatus ToC(const avbase::Status& status) {
+inline XmediaStatus ToC(const xmedia::Status& status) {
   // Status is base::expected<void, MediaError>. A success carries no error, so
   // the error() call is guarded here rather than left to convention.
   if (status.has_value()) {
-    return AVBASE_OK;
+    return XMEDIA_OK;
   }
   return ToC(status.error().code());
 }
 
-inline int64_t ToMs(avbase::base::TimeDelta delta) {
+inline int64_t ToMs(xmedia::base::TimeDelta delta) {
   return delta.InMilliseconds();
 }
 
-inline avbase::media::DemuxerStreamType FromStreamType(int stream_type) {
+inline xmedia::media::DemuxerStreamType FromStreamType(int stream_type) {
   switch (stream_type) {
-  case AVBASE_STREAM_AUDIO:
-    return avbase::media::DemuxerStreamType::kAudio;
-  case AVBASE_STREAM_VIDEO:
-    return avbase::media::DemuxerStreamType::kVideo;
-  case AVBASE_STREAM_TEXT:
-    return avbase::media::DemuxerStreamType::kText;
+  case XMEDIA_STREAM_AUDIO:
+    return xmedia::media::DemuxerStreamType::kAudio;
+  case XMEDIA_STREAM_VIDEO:
+    return xmedia::media::DemuxerStreamType::kVideo;
+  case XMEDIA_STREAM_TEXT:
+    return xmedia::media::DemuxerStreamType::kText;
   default:
-    return avbase::media::DemuxerStreamType::kUnknown;
+    return xmedia::media::DemuxerStreamType::kUnknown;
   }
 }
 
-inline avbase::media::NativeDisplayKind FromDisplayKind(int kind) {
+inline xmedia::media::NativeDisplayKind FromDisplayKind(int kind) {
   switch (kind) {
-  case AVBASE_DISPLAY_KIND_X11_WINDOW:
-    return avbase::media::NativeDisplayKind::kX11Window;
-  case AVBASE_DISPLAY_KIND_WAYLAND_SURFACE:
-    return avbase::media::NativeDisplayKind::kWaylandSurface;
-  case AVBASE_DISPLAY_KIND_SDL2_WINDOW:
-    return avbase::media::NativeDisplayKind::kSdl2Window;
-  case AVBASE_DISPLAY_KIND_DRM_MASTER:
-    return avbase::media::NativeDisplayKind::kDrmMaster;
-  case AVBASE_DISPLAY_KIND_GBM_DEVICE:
-    return avbase::media::NativeDisplayKind::kGbmDevice;
-  case AVBASE_DISPLAY_KIND_ANDROID_NATIVE_WINDOW:
-    return avbase::media::NativeDisplayKind::kAndroidNativeWindow;
-  case AVBASE_DISPLAY_KIND_ANDROID_SURFACE:
-    return avbase::media::NativeDisplayKind::kAndroidSurface;
-  case AVBASE_DISPLAY_KIND_CAMETAL_LAYER:
-    return avbase::media::NativeDisplayKind::kCametalLayer;
-  case AVBASE_DISPLAY_KIND_CAEAGL_LAYER:
-    return avbase::media::NativeDisplayKind::kCaEaglLayer;
-  case AVBASE_DISPLAY_KIND_HWND:
-    return avbase::media::NativeDisplayKind::kHwnd;
-  case AVBASE_DISPLAY_KIND_GLFW_WINDOW:
-    return avbase::media::NativeDisplayKind::kGlfwWindow;
-  case AVBASE_DISPLAY_KIND_EGL_WINDOW:
-    return avbase::media::NativeDisplayKind::kEglWindow;
+  case XMEDIA_DISPLAY_KIND_X11_WINDOW:
+    return xmedia::media::NativeDisplayKind::kX11Window;
+  case XMEDIA_DISPLAY_KIND_WAYLAND_SURFACE:
+    return xmedia::media::NativeDisplayKind::kWaylandSurface;
+  case XMEDIA_DISPLAY_KIND_SDL2_WINDOW:
+    return xmedia::media::NativeDisplayKind::kSdl2Window;
+  case XMEDIA_DISPLAY_KIND_DRM_MASTER:
+    return xmedia::media::NativeDisplayKind::kDrmMaster;
+  case XMEDIA_DISPLAY_KIND_GBM_DEVICE:
+    return xmedia::media::NativeDisplayKind::kGbmDevice;
+  case XMEDIA_DISPLAY_KIND_ANDROID_NATIVE_WINDOW:
+    return xmedia::media::NativeDisplayKind::kAndroidNativeWindow;
+  case XMEDIA_DISPLAY_KIND_ANDROID_SURFACE:
+    return xmedia::media::NativeDisplayKind::kAndroidSurface;
+  case XMEDIA_DISPLAY_KIND_CAMETAL_LAYER:
+    return xmedia::media::NativeDisplayKind::kCametalLayer;
+  case XMEDIA_DISPLAY_KIND_CAEAGL_LAYER:
+    return xmedia::media::NativeDisplayKind::kCaEaglLayer;
+  case XMEDIA_DISPLAY_KIND_HWND:
+    return xmedia::media::NativeDisplayKind::kHwnd;
+  case XMEDIA_DISPLAY_KIND_GLFW_WINDOW:
+    return xmedia::media::NativeDisplayKind::kGlfwWindow;
+  case XMEDIA_DISPLAY_KIND_EGL_WINDOW:
+    return xmedia::media::NativeDisplayKind::kEglWindow;
   default:
-    return avbase::media::NativeDisplayKind::kNone;
+    return xmedia::media::NativeDisplayKind::kNone;
   }
 }
 
@@ -210,20 +210,20 @@ inline int32_t CopyOut(const std::string& text, char* out, int32_t capacity) {
 // because the Player may outlive the C handle during destruction, and a raw
 // capture would dangle exactly when a late event can arrive.
 struct EventBridge {
-  AvbaseEventCallback callback{nullptr};
+  XmediaEventCallback callback{nullptr};
   void* user_data{nullptr};
 };
 
 // None() is a VALID non-rendering target, so validity is not "non-null" --
 // but a null pointer here still means the factory refused (bad handle), and
 // both are a failure to create.
-inline AvbaseNativeDisplay*
-WrapDisplay(avbase::base::scoped_refptr<avbase::media::NativeDisplay> display) {
+inline XmediaNativeDisplay*
+WrapDisplay(xmedia::base::scoped_refptr<xmedia::media::NativeDisplay> display) {
   if (display == nullptr || !display->valid()) {
     return nullptr;
   }
-  std::unique_ptr<AvbaseNativeDisplay> handle(new (std::nothrow)
-                                                  AvbaseNativeDisplay());
+  std::unique_ptr<XmediaNativeDisplay> handle(new (std::nothrow)
+                                                  XmediaNativeDisplay());
   if (handle == nullptr) {
     return nullptr;
   }
@@ -233,4 +233,4 @@ WrapDisplay(avbase::base::scoped_refptr<avbase::media::NativeDisplay> display) {
 
 }  // namespace
 
-#endif  // AVBASE_PLAYER_PUBLIC_C_AVBASE_C_INTERNAL_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_C_XMEDIA_C_INTERNAL_H_

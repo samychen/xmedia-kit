@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_LAYER_SOURCE_H_
-#define AVBASE_MEDIA_GL_GL_LAYER_SOURCE_H_
+#ifndef XMEDIA_MEDIA_GL_GL_LAYER_SOURCE_H_
+#define XMEDIA_MEDIA_GL_GL_LAYER_SOURCE_H_
 
 #include <cstdint>
 #include <string>
@@ -16,7 +16,7 @@
 #include "media/gl/gl_scene.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One input stream and the scene layer it feeds.
 //
@@ -48,7 +48,7 @@ namespace avbase::media {
 // THREADING: Publish() from any thread, any number of them. EnsureLayer(),
 // Sync() and Detach() on the thread holding the GL context. The counts may be
 // read from anywhere; they come from the mailbox, which owns them.
-class AVBASE_MEDIA_EXPORT GlLayerSource {
+class XMEDIA_MEDIA_EXPORT GlLayerSource {
  public:
   // |name| is for logs and for finding a source again; |z| is where its layer
   // sits in the scene (higher is drawn later, i.e. on top).
@@ -120,6 +120,6 @@ class AVBASE_MEDIA_EXPORT GlLayerSource {
   base::scoped_refptr<VideoFrame> displayed_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_LAYER_SOURCE_H_
+#endif  // XMEDIA_MEDIA_GL_GL_LAYER_SOURCE_H_

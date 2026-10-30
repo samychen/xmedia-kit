@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -26,7 +26,7 @@
 #include <string>
 #include <utility>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/simple_test_tick_clock.h"
@@ -37,7 +37,7 @@
 #include "player/public/deps.h"
 #include "player/public/player_config.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // PrepareAsync reaches the factory-deps assembly only when a demuxer can be
 // built, and without FFmpeg CreateDemuxer() has nothing to return
 // (player/player_impl_prepare.cc): the player reports kNotImplemented
@@ -47,7 +47,7 @@
 // like coverage this suite does not have.
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 // What the seam captured. A copy, not a pointer: the Deps are moved into
@@ -73,7 +73,7 @@ Captured PrepareAndCapture(const PlayerConfig& config,
   // sequence, which is the point -- the failure is downstream of the hop
   // under test.
   const auto source =
-      impl.SetDataSource("/nonexistent/avbase-deps-wiring-test.mp4");
+      impl.SetDataSource("/nonexistent/xmedia-deps-wiring-test.mp4");
   EXPECT_TRUE(source.has_value());
   impl.set_deps_observer_for_testing(base::BindRepeating(
       [](Captured* captured, const media::DefaultRendererFactory::Deps& deps) {
@@ -293,6 +293,6 @@ TEST(PlayerDepsWiringTest, DecoderFallbackChainReachesTheFactory) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,11 +14,11 @@
 #include "render/gl/gl_shaders.h"
 
 // The video-domain half of the GL path, in one place. Entry-point loading,
-// shader compilation, textures and the quad come from avbase_gl; what is left
+// shader compilation, textures and the quad come from xmedia_gl; what is left
 // here is the part that is genuinely about video: which plane goes in which
 // texture, what the colour matrix is, and how the stride is handled.
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The YUV->RGB conversion, with an opacity so a scene can fade a layer. The
 // alpha is a uniform rather than a second shader because the alternative is
@@ -453,4 +453,4 @@ std::unique_ptr<gl::GlProgram> CreateVideoLayerRectProgram(const gl::GlApi& gl,
   return CreateLayerProgram(gl, kYuvSamplerRectDefines, error);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

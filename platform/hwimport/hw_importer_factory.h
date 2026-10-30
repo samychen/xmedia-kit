@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_
-#define AVBASE_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_
+#ifndef XMEDIA_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_
+#define XMEDIA_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_
 
 #include <memory>
 
 #include "media/gl/gl_hw_texture_importer.h"
 
-namespace avbase::platform::hwimport {
+namespace xmedia::platform::hwimport {
 
 // The host's GPU-interop backend, or null when this host has none.
 //
@@ -27,6 +27,6 @@ namespace avbase::platform::hwimport {
 // it into the explicit CPU readback that has always been the fallback.
 std::unique_ptr<media::GlHwTextureImporter> CreateHwTextureImporter();
 
-}  // namespace avbase::platform::hwimport
+}  // namespace xmedia::platform::hwimport
 
-#endif  // AVBASE_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_
+#endif  // XMEDIA_PLATFORM_HWIMPORT_HW_IMPORTER_FACTORY_H_

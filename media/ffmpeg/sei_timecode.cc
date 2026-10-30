@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 std::string S12mTimecode::ToString() const {
   char buf[16];
@@ -65,4 +65,4 @@ bool WriteTimecodeToFrame(AVFrame* frame, const S12mTimecode& tc) {
   return true;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

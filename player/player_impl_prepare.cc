@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // PlayerImpl's preparing half: SetDataSource, CreateDemuxer,
@@ -22,12 +22,12 @@
 #include <string_view>
 #include <utility>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "media/base/data_source_descriptor.h"
 #include "media/base/media_error.h"
 #include "media/base/media_log.h"
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/ffmpeg_audio_filter.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_video_filter.h"
@@ -36,7 +36,7 @@
 #include "player/scene_internal.h"
 #include "player/source_wrapping.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 media::AvSyncController::MasterType ToMediaMaster(SyncMasterType type) {
@@ -74,7 +74,7 @@ std::unique_ptr<media::Demuxer> PlayerImpl::CreateDemuxer() {
 
 std::unique_ptr<media::Demuxer>
 PlayerImpl::CreateDemuxerFor(const media::DataSourceDescriptor& descriptor) {
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
   // A descriptor that names nothing cannot be opened, and discovering that
   // INSIDE the demuxer means one secondary source takes the whole prepare down
   // with "failed to open ''" -- which does not say which source, or why a
@@ -258,9 +258,9 @@ Status PlayerImpl::PrepareAsync() {
       event_hub_.PostError(
           MediaError(ErrorCode::kNotImplemented,
                      "no demuxer is available for this data source",
-                     "this build has AVBASE_ENABLE_FFMPEG off, or a source "
+                     "this build has XMEDIA_ENABLE_FFMPEG off, or a source "
                      "kind needs the DataSource bridge (M9)",
-                     "build with -DAVBASE_ENABLE_FFMPEG=ON and pass a URI, or "
+                     "build with -DXMEDIA_ENABLE_FFMPEG=ON and pass a URI, or "
                      "wait for the M9 DataSource AVIOContext bridge"),
           base::TimeDelta());
       return OkStatus();
@@ -287,7 +287,7 @@ Status PlayerImpl::PrepareAsync() {
   media::DefaultRendererFactory::Deps factory_deps;
   factory_deps.audio_filter_graph = config_.audio.filter_graph;
   factory_deps.video_filter_graph = config_.video.filter_graph;
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
   factory_deps.audio_filter_factory = [] {
     return std::unique_ptr<media::AudioFilterStage>(
         std::make_unique<media::FFmpegAudioFilter>());
@@ -402,13 +402,13 @@ Status PlayerImpl::PrepareSync(base::TimeDelta timeout) {
         ErrorCode::kInvalidState, "preparing the source failed",
         "the pipeline reported an error before it was ready; the kError event "
         "carries the three-part detail",
-        "inspect the error event, or run avbase-inspect probe <url> on the "
+        "inspect the error event, or run xmedia-inspect probe <url> on the "
         "source"));
   }
   return base::unexpected(MediaError(
       ErrorCode::kInvalidState, "prepare ended in an unexpected state",
       std::string("final state: ") + GetPlayerStateName(s),
-      "inspect the event stream; this is an avbase bug, please report it with "
+      "inspect the event stream; this is an xmedia-kit bug, please report it with "
       "DumpDiagnostics() output"));
 }
 
@@ -466,4 +466,4 @@ void PlayerImpl::OnPipelineReady() {
   prepared_event_.Signal();
 }
 
-}  // namespace avbase
+}  // namespace xmedia

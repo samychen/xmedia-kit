@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_KEY_PROVIDER_H_
-#define AVBASE_MEDIA_BASE_KEY_PROVIDER_H_
+#ifndef XMEDIA_MEDIA_BASE_KEY_PROVIDER_H_
+#define XMEDIA_MEDIA_BASE_KEY_PROVIDER_H_
 
 #include <stdint.h>
 
@@ -15,22 +15,22 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Where decryption keys come from -- the port of CicadaPlayer's
-// DrmManager/DrmHandler seam, reduced to what avbase's demuxers actually
+// DrmManager/DrmHandler seam, reduced to what xmedia-kit's demuxers actually
 // consume today: "give me the bytes that unlock this URI". The HLS
 // demuxer calls it for EXT-X-KEY (AES-128: 16 raw bytes); a CDM-backed
 // product (WideVine, FairPlay) implements the same seam against its own
 // machinery, which is the extension point CicadaPlayer's
-// setDrmRequestCallback played and avbase's D8 decision left open.
+// setDrmRequestCallback played and xmedia-kit's D8 decision left open.
 //
 // THREADING. GetKeyBlocking runs on the CALLER's thread -- the demuxer's
 // worker -- and may block for the network duration; it must honour no
 // contract beyond returning promptly after an external Stop() (the demuxer
 // abandons stale results). GetKey is the async form for hosts that prefer
 // callbacks; the demuxer today only uses the blocking form.
-class AVBASE_MEDIA_EXPORT KeyProvider
+class XMEDIA_MEDIA_EXPORT KeyProvider
     : public base::RefCountedThreadSafe<KeyProvider> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -57,6 +57,6 @@ class AVBASE_MEDIA_EXPORT KeyProvider
   virtual ~KeyProvider() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_KEY_PROVIDER_H_
+#endif  // XMEDIA_MEDIA_BASE_KEY_PROVIDER_H_

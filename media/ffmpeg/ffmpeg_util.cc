@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 AVPixelFormat ToAvPixelFormat(media::VideoFormat format) {
   switch (format) {
@@ -106,4 +106,4 @@ AVFormatContext* AsFormatContext(void* raw) {
   return static_cast<AVFormatContext*>(raw);
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

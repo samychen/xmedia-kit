@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,24 +17,24 @@
 #include <vector>
 #include "base/functional/bind.h"
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "gtest/gtest.h"
 #include "player/public/player.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
-#ifndef AVBASE_TESTDATA_DIR
-#error "player_unittests must define AVBASE_TESTDATA_DIR for this suite"
+#ifndef XMEDIA_TESTDATA_DIR
+#error "player_unittests must define XMEDIA_TESTDATA_DIR for this suite"
 #endif
 
 // Writes a two-cue srt into a temp file and returns the path.
 std::string WriteTestSrt() {
   std::string path =
-      std::string(AVBASE_TESTDATA_DIR) + "/external_subtitles_tmp.srt";
+      std::string(XMEDIA_TESTDATA_DIR) + "/external_subtitles_tmp.srt";
   FILE* file = fopen(path.c_str(), "wb");
   if (file == nullptr) {
     return {};
@@ -84,7 +84,7 @@ TEST_F(PlayerExternalSubtitleTest, CuesFireWhilePlayingAndSelectionGates) {
   player.SetEventHandler(
       base::BindRepeating(&CueCollector::OnEvent, collector));
 
-  ASSERT_TRUE(player.SetDataSource(AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4")
+  ASSERT_TRUE(player.SetDataSource(XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4")
                   .has_value());
   ASSERT_TRUE(player.PrepareSync(base::Seconds(30)).has_value());
 
@@ -121,6 +121,6 @@ TEST_F(PlayerExternalSubtitleTest, CuesFireWhilePlayingAndSelectionGates) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG

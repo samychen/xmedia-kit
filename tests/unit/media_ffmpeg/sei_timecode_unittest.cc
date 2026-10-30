@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // Builds a frame carrying an S12M timecode side payload: word 0 = field
@@ -74,4 +74,4 @@ TEST(SeiTimecodeTest, WriteReplacesExisting) {
 }
 
 }  // namespace
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

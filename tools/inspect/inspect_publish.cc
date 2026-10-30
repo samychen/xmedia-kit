@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect publish`: push a file to an RTMP endpoint.
+// `xmedia-inspect publish`: push a file to an RTMP endpoint.
 //
 // This is the publishing half of the streaming story (the playing half is the
 // rtmp/rtsp/srt input protocols, already accepted). It is deliberately thin:
@@ -39,7 +39,7 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 bool IsNetworkUrl(const std::string& url) {
@@ -174,4 +174,4 @@ int RunPublish(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

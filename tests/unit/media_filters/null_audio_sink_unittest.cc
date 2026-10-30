@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -21,7 +21,7 @@
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kSampleRate = 48000;
@@ -124,4 +124,4 @@ TEST(NullAudioSinkTest, NotPlayingPollsInsteadOfRendering) {
   EXPECT_EQ(callback.calls(), 0) << "the sink rendered while not playing";
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

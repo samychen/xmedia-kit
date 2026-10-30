@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_PRESENT_STATS_H_
-#define AVBASE_MEDIA_BASE_PRESENT_STATS_H_
+#ifndef XMEDIA_MEDIA_BASE_PRESENT_STATS_H_
+#define XMEDIA_MEDIA_BASE_PRESENT_STATS_H_
 
 #include <atomic>
 #include <cstdint>
@@ -14,7 +14,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // What became of one ask.
 //
@@ -75,7 +75,7 @@ FrameOutcome ClassifyFrameOutcome(bool has_frame, bool discard,
 // THREADING: the Note* methods run on the sink's render thread; Get() may be
 // called from any thread, including the host's while the render thread is
 // running.
-class AVBASE_MEDIA_EXPORT PresentStats {
+class XMEDIA_MEDIA_EXPORT PresentStats {
  public:
   PresentStats() = default;
   PresentStats(const PresentStats&) = delete;
@@ -118,6 +118,6 @@ class AVBASE_MEDIA_EXPORT PresentStats {
   base::TimeTicks last_present_ticks_ GUARDED_BY(lock_);
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_PRESENT_STATS_H_
+#endif  // XMEDIA_MEDIA_BASE_PRESENT_STATS_H_

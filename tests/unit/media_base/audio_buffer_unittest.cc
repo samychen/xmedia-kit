@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,7 +15,7 @@
 #include "gtest/gtest.h"
 #include "media/base/audio_bus.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 base::scoped_refptr<AudioBuffer> MakeInterleavedS16(int frames) {
@@ -191,4 +191,4 @@ TEST(AudioBufferTest, DecodeSampleCoversEveryFormat) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

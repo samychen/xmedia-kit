@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "platform/egl/egl_surface.h"
 #include "platform/hwimport/hw_importer_factory.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 EglVideoSink::EglVideoSink(base::scoped_refptr<NativeDisplay> display)
     : GlVideoSink(std::move(display), NativeDisplayKind::kEglWindow, "egl",
@@ -43,4 +43,4 @@ EglVideoSinkFactory::Create(base::scoped_refptr<NativeDisplay> display) {
   return std::make_unique<EglVideoSink>(std::move(display));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

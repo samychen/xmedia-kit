@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include <map>
 #include <optional>
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 namespace {
 
 // Splits an attribute list ("BANDWIDTH=1280,CODECS=\"a,b\",NAME=x") into
@@ -332,4 +332,4 @@ base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
   return playlist;
 }
 
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls

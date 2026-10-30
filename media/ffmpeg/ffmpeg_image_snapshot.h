@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_
-#define AVBASE_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_
+#define XMEDIA_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_
 
 #include <string>
 
@@ -11,7 +11,7 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class VideoFrame;
 
@@ -21,9 +21,9 @@ class VideoFrame;
 // a MediaError with the actionable suggestion on every failure mode
 // (encoder missing from the FFmpeg build, file not writable, frame not
 // mappable).
-Status AVBASE_MEDIA_EXPORT WriteJpegSnapshot(const VideoFrame& frame,
+Status XMEDIA_MEDIA_EXPORT WriteJpegSnapshot(const VideoFrame& frame,
                                              const std::string& path);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_IMAGE_SNAPSHOT_H_

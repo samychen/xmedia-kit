@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 NullVideoSink::NullVideoSink(bool always_discard)
     : always_discard_(always_discard) {
@@ -28,7 +28,7 @@ void NullVideoSink::Initialize(RenderCallback* callback) {
 
 void NullVideoSink::Start() {
   if (!thread_) {
-    thread_ = std::make_unique<base::Thread>("avbase-null-video");
+    thread_ = std::make_unique<base::Thread>("xmedia-null-video");
     thread_->Start();
     render_runner_ = thread_->task_runner();
   }
@@ -133,4 +133,4 @@ NullVideoSinkFactory::Create(base::scoped_refptr<NativeDisplay> display) {
   return sink;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

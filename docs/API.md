@@ -1,4 +1,4 @@
-# avbase API 参考
+# xmedia-kit API 参考
 
 > **本文件由工具生成，勿手改。** 管线：`tools/gen_api_docs.sh` →
 > Doxygen（`docs/Doxyfile`，XML 后端，INPUT_FILTER 把 public 头的
@@ -8,7 +8,7 @@
 
 ## 目录
 
-- player/public/c/avbase_c.h
+- player/public/c/xmedia_c.h
 - player/public/deps.h
 - player/public/global.h
 - player/public/option_registry.h
@@ -19,203 +19,203 @@
 - player/public/player_export.h
 - player/public/scene.h
 
-## player/public/c/avbase_c.h
+## player/public/c/xmedia_c.h
 
-- `#define AVBASE_OK 0`
+- `#define XMEDIA_OK 0`
   kOk – also the only value for which the other out-params are meaningful.
-- `#define AVBASE_ERR_FAILED 1`
+- `#define XMEDIA_ERR_FAILED 1`
   Generic failure. Prefer the specific codes: a host that can tell "file not
   found" from "codec unsupported" can show the user something useful.
-- `#define AVBASE_ERR_INVALID_ARGUMENT 2`
-- `#define AVBASE_ERR_INVALID_STATE 3`
-- `#define AVBASE_ERR_NOT_IMPLEMENTED 4`
-- `#define AVBASE_ERR_OUT_OF_MEMORY 5`
-- `#define AVBASE_ERR_ABORTED 6`
-- `#define AVBASE_ERR_TIMEOUT 7`
-- `#define AVBASE_ERR_SOURCE_OPEN_FAILED 8`
-- `#define AVBASE_ERR_SOURCE_NOT_FOUND 9`
-- `#define AVBASE_ERR_SOURCE_READ_FAILED 10`
-- `#define AVBASE_ERR_DECODER_NOT_FOUND 11`
-- `#define AVBASE_ERR_DECODER_OPEN_FAILED 12`
-- `#define AVBASE_ERR_DECODE_FAILED 13`
-- `#define AVBASE_ERR_DECODER_UNSUPPORTED_CODEC 14`
-- `#define AVBASE_ERR_SINK_NOT_ATTACHED 15`
-- `#define AVBASE_ERR_STREAM_NOT_FOUND 16`
-- `#define AVBASE_ERR_TRACK_NOT_FOUND 17`
-- `#define AVBASE_ERR_CONFIG_INVALID 18`
-- `#define AVBASE_ERR_EOS 19`
-- `#define AVBASE_DISPLAY_KIND_NONE 0`
+- `#define XMEDIA_ERR_INVALID_ARGUMENT 2`
+- `#define XMEDIA_ERR_INVALID_STATE 3`
+- `#define XMEDIA_ERR_NOT_IMPLEMENTED 4`
+- `#define XMEDIA_ERR_OUT_OF_MEMORY 5`
+- `#define XMEDIA_ERR_ABORTED 6`
+- `#define XMEDIA_ERR_TIMEOUT 7`
+- `#define XMEDIA_ERR_SOURCE_OPEN_FAILED 8`
+- `#define XMEDIA_ERR_SOURCE_NOT_FOUND 9`
+- `#define XMEDIA_ERR_SOURCE_READ_FAILED 10`
+- `#define XMEDIA_ERR_DECODER_NOT_FOUND 11`
+- `#define XMEDIA_ERR_DECODER_OPEN_FAILED 12`
+- `#define XMEDIA_ERR_DECODE_FAILED 13`
+- `#define XMEDIA_ERR_DECODER_UNSUPPORTED_CODEC 14`
+- `#define XMEDIA_ERR_SINK_NOT_ATTACHED 15`
+- `#define XMEDIA_ERR_STREAM_NOT_FOUND 16`
+- `#define XMEDIA_ERR_TRACK_NOT_FOUND 17`
+- `#define XMEDIA_ERR_CONFIG_INVALID 18`
+- `#define XMEDIA_ERR_EOS 19`
+- `#define XMEDIA_DISPLAY_KIND_NONE 0`
   Mirrors media::NativeDisplayKind. Frozen: append only.
-- `#define AVBASE_DISPLAY_KIND_X11_WINDOW 1`
-- `#define AVBASE_DISPLAY_KIND_WAYLAND_SURFACE 2`
-- `#define AVBASE_DISPLAY_KIND_SDL2_WINDOW 3`
-- `#define AVBASE_DISPLAY_KIND_DRM_MASTER 4`
-- `#define AVBASE_DISPLAY_KIND_GBM_DEVICE 5`
-- `#define AVBASE_DISPLAY_KIND_ANDROID_NATIVE_WINDOW 6`
-- `#define AVBASE_DISPLAY_KIND_ANDROID_SURFACE 7`
-- `#define AVBASE_DISPLAY_KIND_CAMETAL_LAYER 8`
-- `#define AVBASE_DISPLAY_KIND_CAEAGL_LAYER 9`
-- `#define AVBASE_DISPLAY_KIND_HWND 10`
-- `#define AVBASE_DISPLAY_KIND_GLFW_WINDOW 11`
-- `#define AVBASE_DISPLAY_KIND_EGL_WINDOW 12`
-- `#define AVBASE_STREAM_UNKNOWN 0`
+- `#define XMEDIA_DISPLAY_KIND_X11_WINDOW 1`
+- `#define XMEDIA_DISPLAY_KIND_WAYLAND_SURFACE 2`
+- `#define XMEDIA_DISPLAY_KIND_SDL2_WINDOW 3`
+- `#define XMEDIA_DISPLAY_KIND_DRM_MASTER 4`
+- `#define XMEDIA_DISPLAY_KIND_GBM_DEVICE 5`
+- `#define XMEDIA_DISPLAY_KIND_ANDROID_NATIVE_WINDOW 6`
+- `#define XMEDIA_DISPLAY_KIND_ANDROID_SURFACE 7`
+- `#define XMEDIA_DISPLAY_KIND_CAMETAL_LAYER 8`
+- `#define XMEDIA_DISPLAY_KIND_CAEAGL_LAYER 9`
+- `#define XMEDIA_DISPLAY_KIND_HWND 10`
+- `#define XMEDIA_DISPLAY_KIND_GLFW_WINDOW 11`
+- `#define XMEDIA_DISPLAY_KIND_EGL_WINDOW 12`
+- `#define XMEDIA_STREAM_UNKNOWN 0`
   Mirrors media::DemuxerStreamType. Frozen: append only.
-- `#define AVBASE_STREAM_AUDIO 1`
-- `#define AVBASE_STREAM_VIDEO 2`
-- `#define AVBASE_STREAM_TEXT 3`
-- `#define AVBASE_STATE_IDLE 0`
+- `#define XMEDIA_STREAM_AUDIO 1`
+- `#define XMEDIA_STREAM_VIDEO 2`
+- `#define XMEDIA_STREAM_TEXT 3`
+- `#define XMEDIA_STATE_IDLE 0`
   Mirrors PlayerState. Frozen: append only.
-- `#define AVBASE_STATE_INITIALIZED 1`
-- `#define AVBASE_STATE_PREPARING 2`
-- `#define AVBASE_STATE_PREPARED 3`
-- `#define AVBASE_STATE_STARTED 4`
-- `#define AVBASE_STATE_PAUSED 5`
-- `#define AVBASE_STATE_BUFFERING 6`
-- `#define AVBASE_STATE_STOPPING 7`
-- `#define AVBASE_STATE_STOPPED 8`
-- `#define AVBASE_STATE_COMPLETED 9`
-- `#define AVBASE_STATE_ERROR 10`
-- `#define AVBASE_STATE_END 11`
-- `using AvbaseStatus = int32_t;`
-  Mirrors avbase::ErrorCode as a flat int. The C++ enum is a uint16_t list of 30 values; the numeric values are part of this ABI, so new codes may only be APPENDED here.
-- `using AvbasePlayer = struct AvbasePlayer;`
-  Opaque. Create with avbase_player_create(); destroy with avbase_player_destroy(), which is bounded by PlayerConfig's shutdown timeout and therefore cannot hang the caller.
-- `using AvbaseNativeDisplay = struct AvbaseNativeDisplay;`
+- `#define XMEDIA_STATE_INITIALIZED 1`
+- `#define XMEDIA_STATE_PREPARING 2`
+- `#define XMEDIA_STATE_PREPARED 3`
+- `#define XMEDIA_STATE_STARTED 4`
+- `#define XMEDIA_STATE_PAUSED 5`
+- `#define XMEDIA_STATE_BUFFERING 6`
+- `#define XMEDIA_STATE_STOPPING 7`
+- `#define XMEDIA_STATE_STOPPED 8`
+- `#define XMEDIA_STATE_COMPLETED 9`
+- `#define XMEDIA_STATE_ERROR 10`
+- `#define XMEDIA_STATE_END 11`
+- `using XmediaStatus = int32_t;`
+  Mirrors xmedia::ErrorCode as a flat int. The C++ enum is a uint16_t list of 30 values; the numeric values are part of this ABI, so new codes may only be APPENDED here.
+- `using XmediaPlayer = struct XmediaPlayer;`
+  Opaque. Create with xmedia_player_create(); destroy with xmedia_player_destroy(), which is bounded by PlayerConfig's shutdown timeout and therefore cannot hang the caller.
+- `using XmediaNativeDisplay = struct XmediaNativeDisplay;`
   An opaque, host-owned window handle. Mirrors the kinds in media/base/native_display.h; see NativeDisplay::FromX11Window et al.
-- `using AvbaseSource = struct AvbaseSource;`
-  An opaque handle for a secondary media source registered with avbase_player_add_source(). Stable across Stop/Reset.
-- `using AvbaseMediaInfo = struct AvbaseMediaInfo;`
+- `using XmediaSource = struct XmediaSource;`
+  An opaque handle for a secondary media source registered with xmedia_player_add_source(). Stable across Stop/Reset.
+- `using XmediaMediaInfo = struct XmediaMediaInfo;`
   Fills a caller-allocated buffer with the media's duration, dimensions and track counts. A snapshot, not a live view. |out| may be null only if all pointers passed in are null (a no-op way to probe support).
-- `using AvbaseEventCallback = void(*);`
+- `using XmediaEventCallback = void(*);`
   |obj| is owned by the library and valid only for the duration of the call.
-- `const char * avbase_c_version(void)`
+- `const char * xmedia_c_version(void)`
   Version of the C ABI itself, not of the engine. Bumped ONLY when an existing symbol changes meaning or disappears; adding symbols is a minor bump. A host compiled against an older header keeps working against a newer library, so this exists to let it decide whether to feature-detect instead. Side effects: none.
-- `const char * avbase_engine_version(void)`
-  Mirrors avbase::GetVersion() ("0.1.0"). Side effects: none.
-- `void avbase_global_init(void)`
-  Mirrors avbase::GlobalInit(). Optional: every avbase_player_create() calls it. Call it yourself only to guarantee it happens before your first X11 or FFmpeg call. Side effects: idempotent global init (FFmpeg/X11 once per process).
-- `const char * avbase_status_name(AvbaseStatus status)`
+- `const char * xmedia_engine_version(void)`
+  Mirrors xmedia::GetVersion() ("0.1.0"). Side effects: none.
+- `void xmedia_global_init(void)`
+  Mirrors xmedia::GlobalInit(). Optional: every xmedia_player_create() calls it. Call it yourself only to guarantee it happens before your first X11 or FFmpeg call. Side effects: idempotent global init (FFmpeg/X11 once per process).
+- `const char * xmedia_status_name(XmediaStatus status)`
   Stable, never-null, never-freed name of a code, e.g. "kSourceNotFound". The name is the enum SPELLING on purpose: it is what a bug report will say, and it stays readable across a mapping to a legacy code in a Java handler. Side effects: none.
-- `const char * avbase_status_message(AvbaseStatus status)`
+- `const char * xmedia_status_message(XmediaStatus status)`
   The engine's own message for |status|: a human sentence naming the likely cause, or "" when it has nothing to add. Never null. Side effects: none.
-- `AvbasePlayer * avbase_player_create(void)`
-  Creates a player with the default platform backends and an event handler already attached, so no call can race a subscription. Returns null only when the process is out of memory. Side effects: allocates a player (release with avbase_player_destroy).
-- `void avbase_player_destroy(AvbasePlayer *player)`
+- `XmediaPlayer * xmedia_player_create(void)`
+  Creates a player with the default platform backends and an event handler already attached, so no call can race a subscription. Returns null only when the process is out of memory. Side effects: allocates a player (release with xmedia_player_destroy).
+- `void xmedia_player_destroy(XmediaPlayer *player)`
   Destroying a null player is a no-op (not an error) so that cleanup paths can call it unconditionally after a failed create. Side effects: releases every pipeline resource, bounded by the shutdown timeout.
-- `void avbase_player_stop_sync(AvbasePlayer *player, int64_t timeout_ms)`
+- `void xmedia_player_stop_sync(XmediaPlayer *player, int64_t timeout_ms)`
   Bounded by PlayerConfig::shutdown_timeout; does not hang. Blocking Stop: returns once the pipeline has really stopped. Side effects: emits kStateChanged(kStopped).
-- `AvbaseStatus avbase_player_set_data_source(AvbasePlayer *player, const char *uri)`
+- `XmediaStatus xmedia_player_set_data_source(XmediaPlayer *player, const char *uri)`
   SetDataSource(uri). |uri| is copied; the caller keeps ownership. Side effects: moves the machine to kInitialized.
-- `AvbaseStatus avbase_player_prepare(AvbasePlayer *player)`
+- `XmediaStatus xmedia_player_prepare(XmediaPlayer *player)`
   PrepareAsync(): setup starts and this returns immediately; kPrepared (what =200) arrives through the event callback. Side effects: emits kPrepared, or kError on failure.
-- `AvbaseStatus avbase_player_prepare_sync(AvbasePlayer *player, int64_t timeout_ms)`
+- `XmediaStatus xmedia_player_prepare_sync(XmediaPlayer *player, int64_t timeout_ms)`
   Blocking PrepareAsync, bounded by |timeout_ms|; a successful return may already be kStarted when start_on_prepared is set. Side effects: emits kPrepared, or kError on failure.
-- `void avbase_player_start(AvbasePlayer *player)`
+- `void xmedia_player_start(XmediaPlayer *player)`
   Starts playback (legal from kPrepared/kPaused/kCompleted); illegal states are logged and ignored, never fatal. Side effects: emits kStateChanged(kStarted).
-- `void avbase_player_pause(AvbasePlayer *player)`
+- `void xmedia_player_pause(XmediaPlayer *player)`
   Pauses a running player (legal from kStarted only). Side effects: emits kStateChanged(kPaused).
-- `void avbase_player_stop(AvbasePlayer *player)`
+- `void xmedia_player_stop(XmediaPlayer *player)`
   Stops playback and tears the pipeline down; idempotent. Side effects: emits kStateChanged(kStopped).
-- `void avbase_player_reset(AvbasePlayer *player)`
+- `void xmedia_player_reset(XmediaPlayer *player)`
   Back to kIdle and reusable. Releases the current media. Side effects: emits kStateChanged(kIdle); drops every buffered packet.
-- `void avbase_player_step_once(AvbasePlayer *player)`
+- `void xmedia_player_step_once(XmediaPlayer *player)`
   Single-frame advance while paused. Side effects: emits kSeekRenderingStarted for the stepped frame.
-- `void avbase_player_seek_to(AvbasePlayer *player, int64_t position_ms)`
+- `void xmedia_player_seek_to(XmediaPlayer *player, int64_t position_ms)`
   Fire-and-forget seek; completion arrives as an event. |position_ms| is relative to the media start. Deliberately no return value: the C++ API's Result<int64_t> exists to hand back a request id for correlation, and that correlation is already carried by the event payload's request_id – a host that needs it should use the richer C++ API. Side effects: emits kSeekCompleted (what=600, arg1 = actual ms).
-- `void avbase_player_set_playback_rate(AvbasePlayer *player, double rate)`
+- `void xmedia_player_set_playback_rate(XmediaPlayer *player, double rate)`
   |rate| is clamped to [0.25, 4.0] as the C++ API does. Side effects: takes effect on the next rendered frame.
-- `void avbase_player_set_volume(AvbasePlayer *player, double volume)`
+- `void xmedia_player_set_volume(XmediaPlayer *player, double volume)`
   |volume| is clamped to [0.0, 1.0]. Side effects: applies to the audio sink immediately.
-- `void avbase_player_set_muted(AvbasePlayer *player, int muted)`
+- `void xmedia_player_set_muted(XmediaPlayer *player, int muted)`
   Mutes or unmutes without touching the volume level. Side effects: applies to the audio sink immediately.
-- `void avbase_player_set_loop_count(AvbasePlayer *player, int count)`
+- `void xmedia_player_set_loop_count(XmediaPlayer *player, int count)`
   |count| < 0 means infinite. Side effects: emits kCompleted (what=300) once per finished pass.
-- `AvbaseStatus avbase_player_select_track(AvbasePlayer *player, int stream_type, int stream_index)`
-  |stream_type| is an AVBASE_STREAM_* value below. |stream_index| is the index reported by the prepared media, NOT an avbase_source index. Side effects: emits kTrackChanged; decoders are rebuilt lazily.
-- `void avbase_player_set_video_surface(AvbasePlayer *player, AvbaseNativeDisplay *display)`
+- `XmediaStatus xmedia_player_select_track(XmediaPlayer *player, int stream_type, int stream_index)`
+  |stream_type| is an XMEDIA_STREAM_* value below. |stream_index| is the index reported by the prepared media, NOT an xmedia_source index. Side effects: emits kTrackChanged; decoders are rebuilt lazily.
+- `void xmedia_player_set_video_surface(XmediaPlayer *player, XmediaNativeDisplay *display)`
   Attaches |display| as the video output, or detaches when null (audio keeps playing – the documented background-playback case). The player holds a reference; destroying the display handle afterwards is safe. Side effects: re-targets the video sink on the next frame.
-- `AvbaseStatus avbase_player_take_snapshot(AvbasePlayer *player, int64_t at_ms, const char *file_path)`
+- `XmediaStatus xmedia_player_take_snapshot(XmediaPlayer *player, int64_t at_ms, const char *file_path)`
   Writes the frame at |at_ms| to |file_path| (PNG); completion arrives as kSnapshotCompleted (what=1000, arg2 = Status). Side effects: writes one file; emits kSnapshotCompleted.
-- `void avbase_player_reconnect_now(AvbasePlayer *player)`
+- `void xmedia_player_reconnect_now(XmediaPlayer *player)`
   Forces the network retry path now. Replaces ijkplayer's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property. Side effects: re-runs the reconnect ladder.
-- `int avbase_player_state(const AvbasePlayer *player)`
-  Mirrors PlayerState. See AVBASE_STATE_* below. Side effects: none.
-- `int64_t avbase_player_media_time_ms(const AvbasePlayer *player)`
+- `int xmedia_player_state(const XmediaPlayer *player)`
+  Mirrors PlayerState. See XMEDIA_STATE_* below. Side effects: none.
+- `int64_t xmedia_player_media_time_ms(const XmediaPlayer *player)`
   Current playback position, including any seek in flight. Side effects: none.
-- `int64_t avbase_player_buffered_time_ms(const AvbasePlayer *player)`
+- `int64_t xmedia_player_buffered_time_ms(const XmediaPlayer *player)`
   How much media is buffered ahead of the playhead. Side effects: none.
-- `int64_t avbase_player_duration_ms(const AvbasePlayer *player)`
+- `int64_t xmedia_player_duration_ms(const XmediaPlayer *player)`
   Total duration in ms, or zero for a live source. Side effects: none.
-- `int avbase_player_is_live(const AvbasePlayer *player)`
+- `int xmedia_player_is_live(const XmediaPlayer *player)`
   Nonzero when the source is live (no seekable timeline). Side effects: none.
-- `int avbase_player_is_playing(const AvbasePlayer *player)`
+- `int xmedia_player_is_playing(const XmediaPlayer *player)`
   Nonzero while playback is actively running. Side effects: none.
-- `int32_t avbase_player_video_width(const AvbasePlayer *player)`
+- `int32_t xmedia_player_video_width(const XmediaPlayer *player)`
   Display width after rotation/aspect corrections. Side effects: none.
-- `int32_t avbase_player_video_height(const AvbasePlayer *player)`
+- `int32_t xmedia_player_video_height(const XmediaPlayer *player)`
   Display height after rotation/aspect corrections. Side effects: none.
-- `int32_t avbase_player_video_rotation(const AvbasePlayer *player)`
+- `int32_t xmedia_player_video_rotation(const XmediaPlayer *player)`
   Clockwise rotation the host must apply, in degrees. Side effects: none.
-- `double avbase_player_playback_rate(const AvbasePlayer *player)`
+- `double xmedia_player_playback_rate(const XmediaPlayer *player)`
   Effective rate, after clamping. Side effects: none.
-- `double avbase_player_volume(const AvbasePlayer *player)`
+- `double xmedia_player_volume(const XmediaPlayer *player)`
   Effective volume, after clamping. Side effects: none.
-- `int avbase_player_muted(const AvbasePlayer *player)`
+- `int xmedia_player_muted(const XmediaPlayer *player)`
   Current mute state. Side effects: none.
-- `int32_t avbase_player_title(AvbasePlayer *player, char *out, int32_t capacity)`
+- `int32_t xmedia_player_title(XmediaPlayer *player, char *out, int32_t capacity)`
   Copies at most |capacity| bytes (including the NUL) of the human-readable media title into |out| and returns the number of bytes the full string needs, excluding the NUL. A return value >= |capacity| means it was truncated, so the caller can size a buffer and retry – guessing a size is how the legacy path used to truncate paths silently. Side effects: none.
-- `int32_t avbase_player_dump_diagnostics(const AvbasePlayer *player, char *out, int32_t capacity)`
+- `int32_t xmedia_player_dump_diagnostics(const XmediaPlayer *player, char *out, int32_t capacity)`
   Full internal state as JSON (~1 ms). The first thing to attach to a bug report. Same copy-into-your-buffer contract as the title. Side effects: none.
-- `AvbaseStatus avbase_player_get_media_info(const AvbasePlayer *player, AvbaseMediaInfo *out)`
-  Available only after avbase_player_prepare() has reported kPrepared; returns AVBASE_ERR_INVALID_STATE before that. Side effects: none.
-- `AvbaseSource * avbase_player_add_source(AvbasePlayer *player, const char *uri, const char *name, int32_t z_order)`
+- `XmediaStatus xmedia_player_get_media_info(const XmediaPlayer *player, XmediaMediaInfo *out)`
+  Available only after xmedia_player_prepare() has reported kPrepared; returns XMEDIA_ERR_INVALID_STATE before that. Side effects: none.
+- `XmediaSource * xmedia_player_add_source(XmediaPlayer *player, const char *uri, const char *name, int32_t z_order)`
   Registers a SECONDARY source and returns its layer handle, or null when the player is no longer in a state that accepts one. Call before prepare().
 
-  The returned handle stays valid across stop/reset (the scene keeps it) but must be released with avbase_source_release(). Source 0 is the player's own avbase_player_set_data_source(); each call adds the next id. Side effects: allocates a scene layer visible after the next composite.
-- `void avbase_source_release(AvbaseSource *source)`
+  The returned handle stays valid across stop/reset (the scene keeps it) but must be released with xmedia_source_release(). Source 0 is the player's own xmedia_player_set_data_source(); each call adds the next id. Side effects: allocates a scene layer visible after the next composite.
+- `void xmedia_source_release(XmediaSource *source)`
   Releases a source handle. Null is a no-op. Does not unregister the source; it only drops this reference (matching the C++ shared_ptr semantics). Side effects: none (the source outlives the handle).
-- `AvbaseStatus avbase_source_set_uri(AvbaseSource *source, const char *uri)`
+- `XmediaStatus xmedia_source_set_uri(XmediaSource *source, const char *uri)`
   Re-points a registered source at a new URI; takes effect at the next prepare. Side effects: invalidates the source's demuxer until re-prepared.
-- `AvbaseNativeDisplay * avbase_display_from_x11(void *x_display, uintptr_t window)`
-  X11: |display| is a `Display*`, |window| is an XID. The pointers are copied, not retained: the window must outlive the display handle. Side effects: allocates a display handle (release with avbase_display_release).
-- `AvbaseNativeDisplay * avbase_display_from_wayland(void *wl_display, void *wl_surface, int32_t width, int32_t height)`
+- `XmediaNativeDisplay * xmedia_display_from_x11(void *x_display, uintptr_t window)`
+  X11: |display| is a `Display*`, |window| is an XID. The pointers are copied, not retained: the window must outlive the display handle. Side effects: allocates a display handle (release with xmedia_display_release).
+- `XmediaNativeDisplay * xmedia_display_from_wayland(void *wl_display, void *wl_surface, int32_t width, int32_t height)`
   Wayland: |surface| is a `wl_surface*`. Wayland cannot report a surface size, so |width|/|height| must be supplied by the embedder. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_sdl2(void *sdl_window)`
+- `XmediaNativeDisplay * xmedia_display_from_sdl2(void *sdl_window)`
   SDL2: |sdl_window| is an `SDL_Window*`. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_glfw(void *glfw_window)`
+- `XmediaNativeDisplay * xmedia_display_from_glfw(void *glfw_window)`
   GLFW: |glfw_window| is a `GLFWwindow*`. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_egl(void *egl_surface)`
+- `XmediaNativeDisplay * xmedia_display_from_egl(void *egl_surface)`
   EGL: |egl_surface| is an `EGLSurface` as an opaque pointer. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_hwnd(void *hwnd)`
+- `XmediaNativeDisplay * xmedia_display_from_hwnd(void *hwnd)`
   Windows HWND. Kept explicit rather than folded into the Wrap() escape hatch because it is the one kind every Windows host asks for. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_android_native_window(void *window)`
+- `XmediaNativeDisplay * xmedia_display_from_android_native_window(void *window)`
   Android ANativeWindow / Surface. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_android_surface(void *surface)`
+- `XmediaNativeDisplay * xmedia_display_from_android_surface(void *surface)`
   Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_cametal_layer(void *layer)`
+- `XmediaNativeDisplay * xmedia_display_from_cametal_layer(void *layer)`
   iOS: a CAMetalLayer or CAEAGLLayer. Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_from_caeagl_layer(void *layer)`
+- `XmediaNativeDisplay * xmedia_display_from_caeagl_layer(void *layer)`
   Side effects: allocates a display handle.
-- `AvbaseNativeDisplay * avbase_display_wrap(void *raw, int kind, void(*release)(void *raw, void *user_data), void *user_data)`
-  The generic door: |kind| is an AVBASE_DISPLAY_* value and |release| is an optional callback run on the render sequence when the last reference dies (may be null). This is how a host with its own window abstraction plugs in without asking this library for a new entry point per toolkit.
+- `XmediaNativeDisplay * xmedia_display_wrap(void *raw, int kind, void(*release)(void *raw, void *user_data), void *user_data)`
+  The generic door: |kind| is an XMEDIA_DISPLAY_* value and |release| is an optional callback run on the render sequence when the last reference dies (may be null). This is how a host with its own window abstraction plugs in without asking this library for a new entry point per toolkit.
 
   |release| receives BOTH |raw| (the pointer that was wrapped) and |user_data| (whatever the host passed). Passing user_data separately is the whole point: a C host that needs cleanup state has nowhere else to keep it, and deriving it from |raw| would be a guess. It runs on the render sequence, so it must not block. Side effects: allocates a display handle; |release| runs when the last reference dies.
-- `AvbaseNativeDisplay * avbase_display_none(void)`
+- `XmediaNativeDisplay * xmedia_display_none(void)`
   A valid "render nowhere" target; the sink discards frames but audio keeps playing. Side effects: allocates a display handle.
-- `void avbase_display_release(AvbaseNativeDisplay *display)`
+- `void xmedia_display_release(XmediaNativeDisplay *display)`
   Drops one reference; null is a no-op. Side effects: frees the handle when the last reference dies.
-- `int avbase_display_kind(const AvbaseNativeDisplay *display)`
-  The AVBASE_DISPLAY_KIND_* this handle was created with. Side effects: none.
-- `int avbase_display_is_valid(const AvbaseNativeDisplay *display)`
+- `int xmedia_display_kind(const XmediaNativeDisplay *display)`
+  The XMEDIA_DISPLAY_KIND_* this handle was created with. Side effects: none.
+- `int xmedia_display_is_valid(const XmediaNativeDisplay *display)`
   0 when the display can render, non-zero when it is None() or failed to be created. Never use the pointer itself for this: a null pointer here means "could not create", and None() is a VALID non-rendering target – the two are different states and conflating them is what makes "the PiP is not
   showing" undiagnosable (see the note on Player::scene()). Side effects: none.
-- `int32_t avbase_display_debug_string(const AvbaseNativeDisplay *display, char *out, int32_t capacity)`
+- `int32_t xmedia_display_debug_string(const XmediaNativeDisplay *display, char *out, int32_t capacity)`
   Copy-into-your-buffer contract, same as the title: returns the full length excluding the NUL, and a value >= |capacity| means truncated. Side effects: none.
-- `void avbase_player_set_event_callback(AvbasePlayer *player, AvbaseEventCallback cb, void *user_data)`
-  Replaces any previous callback (pass null to remove it). The callback runs on the event sequence, never on a pipeline sequence, and it is safe to call any avbase_player_* function from inside it – including stop and reset. That is the deadlock fix over ijkplayer's message_loop; do not reintroduce a "must not reenter" rule here. Side effects: starts event delivery to |cb|.
-### `struct` AvbaseMediaInfo
+- `void xmedia_player_set_event_callback(XmediaPlayer *player, XmediaEventCallback cb, void *user_data)`
+  Replaces any previous callback (pass null to remove it). The callback runs on the event sequence, never on a pipeline sequence, and it is safe to call any xmedia_player_* function from inside it – including stop and reset. That is the deadlock fix over ijkplayer's message_loop; do not reintroduce a "must not reenter" rule here. Side effects: starts event delivery to |cb|.
+### `struct` XmediaMediaInfo
 
-*player/public/c/avbase_c.h:305*
+*player/public/c/xmedia_c.h:305*
 
 Fills a caller-allocated buffer with the media's duration, dimensions and track counts. A snapshot, not a live view. |out| may be null only if all pointers passed in are null (a no-op way to probe support).
 
@@ -234,7 +234,7 @@ Fills a caller-allocated buffer with the media's duration, dimensions and track 
 
 ## player/public/deps.h
 
-### `class` avbase::EventDispatcher
+### `class` xmedia::EventDispatcher
 
 *player/public/deps.h:35*
 
@@ -247,11 +247,11 @@ Routes events to the host's own loop (Android Looper, GLib main context, Qt even
 - `void Flush()=0`
   Blocks until every queued task has run. Called from ~Player() so the host still receives the final StateChanged{to=kStopped}.
 
-### `struct` avbase::Deps
+### `struct` xmedia::Deps
 
 *player/public/deps.h:56*
 
-Everything avbase needs from the outside world. Every field may be null, in which case the auto-detected platform default is used — that is what makes `Player player; player.SetDataSource(url);` work with zero setup (rule E1).
+Everything xmedia-kit needs from the outside world. Every field may be null, in which case the auto-detected platform default is used — that is what makes `Player player; player.SetDataSource(url);` work with zero setup (rule E1).
 
 - `std::vector<base::scoped_refptr<media::VideoDecoderFactory>> video_decoder_factories`
   OWNERSHIP VOCABULARY FOR THIS STRUCT (see STYLE.md §3 and the three verbs at the bottom of base/memory/scoped_refptr.h).
@@ -267,7 +267,7 @@ Everything avbase needs from the outside world. Every field may be null, in whic
 - `std::shared_ptr<media::VideoRendererSinkFactory> video_sink_factory`
 - `std::shared_ptr<media::AudioRendererSinkFactory> audio_sink_factory`
 - `base::scoped_refptr<media::DataSource> data_source`
-  Custom byte source (encrypted streams, an in-app downloader, a cache). When set, avbase reads through it instead of opening the URI itself. Build one with base::MakeRefCounted<media::MemoryDataSource>(...), or with your own DataSource subclass; M9's RetryDataSource and M18's CacheDataSource are decorators that wrap an existing scoped_refptr.
+  Custom byte source (encrypted streams, an in-app downloader, a cache). When set, xmedia-kit reads through it instead of opening the URI itself. Build one with base::MakeRefCounted<media::MemoryDataSource>(...), or with your own DataSource subclass; M9's RetryDataSource and M18's CacheDataSource are decorators that wrap an existing scoped_refptr.
 - `std::shared_ptr<const base::TickClock> tick_clock`
   Injectable monotonic clock. Null means base::DefaultTickClock. Tests use base::SimpleTestTickClock, which is what makes the scheduling logic deterministically testable (design principle P6).
 - `std::unique_ptr<base::logging::LoggingDelegate> logging_delegate`
@@ -283,7 +283,7 @@ Everything avbase needs from the outside world. Every field may be null, in whic
 
 ## player/public/global.h
 
-### `class` avbase::GlobalGuard
+### `class` xmedia::GlobalGuard
 
 *player/public/global.h:31*
 
@@ -301,12 +301,12 @@ RAII helper for programs that want symmetric init/shutdown.
 
   Thread safety: safe to call concurrently; guarded by std::call_once.
 - `const char * GetVersion()`
-  Version of avbase, e.g. "0.1.0".
+  Version of xmedia-kit, e.g. "0.1.0".
 - `const char * GetFFmpegVersion()`
-  Version of the FFmpeg avbase was built against, e.g. "7.1", or "none" when built with AVBASE_ENABLE_FFMPEG=OFF.
+  Version of the FFmpeg xmedia-kit was built against, e.g. "7.1", or "none" when built with XMEDIA_ENABLE_FFMPEG=OFF.
 ## player/public/option_registry.h
 
-### `class` avbase::OptionRegistry
+### `class` xmedia::OptionRegistry
 
 *player/public/option_registry.h:51*
 
@@ -340,7 +340,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
   - `kCodec`
   - `kScaler`
 - `using OptionValue = std::variant<bool, int64_t, double, std::string>;`
-### `struct` avbase::OptionDescriptor
+### `struct` xmedia::OptionDescriptor
 
 *player/public/option_registry.h:27*
 
@@ -353,7 +353,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
   - `kEnum`
 - `std::string key`
 - `OptionCategory category {OptionCategory::kPlayer}`
-- `enum avbase::OptionDescriptor::Type kInt`
+- `enum xmedia::OptionDescriptor::Type kInt`
 - `OptionValue min`
 - `OptionValue max`
 - `OptionValue default_value`
@@ -363,7 +363,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
 
 ## player/public/playback_stats.h
 
-### `struct` avbase::AsyncStats
+### `struct` xmedia::AsyncStats
 
 *player/public/playback_stats.h:29*
 
@@ -371,7 +371,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
 - `base::TimeDelta buf_forwards`
 - `base::TimeDelta buf_capacity`
 
-### `struct` avbase::BufferStats
+### `struct` xmedia::BufferStats
 
 *player/public/playback_stats.h:23*
 
@@ -381,7 +381,7 @@ Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to pol
 - `size_t cached_bytes {0}`
 - `size_t cached_buffers {0}`
 
-### `struct` avbase::BufferingStats
+### `struct` xmedia::BufferingStats
 
 *player/public/playback_stats.h:43*
 
@@ -391,7 +391,7 @@ Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to pol
 - `int current_hwm_step {0}`
 - `base::TimeDelta active_high_water_mark`
 
-### `struct` avbase::CacheStats
+### `struct` xmedia::CacheStats
 
 *player/public/playback_stats.h:35*
 
@@ -401,7 +401,7 @@ Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to pol
 - `int64_t count_bytes {0}`
 - `int64_t logical_file_size {0}`
 
-### `struct` avbase::PlaybackStats
+### `struct` xmedia::PlaybackStats
 
 *player/public/playback_stats.h:65*
 
@@ -456,7 +456,7 @@ Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to pol
 - `std::string ToJson() const`
   Serialises the stats as JSON, for logs and monitoring pipelines. Errors: none. Side effects: none.
 
-### `struct` avbase::StageTimings
+### `struct` xmedia::StageTimings
 
 *player/public/playback_stats.h:54*
 
@@ -473,7 +473,7 @@ First-frame latency decomposition. ijkplayer emitted FFP_MSG_OPEN_INPUT / FIND_S
 
 ## player/public/player.h
 
-### `class` avbase::Player
+### `class` xmedia::Player
 
 *player/public/player.h:75*
 
@@ -486,12 +486,12 @@ WATCH OUT: do NOT give a Player static storage duration with automatic destructi
 Minimal use:
 
 ```cpp
-avbase::Player player;
-player.SetEventHandler([&player](const avbase::PlayerEvent& e) {
-  if (e.type == avbase::EventType::kPrepared) player.Start();
+xmedia::Player player;
+player.SetEventHandler([&player](const xmedia::PlayerEvent& e) {
+  if (e.type == xmedia::EventType::kPrepared) player.Start();
 });
-AVBASE_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
-AVBASE_RETURN_IF_ERROR(player.PrepareAsync());
+XMEDIA_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
+XMEDIA_RETURN_IF_ERROR(player.PrepareAsync());
 
 ```
 
@@ -590,7 +590,7 @@ The event handler runs on the event dispatch sequence, never on a pipeline seque
 - `const PlayerConfig & config() const`
   The config in force; the reference stays valid for the player's lifetime and is never mutated in place. Errors: none. Side effects: none.
 
-### `class` avbase::Player::Subscription
+### `class` xmedia::Player::Subscription
 
 *player/public/player.h:311*
 
@@ -607,7 +607,7 @@ RAII subscription handle: unsubscribes on destruction.
 - `bool active() const`
   Whether the subscription still receives events. Errors: none. Side effects: none.
 
-### `class` avbase::PlayerBuilder
+### `class` xmedia::PlayerBuilder
 
 *player/public/player.h:356*
 
@@ -664,7 +664,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   - `kAuto`
 - `std::vector<ConfigIssue> ValidateConfig(const PlayerConfig &config)`
   Returns every problem at once, so a caller can fix them in a single pass instead of discovering them one rebuild at a time. Side effects: none (pure validation).
-### `struct` avbase::AudioConfig
+### `struct` xmedia::AudioConfig
 
 *player/public/player_config.h:131*
 
@@ -689,7 +689,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   "af"
 - `std::string output_device_id`
 
-### `struct` avbase::BufferConfig
+### `struct` xmedia::BufferConfig
 
 *player/public/player_config.h:64*
 
@@ -709,7 +709,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `bool sync_av_start {true}`
   "sync-av-start"
 
-### `struct` avbase::ConfigIssue
+### `struct` xmedia::ConfigIssue
 
 *player/public/player_config.h:246*
 
@@ -719,7 +719,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   "must be <= buffer.next_high_water_mark"
 - `std::string suggestion`
 
-### `struct` avbase::DataSourceConfig
+### `struct` xmedia::DataSourceConfig
 
 *player/public/player_config.h:188*
 
@@ -728,7 +728,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `std::string cache_dir`
 - `size_t cache_max_bytes {512ULL * 1024 * 1024}`
 
-### `struct` avbase::DemuxConfig
+### `struct` xmedia::DemuxConfig
 
 *player/public/player_config.h:53*
 
@@ -745,7 +745,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `bool delay_meta_init {false}`
   "ijkmeta-delay-init"
 
-### `struct` avbase::NetConfig
+### `struct` xmedia::NetConfig
 
 *player/public/player_config.h:175*
 
@@ -759,7 +759,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `base::TimeDelta live_max_latency`
   Zero means "do not chase the live edge".
 
-### `struct` avbase::PlayerConfig
+### `struct` xmedia::PlayerConfig
 
 *player/public/player_config.h:210*
 
@@ -796,7 +796,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `std::map<std::string, std::string> extra_codec_options`
 - `std::map<std::string, std::string> extra_scaler_options`
 
-### `struct` avbase::RenderConfig
+### `struct` xmedia::RenderConfig
 
 *player/public/player_config.h:197*
 
@@ -811,7 +811,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `bool gl_context_sharing {false}`
 - `bool prefer_xshm {false}`
 
-### `struct` avbase::SeekConfig
+### `struct` xmedia::SeekConfig
 
 *player/public/player_config.h:80*
 
@@ -824,7 +824,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   "seek-at-start"
 - `bool flush_on_seek {true}`
 
-### `struct` avbase::SubtitleConfig
+### `struct` xmedia::SubtitleConfig
 
 *player/public/player_config.h:149*
 
@@ -839,7 +839,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 
   The default is deliberately generous (10 s): a window that is too narrow eats subtitles during a transient stall, which is a worse failure than a late line, so this should be set to the longest stall the product is willing to paper over, not to a "typical" one.
 
-### `struct` avbase::VideoConfig
+### `struct` xmedia::VideoConfig
 
 *player/public/player_config.h:99*
 
@@ -885,7 +885,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 
 ## player/public/player_event.h
 
-### `class` avbase::PlayerObserver
+### `class` xmedia::PlayerObserver
 
 *player/public/player_event.h:252*
 
@@ -897,7 +897,7 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 - `PlayerObserver & operator=(const PlayerObserver &)=delete`
 - `~PlayerObserver()=default`
 - `void OnPrepared(const PreparedPayload &)`
-  Metadata is ready; the payload mirrors avbase::MediaInfo.
+  Metadata is ready; the payload mirrors xmedia::MediaInfo.
 - `void OnCompleted(const CompletedPayload &)`
   Playback reached the end (one call per pass with SetLoopCount).
 - `void OnError(const ErrorPayload &)`
@@ -962,33 +962,33 @@ Every callback runs on the event dispatch sequence and must not block; the defau
   Stable spelling of |state| for logs and diagnostics; never null. Side effects: none.
 - `const char * GetEventTypeName(EventType type)`
   Stable spelling of |type| for logs and diagnostics; never null. Side effects: none.
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsError, ErrorPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsAccurateSeekCompleted, AccurateSeekCompletedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload)`
-- `AVBASE_DECLARE_EVENT_ACCESSOR(AsStats, StatsPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsError, ErrorPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsAccurateSeekCompleted, AccurateSeekCompletedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload)`
+- `XMEDIA_DECLARE_EVENT_ACCESSOR(AsStats, StatsPayload)`
 - `bool ToLegacyEvent(const PlayerEvent &event, LegacyEvent *out)`
   Maps a modern PlayerEvent to the legacy Android-style event the struct above describes, so an existing Java message handler keeps working. Thread safety: any thread; pure mapping, no shared state. Errors: returns false (and leaves |out| defaulted) when |event| has no legacy equivalent. Side effects: none; |out| borrows the event's strings and stays valid only while |event| does.
-- `#define AVBASE_DECLARE_EVENT_ACCESSOR AVBASE_PLAYER_EXPORT const Type* Name(const PlayerEvent& event)`
+- `#define XMEDIA_DECLARE_EVENT_ACCESSOR XMEDIA_PLAYER_EXPORT const Type* Name(const PlayerEvent& event)`
   Typed accessors. Each returns nullptr when |event| carries a different payload, so a switch on event.type plus one accessor is all a caller needs and std::visit never appears in user code (design rule E7).
-### `struct` avbase::AccurateSeekCompletedPayload
+### `struct` xmedia::AccurateSeekCompletedPayload
 
 *player/public/player_event.h:151*
 
 - `base::TimeDelta position`
 
-### `struct` avbase::BufferedUpdatePayload
+### `struct` xmedia::BufferedUpdatePayload
 
 *player/public/player_event.h:138*
 
@@ -997,19 +997,19 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 - `size_t cached_bytes {0}`
 - `size_t high_water_mark_bytes {0}`
 
-### `struct` avbase::BufferingProgressPayload
+### `struct` xmedia::BufferingProgressPayload
 
 *player/public/player_event.h:134*
 
 - `base::TimeDelta buffered_ahead`
 - `int percent {0}`
 
-### `struct` avbase::CompletedPayload
+### `struct` xmedia::CompletedPayload
 
 *player/public/player_event.h:178*
 
 
-### `struct` avbase::DecoderFallbackPayload
+### `struct` xmedia::DecoderFallbackPayload
 
 *player/public/player_event.h:113*
 
@@ -1017,7 +1017,7 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 - `std::string to_decoder`
 - `std::string reason`
 
-### `struct` avbase::DecoderOpenedPayload
+### `struct` xmedia::DecoderOpenedPayload
 
 *player/public/player_event.h:108*
 
@@ -1025,7 +1025,7 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 - `std::string decoder_name`
 - `bool outputs_opaque_surface {false}`
 
-### `struct` avbase::DecodingStartedPayload
+### `struct` xmedia::DecodingStartedPayload
 
 *player/public/player_event.h:102*
 
@@ -1034,24 +1034,24 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 - `media::AudioDecoderType audio_type {media::AudioDecoderType::kUnknown}`
 - `std::string codec_name`
 
-### `struct` avbase::ErrorPayload
+### `struct` xmedia::ErrorPayload
 
 *player/public/player_event.h:81*
 
 - `MediaError error`
 
-### `struct` avbase::FlushedPayload
+### `struct` xmedia::FlushedPayload
 
 *player/public/player_event.h:177*
 
 
-### `struct` avbase::HdrUnsupportedPayload
+### `struct` xmedia::HdrUnsupportedPayload
 
 *player/public/player_event.h:179*
 
 - `std::string transfer`
 
-### `struct` avbase::LegacyEvent
+### `struct` xmedia::LegacyEvent
 
 *player/public/player_event.h:231*
 
@@ -1062,7 +1062,7 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `int64_t arg2 {0}`
 - `std::string obj`
 
-### `struct` avbase::PlayerEvent
+### `struct` xmedia::PlayerEvent
 
 *player/public/player_event.h:193*
 
@@ -1075,27 +1075,27 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `int64_t sequence_number {0}`
   Monotonic; detects dropped events.
 
-### `struct` avbase::PreparedPayload
+### `struct` xmedia::PreparedPayload
 
 *player/public/player_event.h:77*
 
 - `MediaInfo media_info`
 - `StageTimings stages`
 
-### `struct` avbase::RenderingStartedPayload
+### `struct` xmedia::RenderingStartedPayload
 
 *player/public/player_event.h:99*
 
 - `media::DemuxerStreamType type {media::DemuxerStreamType::kUnknown}`
 
-### `struct` avbase::RotationChangedPayload
+### `struct` xmedia::RotationChangedPayload
 
 *player/public/player_event.h:95*
 
 - `int degrees {0}`
 - `bool mirrored {false}`
 
-### `struct` avbase::SeekCompletedPayload
+### `struct` xmedia::SeekCompletedPayload
 
 *player/public/player_event.h:144*
 
@@ -1106,13 +1106,13 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `base::TimeDelta load_duration`
 - `MediaError result`
 
-### `struct` avbase::SeekRenderingStartedPayload
+### `struct` xmedia::SeekRenderingStartedPayload
 
 *player/public/player_event.h:154*
 
 - `media::DemuxerStreamType type {media::DemuxerStreamType::kUnknown}`
 
-### `struct` avbase::SnapshotCompletedPayload
+### `struct` xmedia::SnapshotCompletedPayload
 
 *player/public/player_event.h:169*
 
@@ -1120,7 +1120,7 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `std::string file_path`
 - `MediaError result`
 
-### `struct` avbase::StageReachedPayload
+### `struct` xmedia::StageReachedPayload
 
 *player/public/player_event.h:118*
 
@@ -1128,23 +1128,23 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
   - `kOpenInput`
   - `kFindStreamInfo`
   - `kComponentOpen`
-- `enum avbase::StageReachedPayload::Stage kOpenInput`
+- `enum xmedia::StageReachedPayload::Stage kOpenInput`
 - `base::TimeDelta elapsed_since_prepare`
 
-### `struct` avbase::StateChangedPayload
+### `struct` xmedia::StateChangedPayload
 
 *player/public/player_event.h:84*
 
 - `PlayerState from {PlayerState::kIdle}`
 - `PlayerState to {PlayerState::kIdle}`
 
-### `struct` avbase::StatsPayload
+### `struct` xmedia::StatsPayload
 
 *player/public/player_event.h:174*
 
 - `PlaybackStats stats`
 
-### `struct` avbase::TimedTextPayload
+### `struct` xmedia::TimedTextPayload
 
 *player/public/player_event.h:157*
 
@@ -1158,7 +1158,7 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `std::vector<uint8_t> raw_ass`
   Raw ASS packet for hosts that do layout.
 
-### `struct` avbase::TrackChangedPayload
+### `struct` xmedia::TrackChangedPayload
 
 *player/public/player_event.h:164*
 
@@ -1166,7 +1166,7 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 - `int old_index {-1}`
 - `int new_index {-1}`
 
-### `struct` avbase::VideoSizeChangedPayload
+### `struct` xmedia::VideoSizeChangedPayload
 
 *player/public/player_event.h:90*
 
@@ -1176,7 +1176,7 @@ Merges ijkplayer's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401), which
 - `media::Size natural_size`
 - `media::Rational sar {1, 1}`
 
-### `struct` avbase::WaitingPayload
+### `struct` xmedia::WaitingPayload
 
 *player/public/player_event.h:126*
 
@@ -1185,14 +1185,14 @@ Merges ijkplayer's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401), which
   - `kDecoderStalled`
   - `kNetworkStalled`
   - `kKeyRequired`
-- `enum avbase::WaitingPayload::Reason kBuffering`
+- `enum xmedia::WaitingPayload::Reason kBuffering`
 
 ## player/public/player_export.h
 
-- `#define AVBASE_PLAYER_EXPORT`
+- `#define XMEDIA_PLAYER_EXPORT`
 ## player/public/scene.h
 
-### `class` avbase::Scene
+### `class` xmedia::Scene
 
 *player/public/scene.h:288*
 
@@ -1226,7 +1226,7 @@ LIFETIME: the scene outlives pipelines. The renderer is rebuilt every Prepare an
   One line saying whether this scene can do anything right now, and why not when it cannot. Worth attaching to a bug report: "picture-in-picture is
   not showing" has several quite different answers and this names which.
 
-### `class` avbase::SceneFrame
+### `class` xmedia::SceneFrame
 
 *player/public/scene.h:137*
 
@@ -1255,7 +1255,7 @@ VALID ONLY FOR THE DURATION OF THE CALLBACK, and that is a guarantee rather than
   How a hook remembers a layer it made on an earlier frame. Handles cannot be kept, because the frame they were made from is dead by then; ids can, because they are never reused. Asking the scene is what turns "an id I
   wrote down" back into something usable.
 
-### `class` avbase::SceneLayer
+### `class` xmedia::SceneLayer
 
 *player/public/scene.h:61*
 
@@ -1291,7 +1291,7 @@ VALIDITY: only inside the callback it came from. That is enforced rather than me
 - `bool Upload(const media::VideoFrame &frame)`
   Replaces the picture this layer is showing. This is how you feed a layer nothing is publishing into – a logo, or a delayed copy of the main frame. A layer WITH a source is fed by its own producer, not here.
 
-### `class` avbase::SceneSource
+### `class` xmedia::SceneSource
 
 *player/public/scene.h:209*
 

@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_SOURCE_WRAPPING_H_
-#define AVBASE_PLAYER_SOURCE_WRAPPING_H_
+#ifndef XMEDIA_PLAYER_SOURCE_WRAPPING_H_
+#define XMEDIA_PLAYER_SOURCE_WRAPPING_H_
 
 #include "base/memory/scoped_refptr.h"
 #include "media/base/data_source_descriptor.h"
 #include "media/filters/retry_data_source.h"
 #include "player/public/player_config.h"
 
-namespace avbase {
+namespace xmedia {
 namespace player_internal {
 
 // Production source wiring, split out of player_impl_prepare.cc for the C1
@@ -43,6 +43,6 @@ media::DataSourceDescriptor WrapCache(
     const DataSourceConfig& config);
 
 }  // namespace player_internal
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_SOURCE_WRAPPING_H_
+#endif  // XMEDIA_PLAYER_SOURCE_WRAPPING_H_

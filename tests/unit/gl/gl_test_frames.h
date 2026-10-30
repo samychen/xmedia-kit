@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,8 +11,8 @@
 // and three private copies would be three chances to get one of them subtly
 // different, in tests whose whole job is to catch subtleties.
 
-#ifndef AVBASE_TESTS_UNIT_GL_GL_TEST_FRAMES_H_
-#define AVBASE_TESTS_UNIT_GL_GL_TEST_FRAMES_H_
+#ifndef XMEDIA_TESTS_UNIT_GL_GL_TEST_FRAMES_H_
+#define XMEDIA_TESTS_UNIT_GL_GL_TEST_FRAMES_H_
 
 #include <algorithm>
 #include <cstddef>
@@ -24,11 +24,11 @@
 #include "media/base/video_frame.h"
 #include "render/gl/gl_api.h"
 
-// Deliberately avbase::test, the same namespace gl_test_context.h uses. A
-// second test namespace nested under avbase::media would shadow the "test::"
+// Deliberately xmedia::test, the same namespace gl_test_context.h uses. A
+// second test namespace nested under xmedia::media would shadow the "test::"
 // spelling every GL test already writes for GlTestWindow, and the shadowing
 // surfaces as an error about the fixture class rather than about namespaces.
-namespace avbase::test {
+namespace xmedia::test {
 
 // A rendered pixel, as the three channels the tests compare.
 struct Rgb {
@@ -210,6 +210,6 @@ inline Rgb ReadPixel(const gl::GlApi& api, int x, int y,
   return Rgb{pixel[0], pixel[1], pixel[2]};
 }
 
-}  // namespace avbase::test
+}  // namespace xmedia::test
 
-#endif  // AVBASE_TESTS_UNIT_GL_GL_TEST_FRAMES_H_
+#endif  // XMEDIA_TESTS_UNIT_GL_GL_TEST_FRAMES_H_

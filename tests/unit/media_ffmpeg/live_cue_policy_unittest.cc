@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -50,7 +50,7 @@
 #include "tests/support/fake_sink_factories.h"
 #include "tests/support/pipeline_fixture.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 [[maybe_unused]] constexpr int kFramesPerBuffer = 256;
@@ -190,4 +190,4 @@ TEST_F(LiveCuePolicyTest, AnUnknownTextTrackFailsCleanly) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

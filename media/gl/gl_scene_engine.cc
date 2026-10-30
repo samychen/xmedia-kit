@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 #include "base/check.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 GlSceneEngine::GlSceneEngine() = default;
 
@@ -188,4 +188,4 @@ void GlSceneEngine::Shutdown() {
   main_layer_ = GlScene::kNoLayer;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

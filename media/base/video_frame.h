@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // surfaces). Chromium never needed the second one because VideoFrame carries
 // a StorageType; see docs/02 §9 D2.
 
-#ifndef AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
-#define AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
+#ifndef XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_
+#define XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_
 
 #include <stdint.h>
 
@@ -26,9 +26,9 @@
 #include "media/base/video_color_space.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
-struct AVBASE_MEDIA_EXPORT Rational {
+struct XMEDIA_MEDIA_EXPORT Rational {
   int num{1};
   int den{1};
   constexpr bool is_zero() const noexcept { return num == 0; }
@@ -38,7 +38,7 @@ struct AVBASE_MEDIA_EXPORT Rational {
   constexpr friend bool operator==(const Rational&, const Rational&) = default;
 };
 
-struct AVBASE_MEDIA_EXPORT Size {
+struct XMEDIA_MEDIA_EXPORT Size {
   int width{0};
   int height{0};
   constexpr int GetArea() const noexcept { return width * height; }
@@ -60,10 +60,10 @@ enum class VideoFormat {
   kP010,
 };
 
-AVBASE_MEDIA_EXPORT const char* GetVideoFormatName(VideoFormat format);
-AVBASE_MEDIA_EXPORT int VideoFormatPlaneCount(VideoFormat format);
+XMEDIA_MEDIA_EXPORT const char* GetVideoFormatName(VideoFormat format);
+XMEDIA_MEDIA_EXPORT int VideoFormatPlaneCount(VideoFormat format);
 
-// The strong-typed GPU handle carried by a non-CPU frame (avbase §6.2, the
+// The strong-typed GPU handle carried by a non-CPU frame (xmedia-kit §6.2, the
 // zero-copy contract). |kind| says what |id| points at, so a consumer never
 // casts blind:
 //
@@ -83,9 +83,9 @@ enum class NativeHandleKind {
   kCVPixelBuffer,
 };
 
-AVBASE_MEDIA_EXPORT const char* GetNativeHandleKindName(NativeHandleKind kind);
+XMEDIA_MEDIA_EXPORT const char* GetNativeHandleKindName(NativeHandleKind kind);
 
-struct AVBASE_MEDIA_EXPORT NativeHandle {
+struct XMEDIA_MEDIA_EXPORT NativeHandle {
   NativeHandleKind kind{NativeHandleKind::kNone};
   const void* id{nullptr};
   int subresource{0};
@@ -99,13 +99,13 @@ struct AVBASE_MEDIA_EXPORT NativeHandle {
 // All instances are reference-counted and must be held through
 // scoped_refptr<VideoFrame>. Passing a frame to a sink therefore costs one
 // atomic increment, never a pixel copy.
-class AVBASE_MEDIA_EXPORT VideoFrame
+class XMEDIA_MEDIA_EXPORT VideoFrame
     : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
   enum class StorageType {
-    kStorageOwned = 0,  // CPU memory allocated by avbase; planes readable.
+    kStorageOwned = 0,  // CPU memory allocated by xmedia-kit; planes readable.
     kStorageDmaBufs,    // Linux dmabuf; zero-copy into EGL, planes unreadable.
     kStorageGpuMemoryBuffer,
     kStorageOpaque,  // Platform-private handle (MediaCodec Surface,
@@ -177,7 +177,7 @@ class AVBASE_MEDIA_EXPORT VideoFrame
     return storage_type_ == StorageType::kStorageOwned;
   }
 
-  // Zero-copy contract (avbase §6.2): a hardware-decoded frame is passed GPU
+  // Zero-copy contract (xmedia-kit §6.2): a hardware-decoded frame is passed GPU
   // to GPU end to end; pixels are only read back when a consumer EXPLICITLY
   // calls ToI420(). Returns:
   //   - this same frame (new reference) when the pixels are already owned
@@ -254,6 +254,6 @@ class AVBASE_MEDIA_EXPORT VideoFrame
   base::RepeatingCallback<base::scoped_refptr<VideoFrame>()> to_i420_cb_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
+#endif  // XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_

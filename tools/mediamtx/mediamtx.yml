@@ -1,8 +1,8 @@
-# Minimal MediaMTX config for avbase's live-protocol acceptance (docs/12 2.4).
+# Minimal MediaMTX config for xmedia-kit's live-protocol acceptance (docs/12 2.4).
 #
 # Loopback-only, no auth, no recording, and only the three protocols under test
 # (rtmp / rtsp / srt). Everything else MediaMTX can do is switched off: the
-# acceptance is about avbase's demuxer talking to a real streaming peer, not
+# acceptance is about xmedia-kit's demuxer talking to a real streaming peer, not
 # about the server. v1.21.x key names.
 logLevel: info
 logDestinations: [stdout]

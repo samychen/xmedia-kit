@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Doxygen INPUT_FILTER: make the repo's plain-// doc comments visible.
 
-avbase's public headers document with plain `//` blocks that PRECEDE the
+xmedia-kit's public headers document with plain `//` blocks that PRECEDE the
 declaration they describe, plus trailing `// "option-key"` notes. Doxygen
 ignores both forms (only ///, //!, /** */ count). Rewriting the headers to
 doxygen syntax would be churn on a frozen surface, so this filter rewrites a

@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 const char* GetStreamLivenessName(StreamLiveness liveness) {
   switch (liveness) {
@@ -40,4 +40,4 @@ StreamLiveness DemuxerStream::liveness() const {
 Demuxer::Demuxer() = default;
 Demuxer::~Demuxer() = default;
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,19 +10,19 @@
 
 #include "base/logging.h"
 
-#if defined(AVBASE_HAVE_FREETYPE)
+#if defined(XMEDIA_HAVE_FREETYPE)
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #endif
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 int ToU8(float v) {
   return static_cast<int>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
 }
 
-#if defined(AVBASE_HAVE_FREETYPE)
+#if defined(XMEDIA_HAVE_FREETYPE)
 
 // Blits a glyph bitmap into |out| keeping whichever pixel is more opaque
 // (the "max" composite MediaComponent uses for shadow/stroke passes, so an
@@ -168,7 +168,7 @@ std::vector<std::string> SplitLines(const std::string& utf8) {
   return lines;
 }
 
-#endif  // defined(AVBASE_HAVE_FREETYPE)
+#endif  // defined(XMEDIA_HAVE_FREETYPE)
 
 }  // namespace
 
@@ -177,7 +177,7 @@ TextRaster::TextRaster() = default;
 bool TextRaster::Rasterize(const std::string& font_path, int pixel_size,
                            const TextRasterStyle& style,
                            const std::string& utf8, RgbaBitmap* out) {
-#if defined(AVBASE_HAVE_FREETYPE)
+#if defined(XMEDIA_HAVE_FREETYPE)
   if (!out || pixel_size <= 0 || utf8.empty()) {
     return false;
   }
@@ -329,4 +329,4 @@ bool TextRaster::Rasterize(const std::string& font_path, int pixel_size,
   return Rasterize(font_path, pixel_size, style, utf8, out);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

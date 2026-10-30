@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_TESTS_SUPPORT_PIPELINE_FIXTURE_H_
-#define AVBASE_TESTS_SUPPORT_PIPELINE_FIXTURE_H_
+#ifndef XMEDIA_TESTS_SUPPORT_PIPELINE_FIXTURE_H_
+#define XMEDIA_TESTS_SUPPORT_PIPELINE_FIXTURE_H_
 
 // The shared pipeline-level test fixture. This replaced four copy-pasted
 // fixture classes (pipeline_seek / _throttle / _track / _text unittests)
@@ -15,7 +15,7 @@
 // Two modes:
 //   * ffmpeg mode (default): FFmpegDemuxer over a DataSource (a testdata
 //     file through MemoryDataSource by default) with FFmpeg decoder
-//     factories. Requires AVBASE_TESTDATA_DIR.
+//     factories. Requires XMEDIA_TESTDATA_DIR.
 //   * synthetic mode: SyntheticDemuxer + synthetic decoder factories, for
 //     suites that must run without FFmpeg (design goal G2).
 //
@@ -31,7 +31,7 @@
 #include <thread>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
@@ -44,7 +44,7 @@
 #include "media/filters/legacy/av_sync_controller.h"
 #include "media/filters/pipeline_impl.h"
 #include "media/renderers/default_renderer_factory.h"
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/ffmpeg_decoder_factories.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_text_decoder.h"
@@ -57,13 +57,13 @@
 #include "tests/support/synthetic_demuxer.h"
 #include "tests/support/synthetic_live_demuxer.h"
 
-#ifdef AVBASE_TESTDATA_DIR
-#define AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA 1
+#ifdef XMEDIA_TESTDATA_DIR
+#define XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA 1
 #else
-#define AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA 0
+#define XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA 0
 #endif
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class PipelineTestFixture : public ::testing::Test {
  protected:
@@ -133,8 +133,8 @@ class PipelineTestFixture : public ::testing::Test {
 
   base::test::TaskEnvironment env_{
       base::test::TaskEnvironment::TimeSource::kRealTime};
-  base::Thread video_thread_{"avbase-pipe-S3"};
-  base::Thread audio_thread_{"avbase-pipe-S4"};
+  base::Thread video_thread_{"xmedia-pipe-S3"};
+  base::Thread audio_thread_{"xmedia-pipe-S4"};
   // The device sequence (S7). Render() runs here, NOT on S4: S4 is the decode
   // pump, and a paced source parks a read there for as long as the wall clock
   // takes to reach the edge. A render marshalled onto S4 would therefore queue
@@ -142,7 +142,7 @@ class PipelineTestFixture : public ::testing::Test {
   // paced count suites run at a quarter speed, eight audio periods of wall per
   // period pulled. The real audio device is a sequence of its own
   // (audio_renderer_ring.cc calls it S7), and this is that sequence.
-  base::Thread render_thread_{"avbase-pipe-S7"};
+  base::Thread render_thread_{"xmedia-pipe-S7"};
   base::DefaultTickClock tick_clock_;
   base::scoped_refptr<MediaLog> media_log_ = base::MakeRefCounted<MediaLog>();
   std::shared_ptr<AvSyncController> av_sync_;
@@ -174,7 +174,7 @@ class PipelineTestFixture : public ::testing::Test {
   // memory, which FFmpeg duly reported as 46 rounds of "Invalid data found
   // when processing input" and the suite misread as a pacing bug.
   void LoadMediaBytes() {
-#if AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA
+#if XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA
     if (media_bytes_.empty()) {
       media_bytes_ = ReadMediaFile(media_file_.c_str());
     }
@@ -196,7 +196,7 @@ class PipelineTestFixture : public ::testing::Test {
     deps.audio_task_runner = audio_thread_.task_runner();
     deps.tick_clock = &tick_clock_;
     if (ffmpeg_mode_) {
-#if AVBASE_ENABLE_FFMPEG && AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA
+#if XMEDIA_ENABLE_FFMPEG && XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA
       deps.video_decoder_factories.push_back(
           base::MakeRefCounted<FFmpegVideoDecoderFactory>(
               video_thread_.task_runner()));
@@ -238,7 +238,7 @@ class PipelineTestFixture : public ::testing::Test {
     (void)custom_source;  // Synthetic mode has no file source to override.
     BuildGraph();
     if (ffmpeg_mode_) {
-#if AVBASE_ENABLE_FFMPEG && AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA
+#if XMEDIA_ENABLE_FFMPEG && XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA
       // Load only when nobody has yet: a caller that wrapped the bytes (see
       // LoadMediaBytes) is holding pointers INTO media_bytes_, and
       // reassigning the vector here would reallocate it out from under them.
@@ -256,7 +256,7 @@ class PipelineTestFixture : public ::testing::Test {
     }
     DemuxerOptions options;
     if (ffmpeg_mode_) {
-#if AVBASE_ENABLE_FFMPEG && AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA
+#if XMEDIA_ENABLE_FFMPEG && XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA
       pipeline_->Start(
           MakeSingleSource(std::make_unique<FFmpegDemuxer>(media_log_)),
           renderer_factory_.get(), RendererType::kRendererImpl, runner_,
@@ -437,9 +437,9 @@ class PipelineTestFixture : public ::testing::Test {
   std::unique_ptr<Demuxer> synthetic_;
 
  private:
-#if AVBASE_PIPELINE_FIXTURE_HAS_TESTDATA
+#if XMEDIA_PIPELINE_FIXTURE_HAS_TESTDATA
   static std::vector<uint8_t> ReadMediaFile(const char* name) {
-    const std::string path = std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+    const std::string path = std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
     std::FILE* f = std::fopen(path.c_str(), "rb");
     std::vector<uint8_t> bytes;
     if (f) {
@@ -457,6 +457,6 @@ class PipelineTestFixture : public ::testing::Test {
   bool ffmpeg_mode_ = false;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_TESTS_SUPPORT_PIPELINE_FIXTURE_H_
+#endif  // XMEDIA_TESTS_SUPPORT_PIPELINE_FIXTURE_H_

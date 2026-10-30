@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,7 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import AvbasePlayer 1.0
+import XmediaPlayer 1.0
 
 ApplicationWindow {
     id: window
@@ -25,8 +25,8 @@ ApplicationWindow {
     visible: true
     color: "#0d0f12"
     title: player.source.length > 0
-           ? player.source.split("/").pop() + " \u2014 avbase player"
-           : "avbase player \u2014 drop a file"
+           ? player.source.split("/").pop() + " \u2014 xmedia-kit player"
+           : "xmedia-kit player \u2014 drop a file"
 
     // ---- auto-hide ---------------------------------------------------------
     // The bar fades out two and a half seconds after the pointer stops moving
@@ -60,9 +60,9 @@ ApplicationWindow {
 
     // ---- video surface -----------------------------------------------------
     // Two implementations of the same surface, one built at startup. The GPU
-    // one draws the video through avbase's GL layer inside Qt's framebuffer;
+    // one draws the video through xmedia-kit's GL layer inside Qt's framebuffer;
     // the software one converts on the CPU and is kept as the reference the
-    // GPU one is checked against (AVBASE_QT_GL_REF in main.cc). A Loader
+    // GPU one is checked against (XMEDIA_QT_GL_REF in main.cc). A Loader
     // rather than two items with `visible` toggled: an invisible item here
     // still runs its refresh timer, and a software conversion happening behind
     // a GL surface is both wasted work and a lie in any measurement.

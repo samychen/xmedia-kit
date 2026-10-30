@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@
 #include "platform/sdl2/sdl_gl_context.h"
 #include "platform/sdl2/surface.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // The target draws 8-bit planar YUV (what sws_scale produces for I420 output);
@@ -242,4 +242,4 @@ void Sdl2OutputTarget::PresentOverlay(void* renderer) {
                  nullptr, &dest);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

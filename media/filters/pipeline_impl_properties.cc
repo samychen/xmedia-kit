@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@
 #include "base/functional/bind.h"
 #include "media/filters/live_edge_policy.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The Set* family posts a task that reads |renderer_| on the media sequence
 // rather than capturing renderer_.get() on the caller's thread: S1 may be
@@ -117,4 +117,4 @@ bool PipelineImpl::CanSeekBackward() const {
   return seekable_.load();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

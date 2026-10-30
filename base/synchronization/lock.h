@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/synchronization/lock.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_SYNCHRONIZATION_LOCK_H_
-#define AVBASE_BASE_SYNCHRONIZATION_LOCK_H_
+#ifndef XMEDIA_BASE_SYNCHRONIZATION_LOCK_H_
+#define XMEDIA_BASE_SYNCHRONIZATION_LOCK_H_
 
 #include <mutex>
 
@@ -15,39 +15,39 @@
 // the annotations are still valuable documentation even where they are not
 // enforced. CI runs one clang job with -Wthread-safety to enforce them.
 #if defined(__clang__) && defined(__clang_major__) && (__clang_major__ >= 12)
-#define AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(x) __attribute__((x))
+#define XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(x) __attribute__((x))
 #else
-#define AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(x)
+#define XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(x)
 #endif
 
-#define GUARDED_BY(x) AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+#define GUARDED_BY(x) XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
 #define GUARDED_BY_CONTEXT(x) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
-#define PT_GUARDED_BY(x) AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+#define PT_GUARDED_BY(x) XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
 #define ACQUIRED_BEFORE(...) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(acquired_before(__VA_ARGS__))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(acquired_before(__VA_ARGS__))
 #define ACQUIRED_AFTER(...) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(acquired_after(__VA_ARGS__))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(acquired_after(__VA_ARGS__))
 #define EXCLUSIVE_LOCK_FUNCTION(...) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(exclusive_lock_function(__VA_ARGS__))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(exclusive_lock_function(__VA_ARGS__))
 #define UNLOCK_FUNCTION(...) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(unlock_function(__VA_ARGS__))
-#define LOCK_RETURNED(x) AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(lock_returned(x))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(unlock_function(__VA_ARGS__))
+#define LOCK_RETURNED(x) XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(lock_returned(x))
 // The two that make the rest mean anything: without a CAPABILITY on Lock,
 // every GUARDED_BY(lock_) in the tree is a diagnostic of its own ("attribute
 // requires arguments whose type is annotated with 'capability'"), and without
 // SCOPED_LOCKABLE on the RAII wrapper clang does not know the lock is held
 // inside the scope -- which is why the tree used to emit 260 "requires holding
 // mutex" warnings at call sites that do take the lock.
-#define CAPABILITY(x) AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(capability(x))
-#define SCOPED_LOCKABLE AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(scoped_lockable)
+#define CAPABILITY(x) XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(capability(x))
+#define SCOPED_LOCKABLE XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(scoped_lockable)
 // For the "*Locked" convention the codebase uses for helpers that must be
 // called with the lock already held: without it clang reads every member
 // access inside such a helper as an unlocked one.
 #define EXCLUSIVE_LOCKS_REQUIRED(...) \
-  AVBASE_THREAD_ANNOTATION_ATTRIBUTE__(exclusive_locks_required(__VA_ARGS__))
+  XMEDIA_THREAD_ANNOTATION_ATTRIBUTE__(exclusive_locks_required(__VA_ARGS__))
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // A thin std::mutex wrapper. The wrapper exists so that:
 //   * locks can be named and audited by tools/check_invariants.py,
@@ -72,7 +72,7 @@ class CAPABILITY("mutex") Lock {
 
   // Debug-build verification of the lock-acquisition order ON THE CURRENT
   // THREAD (the checker state in lock.cc is thread-local). No-op unless
-  // AVBASE_ENABLE_DCHECK is defined. Violations are reported through
+  // XMEDIA_ENABLE_DCHECK is defined. Violations are reported through
   // base/logging at FATAL severity, because a same-thread lock-order inversion
   // in a media pipeline surfaces as an unreproducible hang. NOTE: a
   // cross-thread inversion (the classic two-thread deadlock: A holds L1 wants
@@ -113,6 +113,6 @@ class AutoUnlock {
   Lock& lock_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_SYNCHRONIZATION_LOCK_H_
+#endif  // XMEDIA_BASE_SYNCHRONIZATION_LOCK_H_

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_
-#define AVBASE_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_
+#define XMEDIA_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_
 
 #include <stdint.h>
 
@@ -31,12 +31,12 @@
 #include "media/filters/abr_bandwidth_estimator.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class FFmpegDemuxer;
 
 // An HLS client demuxer -- the port of CicadaPlayer's playList_demuxer to
-// avbase's Demuxer contract. The playlist (fetched and parsed with
+// xmedia-kit's Demuxer contract. The playlist (fetched and parsed with
 // ParseM3U8) is the timeline; every segment is served by its own short-
 // lived FFmpegDemuxer over an in-memory source, and ONE set of wrapper
 // streams (created at Initialize) survives across every segment and variant
@@ -60,7 +60,7 @@ class FFmpegDemuxer;
 // part prefetch and ABR-driven variant switching land with T4/T8 on the
 // same seams (the variant list is already parsed; switching replaces the
 // inner demuxer exactly like a segment transition).
-class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
+class XMEDIA_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
  public:
   explicit HlsPlaylistDemuxer(base::scoped_refptr<MediaLog> media_log,
                               BufferQueueLimits limits);
@@ -211,7 +211,7 @@ class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   std::vector<PendingRead> pending_reads_;
 
   // Runs every blocking fetch (playlists, segments, keys).
-  base::Thread worker_{"avbase-hls"};
+  base::Thread worker_{"xmedia-hls"};
   DemuxerStats stats_;
   // Cached AES key: one EXT-X-KEY per playlist in practice, so keep the
   // last one and reuse it across segments.
@@ -238,6 +238,6 @@ class AVBASE_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   std::vector<uint8_t> open_segment_bytes_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_HLS_PLAYLIST_DEMUXER_H_

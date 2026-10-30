@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,10 +17,10 @@
 #include "media/ffmpeg/compat.h"
 #include "media/transcode/ffmpeg_transcode_streams.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // AVIO interrupt callback: a non-zero return aborts the blocking read in
 // progress. This is what makes Cancel() prompt on a stalled source -- without
@@ -497,4 +497,4 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   return OkStatus();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

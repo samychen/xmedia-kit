@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 media::VideoColorSpace
 ColorSpaceFromAvFrame(const AVFrame* frame,
@@ -83,7 +83,7 @@ ColorSpaceFromAvFrame(const AVFrame* frame,
   if (cs.IsSpecified()) {
     return cs;
   }
-  // avbase risk §14.4: FFmpeg does not always propagate the container's colour
+  // xmedia-kit risk §14.4: FFmpeg does not always propagate the container's colour
   // tags onto decoded frames -- the hwaccel paths in particular frequently
   // hand back "unspecified". The container-level facts (codec, size, HDR flag)
   // are what the muxer actually recorded, so fall back to the table keyed on
@@ -93,4 +93,4 @@ ColorSpaceFromAvFrame(const AVFrame* frame,
                                         config.has_hdr_metadata);
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

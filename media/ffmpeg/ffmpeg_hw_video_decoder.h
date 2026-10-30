@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
-#define AVBASE_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
+#define XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
 
 #include <cstdint>
 #include <functional>
@@ -20,7 +20,7 @@
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_video_decoder_base.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // What a platform factory asks the generic FFmpeg hw path to do. The strings
 // and enums here are libav-free on purpose: the per-platform factory targets
@@ -62,7 +62,7 @@ struct FFmpegHwDecoderSpec {
 // Hardware video decoding through libavcodec's hwaccel API:
 // av_hwdevice_ctx_create() for the device, avcodec_get_hw_config() + a
 // get_format callback to select the hw pixel format, and decoded frames that
-// stay on the GPU as VideoFrame::WrapNativeBuffer() frames (avbase §6.2).
+// stay on the GPU as VideoFrame::WrapNativeBuffer() frames (xmedia-kit §6.2).
 // Pixels are read back ONLY when a consumer explicitly calls ToI420(), which
 // runs av_hwframe_transfer_data behind the frame's readback callback.
 //
@@ -110,6 +110,6 @@ class FFmpegHwVideoDecoder final : public media::FFmpegVideoDecoderBase {
   media::VideoDecoderConfig config_;
 };
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_FFMPEG_HW_VIDEO_DECODER_H_

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_OPTION_REGISTRY_H_
-#define AVBASE_PLAYER_PUBLIC_OPTION_REGISTRY_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_OPTION_REGISTRY_H_
+#define XMEDIA_PLAYER_PUBLIC_OPTION_REGISTRY_H_
 
 #include <stdint.h>
 
@@ -17,14 +17,14 @@
 #include "player/public/player_config.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 // Mirrors ijkplayer's IJKMP_OPT_CATEGORY_*.
 enum class OptionCategory { kPlayer = 0, kFormat, kCodec, kScaler };
 
 using OptionValue = std::variant<bool, int64_t, double, std::string>;
 
-struct AVBASE_PLAYER_EXPORT OptionDescriptor {
+struct XMEDIA_PLAYER_EXPORT OptionDescriptor {
   std::string key;
   OptionCategory category{OptionCategory::kPlayer};
   enum class Type {
@@ -48,7 +48,7 @@ struct AVBASE_PLAYER_EXPORT OptionDescriptor {
 //
 // The table is generated from player_config.h by tools/gen_options.py so the
 // typed fields and the string keys can never drift apart (rule C13).
-class AVBASE_PLAYER_EXPORT OptionRegistry {
+class XMEDIA_PLAYER_EXPORT OptionRegistry {
  public:
   OptionRegistry(const OptionRegistry&) = delete;
   OptionRegistry& operator=(const OptionRegistry&) = delete;
@@ -101,6 +101,6 @@ class AVBASE_PLAYER_EXPORT OptionRegistry {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_OPTION_REGISTRY_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_OPTION_REGISTRY_H_

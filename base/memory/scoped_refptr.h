@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/memory/scoped_refptr.h` (BSD-3-Clause).
 //
-// avbase uses scoped_refptr (not std::shared_ptr) for ref-counted media objects
+// xmedia-kit uses scoped_refptr (not std::shared_ptr) for ref-counted media objects
 // such as media::DecoderBuffer and media::VideoFrame, matching Chromium. It is
 // smaller (no weak count), has no exception paths, and interoperates with the
 // REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE() guard.
@@ -16,8 +16,8 @@
 // scoped_refptr's adopting constructor, and ptr_util.h deliberately does not
 // include this header.
 
-#ifndef AVBASE_BASE_MEMORY_SCOPED_REFPTR_H_
-#define AVBASE_BASE_MEMORY_SCOPED_REFPTR_H_
+#ifndef XMEDIA_BASE_MEMORY_SCOPED_REFPTR_H_
+#define XMEDIA_BASE_MEMORY_SCOPED_REFPTR_H_
 
 #include <cstddef>
 #include <type_traits>
@@ -25,7 +25,7 @@
 
 #include "base/check.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 template <typename T>
 // Same reason as raw_ptr: the spelling is Chromium's, and it is used often
@@ -234,15 +234,15 @@ constexpr scoped_refptr<T> WrapRefCounted(const scoped_refptr<T>& p) noexcept {
   return p;
 }
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
 namespace std {
 template <typename T>
-struct hash<::avbase::base::scoped_refptr<T>> {
-  size_t operator()(const ::avbase::base::scoped_refptr<T>& p) const noexcept {
+struct hash<::xmedia::base::scoped_refptr<T>> {
+  size_t operator()(const ::xmedia::base::scoped_refptr<T>& p) const noexcept {
     return hash<T*>()(p.get());
   }
 };
 }  // namespace std
 
-#endif  // AVBASE_BASE_MEMORY_SCOPED_REFPTR_H_
+#endif  // XMEDIA_BASE_MEMORY_SCOPED_REFPTR_H_

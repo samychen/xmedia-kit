@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,9 +17,9 @@ extern "C" {
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/tone_map.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 namespace {
 
@@ -30,13 +30,13 @@ namespace {
 // not merely dim but structurally wrong (the DV base layer is not the picture).
 bool HasDynamicHdrMetadata(const AVStream* stream) {
   size_t size = 0;
-  if (avbase_stream_side_data(stream, AV_PKT_DATA_DOVI_CONF, &size) !=
+  if (xmedia_stream_side_data(stream, AV_PKT_DATA_DOVI_CONF, &size) !=
           nullptr &&
       size > 0) {
     return true;
   }
   size = 0;
-  return avbase_stream_side_data(stream, AV_PKT_DATA_DYNAMIC_HDR10_PLUS,
+  return xmedia_stream_side_data(stream, AV_PKT_DATA_DYNAMIC_HDR10_PLUS,
                                  &size) != nullptr &&
          size > 0;
 }
@@ -87,7 +87,7 @@ VideoDecoderConfig MakeVideoDecoderConfig(const AVStream* stream) {
   // parameters. ijkplayer reads it in three separate places.
   size_t matrix_size = 0;
   const uint8_t* matrix =
-      avbase_stream_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, &matrix_size);
+      xmedia_stream_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, &matrix_size);
   if (matrix && matrix_size >= 9 * sizeof(int32_t)) {
     const double rotation =
         av_display_rotation_get(reinterpret_cast<const int32_t*>(matrix));
@@ -160,4 +160,4 @@ TextDecoderConfig MakeTextDecoderConfig(const AVStream* stream) {
   return config;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

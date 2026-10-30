@@ -1,16 +1,16 @@
 // Copyright (c) 2013-2026 Zhang Rui <bbcallen@gmail.com>
 // Copyright (c) 2013-2026 Bilibili
 // Copyright (c) 2003-2013 Fabrice Bellard (ffplay.c)
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 //
-// This file is part of avbase.
+// This file is part of xmedia.
 //
-// avbase is free software; you can redistribute it and/or modify it under the
+// xmedia-kit is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License as published by the Free
 // Software Foundation; either version 2.1 of the License, or (at your option)
 // any later version.
 //
-// avbase is distributed in the hope that it will be useful, but WITHOUT ANY
+// xmedia-kit is distributed in the hope that it will be useful, but WITHOUT ANY
 // WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 // FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
 // details.
@@ -25,7 +25,7 @@
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // this is a port of ffplay's `struct Clock` (get_clock / set_clock /
 // set_clock_at), i.e. a derivative work of ijkplayer (LGPL-2.1). The seqlock
-// read path is original to avbase (behaviour difference Δ14) but it implements
+// read path is original to xmedia-kit (behaviour difference Δ14) but it implements
 // the same quantity, so the file stays under the ported licence. See
 // media/filters/legacy/README.md for the boundary rules.
 
@@ -33,7 +33,7 @@
 
 #include "base/check.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 Clock::Clock(const base::TickClock* wall_clock) : wall_(wall_clock) {
   CHECK(wall_)
@@ -147,7 +147,7 @@ base::TimeDelta Clock::Get() const {
   // instant twice and returns a master clock offset by -last_updated -- on a
   // real machine, by negative uptime. It went unnoticed because every unit test
   // drives a SimpleTestTickClock that starts at zero, where drift == pts and
-  // the two forms agree. `avbase-inspect sync` caught it immediately: the
+  // the two forms agree. `xmedia-inspect sync` caught it immediately: the
   // master read -33185 s on a host up for 9.2 hours, which would have marked
   // every video frame as infinitely late and dropped the entire stream. The
   // widening to double is explicit: -Wconversion (debug preset, -Werror)
@@ -170,4 +170,4 @@ bool Clock::valid() const {
   return valid_.load(std::memory_order_acquire);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

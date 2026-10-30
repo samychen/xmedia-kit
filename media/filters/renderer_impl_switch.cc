@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,7 @@
 #include "base/logging.h"
 #include "media/base/media_constants.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 void RendererImpl::OnTracksChanged(DemuxerStreamType track_type,
                                    DemuxerStream* enabled_track,
@@ -44,7 +44,7 @@ void RendererImpl::OnTracksChanged(DemuxerStreamType track_type,
           ErrorCode::kNotImplemented, "text track selection is not available",
           "this build has no text decoder factory (the FFmpeg layer provides "
           "one; a no-ffmpeg build has none)",
-          "build with AVBASE_ENABLE_FFMPEG for subtitle support"));
+          "build with XMEDIA_ENABLE_FFMPEG for subtitle support"));
       std::move(change_completed_cb).Run();
       return;
     }
@@ -495,4 +495,4 @@ bool RendererImpl::IsPrimaryStream(DemuxerStreamType type,
   return false;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,8 +16,8 @@
 // after it, so a test can produce several cues from one packet exactly as a
 // multi-line subtitle does.
 
-#ifndef AVBASE_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_
-#define AVBASE_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_
+#ifndef XMEDIA_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_
+#define XMEDIA_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_
 
 #include <memory>
 #include <string>
@@ -28,7 +28,7 @@
 #include "media/base/text_decoder.h"
 #include "media/base/timed_text.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 class FakeTextDecoder final : public TextDecoder {
  public:
@@ -91,6 +91,6 @@ class FakeTextDecoderFactory final : public TextDecoderFactory {
   int decode_calls_ = 0;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_
+#endif  // XMEDIA_TESTS_SUPPORT_FAKE_TEXT_DECODER_H_

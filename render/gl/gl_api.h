@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_API_H_
-#define AVBASE_RENDER_GL_GL_API_H_
+#ifndef XMEDIA_RENDER_GL_GL_API_H_
+#define XMEDIA_RENDER_GL_GL_API_H_
 
 #include <glad/gl.h>
 
@@ -13,7 +13,7 @@
 #include "render/gl/gl_export.h"
 #include "render/gl/native_gl_context.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // A loaded GL 3.3 core context: glad's per-context entry-point table plus the
 // facts needed to decide what the driver can do.
@@ -32,7 +32,7 @@ namespace avbase::gl {
 // context goes away. glad's --mx mode is what makes this expressible: its
 // default mode would put every pointer in a global, which is a plain bug the
 // moment two contexts live on two threads.
-class AVBASE_GL_EXPORT GlApi {
+class XMEDIA_GL_EXPORT GlApi {
  public:
   GlApi() = default;
   GlApi(const GlApi&) = delete;
@@ -134,6 +134,6 @@ class AVBASE_GL_EXPORT GlApi {
   std::vector<std::string> extensions_;
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_API_H_
+#endif  // XMEDIA_RENDER_GL_GL_API_H_

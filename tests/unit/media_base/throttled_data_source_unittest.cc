@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 namespace {
 
 constexpr size_t kFileSize = 20000;
@@ -165,4 +165,4 @@ TEST(ThrottledDataSourceTest, DelegationMatchesTheInnerSource) {
 }
 
 }  // namespace
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

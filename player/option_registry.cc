@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@
 
 #include "player/option_value_parsing.h"
 
-namespace avbase {
+namespace xmedia {
 
 using option_internal::Levenshtein;
 using option_internal::OutOfRange;
@@ -111,7 +111,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
   // PlayerImpl::SeekTo consults before honouring SeekMode::kAccurate.
 
   // get-frame-mode: ijkplayer's "decode, don't render" thumbnail mode. The
-  // avbase effect is the same render.disable_video_output flag nodisp drives
+  // xmedia-kit effect is the same render.disable_video_output flag nodisp drives
   // -- the video leg keeps decoding and feeding the compositor (so
   // Player::TakeSnapshot works headlessly), nothing reaches a window -- but
   // it is a separate KEY because the intent differs: nodisp says "I have no
@@ -370,4 +370,4 @@ std::string OptionRegistry::SuggestNearestKey(std::string_view key) const {
   return best_distance <= 3 ? best : std::string();
 }
 
-}  // namespace avbase
+}  // namespace xmedia

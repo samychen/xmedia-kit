@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Soak: run the demux fuzz driver for a long time and watch the memory curve.
@@ -25,7 +25,7 @@ here are four fixed classes on a fixed corpus, so this finds LIFETIME bugs
 -max_total_time, which needs a libFuzzer runtime.
 
 USAGE
-    tools/run_soak.py --driver build/asan/bin/avbase_fuzz_demuxer_standalone \\
+    tools/run_soak.py --driver build/asan/bin/xmedia_fuzz_demuxer_standalone \\
                       [--minutes 48] [--sample-seconds 20] [--out report.json]
 
 EXIT CODES
@@ -121,7 +121,7 @@ def main():
     # script had that bug and reported "no RSS samples" for a three-minute run,
     # which read like a platform quirk and was actually a self-inflicted stall.
     log_path = os.path.join(tempfile.gettempdir(),
-                            "avbase-soak-%d.log" % os.getpid())
+                            "xmedia-soak-%d.log" % os.getpid())
     log_handle = open(log_path, "w+", encoding="utf-8", errors="replace")
     try:
         proc = subprocess.Popen(

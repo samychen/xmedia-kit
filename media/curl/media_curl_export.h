@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_CURL_MEDIA_CURL_EXPORT_H_
-#define AVBASE_MEDIA_CURL_MEDIA_CURL_EXPORT_H_
+#ifndef XMEDIA_MEDIA_CURL_MEDIA_CURL_EXPORT_H_
+#define XMEDIA_MEDIA_CURL_MEDIA_CURL_EXPORT_H_
 
-#if defined(AVBASE_CURL_IMPLEMENTATION)
-#define AVBASE_CURL_EXPORT __attribute__((visibility("default")))
+#if defined(XMEDIA_CURL_IMPLEMENTATION)
+#define XMEDIA_CURL_EXPORT __attribute__((visibility("default")))
 #else
-#define AVBASE_CURL_EXPORT
+#define XMEDIA_CURL_EXPORT
 #endif
 
-#endif  // AVBASE_MEDIA_CURL_MEDIA_CURL_EXPORT_H_
+#endif  // XMEDIA_MEDIA_CURL_MEDIA_CURL_EXPORT_H_

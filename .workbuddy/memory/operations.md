@@ -1,4 +1,4 @@
-# avbase 门禁与操作手册（MEMORY.md 的长尾）
+# xmedia-kit 门禁与操作手册（MEMORY.md 的长尾）
 
 ## 门禁命令
 ```sh
@@ -16,7 +16,7 @@ tools/gate_local.sh --jobs e2e,core   # 只跑指定 job；--all 跑全部（慢
 CF=~/.workbuddy/binaries/python/envs/default/bin/clang-format   # 18.1.3
 CT=~/.workbuddy/binaries/python/envs/tidy18/bin/clang-tidy      # 18.1.8，对齐 CI
 CP=~/.workbuddy/binaries/python/envs/cpplint/bin/cpplint        # 1.6.1，对齐 CI
-cmake --preset macos-sdl2 -DAVBASE_WERROR=ON -B <dir> && cmake --build <dir> && ctest
+cmake --preset macos-sdl2 -DXMEDIA_WERROR=ON -B <dir> && cmake --build <dir> && ctest
 tools/bench_render.sh
 # clang-tidy 全 scope（必须配无 PCH 的 scratch 库，原因见教训「PCH 陷阱」）：
 cmake --preset macos-sdl2 -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -B /tmp/tidy-nopch
@@ -28,7 +28,7 @@ git ls-files 'base/*.cc' 'media/*.cc' 'player/*.cc' 'platform/*.cc' 'tools/*.cc'
   19/20 新增）。brew 的 llvm 装不上（沙箱 TLS）→ 用 PyPI `clang-tidy==18.1.8`。
 - **文件数一直在变，别记死数字**（曾把不变量的 425 套到 format 上）。看 exit code 与行数。
 - **C28：`render/` 不得 include `media`/`platform`/`base`/`player/`。**
-- `avbase` 是 INTERFACE 库，ninja 不能 `--target avbase`。
+- `xmedia-kit` 是 INTERFACE 库，ninja 不能 `--target xmedia-kit`。
 - **每个 build 子目录的生成器不同，跑构建前先看目录里是 `Makefile` 还是
   `build.ninja`**：`build/` 是 Unix Makefiles，`build/ffmpeg`（及其余 preset
   子目录）是 Ninja。曾在 ffmpeg 目录跑 `make`，"No rule to make target"
@@ -66,7 +66,7 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
 - clang-tidy **静默跳过**不在 `compile_commands.json` 里的文件 → scope 142 个里
   27 个（`platform/sdl2|glfw|egl`）从未被分析。**scope 与数据库必须校验一致**。
 - `HeaderFilterRegex` 必须**锚定**成 `/(base|media|...)/`：不锚定时是子串匹配，
-  `avbase/` 里含 `base/` → vendored 的 glad 全中（93 条）。
+  `xmedia-kit/` 里含 `base/` → vendored 的 glad 全中（93 条）。
 - 命名选项：`MemberSuffix` 是**同时设 ClassMember 与 StructMember 的别名**，是
   533 条 POD struct 字段误报的根源 → 拆成 `ClassMemberSuffix: _` +
   `StructMemberCase: lower_case`；命名常量用 `ClassConstantSuffix: ''`（空串 =
@@ -78,14 +78,14 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
 
 ## 操作教训（都真踩过）
 
-- **`avbase_configure_target()` 会给目标加 `-fno-exceptions -fno-rtti`，Qt 目标
+- **`xmedia_configure_target()` 会给目标加 `-fno-exceptions -fno-rtti`，Qt 目标
   绝不能套它。** 全树禁 RTTI 是核心库的规矩，但 Qt 的元对象系统
   （`qobject_cast`、`QML` 引擎的类型转换、`Q_OBJECT` 的 `staticMetaObject`）
   依赖 RTTI；套上去的表现是 moc 生成的代码编译失败或 `qobject_cast` 恒空，
   而不是一条清晰的报错。UI 应用在 `apps/` 里自己设 flags，别复用核心库那份
   helper——它们是「消费者」，本来就该和核心库有不同的编译契约。
 
-- **Qt 侧拿不到 avbase 的 GL sink 时，先进的自定义 `VideoRendererSink` 路线**：
+- **Qt 侧拿不到 xmedia-kit 的 GL sink 时，先进的自定义 `VideoRendererSink` 路线**：
   `VideoRendererSink` 是 pull 模型（自己起线程调 `upstream_->Render()` 拿
   `VideoFrame`），所以宿主可以完全绕开 GL 后端把帧取到自己手里。这比新写一个
   `NativeDisplayKind` + backend 便宜一个数量级，代价是 CPU 上传（1080p30 够用）。
@@ -111,7 +111,7 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
 - **中间提交的「编译面」可能比默认预设宽**：删掉某个 API（当时是
   `SceneSource::MakePublisherFactory()`）会立刻断掉 `examples/`，而示例只在开
   SDL2/GLFW 的预设里编译 —— 默认 `build/`（无 SDL2）**全绿会让人以为树是好的**。
-  一个系列改完之后必跑一次 `-DAVBASE_WERROR=ON` 的含示例预设，否则要等 CI 才发现。
+  一个系列改完之后必跑一次 `-DXMEDIA_WERROR=ON` 的含示例预设，否则要等 CI 才发现。
 - **zsh 不像 bash 那样对未加引号的变量做分词**：
   `FILES=$(git ls-files …); "$CP" $FILES` 会把整个清单当成**一个**文件名（症状是
   `Can't open for reading` 后面跟着所有文件名）。统一用 `| xargs`。
@@ -155,10 +155,10 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
   那条教训的近亲 —— **凡「用 grep 查证某事不存在」都要换工具复核**。
 - `TMPDIR` 在 macOS 指向 `/var/folders/...`，不是 `/tmp`。脚本里写死 `/tmp` 会找不到
   另一个 shell 建出来的基准素材。
-- 可见性：`CMAKE_CXX_VISIBILITY_PRESET hidden`，导出类需 `AVBASE_MEDIA_EXPORT`；
+- 可见性：`CMAKE_CXX_VISIBILITY_PRESET hidden`，导出类需 `XMEDIA_MEDIA_EXPORT`；
   从隐藏基类派生导出类触发 `-Wvisibility` → 共享基类也要导出。
 - 文档：`docs/09-*` 已归档到 `docs/archive/`，注释用短形式 `docs/archive/09 §N`，
-  **不要写完整中文文件名**（撑破 80 列）。`docs/13` = avbase_gl 契约。
+  **不要写完整中文文件名**（撑破 80 列）。`docs/13` = xmedia_gl 契约。
 - **切片提交：不带路径的 `git commit` 会连索引里别的东西一起提交。** 曾用
   `git add <paths>` + `git commit`（无 pathspec），而 `examples/publisher_sink.h`
   的删除早在 `git rm` 时就进了索引 → 被卷进**第一条**提交，而那时 `scene_demo.h`
@@ -188,7 +188,7 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
   逐像素输出相同。换成同一处代码**可观测**的那一半（清掉 hook 后场景必须还在）。
   这是「引擎早退没有反证」的同形。
 - **clang-tidy 的 PCH 陷阱：对 `media/ffmpeg` 全层静默零发现。**
-  `avbase_ffmpeg` 是全仓**唯一**开 `target_precompile_headers` 的 target；Xcode 的
+  `xmedia_ffmpeg` 是全仓**唯一**开 `target_precompile_headers` 的 target；Xcode 的
   新 PCH 格式 PyPI clang-tidy 18.1.8 **读不了**，每个 TU 只报一句
   `PCH file uses a newer PCH format`，然后 **exit 0、零 finding** —— 比报错更坏，
   因为它看起来就是干净。「142 TU 剩 1 条」因此漏掉全部 **21 个
@@ -215,7 +215,7 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
   「返回 nullptr = 非我」而非「开出来再失败」**：`config_supported` 字段声明了却
   不接线 = 等于没有这道门。`ffmpeg_hw_decoder_factory.cc` 在 codec 掩码之后 consult
   它；改 hw 后端时这条顺序别动。
-- **`avbase::Player` 不可置于静态存储期（自动析构）。** bench
+- **`xmedia::Player` 不可置于静态存储期（自动析构）。** bench
   （`bench/bench_event_hub.cc`）实测：把含 `EventHub` 的对象做成函数内 `static` 值，
   进程退出时 6 次里 5 次 SIGABRT、1 次 SIGILL——`~EventHub`→`Shutdown`→
   `base::Thread::Stop`→`std::thread::join()` 在 **C++ 静态析构阶段（main 返回后）**
@@ -247,7 +247,7 @@ render/gl 原语 → media/gl 场景层 → platform 后端 → 宿主+示例 �
 鉴别力已验证(只变异 headless → 只报 headless)。
 
 **判新鲜度必须用 `.ninja_log`，不能用 `stat`** —— 我用 `stat` 判过一次，**误报成
-「10 个二进制过期」**，其中 `base_unittests` 根本不链接 `libavbase_player.a`。
+「10 个二进制过期」**，其中 `base_unittests` 根本不链接 `libxmedia_player.a`。
 两个原因让 `stat` 不可靠：
 1. CMake 的 archive 规则以 `cmake -E touch` 收尾，**每次重链 mtime 都前进**，
    且 `.ninja_log` 记的值是纳秒精度，**不等于 `stat().st_mtime_ns`**；

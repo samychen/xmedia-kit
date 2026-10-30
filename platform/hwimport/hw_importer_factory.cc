@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "platform/hwimport/cgl_iosurface_importer.h"
 #endif
 
-namespace avbase::platform::hwimport {
+namespace xmedia::platform::hwimport {
 
 std::unique_ptr<media::GlHwTextureImporter> CreateHwTextureImporter() {
 #if defined(__APPLE__)
@@ -24,4 +24,4 @@ std::unique_ptr<media::GlHwTextureImporter> CreateHwTextureImporter() {
 #endif
 }
 
-}  // namespace avbase::platform::hwimport
+}  // namespace xmedia::platform::hwimport

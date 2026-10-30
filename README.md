@@ -1,4 +1,4 @@
-# avbase — 企业播放器基座(C++20)
+# xmedia-kit — 企业播放器基座(C++20)
 
 **风格**：Google C++ Style Guide + Chromium 工程约定（`base/` · `media/` 分层、`DCHECK`、sequence 模型、`base::BindOnce`/`WeakPtr`/`scoped_refptr`）
 **目标平台**：Linux（X11 / Wayland），SDL2 后端 + 原生 OpenGL 后端双实现
@@ -8,9 +8,7 @@
 > **CicadaPlayer 能力移植（2026-10）**：自研 curl 网络源、边播边缓存、
 > HLS 播放列表 demuxer（含 AES-128/ABR/live reload）、DRM 密钥抽象、外挂字幕、
 > 画面控制与 DASH MPD 基线已按 `docs/cicada-port/PLAN.md` 落地（核销表 §1.5）。
-> **项目沿革**：起于 ijkplayer 的 C++20 重构(docs/05 迁移对照表为历史卷,
-> golden 对拍 ijkplayer 保留为回归资产);现按 avbase 升级计划演进为
-> 三平台、硬解、网络流完备的企业播放器基座。
+> **项目沿革**：现按升级计划演进为三平台、硬解、网络流完备的企业播放器基座。
 
 > **当前状态：M0–M11 ✅ · Phase 0/1/3/4 与转码 E1–E5 已铺设 · 审查报告
 > Critical/High/Medium/Low 全部清零（第四十三、四十四轮）· 清理与深修两轮（第四十五、四十六轮）**
@@ -72,15 +70,14 @@
 | 02 | [总体架构与模块划分](docs/02-总体架构与模块划分.md) | **Chromium 式四层架构**（base/media/player/platform）、完整目录树（镜像 `media/base` + `media/filters`）、CMake target 拓扑、依赖方向铁律 |
 | 03 | [核心类与接口设计](docs/03-核心类与接口设计.md) | 头文件级 C++20 声明，**命名与签名对齐 Chromium**：`DecoderBuffer` / `VideoFrame` / `AudioBus` / `DemuxerStream` / `VideoDecoder` / `Renderer` / `Pipeline` / `VideoFrameCompositor` / `AudioRendererSink` / `MediaLog` / `Player` |
 | 04 | [线程模型与数据流](docs/04-线程模型与数据流.md) | **Task Runner / Sequence 模型**、6 个线程与 sequence 归属、`PostTask` + `WeakPtr` 通信、`serial` 语义、seek/flush/stop 时序、锁与无锁边界、竞态清单 |
-| 05 | [迁移对照表](docs/05-迁移对照表.md) | **三方对照**（ijkplayer ↔ avbase ↔ Chromium media）：文件级 / API 级 / 函数级 / 选项级 / 消息级 / 属性级 / 常量级 / 字段级 + 16 条故意差异 |
 | 06 | [CMake 工程与构建体系](docs/06-CMake工程与构建体系.md) | `.cc` + Google flags + `-fno-exceptions`、`FindFFmpeg`（三级查找）、FFmpeg 4.4~7.x 兼容层、**Linux 依赖探测**（SDL2/OpenGL/EGL/X11/Wayland/ALSA/Pulse）、install/export、CI 矩阵、符号隐藏 |
 | 07 | [测试策略与可观测性](docs/07-测试策略与可观测性.md) | **`base::test::TaskEnvironment`** 单测模型、Chromium 式 Mock（`MockVideoDecoder`/`MockDemuxerStream`）、合成数据源、Golden Test、Fuzz、Sanitizer、覆盖率门禁 |
 | 08 | [实施路线图与风险](docs/08-实施路线图与风险.md) | M0–M12 里程碑与 DoD、双人并行方案、工作量估算、砍掉/后置清单、**16 条风险登记册**、"平替"验收标准 A1–A16 |
 | ~~09~~ | [Linux 平台实现方案](docs/archive/09-Linux平台实现方案.md) | **已归档**：M12 原生 OpenGL 后端顺延为可选，`platform/linux/` 从未落地，Linux 出画由 SDL2 交付。原文为双后端（SDL2 + 原生 OpenGL）的详细设计，保留为决策记录 |
 | 10 | [SDK 易用性设计](docs/10-SDK易用性设计.md) | **面向二次开发者**：10 行 quick-start、可操作错误信息规范、API 人体工学清单、文档体系、示例矩阵、打包与集成方式、常见任务 cookbook |
-| 11 | [行为规范卷](docs/11-行为规范卷.md) | **验收依据**（自 avbase_design.md §5/§7/§8 并入）：线程与任务模型、背压级联与 seek 序列、三级水位表。Phase 1–2 的验收标准引用本章 |
+| 11 | [行为规范卷](docs/11-行为规范卷.md) | **验收依据**（自 xmedia_design.md §5/§7/§8 并入）：线程与任务模型、背压级联与 seek 序列、三级水位表。Phase 1–2 的验收标准引用本章 |
 | 12 | [剩余工作清单](docs/12-剩余工作清单.md) | **执行快照**：Phase 0–4 逐阶段完成度、剩余项（零拷贝显示 / Qt 门面 / soak / Windows CI）、环境事项与开放决策点 |
-| 13 | [GL 模块独立使用指南](docs/13-GL模块独立使用指南.md) | **`avbase_gl` 对外手册**：`find_package(avbase_gl)` 用法、context 契约、入口点表的来源与重新生成命令（内嵌 glad 2.0.8 生成物，含每个选项的理由）、glad 覆盖不到的那一例、GLSL 桌面/ES 方言、零依赖边界与换装载器的接缝 |
+| 13 | [GL 模块独立使用指南](docs/13-GL模块独立使用指南.md) | **`xmedia_gl` 对外手册**：`find_package(xmedia_gl)` 用法、context 契约、入口点表的来源与重新生成命令（内嵌 glad 2.0.8 生成物，含每个选项的理由）、glad 覆盖不到的那一例、GLSL 桌面/ES 方言、零依赖边界与换装载器的接缝 |
 | 14 | [管线多源改造设计](docs/14-管线多源改造设计.md) | **多源轴的设计与沿革**：`GetStream(source_id, type)` 取代"第 N 路"接口、每源 A/V 偏移、次源 sink 与文本腿、docs/14 阶段 0–4 的接线顺序 |
 | — | [TOOLS.md](docs/TOOLS.md) | **`tools/` 逐文件说明**（44 个受版本控制的文件）：门禁、行为验收、度量、生成器各自管什么，什么时候该跑哪个，以及全目录通用的退出码约定（0 通过 / 1 被测物有问题 / 2 无从判断） |
 | — | [EXAMPLES.md](docs/EXAMPLES.md) | **`examples/` 逐文件说明**：6 个可执行目标各自的构建开关与行数、为什么两个头文件留在 `examples/` 而不是库里、压在这个目录上的 C30 与 300 行度量 |
@@ -191,13 +188,13 @@
 #include "player/public/player.h"
 
 int main() {
-  avbase::Player player;                                  // 默认依赖：FFmpeg + SDL2
+  xmedia::Player player;                                  // 默认依赖：FFmpeg + SDL2
   player.SetVideoSurface(window.native_handle());        // 嵌入模式：给个 X11 Window 就行
-  player.SetEventHandler([](const avbase::PlayerEvent& e) {
-    if (e.type == avbase::EventType::kPrepared) player_ref->Start();
+  player.SetEventHandler([](const xmedia::PlayerEvent& e) {
+    if (e.type == xmedia::EventType::kPrepared) player_ref->Start();
   });
-  AVBASE_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
-  AVBASE_RETURN_IF_ERROR(player.PrepareAsync());
+  XMEDIA_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
+  XMEDIA_RETURN_IF_ERROR(player.PrepareAsync());
   return 0;
 }
 ```
@@ -205,7 +202,7 @@ int main() {
 对比原版 ijkplayer 需要 20+ 行（`ijkmp_create` → 若干 `ijkmp_set_option_int` → `set_data_source` → `set_native_window` → `prepare_async` → 起一个线程轮询 `ijkmp_get_msg`）。详见 [docs/10](docs/10-SDK易用性设计.md)。
 
 **SDK 易用性的硬性要求**（进 CI/评审清单）：
-- 零配置可用：`avbase::Player p; p.SetDataSource(url); p.PrepareAsync();` 就能出画出声（自动探测平台后端）
+- 零配置可用：`xmedia::Player p; p.SetDataSource(url); p.PrepareAsync();` 就能出画出声（自动探测平台后端）
 - 错误信息可操作：不只说"失败了"，要说**为什么 + 怎么办**
 - 头文件自解释：每个 public 方法有"在哪个线程调、会不会阻塞、失败时怎样"的注释
 - 无需理解 FFmpeg：公开头文件不出现任何 `AV*` 类型
@@ -227,14 +224,14 @@ int main() {
 | D7 | `ijkio` 边下边播缓存 | **后置**（M12），首期只留 `DataSource` 装饰器接口 | 08 §4 |
 | D8 | DRM / CDM | **不实现**，`CdmContext` 位置留空接口 | 08 §4 |
 | D9 | 是否首期提供 C ABI 兼容层 | **不提供**（已选现代 C++ API），预留 `player/public/c/` 目录与符号清单 | 08 §4 |
-| D10 | 许可证 | avbase 用 **BSD-3-Clause**（与 Chromium base 兼容），移植自 ijkplayer 的算法文件保留 **LGPL-2.1** 声明并单独归入 `media/filters/legacy/` | 08 §5 R8 ⚠️需法务确认 |
-| D11 | FFmpeg 的 include 隔离强度 | **链接隔离 + 目录隔离，放弃 include 隔离**：所有需要 `libav*` 的代码（胶水层与 `ffmpeg_*` 实现）同在 **`media/ffmpeg/`** 一个目录、同属 `avbase_ffmpeg` 一个 target，目录内可互相 include。更严格（include 也隔离）成本约 +15% | 02 §8 |
+| D10 | 许可证 | xmedia-kit 用 **BSD-3-Clause**（与 Chromium base 兼容），移植自 ijkplayer 的算法文件保留 **LGPL-2.1** 声明并单独归入 `media/filters/legacy/` | 08 §5 R8 ⚠️需法务确认 |
+| D11 | FFmpeg 的 include 隔离强度 | **链接隔离 + 目录隔离，放弃 include 隔离**：所有需要 `libav*` 的代码（胶水层与 `ffmpeg_*` 实现）同在 **`media/ffmpeg/`** 一个目录、同属 `xmedia_ffmpeg` 一个 target，目录内可互相 include。更严格（include 也隔离）成本约 +15% | 02 §8 |
 
 ---
 
 ## 6. 新旧对照（速览）
 
-| ijkplayer | avbase（Chromium 对齐） |
+| ijkplayer | xmedia-kit（Chromium 对齐） |
 |---|---|
 | `ff_ffplay.c` 5400 行 | 拆成 `media/filters/` 下 9 个文件，最大 ~700 行 |
 | `VideoState` ~200 字段上帝结构体 | `RendererImpl` + `VideoRendererImpl` + `AudioRendererImpl` + `VideoFrameCompositor`，各自 ≤ 15 私有字段 |
@@ -282,7 +279,7 @@ int main() {
 规划树并列，实测树里 ⬜ 表示规划中但不存在。
 
 ```
-avbase/
+xmedia-kit/
 ├── LICENSE                  ✅ BSD-3-Clause + 4 节第三方/衍生说明
 ├── .clang-format            ✅   .gitignore ✅（补 __pycache__/ *.pyc）
 ├── .clang-tidy              ⬜ STYLE.md §8 有完整配置内容，文件本身不存在
@@ -290,10 +287,10 @@ avbase/
 ├── STYLE.md · VERSION.txt(0.1.0) · CMakeLists.txt · CMakePresets.json ✅
 ├── .github/workflows/ci.yml ✅ 16 个 job（含 format / clang-tidy / cpplint / corpus /
 │                               soak / fuzz-smoke / windows-msvc 等）；e2e-linux 仍 if:false
-├── cmake/                   ✅ 10 个：AvbaseOptions · AvbaseCompilerFlags · AvbaseThirdParty
-│                               FindFFmpeg · FindSDL2 · FindLibyuv · AvbaseCheckInvariants
-│                               BuildConfig.h.in · Version.h.in · AvbaseSanitizers
-│                            ⬜ FindLinuxMediaDeps(M12，已顺延) · avbase.map(R18)
+├── cmake/                   ✅ 10 个：XmediaOptions · XmediaCompilerFlags · XmediaThirdParty
+│                               FindFFmpeg · FindSDL2 · FindLibyuv · XmediaCheckInvariants
+│                               BuildConfig.h.in · Version.h.in · XmediaSanitizers
+│                            ⬜ FindLinuxMediaDeps(M12，已顺延) · xmedia.map(R18)
 ├── base/                    ✅ 44 文件 / 3,987 行
 │   ├── functional/ memory/ time/ synchronization/ task/ threading/ types/ test/
 │   └── ⬜ containers/ files/ strings/ · feature_list.h
@@ -326,7 +323,7 @@ avbase/
 ├── tools/                   ✅ `tools/*.py` 10,005 行（22 个脚本）
 │                               全目录 44 个受控文件；check_invariants.py（C1–C30 / 540 文件）
 │                               extract_constants.py · gen_options.py · sim_wsola.py
-│                               inspect/ → avbase-inspect（probe · decode · sync）
+│                               inspect/ → xmedia-inspect（probe · decode · sync）
 │                            ⬜ golden_record.py · golden_diff.py · verify_e2e.py
 ├── examples/                ✅ 11 个可执行目标 / 3,029 行 .cc + 2 个宿主样板头
 │                               （headless 156 · play_sdl2 161 · pull_frames 246 ·
@@ -337,11 +334,11 @@ avbase/
 │                                拆出，main 文件 ≤300 行的度量）
 │                               + base/ 5 个教学 demo（memory 186 · functional 303
 │                                · task 414 · threading 367 · synchronization 315），
-│                                只链 avbase::base，见 docs/EXAMPLES.md §7
+│                                只链 xmedia::base，见 docs/EXAMPLES.md §7
 ├── third_party/             ⬜ 按设计保持为空（不 vendor）
-└── docs/                    ✅ 13 篇编号卷（01–08 + 10–14）+ PROGRESS ·
-                             BUILDING · TODO · API（Doxygen 生成，apidocs
-                             门禁零 warning）· COOKBOOK · MIGRATION ·
+└── docs/                    ✅ 12 篇编号卷（01–04 + 06–08 + 10–14）+
+                             PROGRESS · BUILDING · TODO · API（Doxygen 生成，
+                             apidocs 门禁零 warning）· COOKBOOK ·
                              TROUBLESHOOTING · EXTENDING · PERFORMANCE ·
                              CHANGELOG · TOOLS（tools/ 逐文件）· EXAMPLES
                              （examples/ 逐文件）· LEARNING-media（media/ 入门）

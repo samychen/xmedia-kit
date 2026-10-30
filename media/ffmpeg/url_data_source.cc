@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,8 +12,8 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
-namespace ff = ::avbase::media::ffmpeg;
+namespace xmedia::media::ffmpeg {
+namespace ff = ::xmedia::media::ffmpeg;
 namespace {
 
 // The avio interrupt callback runs on the thread inside avio read/seek; it
@@ -38,7 +38,7 @@ media::MediaError ReadError(int av_error, const std::string& uri) {
 
 UrlDataSource::UrlDataSource(std::string uri)
     : uri_(std::move(uri)),
-      async_("avbase-url-src", base::BindRepeating(&UrlDataSource::ReadBlocking,
+      async_("xmedia-url-src", base::BindRepeating(&UrlDataSource::ReadBlocking,
                                                    base::Unretained(this))) {}
 
 UrlDataSource::~UrlDataSource() {
@@ -189,4 +189,4 @@ bool UrlDataSource::IsSeekable() const {
   return seekable_;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

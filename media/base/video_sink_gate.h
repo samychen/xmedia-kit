@@ -1,13 +1,13 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_VIDEO_SINK_GATE_H_
-#define AVBASE_MEDIA_BASE_VIDEO_SINK_GATE_H_
+#ifndef XMEDIA_MEDIA_BASE_VIDEO_SINK_GATE_H_
+#define XMEDIA_MEDIA_BASE_VIDEO_SINK_GATE_H_
 
 #include <atomic>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The question every video sink's render loop asks itself once per tick:
 // should I pull a frame from the compositor right now?
@@ -48,6 +48,6 @@ class VideoSinkGate {
   std::atomic<bool> refresh_{false};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_VIDEO_SINK_GATE_H_
+#endif  // XMEDIA_MEDIA_BASE_VIDEO_SINK_GATE_H_

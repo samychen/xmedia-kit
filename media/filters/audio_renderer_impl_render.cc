@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -14,7 +14,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Applies gain to the first |written| frames and zeroes the rest. Split out of
@@ -109,8 +109,8 @@ void AudioRendererImpl::OnRenderError() {
   // reporting it, and a callback that logs on every period would flood the log
   // at ~50 lines/second. RendererImpl decides whether to reopen the device.
   if (!render_error_.exchange(true)) {
-    LOG(ERROR) << "avbase.aout: audio device reported a render error";
+    LOG(ERROR) << "xmedia.aout: audio device reported a render error";
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

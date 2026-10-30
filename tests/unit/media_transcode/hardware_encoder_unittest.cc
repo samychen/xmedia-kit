@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
@@ -34,14 +34,14 @@
 #include "media/transcode/ffmpeg_video_encoder.h"
 #include "media/transcode/video_encoder_factory.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // Not 16x16 like the software tests: hardware encoders work in macroblocks and
 // some reject dimensions they cannot tile, which would make a failure here
-// look like an avbase bug. 320x240 is 16-aligned and small enough to stay fast.
+// look like an xmedia-kit bug. 320x240 is 16-aligned and small enough to stay fast.
 constexpr int kWidth = 320;
 constexpr int kHeight = 240;
 // One second of 30 fps. Hardware encoders may buffer frames before emitting
@@ -130,7 +130,7 @@ int DecodeBack(const std::vector<EncodedPacket>& packets,
   return frames;
 }
 
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
 // The factory is compiled in, so the encoder it names has to be in the FFmpeg
 // linked against it -- otherwise "use VideoToolbox" is an instruction that
 // fails at Initialize() with "encoder not found", and the only honest
@@ -141,14 +141,14 @@ int DecodeBack(const std::vector<EncodedPacket>& packets,
 TEST(HardwareEncoderTest, VideoToolboxEncoderIsInThisBuild) {
   const AVCodec* codec = avcodec_find_encoder_by_name("h264_videotoolbox");
   ASSERT_NE(codec, nullptr)
-      << "AVBASE_ENABLE_VIDEOTOOLBOX is on, so the VideoToolbox factory is "
+      << "XMEDIA_ENABLE_VIDEOTOOLBOX is on, so the VideoToolbox factory is "
          "compiled in, but this FFmpeg build has no h264_videotoolbox "
          "encoder. tools/setup_ffmpeg.sh enables it with "
          "--enable-encoder=h264_videotoolbox (host_encoder_flags); without "
          "that switch E5 cannot be exercised on this machine at all.";
   EXPECT_TRUE(av_codec_is_encoder(codec));
 }
-#endif  // AVBASE_ENABLE_VIDEOTOOLBOX
+#endif  // XMEDIA_ENABLE_VIDEOTOOLBOX
 
 // The real one: encode frames with a hardware encoder and decode them back.
 //
@@ -228,4 +228,4 @@ TEST(HardwareEncoderTest, HardwareEncodedFramesDecodeBack) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

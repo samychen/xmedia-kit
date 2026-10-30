@@ -1,4 +1,4 @@
-# avbase 代码风格细则（Google C++ Style + Chromium 约定）
+# xmedia-kit 代码风格细则（Google C++ Style + Chromium 约定）
 
 > 基线：[Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
 > 叠加：Chromium 工程约定（`base/` 命名、`DCHECK`、sequence 模型、注释风格）
@@ -62,7 +62,7 @@
 | 源文件后缀 | **`.cc`**（不是 `.cpp`） | `video_frame_compositor.cc` |
 | 头文件后缀 | `.h` | `video_frame_compositor.h` |
 | 文件名 | `lower_snake_case` | `decoder_buffer.h` |
-| 头文件保护 | `#ifndef` 全路径宏，**不用 `#pragma once`** | `#ifndef AVBASE_MEDIA_BASE_VIDEO_FRAME_H_` |
+| 头文件保护 | `#ifndef` 全路径宏，**不用 `#pragma once`** | `#ifndef XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_` |
 | 类型 / 类 / 枚举 | `CamelCase` | `class VideoFrameCompositor;` |
 | **方法 / 函数** | **`CamelCase()`**（Google 风格，不是 `camelCase`） | `void StartPlayingFrom(base::TimeDelta time);` |
 | **访问器（getter）** | `snake_case()`，**不加 `Get` 前缀**（Chromium 约定） | `base::TimeDelta timestamp() const;` |
@@ -70,14 +70,14 @@
 | **成员变量** | `lower_snake_case_`（**尾下划线**） | `base::Lock lock_;` |
 | 常量 | `k` + `CamelCase` | `constexpr int kMaxVideoFrames = 200;` |
 | 枚举值 | `k` + `CamelCase`（`enum class`） | `enum class DecoderStatus { kOk, kDecodeError };` |
-| 命名空间 | 全小写 | `avbase::media` |
-| 宏 | `AVBASE_` 前缀 + 全大写下划线 | `AVBASE_MEDIA_EXPORT` |
+| 命名空间 | 全小写 | `xmedia::media` |
+| 宏 | `XMEDIA_` 前缀 + 全大写下划线 | `XMEDIA_MEDIA_EXPORT` |
 | 测试文件 | `*_unittest.cc`（单测）/ `*_test.cc`（集成） | `video_frame_compositor_unittest.cc` |
 | 测试类 | `XxxTest`，用例名 `CamelCase` 描述行为 | `TEST(VideoFrameCompositorTest, DropsLateFrame)` |
 
 ### 2.1 关于 getter 命名的说明
 
-Google Style 原文允许 `Foo()` 或 `foo()`。**Chromium 的实际约定是：与成员变量同名的 `snake_case()` 作为 getter**（如 `video_frame.h` 的 `timestamp()`、`coded_size()`、`visible_rect()`）。avbase 采用 Chromium 约定，因为：
+Google Style 原文允许 `Foo()` 或 `foo()`。**Chromium 的实际约定是：与成员变量同名的 `snake_case()` 作为 getter**（如 `video_frame.h` 的 `timestamp()`、`coded_size()`、`visible_rect()`）。xmedia-kit 采用 Chromium 约定，因为：
 1. 我们全程参照 Chromium media 的代码，命名一致才能"对照阅读"
 2. `frame.timestamp()` 比 `frame.GetTimestamp()` 噪音更小
 3. 与 `base::TimeDelta::InMilliseconds()` 这类"动作型"方法天然区分：`snake_case()` = 取值，`CamelCase()` = 做事
@@ -85,15 +85,15 @@ Google Style 原文允许 `Foo()` 或 `foo()`。**Chromium 的实际约定是：
 ## 3. 头文件（强制）
 
 ```cpp
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Portions of this file's API mirror Chromium's `media/base/video_frame.h`
 // (BSD-3-Clause, Copyright The Chromium Authors).
 
-#ifndef AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
-#define AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
+#ifndef XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_
+#define XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_
 
 #include <stdint.h>
 
@@ -101,10 +101,10 @@ Google Style 原文允许 `Foo()` 或 `foo()`。**Chromium 的实际约定是：
 
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
-#include "avbase/base_export.h"
+#include "xmedia-kit/base_export.h"
 #include "media/base/video_frame_metadata.h"
 
-namespace avbase {
+namespace xmedia {
 namespace media {
 
 class VideoFramePool;
@@ -113,7 +113,7 @@ class VideoFramePool;
 //
 // Instances are reference-counted and must always be held via
 // `scoped_refptr<VideoFrame>`. ...
-class AVBASE_MEDIA_EXPORT VideoFrame
+class XMEDIA_MEDIA_EXPORT VideoFrame
     : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   enum class StorageType { ... };
@@ -132,9 +132,9 @@ class AVBASE_MEDIA_EXPORT VideoFrame
 };
 
 }  // namespace media
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_MEDIA_BASE_VIDEO_FRAME_H_
+#endif  // XMEDIA_MEDIA_BASE_VIDEO_FRAME_H_
 ```
 
 规则：
@@ -165,11 +165,11 @@ class AVBASE_MEDIA_EXPORT VideoFrame
 //
 // Ported line-by-line from ijkplayer's `compute_target_delay()` in
 // ijkmedia/ijkplayer/ff_ffplay.c (LGPL-2.1). Thresholds are intentionally
-// identical; see docs/05-迁移对照表.md table 7. Do not "improve" without
+// identical to the upstream constant. Do not "improve" without
 // golden-test evidence.
 ```
 
-- `TODO(username): description  crbug/…` → avbase 用 `TODO(avbase/123): description`，CI 检查超过 90 天未处理的 TODO。
+- `TODO(username): description  crbug/…` → xmedia-kit 用 `TODO(xmedia-kit/123): description`，CI 检查超过 90 天未处理的 TODO。
 - 不写废话注释（`// 递增 i`）。
 
 ## 5. 函数与类设计（强制）
@@ -271,7 +271,7 @@ class VideoRendererImpl : public Renderer {
 
 <为什么改，而不是改了什么。必要时引用 docs/ 与 issue。>
 
-Bug: avbase/123
+Bug: xmedia-kit/123
 Test: media/filters/video_frame_compositor_unittest.cc
 ```
 
@@ -287,7 +287,7 @@ pts delta across the seek boundary, causing a multi-second stall.
 This mirrors ijkplayer's `lastvp->serial == nextvp->serial` guard in
 video_refresh(); the guard was lost during the port.
 
-Bug: avbase/45
+Bug: xmedia-kit/45
 Test: media/filters/video_frame_compositor_unittest.cc (SeekAfterSerialChange)
 ```
 
@@ -295,11 +295,11 @@ Test: media/filters/video_frame_compositor_unittest.cc (SeekAfterSerialChange)
 
 ## 10. 与 Chromium 的对照速查
 
-| Chromium | avbase | 差异 |
+| Chromium | xmedia-kit | 差异 |
 |---|---|---|
-| `base::` | `avbase::base::` | 多一层 `avbase` 命名空间，避免与真正的 Chromium 冲突 |
-| `media::` | `avbase::media::` | 同上 |
-| `MEDIA_EXPORT` | `AVBASE_MEDIA_EXPORT` | — |
+| `base::` | `xmedia::base::` | 多一层 `xmedia-kit` 命名空间，避免与真正的 Chromium 冲突 |
+| `media::` | `xmedia::media::` | 同上 |
+| `MEDIA_EXPORT` | `XMEDIA_MEDIA_EXPORT` | — |
 | `base/types/expected.h` | `base/types/expected.h` | API 同构；C++23 时 alias `std::expected` |
 | `base/expected_macros.h` | 同名 | `RETURN_IF_ERROR` / `ASSIGN_OR_RETURN` |
 | `base/functional/callback.h` | 同名 | 仅实现 `OnceCallback` / `RepeatingCallback` 子集 |

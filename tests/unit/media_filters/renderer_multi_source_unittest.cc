@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -60,7 +60,7 @@
 #include "tests/support/fake_text_decoder.h"
 #include "tests/support/mock_renderer_client.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Chunk size for the audio ring, and the ceiling for every wait. Generous
@@ -81,8 +81,8 @@ class RendererMultiSourceTest : public ::testing::Test {
  protected:
   RendererMultiSourceTest()
       : env_(base::test::TaskEnvironment::TimeSource::kRealTime),
-        video_thread_("avbase-test-S3"),
-        audio_thread_("avbase-test-S4") {}
+        video_thread_("xmedia-test-S3"),
+        audio_thread_("xmedia-test-S4") {}
 
   void SetUp() override {
     runner_ = env_.GetMainThreadTaskRunnerRef();
@@ -1001,4 +1001,4 @@ TEST_F(RendererMultiSourceTest, FlushDisarmsEveryTextLegAndStartReArmsThem) {
 // ---------------------------------------------------------------------------
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

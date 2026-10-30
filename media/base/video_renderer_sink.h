@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/video_renderer_sink.h` (BSD-3-Clause).
 
-#ifndef AVBASE_MEDIA_BASE_VIDEO_RENDERER_SINK_H_
-#define AVBASE_MEDIA_BASE_VIDEO_RENDERER_SINK_H_
+#ifndef XMEDIA_MEDIA_BASE_VIDEO_RENDERER_SINK_H_
+#define XMEDIA_MEDIA_BASE_VIDEO_RENDERER_SINK_H_
 
 #include <stdint.h>
 
@@ -19,7 +19,7 @@
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Forward-declared, not included: naming a type is not depending on it, and
 // media/base must not grow an include edge to media/gl. Anybody who wants to
@@ -27,12 +27,12 @@ namespace avbase::media {
 // everybody else gets an opaque handle they can only compare against null.
 class GlSceneEngine;
 
-struct AVBASE_MEDIA_EXPORT VideoSinkStats {
+struct XMEDIA_MEDIA_EXPORT VideoSinkStats {
   uint64_t frames_presented{0};
   uint64_t frames_dropped{0};
   uint64_t submit_failures{0};
   double measured_refresh_hz{0.0};
-  // What each presented frame cost, split by stage. An avbase addition -- the
+  // What each presented frame cost, split by stage. An xmedia-kit addition -- the
   // Chromium shape of this struct stops at the counters above -- because the
   // render thread is the only place these can be measured and the sink is the
   // only object that outlives a frame to report them.
@@ -46,7 +46,7 @@ struct AVBASE_MEDIA_EXPORT VideoSinkStats {
 // refresh window. This is Chromium's model and it is what makes vsync-accurate
 // presentation possible on X11 (Present extension) and Wayland
 // (wp_presentation_feedback). See docs/04 §1.1 and behaviour difference Δ18.
-class AVBASE_MEDIA_EXPORT VideoRendererSink {
+class XMEDIA_MEDIA_EXPORT VideoRendererSink {
  public:
   class RenderCallback {
    public:
@@ -119,7 +119,7 @@ class AVBASE_MEDIA_EXPORT VideoRendererSink {
   VideoRendererSink() = default;
 };
 
-class AVBASE_MEDIA_EXPORT VideoRendererSinkFactory {
+class XMEDIA_MEDIA_EXPORT VideoRendererSinkFactory {
  public:
   VideoRendererSinkFactory(const VideoRendererSinkFactory&) = delete;
   VideoRendererSinkFactory& operator=(const VideoRendererSinkFactory&) = delete;
@@ -150,6 +150,6 @@ class AVBASE_MEDIA_EXPORT VideoRendererSinkFactory {
   virtual ~VideoRendererSinkFactory() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_VIDEO_RENDERER_SINK_H_
+#endif  // XMEDIA_MEDIA_BASE_VIDEO_RENDERER_SINK_H_

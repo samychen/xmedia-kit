@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,10 +14,10 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/ffmpeg_util.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 const char* ToChannelLayoutName(int channels) {
   switch (channels) {
@@ -55,7 +55,7 @@ FFmpegAudioFilter::~FFmpegAudioFilter() {
 
 bool FFmpegAudioFilter::Initialize(const std::string& graph, int sample_rate,
                                    int channels, int frames_per_hint) {
-  // avbase's audio decode output is always planar float (fmt=f32p from the
+  // xmedia-kit's audio decode output is always planar float (fmt=f32p from the
   // decoder logs); the filter stage inherits that contract, and constrains
   // the sink to the same format so every output buffer maps straight back
   // onto an AudioBuffer without a conversion hop. Graphs that change formats
@@ -245,4 +245,4 @@ bool FFmpegAudioFilter::Process(
   return pull_and_emit();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,13 @@
 
 #include <mutex>
 
-#include "avbase/Version.h"
+#include "xmedia-kit/Version.h"
 
 // FFmpeg initialisation is wired in at milestone M4, when
 // media/ffmpeg/ffmpeg_glue.cc lands. Until then GlobalInit() only guards the
 // once_flag, which keeps this translation unit independent of FFmpeg.
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 std::once_flag g_init_once;
@@ -29,7 +29,7 @@ void GlobalInit() {
 }
 
 const char* GetVersion() {
-  return AVBASE_VERSION_STRING;
+  return XMEDIA_VERSION_STRING;
 }
 
 const char* GetFFmpegVersion() {
@@ -38,4 +38,4 @@ const char* GetFFmpegVersion() {
   return "none";
 }
 
-}  // namespace avbase
+}  // namespace xmedia

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // Mirrors Chromium's `media/filters/renderer_impl.h` (BSD-3-Clause) in role:
@@ -56,8 +56,8 @@
 // does not exist, and this class needs a MockRendererClient on top of
 // everything they need.
 
-#ifndef AVBASE_MEDIA_FILTERS_RENDERER_IMPL_H_
-#define AVBASE_MEDIA_FILTERS_RENDERER_IMPL_H_
+#ifndef XMEDIA_MEDIA_FILTERS_RENDERER_IMPL_H_
+#define XMEDIA_MEDIA_FILTERS_RENDERER_IMPL_H_
 
 #include <stdint.h>
 
@@ -89,7 +89,7 @@
 #include "media/filters/video_renderer_impl.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Owns the two sub-renderers and the clock; implements media::Renderer.
 // THREADING. Lives on the media sequence (S1, docs/04 §1). It creates and
@@ -98,7 +98,7 @@ namespace avbase::media {
 // crosses sequences by value is the master clock, pushed periodically -- which
 // is deliberate: a clock that any thread may read at any time is what ffplay
 // has, and it is why Δ14 exists.
-class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
+class XMEDIA_MEDIA_EXPORT RendererImpl final : public Renderer {
  public:
   // Everything the composition root needs, gathered so that adding a component
   // (TextRenderer at M7, VAAPI at M14) does not change this constructor's
@@ -497,6 +497,6 @@ class AVBASE_MEDIA_EXPORT RendererImpl final : public Renderer {
   base::WeakPtrFactory<RendererImpl> weak_factory_{this};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_RENDERER_IMPL_H_
+#endif  // XMEDIA_MEDIA_FILTERS_RENDERER_IMPL_H_

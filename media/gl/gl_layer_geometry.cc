@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include "media/base/video_frame.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // (cos, sin) of each CLOCKWISE quarter turn, in the order 0, 90, 180, 270.
@@ -85,4 +85,4 @@ std::array<float, 4> CoverSourceRect(const std::array<float, 4>& src,
   return {src[0], src[1] + (src[3] - keep_h) * 0.5f, src[2], keep_h};
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

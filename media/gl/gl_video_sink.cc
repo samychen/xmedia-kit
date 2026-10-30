@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 #include "media/base/render_cadence.h"
 #include "media/gl/gl_present.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 GlVideoSink::GlVideoSink(base::scoped_refptr<NativeDisplay> display,
                          NativeDisplayKind expected_kind, const char* name,
@@ -49,7 +49,7 @@ void GlVideoSink::Start() {
   // cannot answer has_gl_route() without it, and that answer decides whether
   // the very first hardware frame is read back.
   output_->SetSurface(discard_.load() ? nullptr : display_->raw());
-  thread_ = std::make_unique<base::Thread>("avbase-gl-video");
+  thread_ = std::make_unique<base::Thread>("xmedia-gl-video");
   thread_->Start();
   render_runner_ = thread_->task_runner();
   // The first present must run on the render thread, not here:
@@ -149,7 +149,7 @@ void GlVideoSink::PresentOne() {
     if (frame) {
       gate_.NoteFrameReceived();
     }
-    // Zero-copy contract (avbase §6.2): a hardware frame arrives GPU-resident,
+    // Zero-copy contract (xmedia-kit §6.2): a hardware frame arrives GPU-resident,
     // and the sink's job is to keep it that way when it can.
     //
     // Two questions here, and only two. Is there a frame, and is the target
@@ -275,4 +275,4 @@ bool GlVideoSink::UploadAndPresent(
   return false;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

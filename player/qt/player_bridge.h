@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// The only place avbase and Qt meet.
+// The only place xmedia-kit and Qt meet.
 //
-// avbase's Player is a C++ SDK with an event handler that runs on its own
+// xmedia-kit's Player is a C++ SDK with an event handler that runs on its own
 // dispatch sequence; QML wants bindable properties that change on the GUI
 // thread. Everything awkward about embedding lives in this one class, so both
 // sides stay idiomatic: the Player is used exactly as its header documents, and
@@ -14,14 +14,14 @@
 //   1. The Player is CONSTRUCTED and DESTROYED on the GUI thread. ~Player()
 //      joins the event thread, and doing that from a thread QML does not own is
 //      how shutdown turns into a hang.
-//   2. OnEvent() runs on avbase's event dispatch thread and touches NOTHING but
+//   2. OnEvent() runs on xmedia-kit's event dispatch thread and touches NOTHING but
 //      a queued invocation. Reading a Q_PROPERTY from there would be a data
 //      race, and calling into QML from there is not allowed at all.
 //   3. The poll timer runs on the GUI thread and only calls the Player's
 //      lock-free query methods (GetMediaTime, GetBufferedTime, ...).
 
-#ifndef AVBASE_PLAYER_QT_PLAYER_BRIDGE_H_
-#define AVBASE_PLAYER_QT_PLAYER_BRIDGE_H_
+#ifndef XMEDIA_PLAYER_QT_PLAYER_BRIDGE_H_
+#define XMEDIA_PLAYER_QT_PLAYER_BRIDGE_H_
 
 #include <QObject>
 #include <QSize>
@@ -36,7 +36,7 @@
 
 class QTimer;
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 class FrameMailbox;
 class TimelineModel;
@@ -167,6 +167,6 @@ class PlayerBridge : public QObject {
   QString error_string_;
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_PLAYER_BRIDGE_H_
+#endif  // XMEDIA_PLAYER_QT_PLAYER_BRIDGE_H_

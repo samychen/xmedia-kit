@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 #include "base/logging.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 const char* ToneMapCurveName(ToneMapCurve curve) {
   switch (curve) {
   case ToneMapCurve::kReinhard:
@@ -271,4 +271,4 @@ bool ToneMapper::Process(const AVFrame& src, uint8_t* const dst_data[4],
   return ok;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

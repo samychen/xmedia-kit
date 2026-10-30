@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_
-#define AVBASE_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_
+#define XMEDIA_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_
 
 #include <stdint.h>
 
@@ -19,7 +19,7 @@
 #include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A DataSource decorator that caches the byte ranges it has served in
 // fixed-size memory slices with a total byte budget -- the port of
@@ -37,7 +37,7 @@ namespace avbase::media {
 // THREADING. ReadBlocking runs on the demux thread (D3) under a lock; the
 // async Read() runs on the shared AsyncDataSourceBase worker. Abort() stops
 // both and forwards to the inner source, so Stop() stays bounded (Delta 15).
-class AVBASE_MEDIA_EXPORT SliceBufferSource final : public DataSource {
+class XMEDIA_MEDIA_EXPORT SliceBufferSource final : public DataSource {
  public:
   struct Config {
     size_t slice_size{64 * 1024};
@@ -85,6 +85,6 @@ class AVBASE_MEDIA_EXPORT SliceBufferSource final : public DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_SLICE_BUFFER_SOURCE_H_

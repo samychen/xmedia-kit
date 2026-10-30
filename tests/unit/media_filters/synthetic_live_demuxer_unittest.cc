@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -31,7 +31,7 @@
 #include "gtest/gtest.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 namespace {
 
 // A ceiling well under the double's own 10 s default, so a case that parks when
@@ -344,4 +344,4 @@ TEST_F(SyntheticLiveDemuxerTest, DestroyingWithAParkedReadIsSafe) {
 }
 
 }  // namespace
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

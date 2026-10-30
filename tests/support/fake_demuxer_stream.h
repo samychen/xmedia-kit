@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -11,8 +11,8 @@
 // want". Before this file existed, the tenth round's renderer bugs were only
 // reachable by playing a real file (docs/PROGRESS.md §(5) item 1).
 
-#ifndef AVBASE_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_
-#define AVBASE_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_
+#ifndef XMEDIA_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_
+#define XMEDIA_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_
 
 #include <atomic>
 #include <cstddef>
@@ -28,7 +28,7 @@
 #include "media/base/media_resource.h"
 #include "media/base/text_decoder.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 // Configs that pass IsValidConfig(), so the streams below look like real ones.
 // The audio one matches what decoder_stream_unittest.cc uses (AAC stereo
@@ -148,6 +148,6 @@ class FakeMediaResource final : public MediaResource {
   std::vector<Source> sources_{Source{}};
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_
+#endif  // XMEDIA_TESTS_SUPPORT_FAKE_DEMUXER_STREAM_H_

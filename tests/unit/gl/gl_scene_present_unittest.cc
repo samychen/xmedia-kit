@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -30,7 +30,7 @@
 #include "media/gl/gl_scene.h"
 #include "render/gl/gl_api.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kWindowSize = 64;
@@ -469,4 +469,4 @@ TEST_F(ScenePresentTest, UploadTimingAccumulatesAcrossLayers) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

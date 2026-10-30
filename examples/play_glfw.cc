@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // GLFW playback: the GLFW backend acceptance example. Embedding mode
 // (docs/archive/09 §2) -- the host owns the GLFWwindow and its GL context,
-// avbase renders into it through GlPresenter, and the main thread's only job is
+// xmedia-kit renders into it through GlPresenter, and the main thread's only job is
 // glfwPollEvents and quitting. Audio goes through the null sink, since GLFW
 // ships no audio API of its own.
 //
@@ -57,12 +57,12 @@ std::atomic<bool> g_completed{false};
 // of the position line. Off by default so ordinary runs stay readable.
 std::atomic<bool> g_print_stats{false};
 
-avbase::Player* g_player{nullptr};  // Set in main; outlives the event loop.
+xmedia::Player* g_player{nullptr};  // Set in main; outlives the event loop.
 
 // --scene: the multi-source demo. Held by the process rather than by main
 // because the scene's callback outlives main's locals -- the player owns the
 // scene, and it outlives the frame it was configured on.
-std::unique_ptr<avbase::examples::SceneDemo> g_scene;
+std::unique_ptr<xmedia::examples::SceneDemo> g_scene;
 
 // The second source used to live here -- the SceneSource the layer's frames
 // arrive in, the URL they come from, and the second Player instance that
@@ -109,7 +109,7 @@ bool ParseOptions(int argc, char** argv, Options* out) {
       }
     } else if (arg == "--scene" && i + 1 < argc) {
       out->scene = argv[++i];
-      if (!avbase::examples::SceneDemo::IsKnownMode(out->scene)) {
+      if (!xmedia::examples::SceneDemo::IsKnownMode(out->scene)) {
         std::fprintf(stderr, "--scene wants pip or fade\n");
         return false;
       }
@@ -132,21 +132,21 @@ bool ParseOptions(int argc, char** argv, Options* out) {
   return true;
 }
 
-void OnPlayerEvent(const avbase::PlayerEvent& e) {
-  if (e.type == avbase::EventType::kError) {
-    if (const auto* payload = avbase::AsError(e)) {
+void OnPlayerEvent(const xmedia::PlayerEvent& e) {
+  if (e.type == xmedia::EventType::kError) {
+    if (const auto* payload = xmedia::AsError(e)) {
       std::fprintf(stderr, "error: %s\n", payload->error.ToString().c_str());
     }
     g_error.store(true);
-  } else if (e.type == avbase::EventType::kCompleted) {
+  } else if (e.type == xmedia::EventType::kCompleted) {
     g_completed.store(true);
     // The kPrepared branch that used to be here STARTED A SECOND PLAYER for
     // --second. It has nothing left to do: the second source is part of the
     // same pipeline, so preparing this one prepared both, and both started
     // together.
-  } else if (e.type == avbase::EventType::kStats) {
+  } else if (e.type == xmedia::EventType::kStats) {
     if (g_print_stats.load()) {
-      if (const auto* payload = avbase::AsStats(e)) {
+      if (const auto* payload = xmedia::AsStats(e)) {
         // One line of JSON per tick, so a benchmark harness can parse it
         // without a second tool.
         std::printf("stats %s\n", payload->stats.ToJson().c_str());
@@ -212,7 +212,7 @@ bool CreateGlfwWindow(GLFWwindow** window) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
-  *window = glfwCreateWindow(kWindowWidth, kWindowHeight, "avbase (glfw)",
+  *window = glfwCreateWindow(kWindowWidth, kWindowHeight, "xmedia-kit (glfw)",
                              nullptr, nullptr);
   if (!*window) {
     std::fprintf(stderr, "glfwCreateWindow failed\n");
@@ -277,29 +277,29 @@ int main(int argc, char** argv) {
   surface.overlay = nullptr;
   surface.canvas_width = options.canvas_width;
   surface.canvas_height = options.canvas_height;
-  auto display = avbase::media::NativeDisplay::FromGlfwWindow(&surface);
+  auto display = xmedia::media::NativeDisplay::FromGlfwWindow(&surface);
 
-  auto deps = std::make_unique<avbase::Deps>();
+  auto deps = std::make_unique<xmedia::Deps>();
   if (!options.scene.empty()) {
-    g_scene = std::make_unique<avbase::examples::SceneDemo>(options.scene);
+    g_scene = std::make_unique<xmedia::examples::SceneDemo>(options.scene);
   }
   // The GL backend is all this host needs to name; nothing here reaches for the
   // SINK the way it used to. The scene is on the Player, so the demo installs
   // its hook and registers its source directly, and gets a real answer instead
   // of a cast when this player's sink cannot composite.
   deps->video_sink_factory =
-      std::make_shared<avbase::media::GlfwVideoSinkFactory>();
+      std::make_shared<xmedia::media::GlfwVideoSinkFactory>();
   deps->audio_sink_factory =
-      std::make_shared<avbase::media::NullAudioSinkFactory>();
+      std::make_shared<xmedia::media::NullAudioSinkFactory>();
 
   // --vf0 is the only way in from the command line; PlayerConfig is the same
   // field a host or an SDK caller sets directly.
-  avbase::PlayerConfig config;
+  xmedia::PlayerConfig config;
   config.video.filter_graph = options.vf0;
-  avbase::Player player(config, std::move(deps));
+  xmedia::Player player(config, std::move(deps));
   g_player = &player;
   g_print_stats.store(options.stats);
-  player.SetEventHandler(avbase::base::BindRepeating(&OnPlayerEvent));
+  player.SetEventHandler(xmedia::base::BindRepeating(&OnPlayerEvent));
   player.SetVideoSurface(display);
   if (g_scene != nullptr) {
     // Before SetDataSource/PrepareAsync, because that is when the second
@@ -308,18 +308,18 @@ int main(int argc, char** argv) {
     g_scene->set_second_url(options.second);
     g_scene->Install(player);
   }
-  if (const avbase::Status s = player.SetDataSource(options.url); !s) {
+  if (const xmedia::Status s = player.SetDataSource(options.url); !s) {
     std::fprintf(stderr, "SetDataSource failed: %s\n",
                  s.error().ToString().c_str());
-    player.StopSync(avbase::base::Seconds(5));
+    player.StopSync(xmedia::base::Seconds(5));
     glfwDestroyWindow(window);
     glfwTerminate();
     return 1;
   }
-  if (const avbase::Status s = player.PrepareAsync(); !s) {
+  if (const xmedia::Status s = player.PrepareAsync(); !s) {
     std::fprintf(stderr, "PrepareAsync failed: %s\n",
                  s.error().ToString().c_str());
-    player.StopSync(avbase::base::Seconds(5));
+    player.StopSync(xmedia::base::Seconds(5));
     glfwDestroyWindow(window);
     glfwTerminate();
     return 1;
@@ -341,9 +341,9 @@ int main(int argc, char** argv) {
   // sink's render thread (and its GL context) is gone before we destroy the
   // window here. Every source stops with the one pipeline -- there is no
   // second producer to quieten first.
-  player.StopSync(avbase::base::Seconds(5));
+  player.StopSync(xmedia::base::Seconds(5));
   if (g_scene != nullptr && g_scene->second_source()) {
-    avbase::examples::ReportSecondSource(*g_scene->second_source());
+    xmedia::examples::ReportSecondSource(*g_scene->second_source());
   }
 
   glfwDestroyWindow(window);

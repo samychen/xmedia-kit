@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
-#define AVBASE_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
 
 #include <cstdint>
 #include <vector>
@@ -17,7 +17,7 @@
 #include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A growable byte source for live streams: a producer appends bytes as they
 // arrive (network callback, test rig), and the consumer -- normally
@@ -44,7 +44,7 @@ namespace avbase::media {
 // thread via the bridge) are any threads; buffer_ and closed_ are guarded
 // by lock_, the blocking wait uses condition_variable slices so Abort()
 // always bounds it (Δ15).
-class AVBASE_MEDIA_EXPORT LiveDataSource final : public DataSource {
+class XMEDIA_MEDIA_EXPORT LiveDataSource final : public DataSource {
  public:
   LiveDataSource();
   LiveDataSource(const LiveDataSource&) = delete;
@@ -83,6 +83,6 @@ class AVBASE_MEDIA_EXPORT LiveDataSource final : public DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_LIVE_DATA_SOURCE_H_

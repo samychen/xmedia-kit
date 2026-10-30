@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "base/time/time.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The live-edge chase policy (docs/12 §2.1, behaviour spec volume §3), as a
 // pure decision core in the DecideNextFrame / BufferController pattern: no
@@ -26,7 +26,7 @@ namespace avbase::media {
 // generation bump) and resume near the edge. The demuxer path is a skip,
 // NOT a physical seek -- live containers cannot seek backward, and a
 // forward skip is just "stop reading old bytes".
-class AVBASE_MEDIA_EXPORT LiveEdgePolicy {
+class XMEDIA_MEDIA_EXPORT LiveEdgePolicy {
  public:
   // Pure decision. |behind| = live edge minus current media time.
   static bool ShouldChase(bool is_live, base::TimeDelta latency_hint,
@@ -40,6 +40,6 @@ class AVBASE_MEDIA_EXPORT LiveEdgePolicy {
   LiveEdgePolicy() = delete;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
 #endif  // IJKPP_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_

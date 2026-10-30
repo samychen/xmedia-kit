@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -45,13 +45,13 @@
 // mitigation 1 for risk R5 (stop/destructor deadlock), so it belongs in the
 // .cc next to the transition table rather than in a header.
 
-#ifndef AVBASE_MEDIA_BASE_PIPELINE_CONTROLLER_H_
-#define AVBASE_MEDIA_BASE_PIPELINE_CONTROLLER_H_
+#ifndef XMEDIA_MEDIA_BASE_PIPELINE_CONTROLLER_H_
+#define XMEDIA_MEDIA_BASE_PIPELINE_CONTROLLER_H_
 
 #include "media/base/pipeline.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Owns a Pipeline and makes its lifecycle explicit.
 //
@@ -74,7 +74,7 @@ namespace avbase::media {
 // recognised and dropped instead of being delivered to a half-destroyed owner.
 // That is the "lost wakeup" class of bug the sanitiser pass already caught once
 // in Stop() (docs/PROGRESS, second round).
-class AVBASE_MEDIA_EXPORT PipelineController {
+class XMEDIA_MEDIA_EXPORT PipelineController {
  public:
   enum class State {
     kCreated = 0,
@@ -105,9 +105,9 @@ class AVBASE_MEDIA_EXPORT PipelineController {
   PipelineController();
 };
 
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 PipelineControllerStateToString(PipelineController::State state);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_PIPELINE_CONTROLLER_H_
+#endif  // XMEDIA_MEDIA_BASE_PIPELINE_CONTROLLER_H_

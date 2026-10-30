@@ -63,7 +63,7 @@ empty diff. Review the diff for the API/extension set, not for cleanliness.
 
 ## Build treatment
 
-Compiled into the `avbase_gl_vendor` object library (see
+Compiled into the `xmedia_gl_vendor` object library (see
 `render/CMakeLists.txt`) so that the project's warning flags — which exist to
 keep *our* code honest — do not apply to generated output. `third_party/` is
 also skipped by `tools/check_invariants.py` and by CI's format sweep, for the

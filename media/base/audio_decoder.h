@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,8 +8,8 @@
 // media/base/audio_decoder.h is that Decode() takes a DecodeCB rather than an
 // OutputCB -- see the comment on Decode() below.
 
-#ifndef AVBASE_MEDIA_BASE_AUDIO_DECODER_H_
-#define AVBASE_MEDIA_BASE_AUDIO_DECODER_H_
+#ifndef XMEDIA_MEDIA_BASE_AUDIO_DECODER_H_
+#define XMEDIA_MEDIA_BASE_AUDIO_DECODER_H_
 
 #include <cstdint>
 #include <string>
@@ -23,11 +23,11 @@
 #include "media/base/waiting.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Asynchronous audio decoder contract. Not thread-safe: every method must be
 // called on the sequence that owns it.
-class AVBASE_MEDIA_EXPORT AudioDecoder {
+class XMEDIA_MEDIA_EXPORT AudioDecoder {
  public:
   using InitCB = base::OnceCallback<void(DecoderStatus)>;
   using DecodeCB = base::OnceCallback<void(DecoderStatus)>;
@@ -75,6 +75,6 @@ class AVBASE_MEDIA_EXPORT AudioDecoder {
   AudioDecoder();
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_AUDIO_DECODER_H_
+#endif  // XMEDIA_MEDIA_BASE_AUDIO_DECODER_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,9 @@
 #include "base/threading/thread.h"
 #include "media/base/video_sink_gate.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
-// 60 Hz. This is a poll interval, not a promise: the compositor inside avbase
+// 60 Hz. This is a poll interval, not a promise: the compositor inside xmedia-kit
 // decides which frame is current, and Render() returns the same frame on a
 // refresh where none is due. Storing it again is cheap (one refcount bump) and
 // harmless -- the mailbox serial advances and the GUI repaints.
@@ -37,7 +37,7 @@ struct QtVideoSink::Context {
   std::atomic<RenderCallback*> upstream{nullptr};
   FrameMailbox* mailbox{nullptr};
   std::atomic<uint64_t> presented{0};
-  // Render() must never be entered twice at once. avbase's compositor hands
+  // Render() must never be entered twice at once. xmedia-kit's compositor hands
   // out frames from a deque it pops on the calling thread, so two pollers are
   // two threads mutating that deque -- which showed up as a malloc_zone_error
   // inside VideoFrameCompositor::Render, not as anything resembling a race.
@@ -191,4 +191,4 @@ std::unique_ptr<media::VideoRendererSink> QtVideoSinkFactory::Create(
   return std::make_unique<QtVideoSink>(mailbox_);
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

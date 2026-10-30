@@ -47,7 +47,7 @@ DataSource ─▶ Demuxer ─▶ DemuxerStream ─▶ DecoderStream ─▶ 解�
 ### 边界一 · FFmpeg 隔离区（`media/ffmpeg/`）
 
 规格在 `docs/02` §4.4（第 248-269 行）：**一个目录，一个目标
-（`avbase_ffmpeg`），一条判据：需要 `libav*`。** 三条规则守着：
+（`xmedia_ffmpeg`），一条判据：需要 `libav*`。** 三条规则守着：
 
 | 规则 | 内容 |
 |---|---|
@@ -63,7 +63,7 @@ C4 看不见这种情形。所以边界必须是**目录**，不是头文件集�
 `media/transcode/` **刻意不在 C27 名单里**（`check_invariants.py:332-337`）：
 它建在 `av_includes.h` / `compat.h` / `video_convert.h` 之上，
 按设计可以跨这条边界。让 G2 继续成立的是「它是独立 target、
-`avbase_media` 从不链接它」，**而不是禁止它越界**。
+`xmedia_media` 从不链接它」，**而不是禁止它越界**。
 
 ### 边界二 · `media/` 不碰宿主（C26）
 
@@ -78,7 +78,7 @@ C4 看不见这种情形。所以边界必须是**目录**，不是头文件集�
 的 "wayland-surface" 是字符串字面量，宏检查器已正确放过）。
 
 **它换来什么**：`media/base` 可被任意宿主编解码器或测试替身引用，而不拖入
-FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合。
+FFmpeg 符号或平台 ABI；`xmedia_media` 的公开头保持零供应商耦合。
 
 ---
 
@@ -185,7 +185,7 @@ FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合
 
 | | 放什么 | 依赖 |
 |---|---|---|
-| `render/gl/`（`avbase_gl`，可独立分发） | context 契约、入口点装载器、program/texture/quad、GLSL 方言 | **零依赖** |
+| `render/gl/`（`xmedia_gl`，可独立分发） | context 契约、入口点装载器、program/texture/quad、GLSL 方言 | **零依赖** |
 | `media/gl/` | YUV→RGB 矩阵、平面拆分与上传、overlay 合成 | `media` + `render/gl` |
 
 判据一句话（第 391 行）：**任何被 `VideoFrame` 塑形的东西留在 `media/gl/`。**
@@ -197,8 +197,8 @@ FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合
 
 ### 第 8 站 · 转码（`media/transcode/`）
 
-18 个文件，独立 target `avbase_transcode`，建在 `avbase_ffmpeg` 之上，
-由 `AVBASE_ENABLE_FFMPEG` 门控，**刻意不进 `avbase::avbase` 聚合** ——
+18 个文件，独立 target `xmedia_transcode`，建在 `xmedia_ffmpeg` 之上，
+由 `XMEDIA_ENABLE_FFMPEG` 门控，**刻意不进 `xmedia::xmedia-kit` 聚合** ——
 否则每个播放构建都要背着编码器与封装写端。
 
 ---
@@ -214,7 +214,7 @@ FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合
 | 5 | `media/filters/video_renderer_impl.cc:168-171` | 写清「**测试为什么没抓到**」比写清"修了什么"更有价值 |
 | 6 | `media/filters/video_renderer_impl.cc:181-185` | 显式记录「故意没做的事」（`NOT paused_ = false`）及其后果 |
 | 7 | `media/base/video_frame.h:130-136` | 陷阱型 API 的注释要描述**失败长什么样** |
-| 8 | `media/ffmpeg/av_includes.h:5-13,96-103` | 供应商边界收成**一个文件**；自带的替代函数用 `avbase_` 前缀标记 |
+| 8 | `media/ffmpeg/av_includes.h:5-13,96-103` | 供应商边界收成**一个文件**；自带的替代函数用 `xmedia_` 前缀标记 |
 | 9 | `media/filters/audio_renderer_algorithm.cc:17-23` | 移植的阈值注明「取自 Chromium 哪个标识符、抓取日期」，并声明不是凭记忆抄的 |
 | 10 | `media/filters/legacy/video_frame_compositor.cc:34-39,178` | 许可证与血缘是代码的一部分：`ALGORITHM PROVENANCE` 段落在文件头与函数头各写一遍 |
 
@@ -229,7 +229,7 @@ FFmpeg 符号或平台 ABI；`avbase_media` 的公开头保持零供应商耦合
 
 `media/ffmpeg/av_includes.h:5` 自称：
 
-> `THE ONLY PLACE IN AVBASE THAT INCLUDES FFmpeg HEADERS.`
+> `THE ONLY PLACE IN XMEDIA-KIT THAT INCLUDES FFmpeg HEADERS.`
 
 并列了两项职责：① `extern "C"` 包裹；② 派生全部版本开关。
 
@@ -466,7 +466,7 @@ extern "C" {
 }
 ```
 
-`media/ffmpeg/av_includes.h:5` 自称 **"THE ONLY PLACE IN AVBASE THAT INCLUDES
+`media/ffmpeg/av_includes.h:5` 自称 **"THE ONLY PLACE IN XMEDIA-KIT THAT INCLUDES
 FFmpeg HEADERS"**，并列了两项职责：extern "C" 包裹、统一版本开关。这里绕开它自行
 include 并手搓 `extern "C"`。C4 只查「位置是否在 `media/ffmpeg/`」，不查「是否
 集中」，所以闸门漏掉它。
@@ -531,7 +531,7 @@ DecoderStream 暴露一个 `current_serial()`。
 include（仅注释提及）；平台头与 `__APPLE__`/`__linux__`/`_WIN32` 零命中
 （唯一 "wayland-surface" 是 `native_display.cc:18` 的字符串字面量，宏检查器已正确
 放过）。**它换来的是**：`media/base` 可被任意宿主编解码器/测试替身引用而无需
-拖入 FFmpeg 或平台 ABI，`avbase_media` 的公开头保持零供应商耦合。
+拖入 FFmpeg 或平台 ABI，`xmedia_media` 的公开头保持零供应商耦合。
 
 **>500 行文件无盲区**：`ffmpeg_demuxer.cc`(928)、`legacy/video_frame_compositor.cc`(700)、
 `audio_renderer_algorithm.cc`(664)、`renderer_impl.cc`(598) 全部持有

@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect decode`: demux and decode, then report what actually
+// `xmedia-inspect decode`: demux and decode, then report what actually
 // came out.
 //
 // The interesting output is not the frame count -- it is the timestamp
@@ -30,7 +30,7 @@
 #include "media/ffmpeg/ffmpeg_video_decoder.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 
 namespace {
 
@@ -278,4 +278,4 @@ int RunDecode(const Options& opts) {
   return exit_code;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

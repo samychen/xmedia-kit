@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,7 +22,7 @@
 #include "base/functional/bind.h"
 #include "media/base/audio_bus.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 void AudioRendererImpl::PreStretch() {
   const int chunk_frames = params_.frames_per_buffer();
@@ -112,4 +112,4 @@ int AudioRendererImpl::DrainRing(AudioBus* dest, int64_t* first_media_micros) {
   return written;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

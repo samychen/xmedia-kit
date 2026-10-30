@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
 
-namespace avbase::base::test {
+namespace xmedia::base::test {
 
 TaskEnvironment::TaskEnvironment(TimeSource time_source)
     : time_source_(time_source),
@@ -109,4 +109,4 @@ bool TaskEnvironment::HasDelayedTasks() const {
   return !next.is_null() && next > NowTicks();
 }
 
-}  // namespace avbase::base::test
+}  // namespace xmedia::base::test

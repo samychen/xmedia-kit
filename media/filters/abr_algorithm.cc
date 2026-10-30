@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The default argument cannot live in the header: a default argument is
 // parsed before the enclosing class completes, so Config's NSDMIs are not
@@ -67,4 +67,4 @@ AbrDecision AbrBufferAlgoStrategy::Decide(const AbrInput& input) {
   return decision;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

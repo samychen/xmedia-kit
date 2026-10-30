@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "gtest/gtest.h"
 #include "media/filters/decoder_selector.h"  // HwCodecFlag, HwCodecMask
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // E5: The software factory supports H.264 and returns a non-hardware
@@ -37,7 +37,7 @@ TEST(VideoEncoderFactoryTest, SelectorPrioritizesHardware) {
   std::vector<base::scoped_refptr<VideoEncoderFactory>> factories;
   factories.push_back(sw);
 
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
   auto hw = CreateVideoToolboxEncoderFactory();
   factories.push_back(hw);
 #endif
@@ -62,7 +62,7 @@ TEST(VideoEncoderFactoryTest, HwMaskFiltersCodecs) {
   EXPECT_TRUE(sw->SupportsCodec(media::VideoCodec::kH264, hevc_only));
   EXPECT_TRUE(sw->SupportsCodec(media::VideoCodec::kHevc, hevc_only));
 
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
   auto hw = CreateVideoToolboxEncoderFactory();
   // Hardware factory respects the mask.
   EXPECT_FALSE(hw->SupportsCodec(media::VideoCodec::kH264, hevc_only));
@@ -86,7 +86,7 @@ TEST(VideoEncoderFactoryTest, SoftwareFactoryNamesItsEncoders) {
 }
 
 // E5: the platform list ships at least software, and any hardware factory
-// present must outrank it. Selection is expressed in AVBASE_ENABLE_* build
+// present must outrank it. Selection is expressed in XMEDIA_ENABLE_* build
 // flags rather than host macros (video_encoder_factory.h records why the
 // list is not split the way the decoder side is), which makes the list's
 // composition a property of the BUILD — asserted here against those same
@@ -123,14 +123,14 @@ TEST(VideoEncoderFactoryTest, PlatformListIsHardwareFirst) {
   // guarded by "is this Apple or Linux", which stopped meaning anything once
   // the list followed the build flags instead of the host macros.
   EXPECT_GT(saw_hardware, 0);
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
   EXPECT_TRUE(listed("VideoToolbox"))
-      << "AVBASE_ENABLE_VIDEOTOOLBOX is on but the list has no VideoToolbox "
+      << "XMEDIA_ENABLE_VIDEOTOOLBOX is on but the list has no VideoToolbox "
          "factory";
 #endif
-#if AVBASE_ENABLE_VAAPI
+#if XMEDIA_ENABLE_VAAPI
   EXPECT_TRUE(listed("VAAPI"))
-      << "AVBASE_ENABLE_VAAPI is on but the list has no VAAPI factory";
+      << "XMEDIA_ENABLE_VAAPI is on but the list has no VAAPI factory";
 #endif
   const auto selected = SelectVideoEncoder(
       factories, media::VideoCodec::kH264,
@@ -142,7 +142,7 @@ TEST(VideoEncoderFactoryTest, PlatformListIsHardwareFirst) {
   }
 }
 
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
 // E5: VideoToolbox answers with its own encoder names, and admits to having
 // nothing for the codecs it cannot encode.
 TEST(VideoEncoderFactoryTest, VideoToolboxNamesHardwareEncoders) {
@@ -155,4 +155,4 @@ TEST(VideoEncoderFactoryTest, VideoToolboxNamesHardwareEncoders) {
 #endif
 
 }  // namespace
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

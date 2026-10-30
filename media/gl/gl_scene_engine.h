@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_SCENE_ENGINE_H_
-#define AVBASE_MEDIA_GL_GL_SCENE_ENGINE_H_
+#ifndef XMEDIA_MEDIA_GL_GL_SCENE_ENGINE_H_
+#define XMEDIA_MEDIA_GL_GL_SCENE_ENGINE_H_
 
 #include <cstddef>
 #include <memory>
@@ -21,7 +21,7 @@
 #include "media/gl/gl_scene.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Orchestrates N sources into one scene and presents it.
 //
@@ -55,7 +55,7 @@ namespace avbase::media {
 // BindState rather than a documented restriction. It is under |lock_| now and
 // Sync() runs a snapshot of it, so "when may I install it" is no longer a
 // question anybody has to get right.
-class AVBASE_MEDIA_EXPORT GlSceneEngine {
+class XMEDIA_MEDIA_EXPORT GlSceneEngine {
  public:
   // The host hook, run once per displayed frame after every source has synced
   // and before the scene is presented -- so what it adds (a background, a
@@ -168,6 +168,6 @@ class AVBASE_MEDIA_EXPORT GlSceneEngine {
   TeardownCallback teardown_ GUARDED_BY(lock_);
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_SCENE_ENGINE_H_
+#endif  // XMEDIA_MEDIA_GL_GL_SCENE_ENGINE_H_

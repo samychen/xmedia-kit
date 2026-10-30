@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,7 +15,7 @@
 // two cannot coexist, so the code is split by which of them it needs:
 //
 //   gl_video_item.cc     Qt side -- QQuickFramebufferObject, the FBO, the item
-//   gl_video_renderer.cc this file's implementation -- glad, avbase::gl,
+//   gl_video_renderer.cc this file's implementation -- glad, xmedia::gl,
 //                        media::gl, and nothing from Qt's GL headers
 //
 // The seam is deliberately Qt-free: the context arrives as void* (a
@@ -23,25 +23,25 @@
 // this header drags in no Qt header at all and the split stays enforced by the
 // compiler rather than by a comment.
 
-#ifndef AVBASE_PLAYER_QT_GL_VIDEO_RENDERER_H_
-#define AVBASE_PLAYER_QT_GL_VIDEO_RENDERER_H_
+#ifndef XMEDIA_PLAYER_QT_GL_VIDEO_RENDERER_H_
+#define XMEDIA_PLAYER_QT_GL_VIDEO_RENDERER_H_
 
 #include <memory>
 #include <string>
 
-namespace avbase::gl {
+namespace xmedia::gl {
 class GlApi;
 class GlProgram;
 class GlQuad;
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-namespace avbase::media {
+namespace xmedia::media {
 class GlVideoLayer;
 class QtGLContext;
 class VideoFrame;
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 // One video surface's worth of GL state: the entry-point table, the YUV
 // conversion program, the layer that owns the three plane textures, the quad.
@@ -99,6 +99,6 @@ class GlVideoRenderer {
   std::string renderer_name_;
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_GL_VIDEO_RENDERER_H_
+#endif  // XMEDIA_PLAYER_QT_GL_VIDEO_RENDERER_H_

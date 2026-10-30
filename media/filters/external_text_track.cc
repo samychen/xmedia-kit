@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 base::expected<ExternalTextTrack, MediaError>
 ExternalTextTrack::Parse(std::string_view text, const std::string& uri,
@@ -65,4 +65,4 @@ ExternalTextTrack::CuesBetween(base::TimeDelta prev,
   return due;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// AVStream -> avbase decoder config, split out of ffmpeg_demuxer.cc (C1).
+// AVStream -> xmedia-kit decoder config, split out of ffmpeg_demuxer.cc (C1).
 //
 // This is the seam the demuxer's own length note names. The three functions
 // here are pure: an AVStream in, one of our configs out, no access to the
@@ -10,21 +10,21 @@
 // ffmpeg_demuxer.cc is one contiguous AVFormatContext lifecycle, and cutting
 // pieces of THAT by line count is how use-after-free bugs get introduced.
 //
-// Internal to avbase_ffmpeg; not installed.
+// Internal to xmedia_ffmpeg; not installed.
 
-#ifndef AVBASE_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_
-#define AVBASE_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_
+#define XMEDIA_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_
 
 #include "media/base/decoder_config.h"
 
 struct AVStream;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 VideoDecoderConfig MakeVideoDecoderConfig(const AVStream* stream);
 AudioDecoderConfig MakeAudioDecoderConfig(const AVStream* stream);
 TextDecoderConfig MakeTextDecoderConfig(const AVStream* stream);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_DEMUXER_CONFIGS_H_

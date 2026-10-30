@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 #include "base/time/time.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 namespace {
 
 // How often a parked read re-checks the edge. Short enough that a test
@@ -282,7 +282,7 @@ void SyntheticLiveDemuxer::ReadLive(DemuxerStreamType type, uint32_t count,
     }
   }
   if (timed_out) {
-    LOG(ERROR) << "avbase.demux: live read parked past its "
+    LOG(ERROR) << "xmedia.demux: live read parked past its "
                << spec_.max_park.InMilliseconds() << "ms ceiling";
     std::move(read_cb).Run(DemuxerStream::Status::kError,
                            DemuxerStream::DecoderBufferVector());
@@ -341,7 +341,7 @@ void SyntheticLiveDemuxer::StartPlayingFrom(base::TimeDelta time, SeekCB cb) {
   // Refused, and the refusal is the point. A live source has no data before
   // the edge, so "seek to t" has no correct behaviour; the pipeline's chase
   // path uses a non-physical skip precisely because a real seek is unavailable.
-  LOG(INFO) << "avbase.demux: live stream cannot seek to " << time.ToString();
+  LOG(INFO) << "xmedia.demux: live stream cannot seek to " << time.ToString();
   // Reported as a failure, not as a silent no-op: a caller that seeked a live
   // stream has a bug, and the pipeline's chase path exists precisely so that it
   // does not have one. |actual| is the edge, which is the only position a live
@@ -508,4 +508,4 @@ DemuxerStream* SyntheticLiveDemuxer::GetStream(DemuxerStreamType type) {
   return nullptr;
 }
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -41,7 +41,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/filters/null_video_sink.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // A stand-in for a host backend (sdl2/glfw/egl). It counts Create() calls so
@@ -96,8 +96,8 @@ class DefaultRendererFactoryTest : public ::testing::Test {
  protected:
   DefaultRendererFactoryTest()
       : env_(base::test::TaskEnvironment::TimeSource::kRealTime),
-        video_thread_("avbase-test-S3"),
-        audio_thread_("avbase-test-S4") {}
+        video_thread_("xmedia-test-S3"),
+        audio_thread_("xmedia-test-S4") {}
 
   void SetUp() override {
     ASSERT_TRUE(video_thread_.Start());
@@ -244,4 +244,4 @@ TEST_F(DefaultRendererFactoryTest,
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

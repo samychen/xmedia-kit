@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -24,7 +24,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/renderer_client.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 VideoRendererImpl::VideoRendererImpl(
     base::scoped_refptr<base::SequencedTaskRunner> task_runner,
@@ -98,10 +98,10 @@ void VideoRendererImpl::Initialize(DemuxerStream* stream,
     ranked = DecoderSelector::SelectVideoDecoder(
         factories_, config, decoder_preference_, hw_codecs_, &reasons);
     for (const std::string& reason : reasons) {
-      LOG(INFO) << "avbase.vdec: " << reason;
+      LOG(INFO) << "xmedia.vdec: " << reason;
     }
     if (ranked.empty()) {
-      LOG(ERROR) << "avbase.vdec: no decoder candidate for codec="
+      LOG(ERROR) << "xmedia.vdec: no decoder candidate for codec="
                  << GetVideoCodecName(config.codec) << " under the configured "
                  << "preference (hardware="
                  << (decoder_preference_ == DecoderPreference::kSoftware
@@ -115,7 +115,7 @@ void VideoRendererImpl::Initialize(DemuxerStream* stream,
       std::move(cb).Run(PipelineStatus::kVideoRendererInitializationError);
       return;
     }
-    LOG(INFO) << "avbase.vdec: decoder preference resolved, " << ranked.size()
+    LOG(INFO) << "xmedia.vdec: decoder preference resolved, " << ranked.size()
               << " candidate(s), first=" << ranked.front()->name();
   } else {
     ranked = factories_;
@@ -139,14 +139,14 @@ void VideoRendererImpl::Initialize(DemuxerStream* stream,
 void VideoRendererImpl::OnDecoderInitialized(InitializeCB cb,
                                              DecoderStatus status) {
   if (!status.is_ok()) {
-    LOG(ERROR) << "avbase.vdec: video decoder failed to initialize: "
+    LOG(ERROR) << "xmedia.vdec: video decoder failed to initialize: "
                << decoder_stream_.GetDisplayName() << " ("
                << status.AsDebugString() << ")";
     std::move(cb).Run(PipelineStatus::kVideoRendererInitializationError);
     return;
   }
   initialized_ = true;
-  LOG(INFO) << "avbase.vdec: video decoder ready ("
+  LOG(INFO) << "xmedia.vdec: video decoder ready ("
             << decoder_stream_.GetDisplayName() << ")";
   // The sink is initialised here but not started: starting it before the first
   // frame exists would make it call Render() into an empty compositor, which is
@@ -405,7 +405,7 @@ void VideoRendererImpl::OnDecoderOutput(base::OnceClosure pump_again,
     if (status.code() == DecoderStatus::Codes::kDecodingAborted) {
       return;  // a flush is in progress; not an error
     }
-    LOG(ERROR) << "avbase.vdec: decode failed (" << status.AsDebugString()
+    LOG(ERROR) << "xmedia.vdec: decode failed (" << status.AsDebugString()
                << ")";
     // H2: this used to fake a natural end of stream (ended_ + SetEndOfStream
     // + ReportEndedOnce), so a dead video leg showed the UI "played to
@@ -461,7 +461,7 @@ void VideoRendererImpl::ReportEndedOnce() {
 
 void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
   if (event == DecoderStreamEvent::kNoDecoderAvailable) {
-    LOG(ERROR) << "avbase.vdec: every video decoder candidate failed";
+    LOG(ERROR) << "xmedia.vdec: every video decoder candidate failed";
     return;
   }
   if (!decoder_event_cb_) {
@@ -471,7 +471,7 @@ void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
     // The name existed only in a LOG(INFO) line before this. A host cannot
     // parse its way to "VideoToolbox is in use", and the opaque-surface flag
     // decides whether frames can ever be handed to a zero-copy uploader.
-    LOG(INFO) << "avbase.vdec: decoder opened -> "
+    LOG(INFO) << "xmedia.vdec: decoder opened -> "
               << decoder_stream_.GetDisplayName();
     // Argument order matters: the callback is (type, from, to, reason,
     // opaque), and an "opened" report has no |from|. Putting the name in the
@@ -486,7 +486,7 @@ void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
   // A fallback: a hardware-to-software switch is a recovery, not an error, but
   // it must be visible -- it is the difference between "4K is smooth" and
   // "4K is smooth until the driver resets".
-  LOG(WARNING) << "avbase.vdec: " << GetDecoderStreamEventName(event) << " -> "
+  LOG(WARNING) << "xmedia.vdec: " << GetDecoderStreamEventName(event) << " -> "
                << decoder_stream_.GetDisplayName();
   decoder_event_cb_.Run(DemuxerStreamType::kVideo,
                         decoder_stream_.failed_decoder(),
@@ -494,4 +494,4 @@ void VideoRendererImpl::OnDecoderStreamEvent(DecoderStreamEvent event) {
                         GetDecoderStreamEventName(event), false);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,21 +1,21 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/synchronization/waitable_event.h`
 // (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
-#define AVBASE_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
+#ifndef XMEDIA_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
+#define XMEDIA_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 
 #include <condition_variable>
 #include <mutex>
 
 #include "base/time/time.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
-// A manual- or automatic-reset event. avbase uses this for bounded shutdown
+// A manual- or automatic-reset event. xmedia-kit uses this for bounded shutdown
 // waits so that ~Player() can never block indefinitely (see docs/04 §5.4 and
 // behaviour difference Δ15).
 class WaitableEvent {
@@ -87,6 +87,6 @@ class WaitableEvent {
   bool signaled_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
+#endif  // XMEDIA_BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_

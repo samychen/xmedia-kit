@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // it -- an earlier header comment said "ported from"; that overstated the
 // relationship and was corrected in PROGRESS round 14 (decision A).
 
-#ifndef AVBASE_MEDIA_FFMPEG_AUDIO_DECODER_H_
-#define AVBASE_MEDIA_FFMPEG_AUDIO_DECODER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_AUDIO_DECODER_H_
+#define XMEDIA_MEDIA_FFMPEG_AUDIO_DECODER_H_
 
 #include <cstdint>
 #include <memory>
@@ -23,7 +23,7 @@
 #include "media/base/decoder_config.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // libavcodec-backed audio decoder producing AudioBuffer.
 //
@@ -36,7 +36,7 @@ namespace avbase::media {
 //
 // All FFmpeg handles live in an opaque Context so this header never includes
 // libav*.h (invariant C4).
-class AVBASE_MEDIA_EXPORT FFmpegAudioDecoder final : public AudioDecoder {
+class XMEDIA_MEDIA_EXPORT FFmpegAudioDecoder final : public AudioDecoder {
  public:
   FFmpegAudioDecoder();
   ~FFmpegAudioDecoder() override;
@@ -83,6 +83,6 @@ class AVBASE_MEDIA_EXPORT FFmpegAudioDecoder final : public AudioDecoder {
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_AUDIO_DECODER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_AUDIO_DECODER_H_

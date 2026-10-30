@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 #include "gtest/gtest.h"
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 namespace {
 
 // The key and IV of NIST SP 800-38A CBC-AES128; the ciphertexts below were
@@ -110,4 +110,4 @@ TEST(HlsAes128Test, RejectsWrongKeyLengthAndBadPadding) {
 }
 
 }  // namespace
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls

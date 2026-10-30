@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 // Qt Core only. The colours are hex strings handed to QML, so this model needs
 // no QColor -- and it must not pull in QtGui, because that is what lets the
 // suite below run headless on a machine with no display.
-namespace avbase::qt {
+namespace xmedia::qt {
 
 namespace {
 
@@ -117,7 +117,7 @@ void TimelineModel::loadFromMedia(const QString& name, double duration,
   // than inventing a length for it.
   project_duration_ = duration > 0.0 ? duration : 0.0;
   if (project_duration_ > 0.0) {
-    // One clip per KIND, not one per stream: avbase renders a single video
+    // One clip per KIND, not one per stream: xmedia-kit renders a single video
     // track and a single audio track at a time. Drawing every audio stream as
     // its own lane would claim the app can mix them, which it cannot.
     if (has_video) {
@@ -155,4 +155,4 @@ void TimelineModel::AppendClip(const QString& name, int track, double start,
   clips_.append(clip);
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

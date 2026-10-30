@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "gtest/gtest.h"
 
-namespace avbase::media::hls {
+namespace xmedia::media::hls {
 namespace {
 
 TEST(HlsM3U8ParserTest, RejectsABodyWithoutTheM3U8Signature) {
@@ -162,4 +162,4 @@ TEST(HlsM3U8ParserTest, ResolveUrlCoversTheFourWildShapes) {
 }
 
 }  // namespace
-}  // namespace avbase::media::hls
+}  // namespace xmedia::media::hls

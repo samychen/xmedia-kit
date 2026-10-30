@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // HLS through the regular FFmpegDemuxer: FFmpeg's hls demuxer (enabled in
 // tools/setup_ffmpeg.sh) sits under the same avio stack as every other
-// container, so avbase needs no HLS-specific code -- these tests are the
+// container, so xmedia-kit needs no HLS-specific code -- these tests are the
 // proof, using a two-segment VOD playlist over the file protocol (segments
 // resolve relative to the playlist, no network involved).
 
@@ -18,11 +18,11 @@
 #include "base/test/task_environment.h"
 #include "gtest/gtest.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 std::string TestFile(const char* name) {
-  return std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+  return std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
 }
 
 class RecordingHost final : public Demuxer::Host {
@@ -133,4 +133,4 @@ TEST_F(HlsDemuxerTest, ReadsAcrossSegmentsToEos) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

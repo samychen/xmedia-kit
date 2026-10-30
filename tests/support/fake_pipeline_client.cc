@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "tests/support/fake_pipeline_client.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 void FakePipelineClient::Record(const std::string& line) {
   std::scoped_lock scoped(lock_);
@@ -81,4 +81,4 @@ void FakePipelineClient::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void FakePipelineClient::OnVideoConfigChange(
     const VideoDecoderConfig& /*config*/) {}
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

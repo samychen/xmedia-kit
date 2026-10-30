@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // AVPacket inside a Storage subclass and retrieves it with storage_as<T>()
 // (docs/02 §9 D2).
 
-#ifndef AVBASE_MEDIA_BASE_DECODER_BUFFER_H_
-#define AVBASE_MEDIA_BASE_DECODER_BUFFER_H_
+#ifndef XMEDIA_MEDIA_BASE_DECODER_BUFFER_H_
+#define XMEDIA_MEDIA_BASE_DECODER_BUFFER_H_
 
 #include <stdint.h>
 
@@ -27,14 +27,14 @@
 #include "media/base/media_types.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A compressed media sample, between the demuxer and the decoder.
 //
 // Immutable after construction and always held through
 // scoped_refptr<DecoderBuffer>, so handing one to a decoder costs an atomic
 // increment and never a copy of the payload.
-class AVBASE_MEDIA_EXPORT DecoderBuffer
+class XMEDIA_MEDIA_EXPORT DecoderBuffer
     : public base::RefCountedThreadSafe<DecoderBuffer> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -42,7 +42,7 @@ class AVBASE_MEDIA_EXPORT DecoderBuffer
   // Opaque payload backend. Implemented by platform/ffmpeg (AvPacketStorage,
   // zero-copy over an AVPacket), by media/filters (owned memory) and by
   // embedders (encrypted or custom sources).
-  class AVBASE_MEDIA_EXPORT Storage {
+  class XMEDIA_MEDIA_EXPORT Storage {
    public:
     Storage(const Storage&) = delete;
     Storage& operator=(const Storage&) = delete;
@@ -156,7 +156,7 @@ class AVBASE_MEDIA_EXPORT DecoderBuffer
 };
 
 // Owned-memory Storage, used by tests and by non-FFmpeg demuxers.
-class AVBASE_MEDIA_EXPORT OwnedBufferStorage final
+class XMEDIA_MEDIA_EXPORT OwnedBufferStorage final
     : public DecoderBuffer::Storage {
  public:
   OwnedBufferStorage(const uint8_t* data, size_t size);
@@ -174,6 +174,6 @@ class AVBASE_MEDIA_EXPORT OwnedBufferStorage final
   std::vector<uint8_t> bytes_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_DECODER_BUFFER_H_
+#endif  // XMEDIA_MEDIA_BASE_DECODER_BUFFER_H_

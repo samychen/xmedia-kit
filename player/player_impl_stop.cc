@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 
-namespace avbase {
+namespace xmedia {
 
 void PlayerImpl::Stop() {
   PlayerState previous;
@@ -105,7 +105,7 @@ void PlayerImpl::StopSync(base::TimeDelta timeout) {
     }
     if (deps_->tick_clock->NowTicks() >= deadline) {
       LOG(ERROR)
-          << "avbase: StopSync timed out after " << timeout.InMillisecondsF()
+          << "xmedia-kit: StopSync timed out after " << timeout.InMillisecondsF()
           << "ms with the pipeline still running; detaching (delta 15: "
              "leak a thread, never hang). The renderer or demuxer did "
              "not finish tearing down, so ~PipelineImpl will run against "
@@ -185,4 +185,4 @@ void PlayerImpl::Reset() {
                               base::TimeDelta());
 }
 
-}  // namespace avbase
+}  // namespace xmedia

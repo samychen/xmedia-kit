@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_
-#define AVBASE_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_
+#define XMEDIA_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_
 
 #include <cstdint>
 
@@ -21,7 +21,7 @@
 // avcodec.h, so naming it here does not require the definition.
 struct AVCodecContext;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The Decode()/Reset() skeleton shared by FFmpegVideoDecoder (software) and
 // FFmpegHwVideoDecoder (hardware).
@@ -40,7 +40,7 @@ namespace avbase::media {
 //   * codec_ctx()             -- its own (opaque) codec context
 //   * DecodeAvailableFrames() -- drain avcodec_receive_frame, convert, emit
 //   * OnResetExtra()          -- optional per-path state to drop on Reset()
-class AVBASE_MEDIA_EXPORT FFmpegVideoDecoderBase : public VideoDecoder {
+class XMEDIA_MEDIA_EXPORT FFmpegVideoDecoderBase : public VideoDecoder {
  public:
   // VideoDecoder, implemented once for both paths.
   void Decode(base::scoped_refptr<DecoderBuffer> buffer,
@@ -80,6 +80,6 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoderBase : public VideoDecoder {
   const char* const decoder_name_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_FFMPEG_VIDEO_DECODER_BASE_H_

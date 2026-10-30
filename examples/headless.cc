@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -55,39 +55,39 @@ bool ParseOptions(int argc, char** argv, Options* out) {
   return true;
 }
 
-void ReportErrorEvent(const avbase::PlayerEvent& e) {
-  if (e.type != avbase::EventType::kError) {
+void ReportErrorEvent(const xmedia::PlayerEvent& e) {
+  if (e.type != xmedia::EventType::kError) {
     return;
   }
-  if (const auto* payload = avbase::AsError(e)) {
+  if (const auto* payload = xmedia::AsError(e)) {
     std::fprintf(stderr, "error event: %s\n",
                  payload->error.ToString().c_str());
   }
 }
 
-void PrintMediaInfo(avbase::Player& player) {
+void PrintMediaInfo(xmedia::Player& player) {
   if (auto info = player.media_info()) {
     std::printf("container: %s, duration: %s, streams: %zu\n",
                 info->format_name.c_str(), info->duration.ToString().c_str(),
                 info->streams.size());
   }
-  const avbase::media::Size natural = player.video_natural_size();
+  const xmedia::media::Size natural = player.video_natural_size();
   std::printf("video: %dx%d\n", natural.width, natural.height);
 }
 
 // Polls until the player reports kCompleted or kError, printing a position line
 // once per media second. Returns the process exit code.
-int WaitForEnd(avbase::Player& player, const Options& options) {
+int WaitForEnd(xmedia::Player& player, const Options& options) {
   const auto deadline = std::chrono::steady_clock::now() +
                         std::chrono::seconds(options.timeout_seconds);
   int last_printed_second = -1;
   while (std::chrono::steady_clock::now() < deadline) {
-    if (player.state() == avbase::PlayerState::kCompleted) {
+    if (player.state() == xmedia::PlayerState::kCompleted) {
       std::printf("\ncompleted at media time %s\n",
                   player.GetMediaTime().ToString().c_str());
       return 0;
     }
-    if (player.state() == avbase::PlayerState::kError) {
+    if (player.state() == xmedia::PlayerState::kError) {
       std::fprintf(stderr, "\nplayer entered kError\n");
       return 1;
     }
@@ -107,17 +107,17 @@ int WaitForEnd(avbase::Player& player, const Options& options) {
 }
 
 // Starts playback, honors --seek and --rate, then waits for the end.
-int StartAndWait(avbase::Player& player, const Options& options) {
+int StartAndWait(xmedia::Player& player, const Options& options) {
   if (options.rate != 1.0) {
     player.SetPlaybackRate(options.rate);
   }
-  if (player.state() != avbase::PlayerState::kStarted) {
+  if (player.state() != xmedia::PlayerState::kStarted) {
     player.Start();
   }
   if (options.seek_to >= 0.0) {
-    const auto result = player.SeekTo(avbase::base::SecondsD(options.seek_to),
-                                      avbase::SeekMode::kPreviousKeyframe,
-                                      avbase::Player::SeekCB());
+    const auto result = player.SeekTo(xmedia::base::SecondsD(options.seek_to),
+                                      xmedia::SeekMode::kPreviousKeyframe,
+                                      xmedia::Player::SeekCB());
     if (!result) {
       std::fprintf(stderr, "SeekTo failed: %s\n",
                    result.error().ToString().c_str());
@@ -137,15 +137,15 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  avbase::Player player;
-  player.SetEventHandler(avbase::base::BindRepeating(&ReportErrorEvent));
-  if (const avbase::Status source = player.SetDataSource(options.url);
+  xmedia::Player player;
+  player.SetEventHandler(xmedia::base::BindRepeating(&ReportErrorEvent));
+  if (const xmedia::Status source = player.SetDataSource(options.url);
       !source) {
     std::fprintf(stderr, "SetDataSource failed: %s\n",
                  source.error().ToString().c_str());
     return 1;
   }
-  const avbase::Status prepared = player.PrepareSync(avbase::base::Seconds(15));
+  const xmedia::Status prepared = player.PrepareSync(xmedia::base::Seconds(15));
   if (!prepared) {
     std::fprintf(stderr, "prepare failed: %s\n",
                  prepared.error().ToString().c_str());

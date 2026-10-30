@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,8 +16,8 @@
 // leak), Passed(), IgnoreResult() as a binder, generic (auto-parameter)
 // lambdas.
 
-#ifndef AVBASE_BASE_FUNCTIONAL_BIND_H_
-#define AVBASE_BASE_FUNCTIONAL_BIND_H_
+#ifndef XMEDIA_BASE_FUNCTIONAL_BIND_H_
+#define XMEDIA_BASE_FUNCTIONAL_BIND_H_
 
 #include <cstddef>
 #include <memory>
@@ -30,7 +30,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // Wrappers that change how a bound argument is treated at invoke time.
 template <typename T>
@@ -306,6 +306,6 @@ auto BindRepeating(Functor&& functor, BoundArgs&&... bound) {
 // DoNothing() and DoNothingRepeating() live in
 // base/functional/callback_helpers.h, matching Chromium's split.
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_FUNCTIONAL_BIND_H_
+#endif  // XMEDIA_BASE_FUNCTIONAL_BIND_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "media/base/video_color_space.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 constexpr YuvMatrix kMatrix601Limited = {{1.164383f, 1.164383f, 1.164383f, 0.0f,
                                           -0.391762f, 2.017232f, 1.596027f,
@@ -58,4 +58,4 @@ YuvMatrix SelectYuvMatrix(const VideoColorSpace& cs) {
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

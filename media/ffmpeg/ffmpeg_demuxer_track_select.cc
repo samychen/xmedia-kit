@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -37,7 +37,7 @@
 #include "base/synchronization/lock.h"
 #include "media/base/demuxer_stream.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 DemuxerStream* FFmpegDemuxer::GetStream(DemuxerStreamType type) {
   for (auto& stream : streams_) {
@@ -111,4 +111,4 @@ bool FFmpegDemuxerStream::EnqueueTextFromDemuxThread(
   return true;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

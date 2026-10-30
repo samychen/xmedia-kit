@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_
-#define AVBASE_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_
+#define XMEDIA_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_
 
 #include <deque>
 
@@ -17,7 +17,7 @@
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Owns the async-Read plumbing shared by LiveDataSource, RetryDataSource and
 // UrlDataSource: a worker thread that drains a queue of (offset, size, data,
@@ -88,6 +88,6 @@ class AsyncDataSourceBase {
   bool stopped_ GUARDED_BY(job_lock_) = false;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_ASYNC_DATA_SOURCE_BASE_H_

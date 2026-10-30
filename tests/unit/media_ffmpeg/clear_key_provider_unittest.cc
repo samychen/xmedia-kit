@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "tests/support/local_http_server.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 class ClearKeyProviderTest : public ::testing::Test {
@@ -53,4 +53,4 @@ TEST_F(ClearKeyProviderTest, AbsurdKeyBodyIsRejected) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

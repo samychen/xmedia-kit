@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,14 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/log_bridge.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 std::once_flag g_once;
 std::atomic<bool> g_initialized{false};
 
 void DoInitialize() {
-#if AVBASE_FFMPEG_NEEDS_REGISTER_ALL
+#if XMEDIA_FFMPEG_NEEDS_REGISTER_ALL
   av_register_all();
 #endif
   media::ffmpeg::InstallLogBridge();
@@ -35,7 +35,7 @@ bool IsFFmpegInitialized() {
 }
 
 // The one definition. It used to be a wrapper delegating to namespace
-// avbase::platform::ffmpeg, where log_bridge.cc held the real one; the two
+// xmedia::platform::ffmpeg, where log_bridge.cc held the real one; the two
 // halves of the FFmpeg code lived in two namespaces and only one of them was
 // allowed to know libav*. Now that all of it is media::ffmpeg, the wrapper
 // became a duplicate symbol that called itself -- so the body moved here and
@@ -70,4 +70,4 @@ std::string GetFFmpegConfigurationSummary() {
   return out;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

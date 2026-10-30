@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,15 +7,15 @@
 // docs/05 table 7 and docs/01 §6 (algorithms and thresholds are inherited,
 // not "improved").
 
-#ifndef AVBASE_MEDIA_BASE_MEDIA_CONSTANTS_H_
-#define AVBASE_MEDIA_BASE_MEDIA_CONSTANTS_H_
+#ifndef XMEDIA_MEDIA_BASE_MEDIA_CONSTANTS_H_
+#define XMEDIA_MEDIA_BASE_MEDIA_CONSTANTS_H_
 
 #include <cstddef>
 #include <cstdint>
 
 #include "base/time/time.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Sentinel for "this timestamp does not exist", replacing the AV_NOPTS_VALUE
 // magic number that ijkplayer passes around as a bare int64. Using TimeDelta's
@@ -68,6 +68,6 @@ inline constexpr int kFrameDropLimit = 120;
 inline constexpr size_t kStateHistoryCapacity = 64;
 inline constexpr size_t kMediaLogEventCapacity = 256;
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_MEDIA_CONSTANTS_H_
+#endif  // XMEDIA_MEDIA_BASE_MEDIA_CONSTANTS_H_

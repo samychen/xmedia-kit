@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // One-to-one mapping from ijkplayer's FFP_MSG_* constants; see docs/05 table 5.
 
-#ifndef AVBASE_PLAYER_PUBLIC_PLAYER_EVENT_H_
-#define AVBASE_PLAYER_PUBLIC_PLAYER_EVENT_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_EVENT_H_
+#define XMEDIA_PLAYER_PUBLIC_PLAYER_EVENT_H_
 
 #include <stdint.h>
 
@@ -22,7 +22,7 @@
 #include "player/public/player_config.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 enum class PlayerState : uint8_t {
   kIdle = 0,
@@ -40,7 +40,7 @@ enum class PlayerState : uint8_t {
 };
 // Stable spelling of |state| for logs and diagnostics; never null.
 // Side effects: none.
-AVBASE_PLAYER_EXPORT const char* GetPlayerStateName(PlayerState state);
+XMEDIA_PLAYER_EXPORT const char* GetPlayerStateName(PlayerState state);
 
 enum class EventType {
   kPrepared,
@@ -72,50 +72,50 @@ enum class EventType {
 };
 // Stable spelling of |type| for logs and diagnostics; never null.
 // Side effects: none.
-AVBASE_PLAYER_EXPORT const char* GetEventTypeName(EventType type);
+XMEDIA_PLAYER_EXPORT const char* GetEventTypeName(EventType type);
 
-struct AVBASE_PLAYER_EXPORT PreparedPayload {
+struct XMEDIA_PLAYER_EXPORT PreparedPayload {
   MediaInfo media_info;
   StageTimings stages;
 };
-struct AVBASE_PLAYER_EXPORT ErrorPayload {
+struct XMEDIA_PLAYER_EXPORT ErrorPayload {
   MediaError error;
 };
-struct AVBASE_PLAYER_EXPORT StateChangedPayload {
+struct XMEDIA_PLAYER_EXPORT StateChangedPayload {
   PlayerState from{PlayerState::kIdle};
   PlayerState to{PlayerState::kIdle};
 };
 // Merges ijkplayer's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401),
 // which could arrive out of order (behaviour difference Δ8).
-struct AVBASE_PLAYER_EXPORT VideoSizeChangedPayload {
+struct XMEDIA_PLAYER_EXPORT VideoSizeChangedPayload {
   media::Size coded_size;
   media::Size natural_size;
   media::Rational sar{1, 1};
 };
-struct AVBASE_PLAYER_EXPORT RotationChangedPayload {
+struct XMEDIA_PLAYER_EXPORT RotationChangedPayload {
   int degrees{0};
   bool mirrored{false};
 };
-struct AVBASE_PLAYER_EXPORT RenderingStartedPayload {
+struct XMEDIA_PLAYER_EXPORT RenderingStartedPayload {
   media::DemuxerStreamType type{media::DemuxerStreamType::kUnknown};
 };
-struct AVBASE_PLAYER_EXPORT DecodingStartedPayload {
+struct XMEDIA_PLAYER_EXPORT DecodingStartedPayload {
   media::DemuxerStreamType type{media::DemuxerStreamType::kUnknown};
   media::VideoDecoderType video_type{media::VideoDecoderType::kUnknown};
   media::AudioDecoderType audio_type{media::AudioDecoderType::kUnknown};
   std::string codec_name;
 };
-struct AVBASE_PLAYER_EXPORT DecoderOpenedPayload {
+struct XMEDIA_PLAYER_EXPORT DecoderOpenedPayload {
   media::DemuxerStreamType type{media::DemuxerStreamType::kUnknown};
   std::string decoder_name;
   bool outputs_opaque_surface{false};
 };
-struct AVBASE_PLAYER_EXPORT DecoderFallbackPayload {
+struct XMEDIA_PLAYER_EXPORT DecoderFallbackPayload {
   std::string from_decoder;
   std::string to_decoder;
   std::string reason;
 };
-struct AVBASE_PLAYER_EXPORT StageReachedPayload {
+struct XMEDIA_PLAYER_EXPORT StageReachedPayload {
   enum class Stage {
     kOpenInput,
     kFindStreamInfo,
@@ -123,7 +123,7 @@ struct AVBASE_PLAYER_EXPORT StageReachedPayload {
   } stage{Stage::kOpenInput};
   base::TimeDelta elapsed_since_prepare;
 };
-struct AVBASE_PLAYER_EXPORT WaitingPayload {
+struct XMEDIA_PLAYER_EXPORT WaitingPayload {
   enum class Reason {
     kBuffering,
     kDecoderStalled,
@@ -131,52 +131,52 @@ struct AVBASE_PLAYER_EXPORT WaitingPayload {
     kKeyRequired
   } reason{Reason::kBuffering};
 };
-struct AVBASE_PLAYER_EXPORT BufferingProgressPayload {
+struct XMEDIA_PLAYER_EXPORT BufferingProgressPayload {
   base::TimeDelta buffered_ahead;
   int percent{0};
 };
-struct AVBASE_PLAYER_EXPORT BufferedUpdatePayload {
+struct XMEDIA_PLAYER_EXPORT BufferedUpdatePayload {
   base::TimeDelta cached_time;
   base::TimeDelta high_water_mark_time;
   size_t cached_bytes{0};
   size_t high_water_mark_bytes{0};
 };
-struct AVBASE_PLAYER_EXPORT SeekCompletedPayload {
+struct XMEDIA_PLAYER_EXPORT SeekCompletedPayload {
   int64_t request_id{0};  // Matches the SeekTo() call; see Δ.
   base::TimeDelta requested;
   base::TimeDelta actual;
   base::TimeDelta load_duration;
   MediaError result;
 };
-struct AVBASE_PLAYER_EXPORT AccurateSeekCompletedPayload {
+struct XMEDIA_PLAYER_EXPORT AccurateSeekCompletedPayload {
   base::TimeDelta position;
 };
-struct AVBASE_PLAYER_EXPORT SeekRenderingStartedPayload {
+struct XMEDIA_PLAYER_EXPORT SeekRenderingStartedPayload {
   media::DemuxerStreamType type{media::DemuxerStreamType::kUnknown};
 };
-struct AVBASE_PLAYER_EXPORT TimedTextPayload {
+struct XMEDIA_PLAYER_EXPORT TimedTextPayload {
   std::string text;
   base::TimeDelta pts;
   base::TimeDelta duration;
   int x{0}, y{0}, w{0}, h{0};
   std::vector<uint8_t> raw_ass;  // Raw ASS packet for hosts that do layout.
 };
-struct AVBASE_PLAYER_EXPORT TrackChangedPayload {
+struct XMEDIA_PLAYER_EXPORT TrackChangedPayload {
   media::DemuxerStreamType type{media::DemuxerStreamType::kUnknown};
   int old_index{-1};
   int new_index{-1};
 };
-struct AVBASE_PLAYER_EXPORT SnapshotCompletedPayload {
+struct XMEDIA_PLAYER_EXPORT SnapshotCompletedPayload {
   base::TimeDelta at;
   std::string file_path;
   MediaError result;
 };
-struct AVBASE_PLAYER_EXPORT StatsPayload {
+struct XMEDIA_PLAYER_EXPORT StatsPayload {
   PlaybackStats stats;
 };
-struct AVBASE_PLAYER_EXPORT FlushedPayload {};
-struct AVBASE_PLAYER_EXPORT CompletedPayload {};
-struct AVBASE_PLAYER_EXPORT HdrUnsupportedPayload {
+struct XMEDIA_PLAYER_EXPORT FlushedPayload {};
+struct XMEDIA_PLAYER_EXPORT CompletedPayload {};
+struct XMEDIA_PLAYER_EXPORT HdrUnsupportedPayload {
   std::string transfer;
 };
 
@@ -190,7 +190,7 @@ using EventPayload = std::variant<
     TrackChangedPayload, SnapshotCompletedPayload, StatsPayload,
     HdrUnsupportedPayload>;
 
-struct AVBASE_PLAYER_EXPORT PlayerEvent {
+struct XMEDIA_PLAYER_EXPORT PlayerEvent {
   EventType type{EventType::kError};
   EventPayload payload;
   base::TimeTicks wall_time;   // When the event was produced.
@@ -201,34 +201,34 @@ struct AVBASE_PLAYER_EXPORT PlayerEvent {
 // Typed accessors. Each returns nullptr when |event| carries a different
 // payload, so a switch on event.type plus one accessor is all a caller needs
 // and std::visit never appears in user code (design rule E7).
-#define AVBASE_DECLARE_EVENT_ACCESSOR(Name, Type) \
-  AVBASE_PLAYER_EXPORT const Type* Name(const PlayerEvent& event)
+#define XMEDIA_DECLARE_EVENT_ACCESSOR(Name, Type) \
+  XMEDIA_PLAYER_EXPORT const Type* Name(const PlayerEvent& event)
 
-AVBASE_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsError, ErrorPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsAccurateSeekCompleted,
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsError, ErrorPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsRotationChanged, RotationChangedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsRenderingStarted, RenderingStartedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsDecodingStarted, DecodingStartedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsStageReached, StageReachedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsBufferingProgress, BufferingProgressPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsBufferedUpdate, BufferedUpdatePayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsSeekCompleted, SeekCompletedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsAccurateSeekCompleted,
                               AccurateSeekCompletedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload);
-AVBASE_DECLARE_EVENT_ACCESSOR(AsStats, StatsPayload);
-#undef AVBASE_DECLARE_EVENT_ACCESSOR
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsTimedText, TimedTextPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsTrackChanged, TrackChangedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsStats, StatsPayload);
+#undef XMEDIA_DECLARE_EVENT_ACCESSOR
 
 // Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj)
 // quadruple — used by the optional C ABI layer and the Android JNI binding so
 // that an existing Java message handler keeps working unchanged.
 // Side effects: none (pure mapping; |obj| in the result borrows the event's
 // strings and stays valid while |event| does).
-struct AVBASE_PLAYER_EXPORT LegacyEvent {
+struct XMEDIA_PLAYER_EXPORT LegacyEvent {
   int what{0};
   int64_t arg1{0};
   int64_t arg2{0};
@@ -240,7 +240,7 @@ struct AVBASE_PLAYER_EXPORT LegacyEvent {
 // Errors: returns false (and leaves |out| defaulted) when |event| has no
 // legacy equivalent. Side effects: none; |out| borrows the event's strings
 // and stays valid only while |event| does.
-AVBASE_PLAYER_EXPORT bool ToLegacyEvent(const PlayerEvent& event,
+XMEDIA_PLAYER_EXPORT bool ToLegacyEvent(const PlayerEvent& event,
                                         LegacyEvent* out);
 
 // Observer interface, for projects that prefer virtual dispatch over a
@@ -249,13 +249,13 @@ AVBASE_PLAYER_EXPORT bool ToLegacyEvent(const PlayerEvent& event,
 // Every callback runs on the event dispatch sequence and must not block;
 // the default implementations ignore the event. Overriding OnEvent() alone
 // receives everything (including the events without a dedicated hook).
-class AVBASE_PLAYER_EXPORT PlayerObserver {
+class XMEDIA_PLAYER_EXPORT PlayerObserver {
  public:
   PlayerObserver(const PlayerObserver&) = delete;
   PlayerObserver& operator=(const PlayerObserver&) = delete;
   virtual ~PlayerObserver() = default;
 
-  // Metadata is ready; the payload mirrors avbase::MediaInfo.
+  // Metadata is ready; the payload mirrors xmedia::MediaInfo.
   virtual void OnPrepared(const PreparedPayload&) {}
   // Playback reached the end (one call per pass with SetLoopCount).
   virtual void OnCompleted(const CompletedPayload&) {}
@@ -280,6 +280,6 @@ class AVBASE_PLAYER_EXPORT PlayerObserver {
   PlayerObserver() = default;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_PLAYER_EVENT_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_PLAYER_EVENT_H_

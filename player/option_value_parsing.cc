@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace avbase {
+namespace xmedia {
 namespace option_internal {
 
 // Edit distance used for the "did you mean" hint. ijkplayer silently ignores
@@ -91,4 +91,4 @@ std::optional<bool> ParseBoolOption(const OptionValue& v) {
 }
 
 }  // namespace option_internal
-}  // namespace avbase
+}  // namespace xmedia

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_BLITTER_H_
-#define AVBASE_RENDER_GL_GL_BLITTER_H_
+#ifndef XMEDIA_RENDER_GL_GL_BLITTER_H_
+#define XMEDIA_RENDER_GL_GL_BLITTER_H_
 
 #include <memory>
 #include <string>
@@ -13,7 +13,7 @@
 #include "render/gl/gl_program.h"
 #include "render/gl/gl_quad.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // Draws a texture over a whole viewport, scaling it to fit: the "copy this
 // texture to that target" step.
@@ -38,7 +38,7 @@ namespace avbase::gl {
 // perfectly plausible frame that is upside down.
 //
 // Borrows the GlApi; both must be destroyed while the context is current.
-class AVBASE_GL_EXPORT GlBlitter {
+class XMEDIA_GL_EXPORT GlBlitter {
  public:
   // Compiles the program and builds the quad. Returns null on failure and,
   // when |error| is non-null, fills it with the compiler/linker log.
@@ -60,6 +60,6 @@ class AVBASE_GL_EXPORT GlBlitter {
   std::unique_ptr<GlQuad> quad_;
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_BLITTER_H_
+#endif  // XMEDIA_RENDER_GL_GL_BLITTER_H_

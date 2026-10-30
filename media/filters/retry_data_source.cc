@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Validates |inner| in the member-initialiser list, i.e. BEFORE |async_| is
@@ -30,7 +30,7 @@ RetryDataSource::RetryDataSource(base::scoped_refptr<DataSource> inner,
                                  Config config)
     : inner_(CheckedInner(std::move(inner))),
       config_(config),
-      async_("avbase-retry-src",
+      async_("xmedia-retry-src",
              base::BindRepeating(&RetryDataSource::ReadBlocking,
                                  base::Unretained(this))) {}
 
@@ -104,4 +104,4 @@ void RetryDataSource::Read(int64_t offset, size_t size, uint8_t* data,
   async_.Read(offset, size, data, std::move(task_runner), std::move(read_cb));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

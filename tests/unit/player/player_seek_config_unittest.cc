@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,7 +27,7 @@
 #include <memory>
 #include <string>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
@@ -36,17 +36,17 @@
 #include "player/public/player_config.h"
 #include "player/public/player_event.h"
 
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
 // Seeking needs a demuxer, so without FFmpeg there is no seek to gate; the
 // suite compiles to nothing rather than registering tests that would skip
 // everywhere (same reasoning as prepare_autostart_unittest.cc).
 #else
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
-#ifndef AVBASE_TESTDATA_DIR
-#error "player_unittests must define AVBASE_TESTDATA_DIR for this suite"
+#ifndef XMEDIA_TESTDATA_DIR
+#error "player_unittests must define XMEDIA_TESTDATA_DIR for this suite"
 #endif
 // The short fixture, deliberately. A 3 s file reaches EOF almost immediately,
 // which is the state a seek lands in whenever playback has run to the end --
@@ -54,7 +54,7 @@ namespace {
 // fixed, so this fixture doubles as the regression net for it: with
 // FFmpegDemuxer::DemuxLoop() parking at EOF instead of returning, 200
 // consecutive runs of this suite are clean (they were 3/120 red before).
-const char* const kLocalUri = AVBASE_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+const char* const kLocalUri = XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
 
 // What the event stream and the callback reported. The handler runs on the
 // player's event sequence, so these outlive it and are read after the wait.
@@ -100,8 +100,8 @@ void OnSeekDone(Probe* probe, Status status) {
 //
 // THE EOF WINDOW (why this helper's history matters). With the 3 s fixture it
 // used to hang in 3 of 120 runs: the seek's renderer half completed,
-// OnSeekDemuxerDone never fired, and a stack sample showed avbase-media AND
-// avbase-demux both idle -- nothing was blocked, something was simply never
+// OnSeekDemuxerDone never fired, and a stack sample showed xmedia-media AND
+// xmedia-demux both idle -- nothing was blocked, something was simply never
 // done. The cause was in the demuxer, not here: FFmpegDemuxer::DemuxLoop()
 // broke out of its loop at AVERROR_EOF while StartPlayingFrom() only
 // publishes pending_seek_ and signals resume_event_, so a seek arriving after
@@ -171,6 +171,6 @@ TEST(PlayerSeekConfigTest, AllowedAccurateSeekRunsTheStateMachine) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG

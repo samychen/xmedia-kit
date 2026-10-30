@@ -1,17 +1,17 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `base/threading/platform_thread.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_THREADING_PLATFORM_THREAD_H_
-#define AVBASE_BASE_THREADING_PLATFORM_THREAD_H_
+#ifndef XMEDIA_BASE_THREADING_PLATFORM_THREAD_H_
+#define XMEDIA_BASE_THREADING_PLATFORM_THREAD_H_
 
 #include <string>
 
 #include "base/base_export.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 enum class ThreadPriority {
   kBackground,
@@ -22,13 +22,13 @@ enum class ThreadPriority {
 namespace platform_thread {
 
 // Sets the OS-visible name of the calling thread. Linux truncates to 15
-// characters, so avbase names stay short: "avbase-media", "avbase-demux",
-// "avbase-video", "avbase-audio", "avbase-event".
-AVBASE_BASE_EXPORT void SetName(const std::string& name);
-AVBASE_BASE_EXPORT std::string GetName();
-AVBASE_BASE_EXPORT void SetCurrentThreadPriority(ThreadPriority priority);
+// characters, so xmedia-kit names stay short: "xmedia-media", "xmedia-demux",
+// "xmedia-video", "xmedia-audio", "xmedia-event".
+XMEDIA_BASE_EXPORT void SetName(const std::string& name);
+XMEDIA_BASE_EXPORT std::string GetName();
+XMEDIA_BASE_EXPORT void SetCurrentThreadPriority(ThreadPriority priority);
 
 }  // namespace platform_thread
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_THREADING_PLATFORM_THREAD_H_
+#endif  // XMEDIA_BASE_THREADING_PLATFORM_THREAD_H_

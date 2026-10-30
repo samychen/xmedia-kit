@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -48,8 +48,8 @@
 //       unimplemented, and a caller waiting on that callback would otherwise
 //       hang, which is the exact failure class Δ15 exists to prevent.
 
-#ifndef AVBASE_MEDIA_BASE_RENDERER_H_
-#define AVBASE_MEDIA_BASE_RENDERER_H_
+#ifndef XMEDIA_MEDIA_BASE_RENDERER_H_
+#define XMEDIA_MEDIA_BASE_RENDERER_H_
 
 #include <optional>
 
@@ -65,7 +65,7 @@
 #include "media/filters/record_tap.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // DRM placeholder, not implemented (decision D8, docs/08 §4).
 class CdmContext;
@@ -74,13 +74,13 @@ class NativeDisplay;
 
 // Which Renderer implementation the pipeline should build.
 enum class RendererType {
-  kRendererImpl = 0,  // Default: FFmpeg decode + avbase's own sinks.
+  kRendererImpl = 0,  // Default: FFmpeg decode + xmedia-kit's own sinks.
   kNullRenderer,      // Headless. platform/null, M10. CI and transcode-style
                       // decode-to-nowhere runs.
   kCastRenderer,      // Reserved; not planned in this milestone set.
 };
 
-AVBASE_MEDIA_EXPORT const char* RendererTypeToString(RendererType type);
+XMEDIA_MEDIA_EXPORT const char* RendererTypeToString(RendererType type);
 
 // Turns demuxed data into audio and video output.
 //
@@ -104,7 +104,7 @@ AVBASE_MEDIA_EXPORT const char* RendererTypeToString(RendererType type);
 // either is a DCHECK in debug builds and a no-op returning kInvalidState in
 // release -- never undefined behaviour, because the caller here is the SDK
 // facade and its users are not in a position to know the sequence rules.
-class AVBASE_MEDIA_EXPORT Renderer {
+class XMEDIA_MEDIA_EXPORT Renderer {
  public:
   Renderer(const Renderer&) = delete;
   Renderer& operator=(const Renderer&) = delete;
@@ -266,6 +266,6 @@ class AVBASE_MEDIA_EXPORT Renderer {
   Renderer();
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_RENDERER_H_
+#endif  // XMEDIA_MEDIA_BASE_RENDERER_H_

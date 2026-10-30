@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,8 +22,8 @@
 // What a real editor adds on top (and what is NOT here): undo/redo, ripple
 // edits, snapping, multi-clip mixing, and the project-file round trip.
 
-#ifndef AVBASE_PLAYER_QT_TIMELINE_MODEL_H_
-#define AVBASE_PLAYER_QT_TIMELINE_MODEL_H_
+#ifndef XMEDIA_PLAYER_QT_TIMELINE_MODEL_H_
+#define XMEDIA_PLAYER_QT_TIMELINE_MODEL_H_
 
 #include <QAbstractListModel>
 #include <QByteArray>
@@ -32,7 +32,7 @@
 #include <QString>
 #include <QVariant>
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 class TimelineModel : public QAbstractListModel {
   Q_OBJECT
@@ -114,6 +114,6 @@ class TimelineModel : public QAbstractListModel {
   const int track_count_{4};
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_TIMELINE_MODEL_H_
+#endif  // XMEDIA_PLAYER_QT_TIMELINE_MODEL_H_

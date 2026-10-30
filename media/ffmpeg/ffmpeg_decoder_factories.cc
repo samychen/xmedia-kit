@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "media/ffmpeg/ffmpeg_audio_decoder.h"
 #include "media/ffmpeg/ffmpeg_video_decoder.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 FFmpegVideoDecoderFactory::FFmpegVideoDecoderFactory(
     base::scoped_refptr<base::SequencedTaskRunner> task_runner)
@@ -53,4 +53,4 @@ std::unique_ptr<AudioDecoder> FFmpegAudioDecoderFactory::CreateAudioDecoder(
   return std::make_unique<FFmpegAudioDecoder>();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

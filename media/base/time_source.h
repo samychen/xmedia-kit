@@ -1,29 +1,29 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/time_source.h` and `wall_clock_time.h`
 // (BSD-3-Clause).
 
-#ifndef AVBASE_MEDIA_BASE_TIME_SOURCE_H_
-#define AVBASE_MEDIA_BASE_TIME_SOURCE_H_
+#ifndef XMEDIA_MEDIA_BASE_TIME_SOURCE_H_
+#define XMEDIA_MEDIA_BASE_TIME_SOURCE_H_
 
 #include <vector>
 
 #include "base/time/time.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A media timestamp paired with the wall-clock instant it should be visible.
 // This is what lets a sink ask "which frame belongs in the refresh window that
 // ends at T?" instead of guessing (see VideoFrameCompositor::Render).
-struct AVBASE_MEDIA_EXPORT WallClockTime {
+struct XMEDIA_MEDIA_EXPORT WallClockTime {
   base::TimeDelta media_time;
   base::TimeTicks wall_time;
 };
 
-class AVBASE_MEDIA_EXPORT TimeSource {
+class XMEDIA_MEDIA_EXPORT TimeSource {
  public:
   TimeSource(const TimeSource&) = delete;
   TimeSource& operator=(const TimeSource&) = delete;
@@ -40,6 +40,6 @@ class AVBASE_MEDIA_EXPORT TimeSource {
   TimeSource() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_TIME_SOURCE_H_
+#endif  // XMEDIA_MEDIA_BASE_TIME_SOURCE_H_

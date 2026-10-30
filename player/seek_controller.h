@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_SEEK_CONTROLLER_H_
-#define AVBASE_PLAYER_SEEK_CONTROLLER_H_
+#ifndef XMEDIA_PLAYER_SEEK_CONTROLLER_H_
+#define XMEDIA_PLAYER_SEEK_CONTROLLER_H_
 
 #include "base/time/time.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 namespace player {
 
 // The accurate-seek policy (docs/08 M9 DoD: ±1 frame), split the same way as
@@ -31,7 +31,7 @@ namespace player {
 //
 // Threading: all state lives on the media sequence (PlayerImpl drives it
 // from there); Evaluate() is static and pure, so tests need no threads.
-class AVBASE_PLAYER_EXPORT SeekController {
+class XMEDIA_PLAYER_EXPORT SeekController {
  public:
   enum class Outcome { kPending, kReached, kExpired };
 
@@ -66,6 +66,6 @@ class AVBASE_PLAYER_EXPORT SeekController {
 };
 
 }  // namespace player
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_SEEK_CONTROLLER_H_
+#endif  // XMEDIA_PLAYER_SEEK_CONTROLLER_H_

@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/data_source.h` (BSD-3-Clause), reduced to what
-// avbase needs. This is the extension point that replaces ijkplayer's ijkio
+// xmedia-kit needs. This is the extension point that replaces ijkplayer's ijkio
 // cache framework: a host supplies its own DataSource (in-app downloader,
-// encrypted stream, disk cache) instead of avbase hooking FFmpeg's protocol
+// encrypted stream, disk cache) instead of xmedia-kit hooking FFmpeg's protocol
 // layer with a patched-in AVInputFormat.
 
-#ifndef AVBASE_MEDIA_BASE_DATA_SOURCE_H_
-#define AVBASE_MEDIA_BASE_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_BASE_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_BASE_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -24,9 +24,9 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
-class AVBASE_MEDIA_EXPORT DataSource
+class XMEDIA_MEDIA_EXPORT DataSource
     : public base::RefCountedThreadSafe<DataSource> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -85,7 +85,7 @@ class AVBASE_MEDIA_EXPORT DataSource
 };
 
 // Reads from an in-memory span. Used by tests and by hosts that download first.
-class AVBASE_MEDIA_EXPORT MemoryDataSource final : public DataSource {
+class XMEDIA_MEDIA_EXPORT MemoryDataSource final : public DataSource {
  public:
   MemoryDataSource(const uint8_t* data, size_t size);
   ~MemoryDataSource() override;
@@ -106,6 +106,6 @@ class AVBASE_MEDIA_EXPORT MemoryDataSource final : public DataSource {
   bool aborted_{false};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_BASE_DATA_SOURCE_H_

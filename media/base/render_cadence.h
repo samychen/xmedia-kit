@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_RENDER_CADENCE_H_
-#define AVBASE_MEDIA_BASE_RENDER_CADENCE_H_
+#ifndef XMEDIA_MEDIA_BASE_RENDER_CADENCE_H_
+#define XMEDIA_MEDIA_BASE_RENDER_CADENCE_H_
 
 #include "base/time/time.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The interval to hand NextFrameDelay() when the sink has no vsync source to
 // block on. Two different things depending on the host, and the difference is
@@ -30,7 +30,7 @@ inline constexpr base::TimeDelta kDefaultFrameInterval =
     base::Milliseconds(1000) / 60;
 
 // What a render loop should do next.
-struct AVBASE_MEDIA_EXPORT FramePacing {
+struct XMEDIA_MEDIA_EXPORT FramePacing {
   // How long to sleep before the next frame. Zero means "go now".
   base::TimeDelta delay;
 
@@ -63,10 +63,10 @@ struct AVBASE_MEDIA_EXPORT FramePacing {
 //
 // Every call is pure -- it takes `now` rather than reading the clock -- so the
 // cadence can be tested without a display, a runner, or a clock.
-AVBASE_MEDIA_EXPORT FramePacing
+XMEDIA_MEDIA_EXPORT FramePacing
 NextFrameDelay(base::TimeTicks frame_start, base::TimeTicks now,
                base::TimeTicks previous_deadline, base::TimeDelta interval);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_RENDER_CADENCE_H_
+#endif  // XMEDIA_MEDIA_BASE_RENDER_CADENCE_H_

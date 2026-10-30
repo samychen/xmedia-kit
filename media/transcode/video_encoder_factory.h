@@ -1,27 +1,27 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_
-#define AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_
+#define XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "media/base/decoder_config.h"       // VideoCodec
 #include "media/filters/decoder_selector.h"  // HwCodecMask, HwCodecFlag
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 class FFmpegVideoEncoder;
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // E5: Encoder factory, symmetric with VideoDecoderFactory. Creates a
 // configured FFmpegVideoEncoder for a given codec. Hardware encoder
@@ -30,7 +30,7 @@ namespace avbase::media::ffmpeg {
 //
 // HwCodecMask controls which codecs the hardware path is allowed to handle,
 // mirroring the decoder side's HwCodecFlag bitmask.
-class AVBASE_MEDIA_EXPORT VideoEncoderFactory
+class XMEDIA_MEDIA_EXPORT VideoEncoderFactory
     : public base::RefCountedThreadSafe<VideoEncoderFactory> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -79,22 +79,22 @@ class AVBASE_MEDIA_EXPORT VideoEncoderFactory
 // Factory creation helpers.
 
 // Software encoder: libx264, mjpeg, etc.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<VideoEncoderFactory> CreateSoftwareVideoEncoderFactory();
 
 // Hardware encoder: macOS/iOS VideoToolbox. Guarded by the build's own
-// AVBASE_ENABLE_VIDEOTOOLBOX, not by __APPLE__: the host knowledge ("this
-// machine has VideoToolbox") lives in cmake/AvbaseOptions.cmake, where the
+// XMEDIA_ENABLE_VIDEOTOOLBOX, not by __APPLE__: the host knowledge ("this
+// machine has VideoToolbox") lives in cmake/XmediaOptions.cmake, where the
 // decoder side already keeps it, and this file only learns what the build
 // enabled. Same vocabulary player/video_decoder_defaults.cc assembles with.
-#if AVBASE_ENABLE_VIDEOTOOLBOX
-AVBASE_MEDIA_EXPORT
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<VideoEncoderFactory> CreateVideoToolboxEncoderFactory();
 #endif
 
 // Hardware encoder: Linux VAAPI, same flag discipline as above.
-#if AVBASE_ENABLE_VAAPI
-AVBASE_MEDIA_EXPORT
+#if XMEDIA_ENABLE_VAAPI
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<VideoEncoderFactory> CreateVaapiEncoderFactory();
 #endif
 
@@ -102,19 +102,19 @@ base::scoped_refptr<VideoEncoderFactory> CreateVaapiEncoderFactory();
 // two above it is not tied to a platform SDK header, just an FFmpeg encoder
 // name, so building it everywhere costs nothing and the factory simply never
 // Initializes where the driver is absent.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 base::scoped_refptr<VideoEncoderFactory> CreateNvencEncoderFactory();
 
 // The build's factory list, highest priority first, in the order the caller
-// should try them. The #if sprawl is expressed in AVBASE_ENABLE_* build flags
+// should try them. The #if sprawl is expressed in XMEDIA_ENABLE_* build flags
 // rather than host macros, so no raw __APPLE__/__linux__ survives in media/
-// (invariant C5) and the host knowledge stays in cmake/AvbaseOptions.cmake.
+// (invariant C5) and the host knowledge stays in cmake/XmediaOptions.cmake.
 //
 // Why the list is assembled HERE and not split the way the decoder side is
 // (specs in platform/hwaccel/, assembly in player/): the split needs a
 // consumer layer above media/ to host the assembly, and transcode has none.
 // Its decoder twin has player as the injection point (docs/02 §6 rule 1);
-// avbase_player deliberately does not link avbase::transcode (docs/02 §4.5 —
+// xmedia_player deliberately does not link xmedia::transcode (docs/02 §4.5 —
 // playback builds must not carry the encoders), and C26 gives media/
 // transcode no exemption for including platform/ (unlike C27, which names
 // transcode explicitly). Moving the list out would delete the working
@@ -122,17 +122,17 @@ base::scoped_refptr<VideoEncoderFactory> CreateNvencEncoderFactory();
 // assembled factories itself — the "configured but not effective" shape
 // docs/TODO §2 exists to hunt. When a transcode consumer above media/ appears,
 // the split becomes mechanical; until then the flags are the honest middle.
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 std::vector<base::scoped_refptr<VideoEncoderFactory>>
 CreateVideoEncoderFactories();
 
 // Select the best encoder factory for |codec| from a list, considering
 // the hw mask. Returns factories in priority order (highest first).
-AVBASE_MEDIA_EXPORT
+XMEDIA_MEDIA_EXPORT
 std::vector<base::scoped_refptr<VideoEncoderFactory>> SelectVideoEncoder(
     const std::vector<base::scoped_refptr<VideoEncoderFactory>>& factories,
     media::VideoCodec codec, media::HwCodecMask hw_mask);
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_VIDEO_ENCODER_FACTORY_H_

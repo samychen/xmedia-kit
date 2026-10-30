@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Every field names the ijkplayer option it replaces, so an existing
 // setOption() call site can be migrated mechanically. Full table: docs/05 §4.
 
-#ifndef AVBASE_PLAYER_PUBLIC_PLAYER_CONFIG_H_
-#define AVBASE_PLAYER_PUBLIC_PLAYER_CONFIG_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_CONFIG_H_
+#define XMEDIA_PLAYER_PUBLIC_PLAYER_CONFIG_H_
 
 #include <stdint.h>
 
@@ -19,7 +19,7 @@
 #include "media/filters/decoder_selector.h"  // DecoderPreference, HwCodecMask
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 enum class SyncMasterType { kAudio = 0, kVideo, kExternal };
 // DecoderPreference and HwCodecMask are defined in media/ (see invariant C22:
@@ -50,7 +50,7 @@ enum class AudioBackend {
 enum class LinuxVideoBackend { kAuto = 0, kSdl2, kGl };
 enum class HdrToneMapping { kNone = 0, kSimple, kAuto };
 
-struct AVBASE_PLAYER_EXPORT DemuxConfig {
+struct XMEDIA_PLAYER_EXPORT DemuxConfig {
   int64_t probe_size{5LL * 1024 * 1024};               // "probesize"
   base::TimeDelta analyze_duration{base::Seconds(5)};  // "analyzeduration"
   bool find_stream_info{true};                         // "find_stream_info"
@@ -61,7 +61,7 @@ struct AVBASE_PLAYER_EXPORT DemuxConfig {
   friend bool operator==(const DemuxConfig&, const DemuxConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT BufferConfig {
+struct XMEDIA_PLAYER_EXPORT BufferConfig {
   bool enabled{true};                     // "packet-buffering"
   size_t max_bytes{15ULL * 1024 * 1024};  // "max-buffer-size"
   size_t min_frames{5};                   // "min-frames"
@@ -77,7 +77,7 @@ struct AVBASE_PLAYER_EXPORT BufferConfig {
   friend bool operator==(const BufferConfig&, const BufferConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT SeekConfig {
+struct XMEDIA_PLAYER_EXPORT SeekConfig {
   // "enable-accurate-seek": whether SeekMode::kAccurate may land on the frame
   // you asked for. Defaults to TRUE here, unlike ijkplayer's 0, because the
   // opt-in already happened per call -- kAccurate is a first-class argument,
@@ -96,7 +96,7 @@ struct AVBASE_PLAYER_EXPORT SeekConfig {
   friend bool operator==(const SeekConfig&, const SeekConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT VideoConfig {
+struct XMEDIA_PLAYER_EXPORT VideoConfig {
   bool disabled{false};  // "vn"
   DecoderPreference decoder_preference{DecoderPreference::kAuto};
   // Which codecs the hardware path may handle; each bit is an HwCodecFlag.
@@ -128,7 +128,7 @@ struct AVBASE_PLAYER_EXPORT VideoConfig {
   friend bool operator==(const VideoConfig&, const VideoConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT AudioConfig {
+struct XMEDIA_PLAYER_EXPORT AudioConfig {
   bool disabled{false};                       // "an"
   double startup_volume{1.0};                 // "volume" (0..100 -> 0..1, Δ6)
   AudioBackend backend{AudioBackend::kAuto};  // "opensles" etc.
@@ -146,7 +146,7 @@ struct AVBASE_PLAYER_EXPORT AudioConfig {
   friend bool operator==(const AudioConfig&, const AudioConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT SubtitleConfig {
+struct XMEDIA_PLAYER_EXPORT SubtitleConfig {
   bool enabled{false};      // "subtitle"
   int selected_stream{-1};  // "sst"
 
@@ -172,7 +172,7 @@ struct AVBASE_PLAYER_EXPORT SubtitleConfig {
                          const SubtitleConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT NetConfig {
+struct XMEDIA_PLAYER_EXPORT NetConfig {
   bool reconnect{true};
   int reconnect_max_retries{3};
   base::TimeDelta reconnect_delay{base::Milliseconds(100)};
@@ -183,7 +183,7 @@ struct AVBASE_PLAYER_EXPORT NetConfig {
   // avio-backed UrlDataSource (CicadaPlayer parity: pinned DNS answers,
   // forced IPv4/IPv6, a proxy, and a low-speed watchdog; user_agent/headers
   // above apply to both transports). Needs a build with
-  // -DAVBASE_ENABLE_CURL=ON; silently ignored otherwise, which is the honest
+  // -DXMEDIA_ENABLE_CURL=ON; silently ignored otherwise, which is the honest
   // behaviour for a config tuned for a build that no longer has the option.
   bool prefer_curl{false};
   // Zero means "do not chase the live edge".
@@ -194,14 +194,14 @@ struct AVBASE_PLAYER_EXPORT NetConfig {
 
 // ABR (cicada-port T4, CicadaPlayer's EnableAbr/SetDefaultBandWidth): only
 // meaningful for multi-variant playlists; a single media playlist ignores it.
-struct AVBASE_PLAYER_EXPORT AbrConfig {
+struct XMEDIA_PLAYER_EXPORT AbrConfig {
   bool enabled{false};               // "enable-abr"
   int64_t initial_bandwidth_bps{0};  // "default-bandwidth"; 0 = highest rung
 
   friend bool operator==(const AbrConfig&, const AbrConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT DataSourceConfig {
+struct XMEDIA_PLAYER_EXPORT DataSourceConfig {
   bool enable_cache{false};  // ijkio master switch (M18)
   std::string cache_dir;
   size_t cache_max_bytes{512ULL * 1024 * 1024};
@@ -210,7 +210,7 @@ struct AVBASE_PLAYER_EXPORT DataSourceConfig {
                          const DataSourceConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT RenderConfig {
+struct XMEDIA_PLAYER_EXPORT RenderConfig {
   bool disable_video_output{false};  // "nodisp"
   bool render_wait_start{false};     // "render-wait-start"
   LinuxVideoBackend linux_backend{LinuxVideoBackend::kAuto};
@@ -223,7 +223,7 @@ struct AVBASE_PLAYER_EXPORT RenderConfig {
   friend bool operator==(const RenderConfig&, const RenderConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT PlayerConfig {
+struct XMEDIA_PLAYER_EXPORT PlayerConfig {
   DemuxConfig demux;
   BufferConfig buffer;
   SeekConfig seek;
@@ -260,7 +260,7 @@ struct AVBASE_PLAYER_EXPORT PlayerConfig {
   friend bool operator==(const PlayerConfig&, const PlayerConfig&) = default;
 };
 
-struct AVBASE_PLAYER_EXPORT ConfigIssue {
+struct XMEDIA_PLAYER_EXPORT ConfigIssue {
   std::string field;    // "buffer.first_high_water_mark"
   std::string problem;  // "must be <= buffer.next_high_water_mark"
   std::string suggestion;
@@ -269,9 +269,9 @@ struct AVBASE_PLAYER_EXPORT ConfigIssue {
 // Returns every problem at once, so a caller can fix them in a single pass
 // instead of discovering them one rebuild at a time.
 // Side effects: none (pure validation).
-AVBASE_PLAYER_EXPORT std::vector<ConfigIssue>
+XMEDIA_PLAYER_EXPORT std::vector<ConfigIssue>
 ValidateConfig(const PlayerConfig& config);
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_PLAYER_CONFIG_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_PLAYER_CONFIG_H_

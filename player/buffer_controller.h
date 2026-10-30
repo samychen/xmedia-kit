@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_BUFFER_CONTROLLER_H_
-#define AVBASE_PLAYER_BUFFER_CONTROLLER_H_
+#ifndef XMEDIA_PLAYER_BUFFER_CONTROLLER_H_
+#define XMEDIA_PLAYER_BUFFER_CONTROLLER_H_
 
 #include "base/time/time.h"
 #include "player/public/player_config.h"
 
-namespace avbase::player {
+namespace xmedia::player {
 
 // The three-tier high-water-mark policy behind PlayerState::kBuffering.
 //
@@ -94,6 +94,6 @@ class BufferController {
   bool enabled_ = true;
 };
 
-}  // namespace avbase::player
+}  // namespace xmedia::player
 
-#endif  // AVBASE_PLAYER_BUFFER_CONTROLLER_H_
+#endif  // XMEDIA_PLAYER_BUFFER_CONTROLLER_H_

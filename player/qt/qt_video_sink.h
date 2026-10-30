@@ -1,27 +1,27 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // The Qt video output endpoint.
 //
-// WHY THIS SHAPE. avbase already ships three window-system sinks (SDL2, GLFW,
+// WHY THIS SHAPE. xmedia-kit already ships three window-system sinks (SDL2, GLFW,
 // EGL) and all three are thin adapters over GlVideoSink: the backend only
 // supplies a NativeGLContext and the shared sink does the drawing. Qt is not
 // one of those, because Qt insists on owning the paint of its own window, and
 // a GL context bound to a QQuickWindow cannot legally be made current from
-// avbase's render thread. Rather than add a fourth window-system backend, this
-// app takes the seam avbase already exposes for exactly this case: a custom
+// xmedia-kit's render thread. Rather than add a fourth window-system backend, this
+// app takes the seam xmedia-kit already exposes for exactly this case: a custom
 // VideoRendererSink. It renders nowhere, polls the compositor at display rate,
 // and hands each frame to the GUI thread through a FrameMailbox.
 //
 // The cost is one YUV->RGB conversion and one texture upload per painted
 // frame, on the CPU. That is fine for a UI skeleton and for 1080p30; a
 // production player should grow a platform/qt/ backend with a NativeGLContext
-// (5 methods -- see render/gl/native_gl_context.h) and let avbase draw straight
+// (5 methods -- see render/gl/native_gl_context.h) and let xmedia-kit draw straight
 // into Qt's FBO. The public shape of this file would not change.
 
-#ifndef AVBASE_PLAYER_QT_QT_VIDEO_SINK_H_
-#define AVBASE_PLAYER_QT_QT_VIDEO_SINK_H_
+#ifndef XMEDIA_PLAYER_QT_QT_VIDEO_SINK_H_
+#define XMEDIA_PLAYER_QT_QT_VIDEO_SINK_H_
 
 #include <atomic>
 #include <memory>
@@ -35,7 +35,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "player/qt/frame_mailbox.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 // A sink that renders nowhere and keeps the newest frame in |mailbox|.
 //
@@ -94,6 +94,6 @@ class QtVideoSinkFactory final : public media::VideoRendererSinkFactory {
   FrameMailbox* mailbox_;
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_QT_VIDEO_SINK_H_
+#endif  // XMEDIA_PLAYER_QT_QT_VIDEO_SINK_H_

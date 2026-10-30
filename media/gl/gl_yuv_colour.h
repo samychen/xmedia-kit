@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,17 +12,17 @@
 // code and no GL error reports.
 //
 // It is not a full colour pipeline: no gamut conversion, no EOTF, no
-// HDR -> SDR tone mapping. avbase has none of those; see docs/TODO 5.
+// HDR -> SDR tone mapping. xmedia-kit has none of those; see docs/TODO 5.
 
-#ifndef AVBASE_MEDIA_GL_GL_YUV_COLOUR_H_
-#define AVBASE_MEDIA_GL_GL_YUV_COLOUR_H_
+#ifndef XMEDIA_MEDIA_GL_GL_YUV_COLOUR_H_
+#define XMEDIA_MEDIA_GL_GL_YUV_COLOUR_H_
 
 #include <array>
 
 #include "media/base/video_color_space.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Rows are (Y, U, V) -> (R, G, B); stored column-major for
 // glUniformMatrix3fv (column 0 = the three Y coefficients, and so on).
@@ -38,8 +38,8 @@ struct YuvMatrix {
 // Unmarked content gets limited-range BT.601, matching sws_scale and libyuv, so
 // the GL path is indistinguishable from the CPU fallback -- which is the only
 // way a difference between the two would ever be noticed.
-AVBASE_MEDIA_EXPORT YuvMatrix SelectYuvMatrix(const VideoColorSpace& cs);
+XMEDIA_MEDIA_EXPORT YuvMatrix SelectYuvMatrix(const VideoColorSpace& cs);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_YUV_COLOUR_H_
+#endif  // XMEDIA_MEDIA_GL_GL_YUV_COLOUR_H_

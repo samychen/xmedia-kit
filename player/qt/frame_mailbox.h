@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// The one-slot hand-off between avbase's render thread and Qt's GUI thread.
+// The one-slot hand-off between xmedia-kit's render thread and Qt's GUI thread.
 //
-// avbase's sink PULLS frames on its own thread (VideoRendererSink is a pull
+// xmedia-kit's sink PULLS frames on its own thread (VideoRendererSink is a pull
 // model -- see media/base/video_renderer_sink.h), while Qt may only paint on
 // the GUI thread, so the frame crosses as a reference swap under a mutex.
 // One slot, not a queue: a display that cannot keep up with the decoder should
@@ -12,8 +12,8 @@
 // reference-counted, so "storing" it costs one atomic increment and never a
 // pixel copy.
 
-#ifndef AVBASE_PLAYER_QT_FRAME_MAILBOX_H_
-#define AVBASE_PLAYER_QT_FRAME_MAILBOX_H_
+#ifndef XMEDIA_PLAYER_QT_FRAME_MAILBOX_H_
+#define XMEDIA_PLAYER_QT_FRAME_MAILBOX_H_
 
 #include <stdint.h>
 
@@ -23,7 +23,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "media/base/video_frame.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 class FrameMailbox {
  public:
@@ -73,6 +73,6 @@ class FrameMailbox {
   int64_t serial_{0};
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_FRAME_MAILBOX_H_
+#endif  // XMEDIA_PLAYER_QT_FRAME_MAILBOX_H_

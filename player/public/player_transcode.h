@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_
-#define AVBASE_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_
+#ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_
+#define XMEDIA_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_
 
 #include <memory>
 #include <string>
@@ -22,13 +22,13 @@
 #include "player/public/player.h"
 #include "player/public/player_config.h"
 
-namespace avbase {
+namespace xmedia {
 
 using PlayerStatus = media::Status;
 
 // The transcode entry on the Player API surface — opt-in by link line
-// (avbase_player_transcode). The Player facade itself deliberately carries
-// no transcode: encoders and the mux writer live in avbase::transcode, a
+// (xmedia_player_transcode). The Player facade itself deliberately carries
+// no transcode: encoders and the mux writer live in xmedia::transcode, a
 // separate target, so a playback-only build does not pay for them
 // (media/CMakeLists.txt, decision D11). Hosts that DO transcode link this
 // target and get an entry that derives its defaults from a PlayerConfig,
@@ -182,6 +182,6 @@ class PlayerTranscoder {
   std::unique_ptr<media::TranscodeJob> job_;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_
+#endif  // XMEDIA_PLAYER_PUBLIC_PLAYER_TRANSCODE_H_

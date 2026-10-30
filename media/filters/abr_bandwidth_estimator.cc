@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 AbrBandwidthEstimator::AbrBandwidthEstimator(Config config) : config_(config) {
   config_.new_sample_weight = std::clamp(config_.new_sample_weight, 0.01, 1.0);
@@ -35,4 +35,4 @@ void AbrBandwidthEstimator::Reset() {
   estimate_bps_ = 0;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

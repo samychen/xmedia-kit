@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,10 +17,10 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/video_convert.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // Extracts extradata as a vector (padded).
 std::vector<uint8_t> CopyExtradata(const uint8_t* data, int size) {
@@ -430,4 +430,4 @@ Status PrepareVideoStream(AVFormatContext* in_ctx, int video_stream_idx,
   return OkStatus();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

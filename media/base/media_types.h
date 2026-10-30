@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/media_types.h` (BSD-3-Clause).
 
-#ifndef AVBASE_MEDIA_BASE_MEDIA_TYPES_H_
-#define AVBASE_MEDIA_BASE_MEDIA_TYPES_H_
+#ifndef XMEDIA_MEDIA_BASE_MEDIA_TYPES_H_
+#define XMEDIA_MEDIA_BASE_MEDIA_TYPES_H_
 
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Mirrors media::DemuxerStream::Type, kept here so that value types can
 // reference it without depending on the DemuxerStream interface.
@@ -21,7 +21,7 @@ enum class DemuxerStreamType {
   kMaxValue = kText,
 };
 
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 GetDemuxerStreamTypeName(DemuxerStreamType type);
 
 enum class VideoDecoderType {
@@ -43,9 +43,9 @@ enum class AudioDecoderType {
   kMock,
 };
 
-AVBASE_MEDIA_EXPORT const char* GetVideoDecoderTypeName(VideoDecoderType type);
-AVBASE_MEDIA_EXPORT const char* GetAudioDecoderTypeName(AudioDecoderType type);
+XMEDIA_MEDIA_EXPORT const char* GetVideoDecoderTypeName(VideoDecoderType type);
+XMEDIA_MEDIA_EXPORT const char* GetAudioDecoderTypeName(AudioDecoderType type);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_MEDIA_TYPES_H_
+#endif  // XMEDIA_MEDIA_BASE_MEDIA_TYPES_H_

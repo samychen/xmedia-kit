@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_PROGRAM_H_
-#define AVBASE_RENDER_GL_GL_PROGRAM_H_
+#ifndef XMEDIA_RENDER_GL_GL_PROGRAM_H_
+#define XMEDIA_RENDER_GL_GL_PROGRAM_H_
 
 #include <functional>
 #include <map>
@@ -13,7 +13,7 @@
 
 #include "render/gl/gl_api.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // A linked vertex+fragment program.
 //
@@ -21,8 +21,8 @@ namespace avbase::gl {
 // while its context is still current -- the same rule GL itself imposes.
 //
 // Borrows the GlApi, which must outlive it. There is no logging here on
-// purpose: a library that wants to be usable outside avbase cannot call
-// avbase's logger, so every failure is reported through an out-parameter and
+// purpose: a library that wants to be usable outside xmedia-kit cannot call
+// xmedia-kit's logger, so every failure is reported through an out-parameter and
 // the caller decides whether it is a warning or a crash.
 class GlProgram {
  public:
@@ -104,6 +104,6 @@ class GlProgram {
   mutable std::map<std::string, int, std::less<>> uniform_locations_;
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_PROGRAM_H_
+#endif  // XMEDIA_RENDER_GL_GL_PROGRAM_H_

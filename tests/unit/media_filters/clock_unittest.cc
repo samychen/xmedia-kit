@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "gtest/gtest.h"
 #include "media/base/media_constants.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // H1: speed 0 must freeze the clock at its anchor. The old `speed > 0 ?
@@ -102,4 +102,4 @@ TEST(ClockTest, InvalidClockStaysInvalid) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

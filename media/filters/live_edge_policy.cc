@@ -1,10 +1,10 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/filters/live_edge_policy.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // static
 bool LiveEdgePolicy::ShouldChase(bool is_live, base::TimeDelta latency_hint,
@@ -24,4 +24,4 @@ base::TimeDelta LiveEdgePolicy::SuggestedTarget(base::TimeDelta live_edge,
   return live_edge - latency_hint / 2;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

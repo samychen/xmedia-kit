@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "base/logging.h"
 #include "media/base/demuxer_stream.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Everything that can be selected. Enough here to bound how high a child's
@@ -136,7 +136,7 @@ MediaInfo CompositeDemuxer::MergeMediaInfo() const {
       // Which source this stream belongs to, for a host offering "source 1's
       // subtitles": the presence of a second source is invisible otherwise,
       // since two sources' identical-looking track lists differ only by this.
-      info.metadata["avbase:source"] = std::to_string(i);
+      info.metadata["xmedia-kit:source"] = std::to_string(i);
       merged.streams.push_back(std::move(info));
     }
   }
@@ -375,4 +375,4 @@ void CompositeDemuxer::OnDemuxerError(MediaError error) {
   }
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

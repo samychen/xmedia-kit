@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_
-#define AVBASE_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_
+#ifndef XMEDIA_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_
+#define XMEDIA_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_
 
 #include "media/base/media_types.h"
 #include "media/ffmpeg/ffmpeg_hw_video_decoder.h"
 
-namespace avbase::platform::hwaccel {
+namespace xmedia::platform::hwaccel {
 
 // Linux VAAPI behind libavcodec's vaapi hwaccel. Frames leave as
 // VASurfaceID-backed VideoFrames; EGL import happens at the display layer,
@@ -28,6 +28,6 @@ inline media::ffmpeg::FFmpegHwDecoderSpec VaapiHwSpec() {
   return spec;
 }
 
-}  // namespace avbase::platform::hwaccel
+}  // namespace xmedia::platform::hwaccel
 
-#endif  // AVBASE_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_
+#endif  // XMEDIA_PLATFORM_HWACCEL_VAAPI_HW_SPEC_H_

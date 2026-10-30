@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -36,10 +36,10 @@
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/ffmpeg_util.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 }  // namespace
 
@@ -223,4 +223,4 @@ void FFmpegDemuxer::StartPlayingFrom(base::TimeDelta time, SeekCB cb) {
   interrupt_count_.fetch_add(1, std::memory_order_relaxed);
   resume_event_.Signal();
 }
-}  // namespace avbase::media
+}  // namespace xmedia::media

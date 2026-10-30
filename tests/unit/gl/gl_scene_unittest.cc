@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -23,14 +23,14 @@
 #include "render/gl/gl_api.h"
 #include "render/gl/gl_framebuffer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-using ::avbase::test::Describe;
-using ::avbase::test::GlTestWindow;
-using ::avbase::test::MakeSolidFrame;
-using ::avbase::test::ReadPixel;
-using ::avbase::test::Rgb;
+using ::xmedia::test::Describe;
+using ::xmedia::test::GlTestWindow;
+using ::xmedia::test::MakeSolidFrame;
+using ::xmedia::test::ReadPixel;
+using ::xmedia::test::Rgb;
 using gl::GlApi;
 using gl::GlFramebuffer;
 
@@ -220,4 +220,4 @@ TEST_F(GlSceneTest, ANonFiniteRectIsRejected) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

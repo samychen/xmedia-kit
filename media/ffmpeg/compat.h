@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Every FFmpeg version difference in avbase is absorbed here. Code outside
+// Every FFmpeg version difference in xmedia-kit is absorbed here. Code outside
 // media/ffmpeg/ uses only these wrappers and never sees an `#if LIBAV*`.
 
-#ifndef AVBASE_MEDIA_FFMPEG_COMPAT_H_
-#define AVBASE_MEDIA_FFMPEG_COMPAT_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_COMPAT_H_
+#define XMEDIA_MEDIA_FFMPEG_COMPAT_H_
 
 #include <map>
 #include <memory>
@@ -19,7 +19,7 @@
 #include "media/base/media_error.h"
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // ---- RAII wrappers ---------------------------------------------------------
 // These replace the 50+ `goto fail` ladders in ijkplayer's ff_ffplay.c: with a
@@ -114,12 +114,12 @@ SwrPtr MakeSwrContext(AVSampleFormat out_format, uint64_t out_layout,
 
 // ---- Timestamps -------------------------------------------------------------
 // AV_NOPTS_VALUE becomes media::kNoTimestamp; no magic INT64_MIN ever escapes
-// into avbase's own code.
+// into xmedia-kit's own code.
 base::TimeDelta ToTimeDelta(int64_t ts, AVRational time_base);
 int64_t FromTimeDelta(base::TimeDelta t, AVRational time_base);
 
 // ---- Errors -----------------------------------------------------------------
-// Translates an AVERROR into avbase's three-part MediaError (docs/10 §4), using
+// Translates an AVERROR into xmedia-kit's three-part MediaError (docs/10 §4), using
 // av_strerror for the human-readable text.
 MediaError ToMediaError(int av_error, std::string_view context);
 MediaError ToMediaError(int av_error, std::string_view context,
@@ -137,6 +137,6 @@ std::vector<std::string> UnconsumedOptions(const AVDictionary* dict);
 std::string AvErrorString(int av_error);
 int64_t PacketDuration(const AVPacket* packet);
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_COMPAT_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_COMPAT_H_

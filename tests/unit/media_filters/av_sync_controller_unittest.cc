@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,7 +17,7 @@
 #include "base/time/simple_test_tick_clock.h"
 #include "gtest/gtest.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 using M = AvSyncController::MasterType;
@@ -97,7 +97,7 @@ TEST_F(AvSyncControllerTest, MasterClockAdvancesWithWallTime) {
 // agree, so this only shows up once the clock origin is non-zero -- i.e. in a
 // real process, where the offset equals negative uptime.
 TEST_F(AvSyncControllerTest, MasterClockIsUnaffectedByWallClockOrigin) {
-  // A host that has been up for 9.2 hours, matching the `avbase-inspect sync`
+  // A host that has been up for 9.2 hours, matching the `xmedia-inspect sync`
   // run that exposed this.
   clock_.Advance(base::Seconds(33185));
   controller_->SetStreamAvailability(/*has_audio=*/true, /*has_video=*/true);
@@ -508,4 +508,4 @@ TEST_F(AvSyncControllerTest, ConcurrentReadersNeverSeeATornClock) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

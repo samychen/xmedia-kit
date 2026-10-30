@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include "media/filters/text_tag_strip.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Tag stripping comes from text_tag_strip.h (shared with the WebVTT
@@ -115,4 +115,4 @@ ParseSrt(std::string_view text, int source_id) {
   return cues;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

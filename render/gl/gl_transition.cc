@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 
 #include "render/gl/gl_shaders.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 namespace {
 
 // Two samplers, two units, named once because each has to agree between the
@@ -110,4 +110,4 @@ void GlTransition::Draw(unsigned int from, unsigned int to, float progress,
   gl_->context().BindTexture(GL_TEXTURE_2D, 0);
 }
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl

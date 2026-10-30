@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,8 +7,8 @@
 // see docs/04 §2.1 (decision D3) for why the demux loop runs on its own
 // blocking thread instead of on the media sequence.
 
-#ifndef AVBASE_MEDIA_FFMPEG_DEMUXER_H_
-#define AVBASE_MEDIA_FFMPEG_DEMUXER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_DEMUXER_H_
+#define XMEDIA_MEDIA_FFMPEG_DEMUXER_H_
 
 #include <stdint.h>
 
@@ -38,7 +38,7 @@
 #include "media/ffmpeg/ffmpeg_glue.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Historical queue envelope (before BufferQueueLimits existed): 256 packets or
 // 7.5 MiB, whichever comes first. Kept as the FFmpegDemuxer constructor default
@@ -48,7 +48,7 @@ inline constexpr BufferQueueLimits kDefaultDemuxerQueueLimits{
     kDefaultQueueMaxBuffers, kDefaultMaxBufferBytes / 2};
 
 // One elementary stream. Owns the DecoderBufferQueue the demux thread fills.
-class AVBASE_MEDIA_EXPORT FFmpegDemuxerStream final : public DemuxerStream {
+class XMEDIA_MEDIA_EXPORT FFmpegDemuxerStream final : public DemuxerStream {
  public:
   FFmpegDemuxerStream(
       DemuxerStreamType type, int32_t index,
@@ -124,7 +124,7 @@ class AVBASE_MEDIA_EXPORT FFmpegDemuxerStream final : public DemuxerStream {
   bool aborted_ GUARDED_BY(lock_){false};
 };
 
-class AVBASE_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
+class XMEDIA_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
  public:
   explicit FFmpegDemuxer(base::scoped_refptr<MediaLog> media_log,
                          BufferQueueLimits limits = kDefaultDemuxerQueueLimits);
@@ -176,7 +176,7 @@ class AVBASE_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
     int64_t request_id{0};
   };
 
-  // ---- demux thread ("avbase-demux") ----
+  // ---- demux thread ("xmedia-demux") ----
   Status OpenOnDemuxThread(const DataSourceDescriptor& source,
                            const DemuxerOptions& options);
   // Builds the AVDictionary that avformat_open_input receives. Split out of
@@ -303,6 +303,6 @@ class AVBASE_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
   base::WeakPtrFactory<FFmpegDemuxer> weak_factory_{this};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_DEMUXER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_DEMUXER_H_

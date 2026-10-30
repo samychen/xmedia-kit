@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include "render/gl/gl_shaders.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 namespace {
 
 // The blitter samples exactly one texture, so its unit is fixed rather than
@@ -56,4 +56,4 @@ void GlBlitter::Blit(unsigned int texture, int dst_width,
   gl_->context().BindTexture(GL_TEXTURE_2D, 0);
 }
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl

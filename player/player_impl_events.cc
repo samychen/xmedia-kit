@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,14 +16,14 @@
 #include <string>
 #include <utility>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "media/base/media_constants.h"
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/ffmpeg_image_snapshot.h"
 #endif
 
-namespace avbase {
+namespace xmedia {
 
 void PlayerImpl::OnMediaSeekDone(int64_t request_id,
                                  base::TimeDelta requested) {
@@ -380,14 +380,14 @@ void PlayerImpl::SetRecordTap(media::RecordTap tap) {
 
 Status PlayerImpl::TakeSnapshot(base::TimeDelta at,
                                 const std::string& file_path) {
-#if !AVBASE_ENABLE_FFMPEG
+#if !XMEDIA_ENABLE_FFMPEG
   (void)at;
   (void)file_path;
   return base::unexpected(MediaError(
       ErrorCode::kNotImplemented,
       "JPEG snapshots are not available in this build",
       "the JPEG writer (media::WriteJpegSnapshot) lives in the FFmpeg layer",
-      "build with -DAVBASE_ENABLE_FFMPEG=ON"));
+      "build with -DXMEDIA_ENABLE_FFMPEG=ON"));
 #else
   PlayerState current;
   {
@@ -431,7 +431,7 @@ Status PlayerImpl::TakeSnapshot(base::TimeDelta at,
           },
           &event_hub_, at, file_path));
   return Status();
-#endif  // !AVBASE_ENABLE_FFMPEG
+#endif  // !XMEDIA_ENABLE_FFMPEG
 }
 
 // kHdrUnsupported had no producer at all until 2026-10-28: the event type, its
@@ -486,4 +486,4 @@ void PlayerImpl::PostHdrUnsupportedIfNeeded(const media::MediaInfo& info) {
                   GetMediaTime());
 }
 
-}  // namespace avbase
+}  // namespace xmedia

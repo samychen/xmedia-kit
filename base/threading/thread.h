@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `base/threading/thread.h` (BSD-3-Clause), restricted to
-// what avbase needs: one TaskQueue-driven sequence per thread.
+// what xmedia-kit needs: one TaskQueue-driven sequence per thread.
 
-#ifndef AVBASE_BASE_THREADING_THREAD_H_
-#define AVBASE_BASE_THREADING_THREAD_H_
+#ifndef XMEDIA_BASE_THREADING_THREAD_H_
+#define XMEDIA_BASE_THREADING_THREAD_H_
 
 #include <atomic>
 #include <string>
@@ -18,12 +18,12 @@
 #include "base/task/task_queue.h"
 #include "base/threading/platform_thread.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // A dedicated thread running a TaskQueue.
 //
-// avbase creates exactly six of these per Player (docs/04 §2): avbase-media,
-// avbase-demux, avbase-video, avbase-audio, avbase-text and avbase-event.
+// xmedia-kit creates exactly six of these per Player (docs/04 §2): xmedia-media,
+// xmedia-demux, xmedia-video, xmedia-audio, xmedia-text and xmedia-event.
 // Each owns a set of objects that only it may touch, which is what
 // SEQUENCE_CHECKER verifies at runtime.
 //
@@ -31,7 +31,7 @@ namespace avbase::base {
 // Because Quit() also makes PostTask() return false, no task can be enqueued
 // against a thread that is going away — the guarantee that makes ~Player()
 // unable to hang on a producer blocked in a full queue (docs/04 §5.4, Δ15).
-class AVBASE_BASE_EXPORT Thread {
+class XMEDIA_BASE_EXPORT Thread {
  public:
   struct Options {
     std::string name;
@@ -78,6 +78,6 @@ class AVBASE_BASE_EXPORT Thread {
   WaitableEvent started_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_THREADING_THREAD_H_
+#endif  // XMEDIA_BASE_THREADING_THREAD_H_

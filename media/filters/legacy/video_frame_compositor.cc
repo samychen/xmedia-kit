@@ -1,16 +1,16 @@
 // Copyright (c) 2013-2026 Zhang Rui <bbcallen@gmail.com>
 // Copyright (c) 2013-2026 Bilibili
 // Copyright (c) 2003-2013 Fabrice Bellard (ffplay.c)
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 //
-// This file is part of avbase.
+// This file is part of xmedia.
 //
-// avbase is free software; you can redistribute it and/or modify it under the
+// xmedia-kit is free software; you can redistribute it and/or modify it under the
 // terms of the GNU Lesser General Public License as published by the Free
 // Software Foundation; either version 2.1 of the License, or (at your option)
 // any later version.
 //
-// avbase is distributed in the hope that it will be useful, but WITHOUT ANY
+// xmedia-kit is distributed in the hope that it will be useful, but WITHOUT ANY
 // WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 // FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
 // details.
@@ -25,7 +25,7 @@
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // its scheduling algorithm is a line-by-line port of ffplay's video_refresh()
 // and compute_target_delay(), which makes it a derivative work of ijkplayer
-// (LGPL-2.1). Everything else in avbase is BSD-3-Clause (see the root LICENSE);
+// (LGPL-2.1). Everything else in xmedia-kit is BSD-3-Clause (see the root LICENSE);
 // ported files are quarantined in media/filters/legacy/ so the boundary is
 // auditable by directory listing rather than by reading every header.
 // Do not move non-ported code in here, and do not move these files out without
@@ -52,7 +52,7 @@
 #include "base/logging.h"
 #include "base/time/default_tick_clock.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Clamps |value| into [lo, hi]. Port of ffplay's av_clip for durations.
@@ -697,4 +697,4 @@ VideoFrameCompositor::Stats VideoFrameCompositor::GetStats() const {
   return stats;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

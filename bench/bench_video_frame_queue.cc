@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -30,13 +30,13 @@
 
 namespace {
 
-using avbase::base::Microseconds;
-using avbase::base::scoped_refptr;
-using avbase::media::Rational;
-using avbase::media::Size;
-using avbase::media::VideoFormat;
-using avbase::media::VideoFrame;
-using avbase::media::VideoFrameQueue;
+using xmedia::base::Microseconds;
+using xmedia::base::scoped_refptr;
+using xmedia::media::Rational;
+using xmedia::media::Size;
+using xmedia::media::VideoFormat;
+using xmedia::media::VideoFrame;
+using xmedia::media::VideoFrameQueue;
 
 // One 1080p frame, built once outside the timed region. The queue moves
 // refptrs and never touches pixels, so frame content is irrelevant to what is
@@ -47,7 +47,7 @@ scoped_refptr<VideoFrame> MakeFrame() {
                                       Microseconds(0), Microseconds(33333), 0);
 }
 
-AVBASE_BENCH(BM_VideoFrameQueue_ReserveCommit) {
+XMEDIA_BENCH(BM_VideoFrameQueue_ReserveCommit) {
   scoped_refptr<VideoFrame> frame = MakeFrame();
   if (!frame) {
     return;  // No frame allocator compiled in; nothing to measure.
@@ -76,7 +76,7 @@ AVBASE_BENCH(BM_VideoFrameQueue_ReserveCommit) {
     }
     sink += static_cast<uint64_t>(out->coded_size().width);
   }
-  avbase::bench::Sink(sink);
+  xmedia::bench::Sink(sink);
   queue.Abort();
 }
 

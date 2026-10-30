@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_SHADERS_H_
-#define AVBASE_RENDER_GL_GL_SHADERS_H_
+#ifndef XMEDIA_RENDER_GL_GL_SHADERS_H_
+#define XMEDIA_RENDER_GL_GL_SHADERS_H_
 
 #include <string>
 
 #include "render/gl/gl_api.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // The header a shader source needs for this context: the right "#version", and
 // on GLSL ES the mandatory precision qualifiers.
@@ -82,6 +82,6 @@ extern const char* const kCrossFadeFragmentShaderBody;
 // select -- only the numbers feeding it.
 extern const char* const kWipeFragmentShaderBody;
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_SHADERS_H_
+#endif  // XMEDIA_RENDER_GL_GL_SHADERS_H_

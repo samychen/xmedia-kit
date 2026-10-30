@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <utility>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // static
 DataSourceDescriptor DataSourceDescriptor::FromUri(std::string_view uri) {
@@ -49,4 +49,4 @@ DataSourceDescriptor::FromSource(base::scoped_refptr<DataSource> source) {
   return d;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

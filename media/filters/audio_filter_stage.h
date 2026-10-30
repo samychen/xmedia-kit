@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_
-#define AVBASE_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_
+#define XMEDIA_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_
 
 #include <memory>
 #include <string>
@@ -13,15 +13,15 @@
 #include "media/base/audio_buffer.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One audio filter-graph stage between the decoder and the render algorithm.
 // Pure interface: the FFmpeg implementation (FFmpegAudioFilter) lives behind
-// the platform layer and is injected by the host, so avbase_media stays
+// the platform layer and is injected by the host, so xmedia_media stays
 // buildable without FFmpeg (G2). Formats in/out are the decoded stream's
 // planar float; a graph that changes them must append its own
 // aresample+aformat tail.
-class AVBASE_MEDIA_EXPORT AudioFilterStage {
+class XMEDIA_MEDIA_EXPORT AudioFilterStage {
  public:
   virtual ~AudioFilterStage() = default;
 
@@ -41,6 +41,6 @@ class AVBASE_MEDIA_EXPORT AudioFilterStage {
 using AudioFilterStageFactory =
     std::function<std::unique_ptr<AudioFilterStage>()>;
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_AUDIO_FILTER_STAGE_H_

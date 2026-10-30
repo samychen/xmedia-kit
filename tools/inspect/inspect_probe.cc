@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect probe`: container and per-stream information.
+// `xmedia-inspect probe`: container and per-stream information.
 
 #include <cinttypes>
 #include <cstdio>
@@ -12,7 +12,7 @@
 #include "media/base/media_log.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 
 namespace {
 
@@ -106,4 +106,4 @@ int RunProbe(const Options& opts) {
   return host.errors().empty() ? 0 : 2;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

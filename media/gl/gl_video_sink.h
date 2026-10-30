@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_VIDEO_SINK_H_
-#define AVBASE_MEDIA_GL_GL_VIDEO_SINK_H_
+#ifndef XMEDIA_MEDIA_GL_GL_VIDEO_SINK_H_
+#define XMEDIA_MEDIA_GL_GL_VIDEO_SINK_H_
 
 #include <atomic>
 #include <memory>
@@ -27,7 +27,7 @@
 #include "media/media_export.h"
 #include "render/gl/overlay.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class GlPresenter;
 
@@ -44,15 +44,15 @@ class GlPresenter;
 // a second implementation. A backend is now a GlOutputTarget, and a named sink
 // subclass -- where one still exists -- is ten lines that install one.
 //
-// Lives under media/ rather than in the avbase_gl module because it is shaped
+// Lives under media/ rather than in the xmedia_gl module because it is shaped
 // by VideoRendererSink and VideoFrame: it is the video pipeline's render
 // thread, not a reusable GL primitive.
 //
 // THREADING: the host owns the window and its context (embedding mode,
 // docs/archive/09 §2). This sink makes the context current only on its own
 // render thread via the gl::NativeGLContext it is given, so the host must not
-// make the context current once it has handed the display to avbase.
-class AVBASE_MEDIA_EXPORT GlVideoSink : public VideoRendererSink {
+// make the context current once it has handed the display to xmedia.
+class XMEDIA_MEDIA_EXPORT GlVideoSink : public VideoRendererSink {
  public:
   // |output| is how this sink reaches a display; it is owned here and outlives
   // every presenter, because a target outlives the context it lent out.
@@ -94,7 +94,7 @@ class AVBASE_MEDIA_EXPORT GlVideoSink : public VideoRendererSink {
   // in particular that the layer is created on the GL thread, so a host that
   // wants to place it does that with an update callback, not here.
   //
-  // This is the whole of what a host has to do to composite a stream avbase is
+  // This is the whole of what a host has to do to composite a stream xmedia-kit is
   // not playing: decode it however it likes, Publish() the frames, and the
   // sink picks them up at the next present.
   std::shared_ptr<GlLayerSource> AddSceneSource(std::string name, int z);
@@ -167,6 +167,6 @@ class AVBASE_MEDIA_EXPORT GlVideoSink : public VideoRendererSink {
   base::TimeTicks next_frame_deadline_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_VIDEO_SINK_H_
+#endif  // XMEDIA_MEDIA_GL_GL_VIDEO_SINK_H_

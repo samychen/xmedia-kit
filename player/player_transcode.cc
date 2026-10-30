@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 #include "base/threading/thread.h"
 #include "media/transcode/ffmpeg_transcode_job.h"
 
-namespace avbase {
+namespace xmedia {
 
 namespace {
 constexpr int64_t kRateFallback = 48000;
@@ -84,7 +84,7 @@ Status PlayerRecorder::Start(const std::string& output_path) {
                                        "a record is already running", {},
                                        "call Stop() first"));
   }
-  auto thread = std::make_unique<base::Thread>("avbase-recorder");
+  auto thread = std::make_unique<base::Thread>("xmedia-recorder");
   if (!thread->Start()) {
     return base::unexpected(
         MediaError(ErrorCode::kSourceReadFailed,
@@ -427,4 +427,4 @@ bool PlayerTranscoder::IsRunning() const {
   return job_->IsRunning();
 }
 
-}  // namespace avbase
+}  // namespace xmedia

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 namespace {
 
 // Reads from |fd| until the blank line that ends the header block. Returns
@@ -335,4 +335,4 @@ void LocalHttpServer::HandleConnection(int fd) {
   }
 }
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

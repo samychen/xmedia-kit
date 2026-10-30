@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,10 +17,10 @@
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/video_convert.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // The JPEG encoder's native input is YUVJ420P (full-range); FFmpeg 6+ also
 // accepts YUV420P but older builds do not, and the mjpeg encoder may simply
@@ -33,7 +33,7 @@ Status EncodeToJpeg(AVCodecContext* ctx, const AVFrame& frame,
     return base::unexpected(MediaError(
         ErrorCode::kDecodeFailed, "the snapshot encoder rejected the frame",
         "avcodec_send_frame: " + ff::AvErrorString(send),
-        "this is an avbase bug; report the event log"));
+        "this is an xmedia-kit bug; report the event log"));
   }
   ff::PacketPtr packet = ff::MakePacket();
   const int receive = avcodec_receive_packet(ctx, packet.get());
@@ -41,7 +41,7 @@ Status EncodeToJpeg(AVCodecContext* ctx, const AVFrame& frame,
     return base::unexpected(MediaError(
         ErrorCode::kDecodeFailed, "the snapshot encoder produced no packet",
         "avcodec_receive_packet: " + ff::AvErrorString(receive),
-        "this is an avbase bug; report the event log"));
+        "this is an xmedia-kit bug; report the event log"));
   }
   out->assign(packet->data, packet->data + packet->size);
   return Status();
@@ -76,10 +76,10 @@ Status WriteJpegSnapshot(const VideoFrame& frame, const std::string& path) {
     return base::unexpected(MediaError(
         ErrorCode::kNotImplemented, "the mjpeg encoder could not be opened",
         "avcodec_open2: " + ff::AvErrorString(open),
-        "this is an avbase bug; report the event log"));
+        "this is an xmedia-kit bug; report the event log"));
   }
 
-  // The frame may arrive in any avbase format and with any stride layout;
+  // The frame may arrive in any xmedia-kit format and with any stride layout;
   // normalize to full-range YUVJ420P through the same converter the decode
   // path uses (unmarked YUV is treated as limited-range BT.601, matching
   // video_convert's default -- snapshots of HD content with an explicit
@@ -91,7 +91,7 @@ Status WriteJpegSnapshot(const VideoFrame& frame, const std::string& path) {
         MediaError(ErrorCode::kInvalidArgument,
                    "the frame's format cannot be converted for a snapshot",
                    "format " + std::to_string(static_cast<int>(frame.format())),
-                   "this is an avbase bug; report the event log"));
+                   "this is an xmedia-kit bug; report the event log"));
   }
   ff::FramePtr src = ff::MakeFrame();
   src->width = width;
@@ -165,4 +165,4 @@ Status WriteJpegSnapshot(const VideoFrame& frame, const std::string& path) {
   return Status();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,12 +1,12 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // memory_demo.cc — 演示 base/memory/ 的核心所有权与生命周期机制。
 //
 // 运行方式（手动，针对已构建的 build/full；库里已含 DCHECK）：
-//   clang++ -std=c++20 -DAVBASE_ENABLE_DCHECK -I. \
-//       examples/base/memory/memory_demo.cc build/full/lib/libavbase_base.a \
+//   clang++ -std=c++20 -DXMEDIA_ENABLE_DCHECK -I. \
+//       examples/base/memory/memory_demo.cc build/full/lib/libxmedia_base.a \
 //       -lpthread -o /tmp/memory_demo
 //   /tmp/memory_demo
 //
@@ -18,7 +18,7 @@
 // 覆盖四个形状：
 //   1. scoped_refptr + MakeRefCounted / WrapRefCounted /
 //   AdoptRef（三种所有权动词）
-//   2. WeakPtr / WeakPtrFactory（跨序列安全 —— avbase 最重要的安全机制）
+//   2. WeakPtr / WeakPtrFactory（跨序列安全 —— xmedia-kit 最重要的安全机制）
 //   3. ptr_util::WrapUnique（独占所有权）
 //   4. raw_ptr<T>（非拥有注解）
 //
@@ -36,7 +36,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 
-using namespace avbase;  // 示例而非 SDK：base/ 与 media/ 直接以 base:: /
+using namespace xmedia;  // 示例而非 SDK：base/ 与 media/ 直接以 base:: /
                          // media:: 引用
 
 namespace {
@@ -131,7 +131,7 @@ void Part2_WeakPtr() {
   }
 
   // (b) 把 WeakPtr 绑进回调：拥有者死后，回调自动变成 no-op（不崩溃）。
-  //     这正是 avbase 最重要的安全机制 —— 从结构上消灭 ijkplayer 防不住的
+  //     这正是 xmedia-kit 最重要的安全机制 —— 从结构上消灭 ijkplayer 防不住的
   //     “player 已释放但回调还在飞” 类崩溃。
   base::OnceClosure task_dead;
   {

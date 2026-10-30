@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# bench_render.sh - end-to-end measurement of avbase's GL render path.
+# bench_render.sh - end-to-end measurement of xmedia-kit's GL render path.
 #
 # Plays synthetic clips through play_glfw with --stats and prints the four
 # stages the sink measures (upload / compose / blit / present), the output frame
@@ -29,7 +29,7 @@
 # across two.)
 #
 # Requires: ffmpeg on PATH (to build the clips), python3, and a build that
-# includes play_glfw (AVBASE_ENABLE_GLFW=ON with glfw3 found) as well as a
+# includes play_glfw (XMEDIA_ENABLE_GLFW=ON with glfw3 found) as well as a
 # display to present to -- this measures the real swap path, so a headless run
 # would report compose cost and no present cost.
 #
@@ -82,7 +82,7 @@ CANVAS="${3:-}"
 SCENE="${SCENE:-}"
 SECOND="${SECOND:-}"
 PLAYER="$BUILD_DIR/bin/play_glfw"
-CLIP_DIR="${TMPDIR:-/tmp}/avbase-bench"
+CLIP_DIR="${TMPDIR:-/tmp}/xmedia-bench"
 
 if [ ! -x "$PLAYER" ]; then
   echo "no play_glfw at $PLAYER" >&2

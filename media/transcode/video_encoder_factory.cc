@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,11 @@
 #include <utility>
 #include <vector>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/logging.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // Software encoder factory: creates libx264/mjpeg encoders.
@@ -166,7 +166,7 @@ base::scoped_refptr<VideoEncoderFactory> CreateSoftwareVideoEncoderFactory() {
   return base::MakeRefCounted<SoftwareVideoEncoderFactory>();
 }
 
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
 base::scoped_refptr<VideoEncoderFactory> CreateVideoToolboxEncoderFactory() {
   HardwareVideoEncoderFactory::Spec spec;
   spec.display_name = "VideoToolbox";
@@ -177,7 +177,7 @@ base::scoped_refptr<VideoEncoderFactory> CreateVideoToolboxEncoderFactory() {
 }
 #endif
 
-#if AVBASE_ENABLE_VAAPI
+#if XMEDIA_ENABLE_VAAPI
 base::scoped_refptr<VideoEncoderFactory> CreateVaapiEncoderFactory() {
   HardwareVideoEncoderFactory::Spec spec;
   spec.display_name = "VAAPI";
@@ -201,10 +201,10 @@ std::vector<base::scoped_refptr<VideoEncoderFactory>>
 CreateVideoEncoderFactories() {
   std::vector<base::scoped_refptr<VideoEncoderFactory>> factories;
   factories.push_back(CreateSoftwareVideoEncoderFactory());
-#if AVBASE_ENABLE_VIDEOTOOLBOX
+#if XMEDIA_ENABLE_VIDEOTOOLBOX
   factories.push_back(CreateVideoToolboxEncoderFactory());
 #endif
-#if AVBASE_ENABLE_VAAPI
+#if XMEDIA_ENABLE_VAAPI
   factories.push_back(CreateVaapiEncoderFactory());
 #endif
   factories.push_back(CreateNvencEncoderFactory());
@@ -228,4 +228,4 @@ std::vector<base::scoped_refptr<VideoEncoderFactory>> SelectVideoEncoder(
   return result;
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

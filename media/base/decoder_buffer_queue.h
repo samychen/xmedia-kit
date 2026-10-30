@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_
-#define AVBASE_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_
+#ifndef XMEDIA_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_
+#define XMEDIA_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_
 
 #include <stdint.h>
 
@@ -23,7 +23,7 @@
 #include "media/base/media_log.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Backpressure envelope for a DecoderBufferQueue, expressed in media-layer
 // terms so it can be derived from a player BufferConfig without media/ ever
@@ -42,7 +42,7 @@ namespace avbase::media {
 // struct default, the demuxer's default envelope and PlayerImpl's translation.
 inline constexpr size_t kDefaultQueueMaxBuffers = 256;
 
-struct AVBASE_MEDIA_EXPORT BufferQueueLimits {
+struct XMEDIA_MEDIA_EXPORT BufferQueueLimits {
   size_t max_buffers = kDefaultQueueMaxBuffers;
   size_t max_bytes = 0;
 };
@@ -81,7 +81,7 @@ inline BufferQueueLimits SplitQueueBudget(const BufferQueueLimits& limits,
 //  3. BOUNDED SHUTDOWN. Abort() wakes every waiter immediately and makes all
 //     further operations fail fast, so ~Player() cannot hang on a producer
 //     blocked against a full queue (docs/04 §5.4, Δ15).
-class AVBASE_MEDIA_EXPORT DecoderBufferQueue {
+class XMEDIA_MEDIA_EXPORT DecoderBufferQueue {
  public:
   enum class PopStatus {
     kOk,           // |out| holds a buffer.
@@ -182,9 +182,9 @@ class AVBASE_MEDIA_EXPORT DecoderBufferQueue {
   std::atomic<uint64_t> pop_waits_{0};
 };
 
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 GetPopStatusName(DecoderBufferQueue::PopStatus s);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_
+#endif  // XMEDIA_MEDIA_BASE_DECODER_BUFFER_QUEUE_H_

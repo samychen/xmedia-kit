@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_
-#define AVBASE_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_
+#ifndef XMEDIA_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_
+#define XMEDIA_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_
 
 #include "render/gl/native_gl_context.h"
 
 struct GLFWwindow;
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // NativeGLContext backed by GLFW. Wraps a host-owned GLFWwindow* (whose GL
 // context is current on the calling thread). Borrowed semantics -- the
@@ -29,6 +29,6 @@ class GlfwGLContext final : public gl::NativeGLContext {
   GLFWwindow* window_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_
+#endif  // XMEDIA_PLATFORM_GLFW_GLFW_GL_CONTEXT_H_

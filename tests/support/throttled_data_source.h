@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_
-#define AVBASE_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_
+#ifndef XMEDIA_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_
+#define XMEDIA_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 // A DataSource that serves its inner source at a capped rate, with fault
 // injection. This is the M9 test rig (docs/08): the three-tier HWM can only
@@ -127,6 +127,6 @@ class ThrottledDataSource final : public DataSource {
   int stalls_ = 0;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_
+#endif  // XMEDIA_TESTS_SUPPORT_THROTTLED_DATA_SOURCE_H_

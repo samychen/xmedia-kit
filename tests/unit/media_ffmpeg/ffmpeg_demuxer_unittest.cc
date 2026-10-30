@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,11 +18,11 @@
 #include "base/test/task_environment.h"
 #include "gtest/gtest.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 std::string TestFile(const char* name) {
-  return std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+  return std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
 }
 
 // Records what a Demuxer::Host is told, so tests can assert on the callbacks
@@ -528,4 +528,4 @@ TEST_F(FFmpegDemuxerTest, SdrSourceIsNotReportedAsHdr) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

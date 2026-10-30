@@ -1,4 +1,4 @@
-# 代码审查报告 — avbase
+# 代码审查报告 — xmedia-kit
 
 - 日期：2026-10-10
 - 范围：全仓 C++ 源码 364 文件 / 58,210 行（`base/` `media/` `player/` `platform/` `tools/` `examples/`）
@@ -41,7 +41,7 @@
 > 等待在途 Dispatch 排空（新增 `event_hub_unittest.cc` 4 用例，均经负向测试证明承重）；
 > C4 `pipeline_`/`renderer_factory_` 改 `shared_ptr` + 快照访问器（~25 处使用点）。修复
 > 过程中被新测试逼出一个**既有潜伏链接缺陷**（no-ffmpeg 下 `WriteJpegSnapshot` 未定义），
-> 一并以 `AVBASE_ENABLE_FFMPEG` 条件编译修复。High 各项待后续消化。
+> 一并以 `XMEDIA_ENABLE_FFMPEG` 条件编译修复。High 各项待后续消化。
 
 > **修复状态（2026-10-10）**：H1–H7 已全部修复，每条均配承重测试并经
 > 负向测试（回滚修复必红）验证——H1 `Clock` 暂停冻结 + `SetSpeed` 按旧速率外推重锚

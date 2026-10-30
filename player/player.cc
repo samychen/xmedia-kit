@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -19,7 +19,7 @@
 #include "base/logging.h"
 #include "player/player_impl.h"
 
-namespace avbase {
+namespace xmedia {
 
 // ---------------------------------------------------------------------------
 // Player
@@ -360,4 +360,4 @@ Result<std::unique_ptr<Player>> PlayerBuilder::Build() {
   return std::make_unique<Player>(impl_->config);
 }
 
-}  // namespace avbase
+}  // namespace xmedia

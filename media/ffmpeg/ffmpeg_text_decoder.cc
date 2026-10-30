@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,10 @@
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 // Flattens one AVSubtitle rect set into a cue. Plain-text rects join with
 // newlines; ASS markup goes verbatim into |ass| so a host that lays out can
@@ -167,7 +167,7 @@ Status FFmpegTextDecoder::Decode(const DecoderBuffer& buffer,
     return base::unexpected(
         MediaError(ErrorCode::kInvalidState, "text decoder is not initialized",
                    "Decode() ran before a successful Initialize()",
-                   "this is an avbase bug; report the event log"));
+                   "this is an xmedia-kit bug; report the event log"));
   }
   auto* storage = buffer.storage_as<ff::AvPacketStorage>();
   if (!storage || !storage->raw()) {
@@ -217,4 +217,4 @@ FFmpegTextDecoderFactory::CreateTextDecoder(const TextDecoderConfig& config) {
   return decoder;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

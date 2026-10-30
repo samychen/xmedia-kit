@@ -1,4 +1,4 @@
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 name: ci
@@ -19,7 +19,7 @@ jobs:
       - run: ctest --preset no-ffmpeg --output-on-failure
 
   # The system-FFmpeg configuration. Until this job existed, everything behind
-  # AVBASE_ENABLE_FFMPEG -- the whole platform_ffmpeg target plus the 35
+  # XMEDIA_ENABLE_FFMPEG -- the whole platform_ffmpeg target plus the 35
   # needs-ffmpeg tests -- was only ever built on a developer machine: the
   # no-ffmpeg gate proves G2, not that the FFmpeg path works. A14 (distro
   # FFmpeg, no patch, no vendoring) is what this asserts.
@@ -101,7 +101,7 @@ jobs:
           # line the CLI prints after re-opening its own output, and the
           # negative case requires BOTH a non-zero exit and the list of
           # encoders this FFmpeg actually has.
-          inspect=build/ffmpeg/bin/avbase-inspect
+          inspect=build/ffmpeg/bin/xmedia-inspect
           tc="$RUNNER_TEMP/transcode"
           mkdir -p "$tc"
           if "$inspect" transcode tests/testdata/small_h264_aac_3s.mp4 \
@@ -281,7 +281,7 @@ jobs:
 
   # The strict-warnings gate: Debug + DCHECKs + -Wconversion/-Wold-style-cast +
   # -Werror, over the FFmpeg layer too. The compiler is clang on purpose: the
-  # strict set adds GCC's -Wuseless-cast (cmake/AvbaseCompilerFlags.cmake),
+  # strict set adds GCC's -Wuseless-cast (cmake/XmediaCompilerFlags.cmake),
   # which has never been vetted against this tree, and a gate that arrives red
   # teaches people to ignore gates. The GCC half of this job is now open:
   # the last blocker (the make_shared<atomic<int>> -Wnull-dereference false
@@ -389,18 +389,18 @@ jobs:
           sudo apt-get install -y ninja-build python3 pkg-config clang             libavformat-dev libavcodec-dev libavutil-dev             libswscale-dev libswresample-dev
       - name: Configure (fuzzer + ASan)
         run: |
-          cmake -B build/fuzz -G Ninja -DAVBASE_ENABLE_FFMPEG=ON \
-            -DAVBASE_BUILD_TESTS=OFF -DAVBASE_BUILD_EXAMPLES=OFF \
-            -DAVBASE_BUILD_FUZZ=ON \
+          cmake -B build/fuzz -G Ninja -DXMEDIA_ENABLE_FFMPEG=ON \
+            -DXMEDIA_BUILD_TESTS=OFF -DXMEDIA_BUILD_EXAMPLES=OFF \
+            -DXMEDIA_BUILD_FUZZ=ON \
             -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_C_FLAGS="-fsanitize=fuzzer,address" \
             -DCMAKE_CXX_FLAGS="-fsanitize=fuzzer,address"
       - run: cmake --build build/fuzz
       - name: Corpus seeds + 60s coverage-guided run
         run: |
-          timeout 60 ./build/fuzz/bin/avbase_fuzz_demuxer \
+          timeout 60 ./build/fuzz/bin/xmedia_fuzz_demuxer \
             tests/fuzz/seeds -max_total_time=60 -rss_limit_mb=2048 || [ $? -eq 124 ]
-          ./build/fuzz/bin/avbase_fuzz_demuxer_standalone --iters 16
+          ./build/fuzz/bin/xmedia_fuzz_demuxer_standalone --iters 16
 
   # Windows / MSVC (docs/12 4.5). The first target on this platform, and the
   # one that has never been built here -- so read the claims below as claims,
@@ -408,7 +408,7 @@ jobs:
   #
   # WHAT IS ACTUALLY KNOWN vs WHAT THIS JOB IS FOR:
   #   * KNOWN: the compiler-flag layer already branches per platform
-  #     (cmake/AvbaseCompilerFlags.cmake: /GR- /EHs-c- for MSVC versus
+  #     (cmake/XmediaCompilerFlags.cmake: /GR- /EHs-c- for MSVC versus
   #     -fno-exceptions -fno-rtti elsewhere), because MSVC has no
   #     -fno-exceptions equivalent. That branch is why the risk was
   #     tractable rather than a rewrite.
@@ -559,8 +559,8 @@ jobs:
           path: ${{ runner.temp }}/corpus_baseline.json
 
   # The C ABI (docs/08 M15). Until this job existed the C ABI had no gate at
-  # all: AVBASE_ENABLE_CAPI was in no preset, so no runner ever compiled
-  # avbase_cabi, and the only acceptance was tools/check_capi.sh -- which
+  # all: XMEDIA_ENABLE_CAPI was in no preset, so no runner ever compiled
+  # xmedia_cabi, and the only acceptance was tools/check_capi.sh -- which
   # carried -mmacosx-version-min and seven hardcoded paths into one developer's
   # pinned-FFmpeg build tree, so it could not have run here even if a job had
   # called it. The consequence was a header that could rot into "compiles under
@@ -570,7 +570,7 @@ jobs:
   #
   # What this asserts is the boundary, not a branch: capi_smoke_test.c is
   # compiled by the C compiler at C99 with -Werror (a C++-ism reaching
-  # avbase_c.h fails here), linked against avbase::cabi, and run to
+  # xmedia_c.h fails here), linked against xmedia::cabi, and run to
   # kCompleted. It needs FFmpeg because the test plays a real file.
   capi:
     needs: ffmpeg
@@ -611,11 +611,11 @@ jobs:
   # That gap is more expensive here than for an ordinary app target, because the
   # mistakes a Qt HOST can make are invisible to every other job in this file:
   #   * the ABI layout macros -- SEQUENCE_CHECKER is a member or nothing
-  #     depending on AVBASE_ENABLE_DCHECK, so a host that does not call
-  #     avbase_configure_abi_definitions() frees frames out from under the
+  #     depending on XMEDIA_ENABLE_DCHECK, so a host that does not call
+  #     xmedia_configure_abi_definitions() frees frames out from under the
   #     compositor;
   #   * -fno-rtti against moc-generated casts, which is why Qt targets must NOT
-  #     go through avbase_configure_target();
+  #     go through xmedia_configure_target();
   #   * AUTOMOC only finding headers beside each source, so a test in
   #     tests/unit/qt/ that uses apps/player_qt/timeline_model.h has to list
   #     that header as a source or the link fails with "missing vtable".
@@ -653,7 +653,7 @@ jobs:
       - run: python3 tools/check_invariants.py --root .
       - run: cmake --build --preset qt
       # find_package(Qt6 ...) is REQUIRED in apps/player_qt, and that directory
-      # FATAL_ERRORs when avbase::platform_qt is missing, so a Qt that is absent
+      # FATAL_ERRORs when xmedia::platform_qt is missing, so a Qt that is absent
       # or too old already fails at configure instead of silently dropping the
       # target. Asserting both artifacts anyway is cheap insurance against the
       # day somebody makes one of those gates optional -- the failure mode this
@@ -661,7 +661,7 @@ jobs:
       # did not run.
       - name: Both Qt artifacts were built
         run: |
-          test -x build/qt/bin/avbase_player_qt
+          test -x build/qt/bin/xmedia_player_qt
           test -x build/qt/bin/qt_unittests
       - run: python3 tools/check_binary_freshness.py --root build/qt
       - name: The timeline model tests are in the ctest set
@@ -688,12 +688,12 @@ jobs:
           sudo apt-get install -y ninja-build python3 pkg-config ffmpeg \
             libavformat-dev libavcodec-dev libavutil-dev \
             libswscale-dev libswresample-dev
-      - run: cmake --preset asan -DAVBASE_BUILD_FUZZ=ON
-      - run: cmake --build --preset asan --target avbase_fuzz_demuxer_standalone
+      - run: cmake --preset asan -DXMEDIA_BUILD_FUZZ=ON
+      - run: cmake --build --preset asan --target xmedia_fuzz_demuxer_standalone
       - name: 10-minute soak under ASan + UBSan
         run: |
           python3 tools/run_soak.py \
-            --driver build/asan/bin/avbase_fuzz_demuxer_standalone \
+            --driver build/asan/bin/xmedia_fuzz_demuxer_standalone \
             --minutes 10 --sample-seconds 15 \
             --out "$RUNNER_TEMP/soak.json"
       - name: Keep the memory curve as an artifact
@@ -798,19 +798,19 @@ jobs:
             libsdl2-dev libglfw3-dev libegl1-mesa-dev
       - name: Configure with every optional backend enabled
         run: |
-          cmake --preset ffmpeg -DAVBASE_ENABLE_SDL2=ON \
-            -DAVBASE_ENABLE_GLFW=ON -DAVBASE_ENABLE_EGL=ON
+          cmake --preset ffmpeg -DXMEDIA_ENABLE_SDL2=ON \
+            -DXMEDIA_ENABLE_GLFW=ON -DXMEDIA_ENABLE_EGL=ON
       # Every optional backend is an `if(<pkg>_FOUND)` gate, not a hard error:
       # a missing dev package drops a whole directory from the build and the
       # configure step still succeeds. The coverage check below would then
       # report the symptom -- "this file is not in the compilation database"
       # -- without naming the cause. Building the three targets explicitly
-      # converts it into "no rule to make target 'avbase_platform_egl'", which
+      # converts it into "no rule to make target 'xmedia_platform_egl'", which
       # says which package did not install.
       - name: The optional backend targets must exist
         run: |
-          cmake --build --preset ffmpeg --target avbase_platform_sdl2 \
-            avbase_platform_glfw avbase_platform_egl
+          cmake --build --preset ffmpeg --target xmedia_platform_sdl2 \
+            xmedia_platform_glfw xmedia_platform_egl
       - run: cmake --build --preset ffmpeg
       - name: The compilation database must cover the whole scope
         run: |
@@ -949,7 +949,7 @@ jobs:
 
   # docs/04 §8 and docs/07 §10 (M13): self-contained micro-benchmarks. No
   # Google Benchmark (it cannot be fetched in the sandbox and the runner should
-  # not have to install it), no FFmpeg (the harness links only avbase::base).
+  # not have to install it), no FFmpeg (the harness links only xmedia::base).
   # This job does NOT hard-fail on regression: the committed baseline is
   # measured on the developer's machine (gate_local --jobs bench uses it), and a
   # single shared CI runner is too noisy for a 10% gate. Here it records the
@@ -962,12 +962,12 @@ jobs:
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y ninja-build g++ python3
       - name: Configure (bench only, no FFmpeg)
-        run: cmake -B build/bench -G Ninja -DAVBASE_BUILD_BENCH=ON -DAVBASE_BUILD_TESTS=OFF -DAVBASE_ENABLE_FFMPEG=OFF
+        run: cmake -B build/bench -G Ninja -DXMEDIA_BUILD_BENCH=ON -DXMEDIA_BUILD_TESTS=OFF -DXMEDIA_ENABLE_FFMPEG=OFF
       - name: Build benchmarks
-        run: cmake --build build/bench --target avbase_benchmarks -j
+        run: cmake --build build/bench --target xmedia_benchmarks -j
       - name: Run benchmarks
         run: |
-          bin="$(find build/bench -name avbase_benchmarks -type f | head -1)"
+          bin="$(find build/bench -name xmedia_benchmarks -type f | head -1)"
           # Three runs appended to one file: check_bench_regression.py takes
           # the median per benchmark. Run-to-run spread dominates
           # round-to-round spread here, and --iters must match the value used

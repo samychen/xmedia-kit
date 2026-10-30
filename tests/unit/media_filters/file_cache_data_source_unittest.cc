@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@
 #include "media/base/data_source.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 std::vector<uint8_t> MakeBody(size_t size) {
@@ -70,7 +70,7 @@ class FileCacheDataSourceTest : public ::testing::Test {
   void SetUp() override {
     body_ = MakeBody(16 * 1024);
     dir_ = (std::filesystem::temp_directory_path() /
-            ("avbase_file_cache_" + std::to_string(++instance_counter) +
+            ("xmedia_file_cache_" + std::to_string(++instance_counter) +
              std::to_string(reinterpret_cast<intptr_t>(this))))
                .string();
     std::filesystem::create_directories(dir_);
@@ -200,4 +200,4 @@ TEST_F(FileCacheDataSourceTest, BudgetCapStopsAppendingButNotServing) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

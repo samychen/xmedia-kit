@@ -34,7 +34,7 @@
 
 **E1 · 零配置可用（Batteries Included）**
 ```cpp
-avbase::Player player;                                  // 自动探测平台后端
+xmedia::Player player;                                  // 自动探测平台后端
 player.SetDataSource("video.mp4");                     // 就这样
 player.PrepareAsync();
 ```
@@ -62,21 +62,21 @@ ijkplayer 的 `ijkmp_seek_to(mp, msec)` 与内部 `pts`（µs）、`audio_clock`
 
 **E7 · 事件用强类型 + 便捷访问器，不强迫用户写 `std::visit`**
 ```cpp
-player.SetEventHandler([](const avbase::PlayerEvent& e) {
+player.SetEventHandler([](const xmedia::PlayerEvent& e) {
   // 方式一：switch（最简单）
   switch (e.type) {
-    case avbase::EventType::kPrepared: player.Start(); break;
-    case avbase::EventType::kError:
-      LOG(ERROR) << avbase::AsError(e)->error.ToString();
+    case xmedia::EventType::kPrepared: player.Start(); break;
+    case xmedia::EventType::kError:
+      LOG(ERROR) << xmedia::AsError(e)->error.ToString();
       break;
     default: break;
   }
 });
 // 方式二：只关心某几种（编译期过滤）
-player.Observe<avbase::ErrorEvent, avbase::CompletedEvent>(
+player.Observe<xmedia::ErrorEvent, xmedia::CompletedEvent>(
     [](const auto& ev) { ... });
 // 方式三：观察者接口（大项目推荐）
-class MyObserver : public avbase::PlayerObserver {
+class MyObserver : public xmedia::PlayerObserver {
   void OnPrepared(const PreparedPayload&) override { ... }
 };
 ```
@@ -87,7 +87,7 @@ class MyObserver : public avbase::PlayerObserver {
 
 **E9 · 析构安全，不需要用户显式 `Release()`**
 ```cpp
-{ avbase::Player p; ... }        // 出作用域自动停止，有超时兜底，绝不卡死
+{ xmedia::Player p; ... }        // 出作用域自动停止，有超时兜底，绝不卡死
 ```
 不需要 `ijkmp_dec_ref` / `ijkmp_shutdown` 的成对调用。
 
@@ -113,10 +113,10 @@ Level 4  + Deps 注入自定义 VideoRendererSink / VideoDecoder / DataSource  /
 #include <cstdio>
 
 int main() {
-  avbase::Player player;
-  player.SetEventHandler([&player](const avbase::PlayerEvent& e) {
-    if (e.type == avbase::EventType::kPrepared) player.Start();
-    if (e.type == avbase::EventType::kCompleted) player.Stop();
+  xmedia::Player player;
+  player.SetEventHandler([&player](const xmedia::PlayerEvent& e) {
+    if (e.type == xmedia::EventType::kPrepared) player.Start();
+    if (e.type == xmedia::EventType::kCompleted) player.Stop();
   });
   if (auto r = player.SetDataSource("video.mp4"); !r) {
     std::fprintf(stderr, "%s\n", r.error().ToString().c_str());
@@ -134,7 +134,7 @@ int main() {
 编译：
 ```bash
 g++ -std=c++20 -fno-exceptions -fno-rtti quickstart.cc \
-    $(pkg-config --cflags --libs avbase) -o quickstart
+    $(pkg-config --cflags --libs xmedia-kit) -o quickstart
 ./quickstart
 ```
 
@@ -153,21 +153,21 @@ int main() {
   XMapWindow(dpy, win);
   XFlush(dpy);
 
-  avbase::Player player;
-  player.SetVideoSurface(avbase::NativeDisplay::FromX11Window({dpy, win}));
-  player.SetEventHandler([&](const avbase::PlayerEvent& e) {
+  xmedia::Player player;
+  player.SetVideoSurface(xmedia::NativeDisplay::FromX11Window({dpy, win}));
+  player.SetEventHandler([&](const xmedia::PlayerEvent& e) {
     switch (e.type) {
-      case avbase::EventType::kPrepared:   player.Start(); break;
-      case avbase::EventType::kError:      HandleError(*avbase::AsError(e)); break;
-      case avbase::EventType::kCompleted:  Quit(); break;
+      case xmedia::EventType::kPrepared:   player.Start(); break;
+      case xmedia::EventType::kError:      HandleError(*xmedia::AsError(e)); break;
+      case xmedia::EventType::kCompleted:  Quit(); break;
       default: break;
     }
   });
 
-  AVBASE_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
-  AVBASE_RETURN_IF_ERROR(player.PrepareAsync());
+  XMEDIA_RETURN_IF_ERROR(player.SetDataSource("video.mp4"));
+  XMEDIA_RETURN_IF_ERROR(player.PrepareAsync());
 
-  // 你自己的事件循环；avbase 不碰你的 Display（见 docs/archive/09 §3.1 铁律）
+  // 你自己的事件循环；xmedia-kit 不碰你的 Display（见 docs/archive/09 §3.1 铁律）
   XEvent ev;
   while (!ShouldQuit()) {
     while (XPending(dpy)) { XNextEvent(dpy, &ev); HandleEvent(ev); }
@@ -181,22 +181,22 @@ int main() {
 ### Level 2 — 调参
 
 ```cpp
-avbase::PlayerConfig config;
+xmedia::PlayerConfig config;
 config.buffer.max_bytes            = 8 * 1024 * 1024;
 config.buffer.max_cached_duration  = base::Seconds(10);
-config.video.decoder_preference    = avbase::DecoderPreference::kHardwareFirst;
+config.video.decoder_preference    = xmedia::DecoderPreference::kHardwareFirst;
 config.video.max_frame_drop        = 8;
 config.seek.accurate               = true;
-config.render.linux_backend        = avbase::LinuxVideoBackend::kGl;
-config.audio.backend               = avbase::AudioBackend::kPulse;
+config.render.linux_backend        = xmedia::LinuxVideoBackend::kGl;
+config.audio.backend               = xmedia::AudioBackend::kPulse;
 
-avbase::Player player(config);
+xmedia::Player player(config);
 ```
 
 ### Level 3 — 从 ijkplayer 配置迁移（字符串选项）
 
 ```cpp
-avbase::PlayerBuilder builder;
+xmedia::PlayerBuilder builder;
 // 你原来的 ijkmp_set_option_int 调用可以几乎原样搬过来
 for (const auto& [cat, key, value] : legacy_options) {
   auto r = builder.SetOption(cat, key, value);
@@ -208,7 +208,7 @@ auto player = std::move(builder.Build().value());
 ### Level 4 — 注入自定义后端
 
 ```cpp
-auto deps = std::make_unique<avbase::Deps>();
+auto deps = std::make_unique<xmedia::Deps>();
 deps->video_renderer_sink_factory = base::MakeRefCounted<MyOpenGLSinkFactory>();
 deps->audio_renderer_sink_factory = base::MakeRefCounted<MyAudioSinkFactory>();
 deps->video_decoder_factories.push_back(std::make_unique<MyVaapiDecoderFactory>());
@@ -216,7 +216,7 @@ deps->data_source_factory = std::make_shared<MyEncryptedDataSourceFactory>();
 deps->logging_delegate = std::make_unique<MyLogger>();
 deps->event_dispatcher = MyUiThreadDispatcher::Create();
 
-avbase::Player player(config, std::move(deps));
+xmedia::Player player(config, std::move(deps));
 ```
 
 ---
@@ -229,11 +229,11 @@ avbase::Player player(config, std::move(deps));
 
 ```cpp
 // player/public/error.h
-namespace avbase {
+namespace xmedia {
 
 enum class ErrorCode : uint16_t { /* 见 03 §2.1 */ };
 
-class AVBASE_PLAYER_EXPORT MediaError {
+class XMEDIA_PLAYER_EXPORT MediaError {
  public:
   MediaError() = default;
   MediaError(ErrorCode code, std::string summary, std::string detail,
@@ -256,7 +256,7 @@ class AVBASE_PLAYER_EXPORT MediaError {
   static MediaError Ok();
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 ```
 
 ### 4.2 三段式格式（强制）
@@ -269,7 +269,7 @@ class AVBASE_PLAYER_EXPORT MediaError {
 ```
 
 **规范**：
-- `summary` ≤ 80 字符，不含换行，主语是"avbase 做了什么失败了"而非"你错了"
+- `summary` ≤ 80 字符，不含换行，主语是"xmedia-kit 做了什么失败了"而非"你错了"
 - `detail` 必须含**实际值**（文件路径、分辨率、codec 名、超时时长），不能只说"失败"
 - `suggestion` 必须是**可执行动作**，指明具体的 API / 配置项 / 命令
 - `native_code` 附上原始错误码并翻译（`av_strerror` / `strerror`）
@@ -427,7 +427,7 @@ DecoderHwFallback: hardware decoding failed, falling back to software
 Timeout: shutdown did not complete in time
   context: Player::~Player
   detail:  timeout = 500 ms (config.shutdown_timeout)
-           still running: avbase-demux (blocked in av_read_frame)
+           still running: xmedia-demux (blocked in av_read_frame)
            diagnostics: { "state": "kStopping", "seek": {"phase":"kWaitingDemux"}, ... }
   hint:    the demuxer thread was blocked in network IO and did not honour the
            interrupt callback in time. Increase config.shutdown_timeout, or
@@ -493,7 +493,6 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 | `docs/BUILDING.md` | 集成者 | 各平台依赖与构建命令 | `docs/` |
 | `docs/API.md` | 集成者 | **Doxygen 生成**，全部 public 头文件 | 构建产物 + GitHub Pages |
 | `docs/COOKBOOK.md` | 集成者 | 20 个任务导向配方（§8） | `docs/` |
-| `docs/MIGRATION.md` | 从 ijkplayer 迁移者 | 基于 [05 迁移对照表](05-迁移对照表.md) + 代码 diff 示例 | `docs/` |
 | `docs/TROUBLESHOOTING.md` | 集成者/运维 | 症状 → 诊断命令 → 常见原因 → 修复（§10） | `docs/` |
 | `docs/EXTENDING.md` | 高级用户 | 如何写自定义 `VideoRendererSink` / `VideoDecoder` / `DataSource`（Level 4） | `docs/` |
 | `docs/ARCHITECTURE.md` | 贡献者 | 本套设计文档 01–09 的入口 | `docs/` |
@@ -524,7 +523,7 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 | `examples/custom_decoder` | 4 | 包装一个假的 `VideoDecoder`（演示接口） | ≤ 200 |
 | `examples/custom_data_source` | 4 | 从内存/自定义下载器播放 | ≤ 200 |
 | `examples/snapshot` | 1 | `TakeSnapshot()` 抽帧 | ≤ 80 |
-| `examples/avbase_inspect` | 2 | 诊断 CLI（dump / play / golden） | ≤ 600 |
+| `examples/xmedia_inspect` | 2 | 诊断 CLI（dump / play / golden） | ≤ 600 |
 
 **每个 example 都有 `--help` 和 `README` 段落**，且都在 CI 里编译（`play_native` / `play_embed` 在 xvfb 下实跑）。
 
@@ -556,7 +555,7 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 | 18 | 直播追帧 | `config.net.live_max_latency` |
 | 19 | 强制软解 / 强制硬解 | `config.video.decoder_preference` + 监听 `kDecoderFallback` |
 | 20 | 把日志接到自己的日志系统 | `Deps::logging_delegate` |
-| 21 | 线上问题排查 | `DumpDiagnostics()` + `avbase-inspect dump` |
+| 21 | 线上问题排查 | `DumpDiagnostics()` + `xmedia-inspect dump` |
 | 22 | 从 ijkplayer 迁移配置 | `PlayerBuilder::SetOption(cat, key, value)` |
 
 每条格式：**问题描述 → 完整可编译代码 → 注意事项 → 相关配置项**。
@@ -567,18 +566,18 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 
 > 2026-10-18（M13）按**实测**重写本表。原表是设计期的意图（vcpkg「✅ M13」
 > 之类），其中 pkg-config 一条从未有过 `.pc` 文件、手工拷贝写的
-> `libavbase.so` 也从未产出过——本仓发静态库。现在每行标注验证状态，
+> `libxmedia.so` 也从未产出过——本仓发静态库。现在每行标注验证状态，
 > 明细与复现步骤在 `packaging/README.md`。
 
 | 方式 | 状态 | 实测结论 |
 |---|---|---|
-| **CMake `find_package`** | ✅ 本地实测 | `find_package(avbase 0.1.0 REQUIRED)` + `avbase::player`（export 名与树内别名一致）；树外 consumer 跑通 configure/build/run。consumer 需启用 C 语言（FFmpeg 版本探针是 `.c`）并让 FFmpeg+libyuv 可达（静态库 LINK_ONLY） |
-| **pkg-config** | ⬜ 未做 | `avbase.pc.in` 从未创建；非 blocker（V4 的另两条已覆盖） |
+| **CMake `find_package`** | ✅ 本地实测 | `find_package(xmedia-kit 0.1.0 REQUIRED)` + `xmedia::player`（export 名与树内别名一致）；树外 consumer 跑通 configure/build/run。consumer 需启用 C 语言（FFmpeg 版本探针是 `.c`）并让 FFmpeg+libyuv 可达（静态库 LINK_ONLY） |
+| **pkg-config** | ⬜ 未做 | `xmedia.pc.in` 从未创建；非 blocker（V4 的另两条已覆盖） |
 | **vcpkg** | ⬜ 已写未跑 | `packaging/vcpkg-portfile.cmake`；未提交 registry、SHA512 占位；等 v0.1.0 tag 后填并实跑一次 |
 | **conan** | ⬜ 已写未跑 | `packaging/conanfile.py`；未提交 conancenter；同上 |
-| **系统包**（TGZ / deb / rpm） | ✅ TGZ 本地实跑 | `cmake/AvbaseInstall.cmake` 的 CPack 段；macOS 上 `cpack -G TGZ` 跑通（`avbase-0.1.0-Darwin.tar.gz`，静态库 + CMake config + 头树齐全且与源布局一致），DEB/RPM 待 Linux release 机 `cpack -G DEB`（dpkg）一次 |
+| **系统包**（TGZ / deb / rpm） | ✅ TGZ 本地实跑 | `cmake/XmediaInstall.cmake` 的 CPack 段；macOS 上 `cpack -G TGZ` 跑通（`xmedia-0.1.0-Darwin.tar.gz`，静态库 + CMake config + 头树齐全且与源布局一致），DEB/RPM 待 Linux release 机 `cpack -G DEB`（dpkg）一次 |
 | **手工拷贝** | ✅ 本地实测 | 头树布局与树内一致（`install(DIRECTORY)` 无尾斜杠——带尾斜杠曾把 `player/` 拍成 `include/public` 少一层）；静态库直接进宿主编译即可 |
-| **源码内嵌**（`add_subdirectory`） | ✅ | install 规则只在顶层工程生效（`AvbaseInstall.cmake` 首行 `return()` 守卫），子项目构建不会往宿主 prefix 里装东西 |
+| **源码内嵌**（`add_subdirectory`） | ✅ | install 规则只在顶层工程生效（`XmediaInstall.cmake` 首行 `return()` 守卫），子项目构建不会往宿主 prefix 里装东西 |
 
 `cpack` 配置要点：
 - `CPACK_DEBIAN_PACKAGE_DEPENDS`：`libc6 (>= 2.31), libstdc++6 (>= 10), libavformat59 | libavformat60 | libavformat61`
@@ -594,28 +593,28 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 见 [07 §11.3](07-测试策略与可观测性.md) 的完整样例。SDK 使用者遇到问题的标准动作：
 
 ```cpp
-LOG(ERROR) << "avbase diagnostics:\n" << player.DumpDiagnostics();
+LOG(ERROR) << "xmedia-kit diagnostics:\n" << player.DumpDiagnostics();
 ```
 
 粘贴这份 JSON 到 issue 里，维护者不需要复现就能定位大部分问题。
 
-### 10.2 `avbase-inspect` CLI
+### 10.2 `xmedia-inspect` CLI
 
 ```bash
-avbase-inspect probe   video.mp4                       # 打印 MediaInfo（不播放）
-avbase-inspect play    video.mp4 --stats 1s            # 播放 + 每秒打印 stats
-avbase-inspect play    video.mp4 --trace sync,sched    # 打开热路径 trace
-avbase-inspect play    video.mp4 --backend gl --log debug
-avbase-inspect dump    --url video.mp4 --duration 30s  # headless 跑 30s 后输出 diagnostics
-avbase-inspect doctor                                  # ★环境自检
-avbase-inspect golden record video.mp4 -o out.jsonl
-avbase-inspect golden diff golden/x.jsonl actual/x.jsonl
+xmedia-inspect probe   video.mp4                       # 打印 MediaInfo（不播放）
+xmedia-inspect play    video.mp4 --stats 1s            # 播放 + 每秒打印 stats
+xmedia-inspect play    video.mp4 --trace sync,sched    # 打开热路径 trace
+xmedia-inspect play    video.mp4 --backend gl --log debug
+xmedia-inspect dump    --url video.mp4 --duration 30s  # headless 跑 30s 后输出 diagnostics
+xmedia-inspect doctor                                  # ★环境自检
+xmedia-inspect golden record video.mp4 -o out.jsonl
+xmedia-inspect golden diff golden/x.jsonl actual/x.jsonl
 ```
 
 `doctor` 子命令输出（**集成失败时的第一站**）：
 
 ```
-avbase 0.1.0 doctor
+xmedia-kit 0.1.0 doctor
 ──────────────────────────────────────────────────────────
 build            : release, shared, C++20, exceptions=OFF rtti=OFF
 ffmpeg           : 7.1 (libavcodec 61.13.100) ............. OK
@@ -636,7 +635,7 @@ display          : 1920x1080 @ 60.00 Hz  scale 1.0
 permissions      : /dev/dri/renderD128 rw ✓   audio group ✓
 issues           : none
 
-Try: avbase-inspect play <file> --backend auto --log debug
+Try: xmedia-inspect play <file> --backend auto --log debug
 ```
 
 ### 10.3 `docs/TROUBLESHOOTING.md` 结构
@@ -644,7 +643,7 @@ Try: avbase-inspect play <file> --backend auto --log debug
 | 症状 | 一键诊断 | 常见原因 | 修复 |
 |---|---|---|---|
 | 黑屏但有声音 | `stats().frames_presented == 0`？`DumpDiagnostics().sink.video` | 没调 `SetVideoSurface` / Surface 已销毁 / GL context 丢失 | Cookbook #5/#6；错误 `SinkNotAttached` |
-| 有画面无声音 | `stats().audio.cached_buffers` 增长但 `audio_glitches` 全是 underrun | 音频后端探测失败降级到 Null | `avbase-inspect doctor`；`config.audio.backend` |
+| 有画面无声音 | `stats().audio.cached_buffers` 增长但 `audio_glitches` 全是 underrun | 音频后端探测失败降级到 Null | `xmedia-inspect doctor`；`config.audio.backend` |
 | 音画不同步 | `stats().av_diff` | 音频延迟未上报（sink 未实现 `hardwareLatency`） | 用官方后端；或检查自定义 sink 的 delay 参数 |
 | seek 后卡住几秒 | `DumpDiagnostics().seek.phase` | serial 处理问题 | 报 bug，附 diagnostics |
 | 首帧慢 | `stats().stages` | `analyze_duration` 太大 / 网络慢 | `config.demux.*` |
@@ -652,7 +651,7 @@ Try: avbase-inspect play <file> --backend auto --log debug
 | 停止时卡住 | 日志里的 "shutdown did not complete" | `demux.timeout` 太大 | 调小 timeout 或调大 `shutdown_timeout` |
 | CPU 占用高 | `stats().video_decode_fps` vs `video_output_fps` | 软解 4K / 无零拷贝 | 开硬解；`prefer_dmabuf_zero_copy` |
 | 内存持续增长 | `stats().heap_bytes_estimate` 趋势 | 自定义 sink 持有 `VideoFrame` 不放 | `EXTENDING.md` 的帧生命周期章节 |
-| 符号冲突（与自带 FFmpeg 的 App） | `nm -D libavbase.so \| grep ' T av'` | 用了非隐藏符号的构建 | 用 release preset（含 `--exclude-libs,ALL`） |
+| 符号冲突（与自带 FFmpeg 的 App） | `nm -D libxmedia.so \| grep ' T av'` | 用了非隐藏符号的构建 | 用 release preset（含 `--exclude-libs,ALL`） |
 
 ---
 
@@ -666,9 +665,9 @@ Try: avbase-inspect play <file> --backend auto --log debug
 | `PlayerConfig` 字段 | minor 只增不改不删；新增字段必须有默认值且放在结构体尾部 |
 | `EventType` / `PlayerEvent` | 只增不减；用户的 `switch` 必须有 `default`（文档明确要求，且编译期 `-Wswitch` 提示新增枚举） |
 | `ErrorCode` | 只增不减 |
-| CMake target 名 `avbase::*` | 稳定 |
+| CMake target 名 `xmedia::*` | 稳定 |
 
-**破坏性变更流程**：先加 deprecated 版本（`AVBASE_DEPRECATED("use SeekTo(TimeDelta, SeekMode, SeekCB)")`）保留 2 个 minor 版本，再删。
+**破坏性变更流程**：先加 deprecated 版本（`XMEDIA_DEPRECATED("use SeekTo(TimeDelta, SeekMode, SeekCB)")`）保留 2 个 minor 版本，再删。
 
 ---
 
@@ -679,27 +678,27 @@ Try: avbase-inspect play <file> --backend auto --log debug
 ```
 [  ] V1  新人冷启动 ≤ 15 分钟（找 3 个未参与项目的人实测，记录用时与卡点）
 [  ] V2  README 每个代码块由 CI 编译（examples/doc_snippets/）
-[  ] V3  最小集成只需 FFmpeg；ldd libavbase.so 无 SDL2/GL/X11/ALSA（dlopen 模式）
+[  ] V3  最小集成只需 FFmpeg；ldd libxmedia.so 无 SDL2/GL/X11/ALSA（dlopen 模式）
       ✅ 2026-10-18（M13）：本仓发静态库，「ldd」无可测对象，按真实形态落成
       tools/check_link_deps.sh —— 两半都有突变反证：① 核心 .a 的 undefined
       符号（demangle 后大小写敏感匹配）不得含后端 API；第一版用 -i 宽匹配
-      把自己家的 avbase::gl::GlApi(NativeGLContext*) 误报成 "egl"（NatvieGLContext
+      把自己家的 xmedia::gl::GlApi(NativeGLContext*) 误报成 "egl"（NatvieGLContext
       里的 eGL），收窄后才可用。② 只 include player/public 头的 TU 在
       FFmpeg-only 路径下 -fsyntax-only 通过。当前两半全绿。
 [  ] V4  CMake / pkg-config / 手工拷贝 三种集成方式各有 CI job 验证
       🔶 2026-10-18（M13）：CMake 与手工拷贝两条**本地实测通过**（install 到
       staging 后树外 consumer 完成 configure/build/run，export 名与树内别名
-      一致 avbase::player；install(DIRECTORY) 尾斜杠曾把 player/ 拍成
-      include/public 少一层，已修）；pkg-config（avbase.pc.in）未做；三条路径
+      一致 xmedia::player；install(DIRECTORY) 尾斜杠曾把 player/ 拍成
+      include/public 少一层，已修）；pkg-config（xmedia.pc.in）未做；三条路径
       的 **CI job 均未建**（沙箱看不到 CI，加 job 需先在本机复刻——见
       packaging/README.md 的复现步骤与 consumer 侧三条须知）。
 [  ] V5  每个 ErrorCode 都有 summary + detail + suggestion，单测断言三段非空
       ✅ 已有：tests/unit/player/error_messages_unittest.cc 对全部 ErrorCode 断言三段非空
 [  ] V6  player/public/**/*.h 不得命名「其他模块」的导出宏（不变量 C29）
       —— 原条目写作「grep 'AV[A-Z]' 为空」，字面执行会连 include guard 与
-      AVBASE_PLAYER_EXPORT 一起禁掉，任何真实头文件都不可能满足；2026-10-18
+      XMEDIA_PLAYER_EXPORT 一起禁掉，任何真实头文件都不可能满足；2026-10-18
       （M13）按真实意图收窄为上述可判定形式，落 tools/check_invariants.py。
-      跨模块导出宏当前 0 命中；`avbase_c.h`（C ABI）不在本规则内。
+      跨模块导出宏当前 0 命中；`xmedia_c.h`（C ABI）不在本规则内。
 [  ] V7  examples/ 不得出现裸 std::thread（不变量 C30）
       —— 原条目写作「grep 'std::thread' 为空」。实测（2026-10-18，M13）发现
       examples/pull_frames.cc 的帧捕获轮询就跑在裸线程上，已改用 base::Thread
@@ -713,11 +712,11 @@ Try: avbase-inspect play <file> --backend auto --log debug
       ✅ 2026-10-18（M13）：落地 `tools/check_comment_coverage.py`——行状态机解析，无 libclang 依赖（CI runner 不必装）。
       实测 170 个 public 声明，exists 170/170 = 100%（硬门禁 ≥95%，rc=1 即红）；full 四维（do/thread/block/error/side，
       含类级与 C ABI 文件级契约继承）103/170 = 60.6% 作报告指标、暂不强门槛——纯 getter/query 本就无 error/side 可答，
-      强行凑齐是设计明确要避的噪音（见工具 docstring）。八份 public 头补全四问注释（player.h / avbase_c.h / scene.h /
-      option_registry.h / playback_stats.h / player_config.h / player_event.h / deps.h）；avbase_c.h 因 C ABI 60 函数
+      强行凑齐是设计明确要避的噪音（见工具 docstring）。八份 public 头补全四问注释（player.h / xmedia_c.h / scene.h /
+      option_registry.h / playback_stats.h / player_config.h / player_event.h / deps.h）；xmedia_c.h 因 C ABI 60 函数
       各补四问已超 C1 单文件 500 行，已在 tools/check_invariants.py 的 LINE_LIMIT_ALLOWLIST 登记豁免（注释增长非逻辑增长）。
       解析器两处 bug 已修：inline `{}` 方法定义此前被吞成一组而漏计（类里第一个之后的 inline 方法整组丢失）；
-      多行返回类型（`AVBASE_PLAYER_EXPORT std::vector<...>` 独占一行、名字在下一行）会吞掉前导注释。修复后覆盖率从被
+      多行返回类型（`XMEDIA_PLAYER_EXPORT std::vector<...>` 独占一行、名字在下一行）会吞掉前导注释。修复后覆盖率从被
       低估的 95.2%（167 声明）升到真实的 100%（170 声明）。
       门禁：`gate_local.sh --jobs commentcov` 与 `ci.yml` 的 `commentcov` job 同构
       （--min-existence-rate 95 --min-full-rate 0，python3 无外部依赖）。
@@ -749,11 +748,11 @@ Try: avbase-inspect play <file> --backend auto --log debug
       ⬜ play_embed 尚未创建（§6 表格里的 Linux 嵌入示例，X11 --wid / Wayland
       --wl-surface / GTK4 宿主）。最小集成示例的职责先由 docs/COOKBOOK.md
       第 1 条（V8）承担；文件建起来后此行按同一 350 行口径验收。
-[  ] avbase-inspect doctor 在干净 Ubuntu 24.04 容器里输出可读的诊断
+[  ] xmedia-inspect doctor 在干净 Ubuntu 24.04 容器里输出可读的诊断
 [x] TROUBLESHOOTING.md 覆盖 ≥ 10 个常见症状
       ✅ 2026-10-18（M13）：T1–T13 共 13 个症状，每条带症状 → 诊断命令 →
       常见原因 → 修复，诊断命令均在本机实跑过。
-[x] MIGRATION.md 覆盖 05 文档的全部 Δ 项
+[x] ~~MIGRATION.md 覆盖 05 文档的全部 Δ 项~~（两份迁移文档已随 ijkplayer 叙事移除）
       ✅ 2026-10-18（M13）：Δ1–Δ22 逐条三栏（设计说法 / 0.1.0 实况附代码
       位置 / 迁移动作）。核验中发现 4 处设计文档与代码漂移（Δ4 进度间隔、
       Δ7 字段名、Δ11 组件缺失、Δ20 死选项），按实况改写并在附录差异表登记。

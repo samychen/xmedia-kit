@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Type bridges between FFmpeg's enums and avbase's. Every mapping that more
+// Type bridges between FFmpeg's enums and xmedia-kit's. Every mapping that more
 // than one file under media/ffmpeg/ needs lives here, exactly once.
 //
 // Why this file and not compat.h: compat.h absorbs FFmpeg *version*
@@ -22,20 +22,20 @@
 // is what the unmapped cases return: it lets one table serve both "unknown is
 // an error" (probe: kUnknown) and "keep what we had" (decode: current format).
 
-#ifndef AVBASE_MEDIA_FFMPEG_FFMPEG_UTIL_H_
-#define AVBASE_MEDIA_FFMPEG_FFMPEG_UTIL_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_FFMPEG_UTIL_H_
+#define XMEDIA_MEDIA_FFMPEG_FFMPEG_UTIL_H_
 
 #include "media/base/audio_parameters.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 // ---- Pixel formats ---------------------------------------------------------
-// AV_PIX_FMT_NONE for the formats avbase has no equivalent for (kYUY2,
+// AV_PIX_FMT_NONE for the formats xmedia-kit has no equivalent for (kYUY2,
 // kYUV420P10): the caller must treat that as "cannot express" and fail or
 // convert, never as a valid destination. YV12 deliberately maps to
-// AV_PIX_FMT_YUV420P: avbase's YV12 is the same plane set with V and U
+// AV_PIX_FMT_YUV420P: xmedia-kit's YV12 is the same plane set with V and U
 // swapped, which only matters to code that reads planes positionally.
 [[nodiscard]] AVPixelFormat ToAvPixelFormat(media::VideoFormat format);
 
@@ -63,6 +63,6 @@ FromAvSampleFormat(AVSampleFormat format, media::SampleFormat fallback);
 // context" rule is written once instead of once per file.
 [[nodiscard]] AVFormatContext* AsFormatContext(void* raw);
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg
 
-#endif  // AVBASE_MEDIA_FFMPEG_FFMPEG_UTIL_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_FFMPEG_UTIL_H_

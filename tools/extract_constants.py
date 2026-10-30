@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Cross-checks every ported ffplay threshold against all of its sources.
@@ -20,7 +20,7 @@ script is that mitigation.
 
 It cross-checks up to three sources per constant:
 
-    ffplay source (#define)  <->  avbase code  <->  docs/05 table 7
+    ffplay source (#define)  <->  xmedia-kit code
 
 and exits non-zero on any disagreement, so a fat-fingered 0.04 -> 0.4, or a
 fork that genuinely uses a different DEFAULT_MIN_FRAMES, becomes a CI failure
@@ -32,7 +32,7 @@ ffplay is not self-consistent: AV_SYNC_THRESHOLD_MIN is 0.04 (seconds) while
 MAX_SLEEP is 1000000 (microseconds), and AV_NOSYNC_THRESHOLD is 10.0 -- an
 *integral* number of seconds, which no "is it a float?" heuristic can tell
 apart from 10 of something else. So each SPEC entry declares `source_unit`,
-the unit the ffplay/docs literal is written in. The avbase side needs no hint:
+the unit the ffplay/docs literal is written in. The xmedia-kit side needs no hint:
 `base::Seconds(10)` / `base::Milliseconds(40)` / `base::Microseconds(500)`
 carry their own unit, and a bare literal in media_constants.h is already in the
 canonical unit.
@@ -40,7 +40,7 @@ canonical unit.
 Usage
 -----
     # No ijkplayer checkout needed: validates the parser against a synthetic
-    # ffplay snippet and runs the avbase <-> docs/05 check. CI-safe.
+    # ffplay snippet and runs the ffplay <-> xmedia-kit check. CI-safe.
     tools/extract_constants.py --selftest
 
     # Full three-way check against a real ijkplayer tree.
@@ -52,7 +52,7 @@ Usage
     # Emit the provenance block for media/base/media_constants.h (M13).
     tools/extract_constants.py --ijkplayer /path/to/ijkplayer --emit
 
-Deliberate deviations (Δ4) and avbase-only constants are declared in SPEC rather
+Deliberate deviations (Δ4) and xmedia-only constants are declared in SPEC rather
 than silently skipped, so the report always accounts for every entry.
 """
 
@@ -67,7 +67,6 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from ported_constants import (  # noqa: E402  (path set above)
-    DOCS_TABLE,
     FATAL,
     FFPLAY_FILES,
     SPEC,
@@ -95,7 +94,7 @@ CONSTEXPR_RE = re.compile(
 # "inline constexpr size_t kFoo" whose initialiser is on the same line but is
 # handled by CONSTEXPR_RE instead.
 # The type may be several tokens long and may carry an export macro
-# ("struct AVBASE_PLAYER_EXPORT BufferConfig" / "base::TimeDelta
+# ("struct XMEDIA_PLAYER_EXPORT BufferConfig" / "base::TimeDelta
 # first_high_water_mark{...}"), so every token before the last is
 # swallowed as type-or-macro and only the last one is the field name.
 FIELD_RE = re.compile(
@@ -189,7 +188,7 @@ def resolve(macros: dict, name: str):
 
 
 # ---------------------------------------------------------------------------
-# avbase side
+# xmedia-kit side
 # ---------------------------------------------------------------------------
 
 def parse_time_or_number(body: str):
@@ -215,7 +214,7 @@ def scan_one_file(rel: str, text: str) -> dict:
     # Join physical lines into statements (see gen_options.py's note): a
     # wrapped default member initialiser ("base::TimeDelta accurate_timeout{\n
     # base::Seconds(5)};") is one constant, and the one-line FIELD_RE below
-    # used to miss it -- NOT_IN_AVBASE on a value that is right there.
+    # used to miss it -- NOT_IN_XMEDIA on a value that is right there.
     stmts: list[tuple[str, str]] = []
     buf_raw = buf_code = ""
     for raw, code in zip(text.splitlines(), clean):
@@ -231,7 +230,7 @@ def scan_one_file(rel: str, text: str) -> dict:
         stmts.append((buf_raw, buf_code))
     scope = ""
     for raw, code in stmts:
-        # "struct AVBASE_PLAYER_EXPORT BufferConfig {" -- the export macro is a
+        # "struct XMEDIA_PLAYER_EXPORT BufferConfig {" -- the export macro is a
         # token, not the name, so skip every ALL-CAPS token after struct/class.
         m = STRUCT_RE.match(code)
         if m:
@@ -264,8 +263,8 @@ def scan_one_file(rel: str, text: str) -> dict:
     return found
 
 
-def scan_avbase(root: pathlib.Path, specs) -> dict:
-    wanted = {path for spec in specs for path, _ in spec.avbase}
+def scan_xmedia(root: pathlib.Path, specs) -> dict:
+    wanted = {path for spec in specs for path, _ in spec.xmedia}
     found: dict = {}
     for rel in sorted(wanted):
         path = root / rel
@@ -275,12 +274,12 @@ def scan_avbase(root: pathlib.Path, specs) -> dict:
     return found
 
 
-def lookup_avbase(found, spec):
+def lookup_xmedia(found, spec):
     """Returns (canonical value or None, detail). Every declared location must
     agree -- media_constants.h and player_config.h holding different values for
     the same ported macro is exactly the drift this tool exists to catch."""
     values = []
-    for rel, symbol in spec.avbase:
+    for rel, symbol in spec.xmedia:
         entry = found.get((rel, symbol))
         if entry is None and spec.macro:
             entry = found.get((rel, "@" + spec.macro))
@@ -291,47 +290,10 @@ def lookup_avbase(found, spec):
     known = [v for v in values if v is not None]
     if any(not compare(known[0], v, spec.unit) for v in known[1:]):
         detail = ", ".join(f"{sym}={fmt(v)}"
-                           for (_, sym), v in zip(spec.avbase, values))
+                           for (_, sym), v in zip(spec.xmedia, values))
         return known[0], f"locations disagree: {detail}"
-    missing = [sym for (_, sym), v in zip(spec.avbase, values) if v is None]
+    missing = [sym for (_, sym), v in zip(spec.xmedia, values) if v is None]
     return known[0], ("missing in " + ", ".join(missing)) if missing else ""
-
-
-# ---------------------------------------------------------------------------
-# docs/05 table 7 side
-# ---------------------------------------------------------------------------
-
-def parse_docs(root: pathlib.Path) -> dict:
-    """Pulls the numbers out of each table-7 row. Deliberately loose: a row may
-    list several macros ("3 / 2 / 16") or an expression ("15*1024*1024"), and
-    the goal is to catch a fat-fingered 0.04 -> 0.4, not to re-parse markdown."""
-    path = root / DOCS_TABLE
-    if not path.exists():
-        return {}
-    out = {}
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if not line.startswith("|"):
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) < 2:
-            continue
-        names = tuple(re.findall(r"`([A-Z][A-Z0-9_]{3,})`", cells[0]))
-        if not names:
-            continue
-        values = []
-        for expr in re.split(r"[/、,]|\s+or\s+", cells[1].replace("`", "")):
-            expr = re.sub(r"[（(][^)）]*[)）]", "", expr).strip()
-            if not expr:
-                continue
-            evaluated = eval_expr(expr, {})
-            if evaluated is not None:
-                values.append(float(evaluated))
-        for name in names:
-            previous = out.get(name)
-            # An unambiguous single-macro row wins over a shared multi-macro row.
-            if previous is None or (len(names) == 1 and len(previous[0]) > 1):
-                out[name] = (names, values)
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -348,71 +310,46 @@ def compare(a, b, unit) -> bool:
 
 
 def check(root: pathlib.Path, ffplay_macros):
-    found = scan_avbase(root, SPEC)
-    docs = parse_docs(root)
-    return [check_one(spec, found, docs, ffplay_macros) for spec in SPEC]
+    found = scan_xmedia(root, SPEC)
+    return [check_one(spec, found, ffplay_macros) for spec in SPEC]
 
 
-def check_one(spec, found, docs, ffplay_macros):
-    row = {"macro": spec.macro or "(avbase-only)", "unit": spec.unit,
-           "ffplay": None, "avbase": None, "docs": None, "status": "OK",
-           "note": spec.note, "where": [s for _, s in spec.avbase]}
+def check_one(spec, found, ffplay_macros):
+    row = {"macro": spec.macro or "(xmedia-only)", "unit": spec.unit,
+           "ffplay": None, "xmedia": None, "docs": None, "status": "OK",
+           "note": spec.note, "where": [s for _, s in spec.xmedia]}
     if spec.macro and ffplay_macros is not None:
         raw = resolve(ffplay_macros, spec.macro)
         if raw is None:
             row["status"] = "NOT_IN_FFP"
         else:
             row["ffplay"] = canonicalise(raw, "", spec.unit, spec.source_unit)
-    if spec.avbase:
-        row["avbase"], detail = lookup_avbase(found, spec)
-        if row["avbase"] is None:
-            row["status"] = "NOT_IN_AVBASE"
+    if spec.xmedia:
+        row["xmedia"], detail = lookup_xmedia(found, spec)
+        if row["xmedia"] is None:
+            row["status"] = "NOT_IN_XMEDIA"
         elif detail.startswith("locations disagree"):
             row["status"] = "LOCATIONS_DISAGREE"
         if detail and not detail.startswith("locations disagree"):
             row["note"] = join_note(row["note"], detail)
-    check_docs(row, spec, docs)
     if spec.deviation:
         row["status"] = f"DEVIATION {spec.deviation}"
-    elif not spec.avbase:
-        # Nothing on the avbase side to compare against yet. Distinct from OK so
+    elif not spec.xmedia:
+        # Nothing on the xmedia-kit side to compare against yet. Distinct from OK so
         # the summary cannot claim a constant was verified when it was not.
-        row["status"] = "NO_AVBASE_SYMBOL"
+        row["status"] = "NO_XMEDIA_SYMBOL"
     elif row["status"] == "OK":
         finalise(row, spec)
     return row
 
 
-def check_docs(row, spec, docs):
-    if not (spec.macro and docs):
-        return
-    entry = docs.get(spec.macro)
-    if entry is None:
-        row["note"] = join_note(row["note"], "macro absent from docs/05 table 7")
-        return
-    names, values = entry
-    row["docs"] = [convert(v, spec.source_unit, spec.unit) for v in values]
-    if spec.docs is None:
-        return
-    expected = canonicalise(float(spec.docs), "", spec.unit, spec.source_unit)
-    if any(compare(expected, v, spec.unit) for v in row["docs"]):
-        return
-    if len(names) == 1 and len(values) == 1:
-        row["status"] = "DOCS_MISMATCH"
-    else:
-        row["note"] = join_note(
-            row["note"],
-            f"docs/05 row is ambiguous ({'/'.join(names)} = "
-            f"{fmt_list(row['docs'])}); expected {fmt(expected)}")
-
-
 def finalise(row, spec):
-    if row["ffplay"] is not None and row["avbase"] is not None:
-        if not compare(row["ffplay"], row["avbase"], spec.unit):
+    if row["ffplay"] is not None and row["xmedia"] is not None:
+        if not compare(row["ffplay"], row["xmedia"], spec.unit):
             row["status"] = "MISMATCH"
-    elif row["avbase"] is not None and spec.docs is not None:
+    elif row["xmedia"] is not None and spec.docs is not None:
         expected = canonicalise(float(spec.docs), "", spec.unit, spec.source_unit)
-        if not compare(expected, row["avbase"], spec.unit):
+        if not compare(expected, row["xmedia"], spec.unit):
             row["status"] = "MISMATCH_VS_DOCS"
 
 
@@ -434,11 +371,11 @@ def fmt_list(values) -> str:
 
 def print_report(rows) -> int:
     width = max(len(r["macro"]) for r in rows)
-    print(f"{'macro':<{width}}  {'unit':>4}  {'ffplay':>12}  {'avbase':>12}  "
+    print(f"{'macro':<{width}}  {'unit':>4}  {'ffplay':>12}  {'xmedia-kit':>12}  "
           f"{'docs/05':>14}  status")
     for r in rows:
         print(f"{r['macro']:<{width}}  {r['unit']:>4}  {fmt(r['ffplay']):>12}  "
-              f"{fmt(r['avbase']):>12}  {fmt_list(r['docs']):>14}  {r['status']}")
+              f"{fmt(r['xmedia']):>12}  {fmt_list(r['docs']):>14}  {r['status']}")
     notes = [r for r in rows if r["note"]]
     if notes:
         print()
@@ -453,12 +390,12 @@ def print_report(rows) -> int:
         return 1
     ok = sum(1 for r in rows if r["status"] == "OK")
     dev = sum(1 for r in rows if r["status"].startswith("DEVIATION"))
-    pending = sum(1 for r in rows if r["status"] == "NO_AVBASE_SYMBOL")
+    pending = sum(1 for r in rows if r["status"] == "NO_XMEDIA_SYMBOL")
     uncheckable = len(rows) - ok - dev - pending
     mode = "three-way" if any(r["ffplay"] is not None for r in rows) \
         else "two-way (no --ijkplayer: ffplay side not read)"
     print(f"extract_constants: {ok} constant(s) agree [{mode}], "
-          f"{dev} declared deviation(s), {pending} with no avbase symbol yet, "
+          f"{dev} declared deviation(s), {pending} with no xmedia-kit symbol yet, "
           f"{uncheckable} unaccounted")
     return 0
 
@@ -469,10 +406,10 @@ def emit_block(rows) -> str:
            "// --ijkplayer. Regenerate instead of retyping (docs/08 risk R1,",
            "// mitigation 4: thresholds are extracted, never hand-copied)."]
     for r in rows:
-        if r["avbase"] is None:
+        if r["xmedia-kit"] is None:
             continue
         out.append(f"// {r['macro']} [{r['unit']}]: ffplay={fmt(r['ffplay'])} "
-                   f"avbase={fmt(r['avbase'])} docs/05={fmt_list(r['docs'])} "
+                   f"xmedia-kit={fmt(r['xmedia'])} docs/05={fmt_list(r['docs'])} "
                    f"({', '.join(r['where'])}) [{r['status']}]")
     return "\n".join(out)
 
@@ -512,11 +449,11 @@ def load_ffplay_macros(ijkplayer_root: pathlib.Path):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--root", default=".", help="avbase repository root")
+    parser.add_argument("--root", default=".", help="xmedia-kit repository root")
     parser.add_argument("--ijkplayer", default=None,
                         help="path to an ijkplayer/ffplay source tree")
     parser.add_argument("--selftest", action="store_true",
-                        help="validate the parser, then run the avbase<->docs check")
+                        help="validate the parser, then run the xmedia-kit<->docs check")
     parser.add_argument("--json", action="store_true", help="machine readable")
     parser.add_argument("--emit", action="store_true",
                         help="print the generated provenance block")

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "media/base/media_constants.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 void RendererImpl::SetPaused(bool paused) {
   if (paused_ == paused) {
@@ -230,4 +230,4 @@ RendererType RendererImpl::GetRendererType() {
   return RendererType::kRendererImpl;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

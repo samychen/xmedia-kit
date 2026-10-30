@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/location.h"
 #include "base/synchronization/waitable_event.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 void FakeVideoSink::Initialize(RenderCallback* callback) {
   callback_.store(callback);
@@ -171,4 +171,4 @@ int FakeAudioSink::PullPeriod(AudioBus* dest) {
   return written;
 }
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

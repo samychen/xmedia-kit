@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -33,7 +33,7 @@
 #include "player/public/player.h"
 #include "player/public/player_event.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 const base::TimeDelta kWaitTimeout = base::Seconds(5);
@@ -222,4 +222,4 @@ TEST(PlayerSubscriptionTest, DroppedSubscriptionStopsDeliveringEvents) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia

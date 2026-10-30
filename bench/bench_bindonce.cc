@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,11 +13,11 @@
 
 namespace {
 
-AVBASE_BENCH(BM_BindOnce_Invoke) {
+XMEDIA_BENCH(BM_BindOnce_Invoke) {
   int sink = 0;
   for (uint64_t i = 0; i < iters; ++i) {
-    avbase::base::OnceClosure cb =
-        avbase::base::BindOnce([](int* s, int v) { *s += v; }, &sink, 1);
+    xmedia::base::OnceClosure cb =
+        xmedia::base::BindOnce([](int* s, int v) { *s += v; }, &sink, 1);
     std::move(cb).Run();
   }
   (void)sink;

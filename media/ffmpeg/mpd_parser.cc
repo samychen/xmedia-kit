@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 
 #include "media/ffmpeg/hls_m3u8_parser.h"  // ResolveUrl, same URI shapes
 
-namespace avbase::media::dash {
+namespace xmedia::media::dash {
 namespace {
 
 // The MPD subset tokenizer: a flat element walk with start/end callbacks.
@@ -332,4 +332,4 @@ base::expected<Mpd, MediaError> ParseMpd(std::string_view text,
   return mpd;
 }
 
-}  // namespace avbase::media::dash
+}  // namespace xmedia::media::dash

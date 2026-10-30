@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -52,7 +52,7 @@
 #include "tests/support/synthetic_decoders.h"
 #include "tests/support/synthetic_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // Ceiling for every wait. Generous, because it is a ceiling and not a delay:
@@ -417,4 +417,4 @@ TEST_F(PipelineSeekTest, MidFlightSeekIsNotDropped) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

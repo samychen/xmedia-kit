@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/video_color_space.h` (BSD-3-Clause), reduced
-// to the axes avbase actually transports. The enum VALUES match the ones in
+// to the axes xmedia-kit actually transports. The enum VALUES match the ones in
 // docs/11 §3 and the FFmpeg bridge (platform/ffmpeg) maps them 1:1 from
 // AVFrame's colour metadata, so no libav type ever appears here (C4).
 
-#ifndef AVBASE_MEDIA_BASE_VIDEO_COLOR_SPACE_H_
-#define AVBASE_MEDIA_BASE_VIDEO_COLOR_SPACE_H_
+#ifndef XMEDIA_MEDIA_BASE_VIDEO_COLOR_SPACE_H_
+#define XMEDIA_MEDIA_BASE_VIDEO_COLOR_SPACE_H_
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@
 
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 enum class ColorMatrix : int8_t {
   kUnknown = 0,
@@ -49,7 +49,7 @@ enum class ColorRange : int8_t {
   kFull,     // JPEG-style.
 };
 
-struct AVBASE_MEDIA_EXPORT VideoColorSpace {
+struct XMEDIA_MEDIA_EXPORT VideoColorSpace {
   ColorMatrix matrix{ColorMatrix::kUnknown};
   ColorPrimaries primaries{ColorPrimaries::kUnknown};
   ColorTransfer transfer{ColorTransfer::kUnknown};
@@ -67,14 +67,14 @@ struct AVBASE_MEDIA_EXPORT VideoColorSpace {
   std::string AsDebugString() const;
 };
 
-AVBASE_MEDIA_EXPORT const char* GetColorMatrixName(ColorMatrix matrix);
-AVBASE_MEDIA_EXPORT const char* GetColorTransferName(ColorTransfer transfer);
-AVBASE_MEDIA_EXPORT const char* GetColorPrimariesName(ColorPrimaries p);
-AVBASE_MEDIA_EXPORT const char* GetColorRangeName(ColorRange range);
+XMEDIA_MEDIA_EXPORT const char* GetColorMatrixName(ColorMatrix matrix);
+XMEDIA_MEDIA_EXPORT const char* GetColorTransferName(ColorTransfer transfer);
+XMEDIA_MEDIA_EXPORT const char* GetColorPrimariesName(ColorPrimaries p);
+XMEDIA_MEDIA_EXPORT const char* GetColorRangeName(ColorRange range);
 
 // FFmpeg does not always tag hardware-decoded frames with colour metadata the
 // way the container did (the hwaccel path frequently reports "unspecified" for
-// streams whose container actually said BT.709) -- avbase risk §14.4. When the
+// streams whose container actually said BT.709) -- xmedia-kit risk §14.4. When the
 // decoder bridge sees an unspecified frame it falls back to this table, keyed
 // on what the CONTAINER said (codec, profile, coded size, HDR flag) rather
 // than the frame tag. The rules are the ones in ITU-R BT.709 §4 / common
@@ -87,9 +87,9 @@ AVBASE_MEDIA_EXPORT const char* GetColorRangeName(ColorRange range);
 // turned out to be purely size- and HDR-based; if a pinned codec row ever
 // becomes necessary, extend the signature then rather than keeping dead
 // parameters.
-AVBASE_MEDIA_EXPORT VideoColorSpace GuessColorSpaceFallback(
+XMEDIA_MEDIA_EXPORT VideoColorSpace GuessColorSpaceFallback(
     int coded_width, int coded_height, bool has_hdr_metadata);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_VIDEO_COLOR_SPACE_H_
+#endif  // XMEDIA_MEDIA_BASE_VIDEO_COLOR_SPACE_H_

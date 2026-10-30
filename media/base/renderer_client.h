@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -41,8 +41,8 @@
 // matches media/base/video_renderer_sink.h, whose factory is likewise
 // header-only.
 
-#ifndef AVBASE_MEDIA_BASE_RENDERER_CLIENT_H_
-#define AVBASE_MEDIA_BASE_RENDERER_CLIENT_H_
+#ifndef XMEDIA_MEDIA_BASE_RENDERER_CLIENT_H_
+#define XMEDIA_MEDIA_BASE_RENDERER_CLIENT_H_
 
 #include <stdint.h>
 
@@ -59,7 +59,7 @@
 #include "media/base/waiting.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Buffering state, reported through OnBufferingStateChange. Replaces the
 // int-valued FFP_MSG_BUFFERING_START / _END pair plus a separate
@@ -72,7 +72,7 @@ enum class BufferingState {
                      // warning before the stall, not after it).
 };
 
-AVBASE_MEDIA_EXPORT const char* BufferingStateToString(BufferingState state);
+XMEDIA_MEDIA_EXPORT const char* BufferingStateToString(BufferingState state);
 
 // Audio output device lifecycle, for SwitchableAudioRendererSink.
 enum class OutputDeviceStatus {
@@ -82,7 +82,7 @@ enum class OutputDeviceStatus {
   kNotFound,       // The requested device id does not exist.
 };
 
-AVBASE_MEDIA_EXPORT const char* OutputDeviceStatusToString(OutputDeviceStatus);
+XMEDIA_MEDIA_EXPORT const char* OutputDeviceStatusToString(OutputDeviceStatus);
 
 // Counters the renderer reports upward. Mirrors Chromium's
 // PipelineStatistics minus the browser-only fields. Everything here is
@@ -92,7 +92,7 @@ AVBASE_MEDIA_EXPORT const char* OutputDeviceStatusToString(OutputDeviceStatus);
 // The ijkplayer equivalents are the FFP_PROP_INT64_* family (docs/05 table 6):
 // twenty separate ijkmp_get_property_int64() calls become one struct return,
 // so a stats consumer can no longer observe a half-updated picture.
-struct AVBASE_MEDIA_EXPORT PipelineStatistics {
+struct XMEDIA_MEDIA_EXPORT PipelineStatistics {
   // Demuxer.
   int64_t audio_bytes{0};
   int64_t video_bytes{0};
@@ -172,7 +172,7 @@ struct AVBASE_MEDIA_EXPORT PipelineStatistics {
   uint64_t seek_count{0};
   base::TimeDelta last_seek_duration;
 
-  // What presenting each frame cost, from the video sink. An avbase addition
+  // What presenting each frame cost, from the video sink. An xmedia-kit addition
   // to the Chromium shape, kept as one nested struct so the field list here
   // does not grow by one per render stage; see render_perf_stats.h for what
   // the stages mean and why the upload path travels with them.
@@ -190,7 +190,7 @@ struct AVBASE_MEDIA_EXPORT PipelineStatistics {
 // Lifetime: the Renderer holds a raw pointer, never an owning one. The client
 // must outlive the renderer; PipelineImpl guarantees that by destroying the
 // renderer before itself, in the fixed order documented at docs/03 §10.1.
-class AVBASE_MEDIA_EXPORT RendererClient {
+class XMEDIA_MEDIA_EXPORT RendererClient {
  public:
   RendererClient(const RendererClient&) = delete;
   RendererClient& operator=(const RendererClient&) = delete;
@@ -288,6 +288,6 @@ class AVBASE_MEDIA_EXPORT RendererClient {
   virtual ~RendererClient() = default;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_RENDERER_CLIENT_H_
+#endif  // XMEDIA_MEDIA_BASE_RENDERER_CLIENT_H_

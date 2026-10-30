@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace avbase::media {
+namespace xmedia::media {
 
 EglGLContext::EglGLContext(void* display, void* surface, void* context)
     : display_(display), surface_(surface), context_(context) {}
@@ -60,4 +60,4 @@ std::string EglGLContext::GetError() {
   return "egl-error-0x" + std::to_string(static_cast<int>(eglGetError()));
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

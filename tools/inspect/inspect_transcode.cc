@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect transcode`: the first production consumer of
+// `xmedia-inspect transcode`: the first production consumer of
 // media/transcode.
 //
 // Until this subcommand existed, the offline transcode line (E1-E5) had no
@@ -42,7 +42,7 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 struct TranscodeArgs {
@@ -420,4 +420,4 @@ int RunTranscode(int argc, char** argv) {
   return VerifyOutput(args.output) ? 0 : 2;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

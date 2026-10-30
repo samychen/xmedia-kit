@@ -1,15 +1,15 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_GL_TEXTURE_H_
-#define AVBASE_RENDER_GL_GL_TEXTURE_H_
+#ifndef XMEDIA_RENDER_GL_GL_TEXTURE_H_
+#define XMEDIA_RENDER_GL_GL_TEXTURE_H_
 
 #include <memory>
 
 #include "render/gl/gl_api.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // A texture, on one GL target.
 //
@@ -94,6 +94,6 @@ class GlTexture {
   unsigned int target_{0};
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_GL_TEXTURE_H_
+#endif  // XMEDIA_RENDER_GL_GL_TEXTURE_H_

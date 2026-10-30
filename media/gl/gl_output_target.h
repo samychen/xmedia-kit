@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_OUTPUT_TARGET_H_
-#define AVBASE_MEDIA_GL_GL_OUTPUT_TARGET_H_
+#ifndef XMEDIA_MEDIA_GL_GL_OUTPUT_TARGET_H_
+#define XMEDIA_MEDIA_GL_GL_OUTPUT_TARGET_H_
 
 #include <memory>
 
@@ -13,7 +13,7 @@
 #include "render/gl/native_gl_context.h"
 #include "render/gl/overlay.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The pairing a target hands the sink for one present: the GL context to
 // present through, plus the optional overlay slot to composite over it, plus
@@ -23,7 +23,7 @@ namespace avbase::media {
 // because it is a property of the SURFACE being drawn into: a host that knows
 // it wants 1080p composition states it where it states the window, and a
 // target that has no opinion leaves both at 0 ("follow the drawable").
-struct AVBASE_MEDIA_EXPORT GlSurfaceBinding {
+struct XMEDIA_MEDIA_EXPORT GlSurfaceBinding {
   std::unique_ptr<gl::NativeGLContext> context;
   gl::TextOverlaySlot* overlay{nullptr};
   // Composition surface in pixels; non-positive in either axis means the
@@ -52,7 +52,7 @@ struct AVBASE_MEDIA_EXPORT GlSurfaceBinding {
 // Start()/SetOutputTarget()/Stop(); BindSurface() and PresentWithoutGl() run on
 // the sink's render thread. ReleaseOutput() is called with the render thread
 // already joined, so nothing of the target's is reachable concurrently.
-class AVBASE_MEDIA_EXPORT GlOutputTarget {
+class XMEDIA_MEDIA_EXPORT GlOutputTarget {
  public:
   GlOutputTarget() = default;
   GlOutputTarget(const GlOutputTarget&) = delete;
@@ -85,6 +85,6 @@ class AVBASE_MEDIA_EXPORT GlOutputTarget {
   virtual void ReleaseOutput() = 0;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_OUTPUT_TARGET_H_
+#endif  // XMEDIA_MEDIA_GL_GL_OUTPUT_TARGET_H_

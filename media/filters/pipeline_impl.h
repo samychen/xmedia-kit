@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_PIPELINE_IMPL_H_
-#define AVBASE_MEDIA_FILTERS_PIPELINE_IMPL_H_
+#ifndef XMEDIA_MEDIA_FILTERS_PIPELINE_IMPL_H_
+#define XMEDIA_MEDIA_FILTERS_PIPELINE_IMPL_H_
 
 #include <atomic>
 #include <memory>
@@ -28,7 +28,7 @@
 #include "media/filters/legacy/av_sync_controller.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The only Pipeline implementation: owns the demuxer and the renderer, runs
 // them on the media sequence, and forwards renderer events to Pipeline::Client.
@@ -43,7 +43,7 @@ namespace avbase::media {
 //
 // PARAMETERS NOT IN THE FROZEN SIGNATURE. Pipeline::Start() takes a demuxer
 // but not a source: Chromium's Start() reached the source through
-// MediaResource. avbase's demuxer needs the DataSourceDescriptor and options to
+// MediaResource. xmedia-kit's demuxer needs the DataSourceDescriptor and options to
 // open
 // with, so the owner sets them via SetSource() before calling Start(). That is
 // a concrete-side parameter channel, not an interface extension.
@@ -53,7 +53,7 @@ namespace avbase::media {
 // two through atomics written on the media sequence. GetMediaTime() in
 // particular survives renderer teardown, because the controller is a
 // shared_ptr held by both this class and RendererImpl.
-class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
+class XMEDIA_MEDIA_EXPORT PipelineImpl final : public Pipeline,
                                                public RendererClient,
                                                public Demuxer::Host {
  public:
@@ -304,6 +304,6 @@ class AVBASE_MEDIA_EXPORT PipelineImpl final : public Pipeline,
   SEQUENCE_CHECKER(sequence_checker_);
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_PIPELINE_IMPL_H_
+#endif  // XMEDIA_MEDIA_FILTERS_PIPELINE_IMPL_H_

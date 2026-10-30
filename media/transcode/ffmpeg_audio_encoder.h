@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_TRANSCODE_AUDIO_ENCODER_H_
-#define AVBASE_MEDIA_TRANSCODE_AUDIO_ENCODER_H_
+#ifndef XMEDIA_MEDIA_TRANSCODE_AUDIO_ENCODER_H_
+#define XMEDIA_MEDIA_TRANSCODE_AUDIO_ENCODER_H_
 
 #include <cstdint>
 #include <memory>
@@ -16,7 +16,7 @@
 #include "media/base/media_error.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // libavcodec-backed audio encoder — the first slab of the transcode encoder
 // layer (E1). The transcode.cc equivalent embedded its encoders inside
@@ -34,7 +34,7 @@ namespace avbase::media {
 // single rate/channels fixed at Initialize. Output: raw packets plus the
 // codec extradata (an ADTS writer or a muxer adds the framing for codecs
 // that need it).
-class AVBASE_MEDIA_EXPORT FFmpegAudioEncoder {
+class XMEDIA_MEDIA_EXPORT FFmpegAudioEncoder {
  public:
   struct Params {
     // Encoder name as understood by avcodec_find_encoder_by_name. Defaults to
@@ -87,6 +87,6 @@ class AVBASE_MEDIA_EXPORT FFmpegAudioEncoder {
   int64_t ctx_next_pts_samples_ = 0;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_TRANSCODE_AUDIO_ENCODER_H_
+#endif  // XMEDIA_MEDIA_TRANSCODE_AUDIO_ENCODER_H_

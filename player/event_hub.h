@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_EVENT_HUB_H_
-#define AVBASE_PLAYER_EVENT_HUB_H_
+#ifndef XMEDIA_PLAYER_EVENT_HUB_H_
+#define XMEDIA_PLAYER_EVENT_HUB_H_
 
 #include <stdint.h>
 
@@ -18,7 +18,7 @@
 #include "player/public/player_event.h"
 #include "player/public/player_export.h"
 
-namespace avbase {
+namespace xmedia {
 
 // The S8 sequence of docs/04 §1: one FIFO thread that runs the user's event
 // handler and every PlayerObserver callback.
@@ -34,7 +34,7 @@ namespace avbase {
 // stopped and the media sequence is joined, so every event handler observes a
 // quiescent player. Flush() runs the already-queued events (the final
 // StateChanged{to=kStopped} must still reach the host) and then joins.
-class AVBASE_PLAYER_EXPORT EventHub {
+class XMEDIA_PLAYER_EXPORT EventHub {
  public:
   EventHub();
   EventHub(const EventHub&) = delete;
@@ -114,6 +114,6 @@ class AVBASE_PLAYER_EXPORT EventHub {
   base::WaitableEvent drained_;
 };
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_EVENT_HUB_H_
+#endif  // XMEDIA_PLAYER_EVENT_HUB_H_

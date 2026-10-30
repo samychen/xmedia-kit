@@ -1,14 +1,14 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_
-#define AVBASE_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_
+#ifndef XMEDIA_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_
+#define XMEDIA_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_
 
 #include "media/base/media_types.h"
 #include "media/ffmpeg/ffmpeg_hw_video_decoder.h"
 
-namespace avbase::platform::hwaccel {
+namespace xmedia::platform::hwaccel {
 
 // Windows D3D11VA behind libavcodec's d3d11va hwaccel (NVDEC and QuickSync
 // both surface through it). Frames leave as ID3D11Texture2D-backed
@@ -24,6 +24,6 @@ inline media::ffmpeg::FFmpegHwDecoderSpec D3D11HwSpec() {
   return spec;
 }
 
-}  // namespace avbase::platform::hwaccel
+}  // namespace xmedia::platform::hwaccel
 
-#endif  // AVBASE_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_
+#endif  // XMEDIA_PLATFORM_HWACCEL_D3D11_HW_SPEC_H_

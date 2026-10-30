@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by the LICENSE file.
 //
 // functional_demo.cc — 演示 base/functional/ 的回调与绑定机制全貌。
@@ -15,7 +15,7 @@
 //   4. BindRepeating —— 同上但可重复执行；值类型绑定参数在多次 Run 间不被移动
 //   5. callback_helpers —— DoNothing / DoNothingRepeating / ScopedClosureRunner
 //
-// 贯穿主题：avbase 用 scoped_refptr（而非 std::shared_ptr）。回调经 BindOnce
+// 贯穿主题：xmedia-kit 用 scoped_refptr（而非 std::shared_ptr）。回调经 BindOnce
 // 绑定 WeakPtr 接收者时，目标析构后回调自动变成 no-op —— 这是从结构上消灭
 // “对象已释放但回调还在飞” 类崩溃的核心机制（与 base/memory 第 2 部分呼应）。
 
@@ -30,7 +30,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 
-using namespace avbase;  // 示例而非 SDK：base/ 直接以 base:: 引用
+using namespace xmedia;  // 示例而非 SDK：base/ 直接以 base:: 引用
 
 namespace {
 

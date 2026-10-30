@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -23,15 +23,15 @@
 // ★THREADING: A DELIBERATE DEVIATION FROM docs/04 §1, RAISED NOT SMUGGLED
 // ---------------------------------------------------------------------------
 // docs/04's thread table puts the compositor's WRITE side on S1
-// (`avbase-media`, where RendererImpl lives) and only
+// (`xmedia-media`, where RendererImpl lives) and only
 // "VideoFrameCompositor 的部分读" on S3
-// (`avbase-video`, where this class lives). Taken literally that means S3
+// (`xmedia-video`, where this class lives). Taken literally that means S3
 // decodes a frame, posts it to S1, and S1 calls PutCurrentFrame(). This file
 // does not do that. Both the decode pump and PutCurrentFrame() run on S3, for
 // three reasons: 1. Decode and publish are one causal step. Splitting them
 // inserts a queue and a task hop between "the decoder produced frame N" and
 // "the compositor may show frame N", and that queue is a second place where
-// frames can be dropped, reordered or stranded after a seek. avbase already has
+// frames can be dropped, reordered or stranded after a seek. xmedia-kit already has
 // one such queue (VideoFrameQueue); adding an implicit second one to satisfy a
 // table row is how ffplay ended up with pictq AND sampq AND a refresh thread.
 // 2. The compositor is internally locked (it takes base::Lock) and its read
@@ -70,8 +70,8 @@
 // compositor derives duration from container deltas alone; ffplay's fps-probe
 // fallback (config.video.calc_frame_rate) is unwired.
 
-#ifndef AVBASE_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_
-#define AVBASE_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_
+#ifndef XMEDIA_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_
+#define XMEDIA_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_
 
 #include <stdint.h>
 
@@ -98,7 +98,7 @@
 #include "media/filters/video_filter_stage.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 class RendererClient;
 
@@ -116,7 +116,7 @@ class RendererClient;
 // THREADING. Everything except Render() and OnFrameSubmitFailure() runs on
 // |task_runner| (S3). Those two run on the sink's render sequence (S6) and only
 // touch the compositor, which is internally locked.
-class AVBASE_MEDIA_EXPORT VideoRendererImpl final
+class XMEDIA_MEDIA_EXPORT VideoRendererImpl final
     : public VideoRendererSink::RenderCallback {
  public:
   using InitializeCB = base::OnceCallback<void(PipelineStatus)>;
@@ -365,6 +365,6 @@ class AVBASE_MEDIA_EXPORT VideoRendererImpl final
   base::WeakPtrFactory<VideoRendererImpl> weak_factory_{this};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_
+#endif  // XMEDIA_MEDIA_FILTERS_VIDEO_RENDERER_IMPL_H_

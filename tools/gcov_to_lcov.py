@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Turn gcov's .gcov output into an lcov tracefile.
@@ -66,7 +66,7 @@ LINE_RE = re.compile(r"^\s*([^\s:]+):\s*([0-9]+):(.*)$")
 BRANCH_TAKEN_RE = re.compile(r"^branch\s+(\d+)\s+taken\s+(\d+)%")
 BRANCH_NEVER_RE = re.compile(r"^branch\s+(\d+)\s+never\s+executed")
 
-# "function _ZN6avbase8platform6ffmpeg13MapAvLogLevelEi called 70432 ..."
+# "function _ZN6xmedia-kit8platform6ffmpeg13MapAvLogLevelEi called 70432 ..."
 FUNCTION_RE = re.compile(r"^function\s+(\S+)\s+called\s+(\d+)")
 
 

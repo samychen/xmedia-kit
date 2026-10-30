@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """V9 (docs/10 §5 and §12): the public headers must be self-explanatory.
@@ -29,9 +29,9 @@ like Chromium media does; requiring every method to repeat it would train
 people to write noise).
 
 Scope: public sections of classes/structs in player/public/**/*.h, plus the
-file-level C ABI functions in player/public/c/avbase_c.h. Two exclusions
-match docs/Doxyfile's (same surface, same rule): avbase_c_internal.h and
-avbase_c_export.h are implementation-side, and special members
+file-level C ABI functions in player/public/c/xmedia_c.h. Two exclusions
+match docs/Doxyfile's (same surface, same rule): xmedia_c_internal.h and
+xmedia_c_export.h are implementation-side, and special members
 (constructors, destructors, operator overloads) are not counted -- their
 behaviour is fixed by the language and the class contract. Data-only structs
 (payloads, configs) have no methods and contribute nothing; their fields are
@@ -194,7 +194,7 @@ def find_top_level_call(line: str) -> str | None:
             if not name or name in CALL_NAME_BLOCKLIST:
                 return None
             # An ALL-CAPS callee is a macro invocation
-            # (AVBASE_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload)),
+            # (XMEDIA_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload)),
             # not a function declaration.
             if re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
                 return None
@@ -332,7 +332,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
 
         if stripped.startswith("#"):
             # The block before the first preprocessor line is the header's
-            # contract (avbase_c.h states its threading and blocking rules
+            # contract (xmedia_c.h states its threading and blocking rules
             # there); file-level functions inherit from it the way class
             # methods inherit from their class comment.
             if not file_comment and file_pending:
@@ -344,7 +344,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
 
         if in_define_cont:
             # Continuation line of a multi-line #define (e.g. the
-            # AVBASE_DECLARE_EVENT_ACCESSOR body): not a declaration.
+            # XMEDIA_DECLARE_EVENT_ACCESSOR body): not a declaration.
             in_define_cont = stripped.endswith("\\")
             continue
 
@@ -398,7 +398,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
             if scopes:
                 scopes.pop()
 
-        # C ABI functions carry an AVBASE_C_API marker before the return
+        # C ABI functions carry an XMEDIA_C_API marker before the return
         # type; strip it so the declaration scan sees a plain signature.
         scan = stripped
         if first.endswith("_API"):
@@ -428,7 +428,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
             continue
 
         if first.endswith("_API"):
-            # Return type on its own line ("AVBASE_C_API AvbaseStatus" then
+            # Return type on its own line ("XMEDIA_C_API XmediaStatus" then
             # the name on the next): the signature starts here, so the
             # pending comment must survive until the name line completes it.
             sig_lines = [scan]
@@ -437,7 +437,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
 
         # A line with no `;`, no `{`/`}`, and no call yet is a declaration
         # prefix that continues onto the next line (e.g.
-        # `AVBASE_PLAYER_EXPORT std::vector<ConfigIssue>` sitting above the
+        # `XMEDIA_PLAYER_EXPORT std::vector<ConfigIssue>` sitting above the
         # function name). Accumulate it as the head of a multi-line signature
         # and KEEP the pending comment, so the comment above a split return
         # type is not lost (V9 would otherwise undercount real coverage).
@@ -455,7 +455,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
 
 # Same exclusions as docs/Doxyfile: these two are implementation-side files,
 # not the public surface.
-EXCLUDED_NAMES = {"avbase_c_internal.h", "avbase_c_export.h"}
+EXCLUDED_NAMES = {"xmedia_c_internal.h", "xmedia_c_export.h"}
 
 
 def collect(root: Path) -> list[Decl]:
@@ -499,12 +499,12 @@ SELFTEST_INPUT = """\
 #ifndef GUARD_H_
 #define GUARD_H_
 
-namespace avbase {
+namespace xmedia {
 
 // A widget does widget things.
 //
 // Thread safety: all methods may be called from any thread.
-class AVBASE_EXPORT Widget {
+class XMEDIA_EXPORT Widget {
  public:
   // Starts the widget.
   void Start();
@@ -545,7 +545,7 @@ class Plain {
 };
 
 // A free function.
-AVBASE_C_API void c_free_thing(int* out);
+XMEDIA_C_API void c_free_thing(int* out);
 
 // Inherits on a later line.
 class Derived
@@ -569,7 +569,7 @@ DECLARE_THING(AsFoo, FooPayload);
 // An empty struct: no methods, no braces to balance.
 struct Empty {};
 
-}  // namespace avbase
+}  // namespace xmedia
 #endif
 """
 

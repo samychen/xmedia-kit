@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,15 +7,15 @@
 // marks "non-owning" intent, and leaves room to swap in BackupRefPtr later
 // without touching call sites.
 
-#ifndef AVBASE_BASE_MEMORY_RAW_PTR_H_
-#define AVBASE_BASE_MEMORY_RAW_PTR_H_
+#ifndef XMEDIA_BASE_MEMORY_RAW_PTR_H_
+#define XMEDIA_BASE_MEMORY_RAW_PTR_H_
 
 #include <memory>
 #include <type_traits>
 
-namespace avbase::base {
+namespace xmedia::base {
 
-// Spelled like an STL adaptor on purpose: this is avbase's stand-in for
+// Spelled like an STL adaptor on purpose: this is xmedia-kit's stand-in for
 // Chromium's raw_ptr/raw_ref and is written the same way at every call
 // site, so CamelCase would make it the odd one out.
 // The suppression sits on the class line: the diagnostic is reported on the
@@ -90,6 +90,6 @@ class raw_ref {  // NOLINT
   T* ptr_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_MEMORY_RAW_PTR_H_
+#endif  // XMEDIA_BASE_MEMORY_RAW_PTR_H_

@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Replaces ijkplayer's pipeline/ffpipenode_ffplay_vdec.c.
 
-#ifndef AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
-#define AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_VIDEO_DECODER_H_
+#define XMEDIA_MEDIA_FFMPEG_VIDEO_DECODER_H_
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -13,7 +13,7 @@
 #include "media/ffmpeg/ffmpeg_video_decoder_base.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Software video decoding through libavcodec, with swscale conversion to the
 // requested output format.
@@ -28,7 +28,7 @@ namespace avbase::media {
 // which holds the buffer-validation and callback-draining sequence shared with
 // the hardware path. This class supplies the codec context, the swscale drain,
 // and the two pieces of software-only EOS/Reset bookkeeping.
-class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final
+class XMEDIA_MEDIA_EXPORT FFmpegVideoDecoder final
     : public FFmpegVideoDecoderBase {
  public:
   // |task_runner| is where decode_cb and init_cb are posted. Required.
@@ -77,6 +77,6 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoder final
   uint64_t conversion_failures_{0};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_VIDEO_DECODER_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_VIDEO_DECODER_H_

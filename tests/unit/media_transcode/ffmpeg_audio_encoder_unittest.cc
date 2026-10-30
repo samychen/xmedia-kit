@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@
 #include "media/base/media_log.h"
 #include "media/ffmpeg/av_includes.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kRate = 48000;
@@ -46,7 +46,7 @@ base::scoped_refptr<AudioBuffer> MakeSineBuffer(int64_t* cursor) {
 }
 
 // E1 keystone: sine -> AAC packets -> written as ADTS -> decoded back by the
-// regular audio decoder. Proves the encoder layer works under avbase's
+// regular audio decoder. Proves the encoder layer works under xmedia-kit's
 // contracts and that its output is playable by the same pipeline. AAC is the
 // default codec_name, so this also exercises the default path.
 TEST(AudioEncoderTest, EncodeThenAdtsDecodeRoundTrip) {
@@ -232,4 +232,4 @@ TEST(AudioEncoderTest, EveryAvailableEncoderInitializes) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

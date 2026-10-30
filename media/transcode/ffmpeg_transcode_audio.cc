@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -26,7 +26,7 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // (Re)allocates |*slot| as a planar-float scratch frame of |nb_samples|.
@@ -37,7 +37,7 @@ AVFrame* ScratchFrame(AvFramePtr* slot, int nb_samples, int rate,
     // libav types), so ff::MakeFrame's type doesn't fit here -- the checked
     // allocation does: CHECK, never null (M10's deeper-fix convention).
     AVFrame* raw = av_frame_alloc();
-    CHECK(raw) << "avbase.transcode: av_frame_alloc failed (OOM)";
+    CHECK(raw) << "xmedia.transcode: av_frame_alloc failed (OOM)";
     *slot = AvFramePtr(raw);
   }
   AVFrame* f = slot->get();
@@ -240,4 +240,4 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
   return out;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

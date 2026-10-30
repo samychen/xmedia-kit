@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -12,8 +12,8 @@
 // Pure and portable -- no platform macros, no GL, no FFmpeg -- so it lives in
 // media/base and obeys invariant C5.
 
-#ifndef AVBASE_MEDIA_BASE_COMPOSITE_DEMUXER_H_
-#define AVBASE_MEDIA_BASE_COMPOSITE_DEMUXER_H_
+#ifndef XMEDIA_MEDIA_BASE_COMPOSITE_DEMUXER_H_
+#define XMEDIA_MEDIA_BASE_COMPOSITE_DEMUXER_H_
 
 #include <memory>
 #include <vector>
@@ -33,7 +33,7 @@
 #include "media/base/media_resource.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // One child of the aggregate, carrying the parameters needed to open it. Each
 // child owns its own DataSourceDescriptor + DemuxerOptions because a composite
@@ -55,7 +55,7 @@ struct CompositeDemuxerSource {
 //
 // CompositeDemuxer is also a Demuxer::Host: it forwards each child's host
 // events (duration, buffering, errors) to the pipeline host it was given.
-class AVBASE_MEDIA_EXPORT CompositeDemuxer : public Demuxer,
+class XMEDIA_MEDIA_EXPORT CompositeDemuxer : public Demuxer,
                                              public Demuxer::Host {
  public:
   using Source = CompositeDemuxerSource;
@@ -232,6 +232,6 @@ class AVBASE_MEDIA_EXPORT CompositeDemuxer : public Demuxer,
   base::WeakPtrFactory<CompositeDemuxer> weak_factory_{this};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_COMPOSITE_DEMUXER_H_
+#endif  // XMEDIA_MEDIA_BASE_COMPOSITE_DEMUXER_H_

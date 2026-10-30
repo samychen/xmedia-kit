@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@
 #include "media/base/video_frame.h"
 #include "player/qt/gl_video_renderer.h"
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 namespace {
 
@@ -29,7 +29,7 @@ using Clock = std::chrono::steady_clock;
 bool TimingEnabled() {
   // Read once: this sits in the per-frame path, and the point of the number is
   // to measure our work rather than getenv's.
-  static const bool enabled = qEnvironmentVariableIsSet("AVBASE_QT_TIMING");
+  static const bool enabled = qEnvironmentVariableIsSet("XMEDIA_QT_TIMING");
   return enabled;
 }
 
@@ -219,7 +219,7 @@ GlVideoItem::GlVideoItem(QQuickItem* parent) : QQuickFramebufferObject(parent) {
   // framebuffer assuming rows start at the top. Setting this flag makes Qt do
   // the flip when it samples the texture, which is one line here instead of a
   // coordinate twist inside the shader -- but either way it is a fact about
-  // orientation, so it is pinned by a pixel comparison (AVBASE_QT_GRAB_REF)
+  // orientation, so it is pinned by a pixel comparison (XMEDIA_QT_GRAB_REF)
   // and not by this comment: the mistake produces a perfectly valid, perfectly
   // inverted image with no GL error and no log line.
   setMirrorVertically(true);
@@ -294,4 +294,4 @@ void GlVideoItem::reportRendererState(const QString& info) {
   emit rendererInfoChanged();
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

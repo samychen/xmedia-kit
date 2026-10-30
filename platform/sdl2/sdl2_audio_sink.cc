@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 Sdl2AudioSink::Sdl2AudioSink() = default;
 
@@ -71,7 +71,7 @@ void Sdl2AudioSink::OpenDevice() {
     // quit again; record whether THIS sink performed the init so Stop() can
     // pair the QuitSubSystem (SDL refcounts, so only the incrementer quits).
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
-      LOG(ERROR) << "avbase.aout: SDL_InitSubSystem(AUDIO) failed: "
+      LOG(ERROR) << "xmedia.aout: SDL_InitSubSystem(AUDIO) failed: "
                  << SDL_GetError();
       return;
     }
@@ -90,7 +90,7 @@ void Sdl2AudioSink::OpenDevice() {
   // |params_|, and SDL's conversion runs before our buffer reaches the wire).
   SDL_AudioDeviceID device = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
   if (device == 0) {
-    LOG(ERROR) << "avbase.aout: SDL_OpenAudioDevice failed: " << SDL_GetError();
+    LOG(ERROR) << "xmedia.aout: SDL_OpenAudioDevice failed: " << SDL_GetError();
     return;
   }
   // SDL's audio callback hands the device id back as void*, and an id is an
@@ -220,4 +220,4 @@ base::scoped_refptr<AudioRendererSink> Sdl2AudioSinkFactory::Create() {
   return base::MakeRefCounted<Sdl2AudioSink>();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

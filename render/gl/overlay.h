@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_RENDER_GL_OVERLAY_H_
-#define AVBASE_RENDER_GL_OVERLAY_H_
+#ifndef XMEDIA_RENDER_GL_OVERLAY_H_
+#define XMEDIA_RENDER_GL_OVERLAY_H_
 
 #include <cstdint>
 #include <mutex>
@@ -12,7 +12,7 @@
 
 #include "render/gl/gl_export.h"
 
-namespace avbase::gl {
+namespace xmedia::gl {
 
 // A host-published overlay bitmap (subtitle cue, watermark, ...): tightly
 // packed straight-alpha RGBA8, placed in fractions of the drawable size.
@@ -20,7 +20,7 @@ namespace avbase::gl {
 // The bitmap travels as raw RGBA rather than as text because this module has
 // no business knowing what a subtitle is: the host rasterises whatever it
 // wants (including text) and publishes the pixels.
-struct AVBASE_GL_EXPORT TextOverlay {
+struct XMEDIA_GL_EXPORT TextOverlay {
   bool valid{false};
   int version{0};  // Bumped on every publish; the sink re-uploads on change.
   int width{0};
@@ -33,7 +33,7 @@ struct AVBASE_GL_EXPORT TextOverlay {
 // own threads; the renderer snapshots it once per presented frame on the
 // render thread. The mutex is inside because the publish rate (per cue) and
 // the snapshot rate (per frame) are on different threads by design.
-struct AVBASE_GL_EXPORT TextOverlaySlot {
+struct XMEDIA_GL_EXPORT TextOverlaySlot {
   void Publish(TextOverlay overlay) {
     std::lock_guard<std::mutex> lock(mu_);
     overlay.version = ++version_;
@@ -78,6 +78,6 @@ struct AVBASE_GL_EXPORT TextOverlaySlot {
   TextOverlay current_;
 };
 
-}  // namespace avbase::gl
+}  // namespace xmedia::gl
 
-#endif  // AVBASE_RENDER_GL_OVERLAY_H_
+#endif  // XMEDIA_RENDER_GL_OVERLAY_H_

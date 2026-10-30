@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_LATEST_FRAME_QUEUE_H_
-#define AVBASE_MEDIA_BASE_LATEST_FRAME_QUEUE_H_
+#ifndef XMEDIA_MEDIA_BASE_LATEST_FRAME_QUEUE_H_
+#define XMEDIA_MEDIA_BASE_LATEST_FRAME_QUEUE_H_
 
 #include <stdint.h>
 
@@ -12,7 +12,7 @@
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A one-slot mailbox between a producer and a consumer that run at different
 // rates.
@@ -42,7 +42,7 @@ namespace avbase::media {
 //
 // THREADING: Publish() and Consume() may be called from any thread and from
 // different threads. Neither blocks on the other for more than the swap.
-class AVBASE_MEDIA_EXPORT LatestFrameQueue {
+class XMEDIA_MEDIA_EXPORT LatestFrameQueue {
  public:
   LatestFrameQueue();
   LatestFrameQueue(const LatestFrameQueue&) = delete;
@@ -101,6 +101,6 @@ class AVBASE_MEDIA_EXPORT LatestFrameQueue {
   uint64_t cleared_ GUARDED_BY(lock_){0};
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_LATEST_FRAME_QUEUE_H_
+#endif  // XMEDIA_MEDIA_BASE_LATEST_FRAME_QUEUE_H_

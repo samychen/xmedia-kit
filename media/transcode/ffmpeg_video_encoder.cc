@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,10 +13,10 @@
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/video_convert.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 }  // namespace
 
@@ -148,7 +148,7 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
     return false;
   }
 
-  // The frames coming in are avbase's decode output: I420 (limited range).
+  // The frames coming in are xmedia-kit's decode output: I420 (limited range).
   // Normalize to the encoder's input format through the shared converter.
   c->in_fmt = ff::ToAvPixelFormat(VideoFormat::kI420);
   if (!c->converter.Configure(params.width, params.height, c->in_fmt,
@@ -231,7 +231,7 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
   ctx_->converted->color_range = in->color_space().range == ColorRange::kFull
                                      ? AVCOL_RANGE_JPEG
                                      : AVCOL_RANGE_MPEG;
-  // The frame's timestamp is microseconds (avbase VideoFrame); the encoder's
+  // The frame's timestamp is microseconds (xmedia-kit VideoFrame); the encoder's
   // time_base ticks are frame intervals. Rescale instead of feeding raw
   // microseconds: under the old {1, fps_den} time_base a 33333 us frame
   // interval became 33333 SECONDS of timeline.
@@ -258,4 +258,4 @@ bool FFmpegVideoEncoder::Flush(std::vector<EncodedPacket>* out) {
   return true;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

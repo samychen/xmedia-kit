@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -29,8 +29,8 @@
 // four bytes, the tone is a function of the whole second of pts -- so a test
 // can move between the two doubles without rewriting its assertions.
 
-#ifndef AVBASE_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_
-#define AVBASE_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_
+#ifndef XMEDIA_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_
+#define XMEDIA_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_
 
 #include <cstdint>
 #include <memory>
@@ -48,7 +48,7 @@
 #include "media/base/media_info.h"
 #include "tests/support/synthetic_demuxer.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 struct SyntheticLiveSpec {
   int width = 320;
@@ -178,6 +178,6 @@ class SyntheticLiveDemuxer final : public Demuxer {
   bool closed_ = false;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_
+#endif  // XMEDIA_TESTS_SUPPORT_SYNTHETIC_LIVE_DEMUXER_H_

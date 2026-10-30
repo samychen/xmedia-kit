@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,18 +13,18 @@
 // One definition each, then -- the point of a convention is that it cannot be
 // spelled two ways.
 
-#ifndef AVBASE_MEDIA_GL_GL_LAYER_GEOMETRY_H_
-#define AVBASE_MEDIA_GL_GL_LAYER_GEOMETRY_H_
+#ifndef XMEDIA_MEDIA_GL_GL_LAYER_GEOMETRY_H_
+#define XMEDIA_MEDIA_GL_GL_LAYER_GEOMETRY_H_
 
 #include "media/base/video_frame.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Snaps |degrees| to the nearest quarter turn and normalises it into 0, 90,
 // 180, 270. Exported because both the setter that records an angle and the
 // shader-facing conversion need the same answer, and "what did that 89 become"
 // is a question with exactly one right reply.
-AVBASE_MEDIA_EXPORT int SnapLayerRotation(int degrees);
+XMEDIA_MEDIA_EXPORT int SnapLayerRotation(int degrees);
 
 // (cos, sin) of a CLOCKWISE turn of |degrees| about a layer's own centre, for
 // the uRotation uniform. Four values are possible because a container's display
@@ -36,7 +36,7 @@ AVBASE_MEDIA_EXPORT int SnapLayerRotation(int degrees);
 // exactly representable, and the library's are not. Computing cos(90 degrees)
 // yields ~6e-17, which is a sub-pixel sampling offset -- invisible in a still
 // and wrong in a rotation test that compares two orientations of one picture.
-AVBASE_MEDIA_EXPORT void LayerRotationToCosSin(int degrees, float* out_cos_sin);
+XMEDIA_MEDIA_EXPORT void LayerRotationToCosSin(int degrees, float* out_cos_sin);
 
 // Turns a rect in NORMALISED target coordinates -- (0,0) top-left, (1,1)
 // bottom-right, |w|/|h| as fractions of the target -- into the uRect the rect
@@ -53,11 +53,11 @@ AVBASE_MEDIA_EXPORT void LayerRotationToCosSin(int degrees, float* out_cos_sin);
 // its longer axis, so the drawn result is full-bleed and undistorted.
 // |region_aspect| is the aspect ratio of the region as displayed (the
 // picture's own aspect already folded in). Pure: no GL, no frame.
-AVBASE_MEDIA_EXPORT std::array<float, 4>
+XMEDIA_MEDIA_EXPORT std::array<float, 4>
 CoverSourceRect(const std::array<float, 4>& src, float dst_aspect,
                 float region_aspect);
 
-AVBASE_MEDIA_EXPORT void NormalisedRectToUvRect(float x, float y, float w,
+XMEDIA_MEDIA_EXPORT void NormalisedRectToUvRect(float x, float y, float w,
                                                 float h, float* out_rect);
 
 // The WIDTH OVER HEIGHT the picture is meant to be SEEN at: its natural size
@@ -72,8 +72,8 @@ AVBASE_MEDIA_EXPORT void NormalisedRectToUvRect(float x, float y, float w,
 //
 // Zero means "no shape to speak of" (no picture, or a degenerate one), which is
 // the caller's signal not to fit.
-AVBASE_MEDIA_EXPORT float SourceAspectOf(const VideoFrame& frame);
+XMEDIA_MEDIA_EXPORT float SourceAspectOf(const VideoFrame& frame);
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_LAYER_GEOMETRY_H_
+#endif  // XMEDIA_MEDIA_GL_GL_LAYER_GEOMETRY_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,12 +9,12 @@
 #include <cstdio>
 #include <mutex>
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 namespace {
 
 // av_log's callback receives a partial line at a time and expects the callee to
 // buffer until a newline arrives; without this, one FFmpeg message would be
-// split across several avbase log lines.
+// split across several xmedia-kit log lines.
 thread_local std::string g_line_buffer;
 thread_local int g_pending_level = AV_LOG_INFO;
 
@@ -90,7 +90,7 @@ base::logging::LogSeverity MapAvLogLevel(int av_level) {
 void InstallLogBridge() {
   std::call_once(g_install_once, []() {
     av_log_set_callback(&AvLogCallback);
-    // FFmpeg is chatty at info level by default; avbase re-emits its own
+    // FFmpeg is chatty at info level by default; xmedia-kit re-emits its own
     // structured milestones, so push FFmpeg down to warning and let VLOG(1)
     // surface the rest when explicitly asked for.
     av_log_set_level(AV_LOG_WARNING);
@@ -99,7 +99,7 @@ void InstallLogBridge() {
 
 // GetFFmpegVersionString() used to live here and was reached from
 // ffmpeg_glue.cc through a delegating wrapper. Both are namespace
-// avbase::media::ffmpeg now, so it is defined once, in ffmpeg_glue.cc beside
+// xmedia::media::ffmpeg now, so it is defined once, in ffmpeg_glue.cc beside
 // the exported declaration in ffmpeg_glue.h.
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

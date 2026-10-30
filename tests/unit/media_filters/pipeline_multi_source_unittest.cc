@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase authors. All rights reserved.
+// Copyright 2026 The xmedia-kit authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -45,7 +45,7 @@
 #include "tests/support/synthetic_demuxer.h"
 #include "tests/support/text_fake_demuxer.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 // 90 frames at 30 fps: a keyframe every 3 s, against source 0's every 1 s.
@@ -401,4 +401,4 @@ TEST_F(PipelineMultiSourceTest,
 // ---------------------------------------------------------------------------
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

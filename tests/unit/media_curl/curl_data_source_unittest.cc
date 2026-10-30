@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include "tests/support/local_http_server.h"
 
-namespace avbase::media::curl {
+namespace xmedia::media::curl {
 namespace {
 
 using test::LocalHttpServer;
@@ -128,7 +128,7 @@ TEST_F(CurlDataSourceTest, KeepAliveServesEveryReadOverOneConnection) {
 
 TEST_F(CurlDataSourceTest, CustomHeadersAndUserAgentReachTheServer) {
   CurlDataSource::Config config = DefaultConfig();
-  config.user_agent = "avbase-curl-test/1.0";
+  config.user_agent = "xmedia-curl-test/1.0";
   config.headers = {{"X-Test-Header", "hello"}};
   auto source = base::MakeRefCounted<CurlDataSource>(Url(), config);
   std::vector<uint8_t> buffer(16);
@@ -136,7 +136,7 @@ TEST_F(CurlDataSourceTest, CustomHeadersAndUserAgentReachTheServer) {
       source->ReadBlocking(0, buffer.size(), buffer.data()).has_value());
   auto headers = server_.last_headers();
   EXPECT_EQ(headers["x-test-header"], "hello");
-  EXPECT_EQ(headers["user-agent"], "avbase-curl-test/1.0");
+  EXPECT_EQ(headers["user-agent"], "xmedia-curl-test/1.0");
   EXPECT_EQ(headers["range"], "bytes=0-15");
 }
 
@@ -190,4 +190,4 @@ TEST_F(CurlDataSourceTest, AbortUnblocksAPendingRead) {
 }
 
 }  // namespace
-}  // namespace avbase::media::curl
+}  // namespace xmedia::media::curl

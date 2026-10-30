@@ -2,7 +2,7 @@
 
 一个能真正跑起来的 Qt 6 应用：视频有画面、有声音、能拖进度、能切轨道，
 下面挂一条 Shotcut 风格的多轨时间线。视频有**两条上屏路径**：软件（CPU 转换，
-默认）和 GPU（`QQuickFramebufferObject` + avbase 的 GL 模块，`AVBASE_QT_GL=1`）。
+默认）和 GPU（`QQuickFramebufferObject` + xmedia-kit 的 GL 模块，`XMEDIA_QT_GL=1`）。
 
 它同时是**两个可借用的模板**：
 
@@ -10,27 +10,27 @@
 - `qml/TimelinePanel.qml` — Shotcut 风格的时间线面板（多轨 + 播放头 + 缩放）
 
 两者都只借用**布局与交互思路**（Haruna 与 Shotcut 都是 GPL-3.0，代码不可拷贝
-进闭源产品），所有实现是从 avbase 的 `Player` API 重新写的。
+进闭源产品），所有实现是从 xmedia-kit 的 `Player` API 重新写的。
 
 ## 编译
 
 ```bash
 cmake -S . -B build/qt-player -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DAVBASE_ENABLE_FFMPEG=ON \
-  -DAVBASE_ENABLE_SDL2=ON \
-  -DAVBASE_ENABLE_QT=ON \
-  -DAVBASE_BUILD_QT_PLAYER=ON \
+  -DXMEDIA_ENABLE_FFMPEG=ON \
+  -DXMEDIA_ENABLE_SDL2=ON \
+  -DXMEDIA_ENABLE_QT=ON \
+  -DXMEDIA_BUILD_QT_PLAYER=ON \
   -DCMAKE_PREFIX_PATH=/usr/local/opt/qt      # 换成你的 Qt 6.4+ 前缀
-cmake --build build/qt-player --target avbase_player_qt
-./build/qt-player/bin/avbase_player_qt /path/to/video.mp4
-AVBASE_QT_GL=1 ./build/qt-player/bin/avbase_player_qt /path/to/video.mp4
+cmake --build build/qt-player --target xmedia_player_qt
+./build/qt-player/bin/xmedia_player_qt /path/to/video.mp4
+XMEDIA_QT_GL=1 ./build/qt-player/bin/xmedia_player_qt /path/to/video.mp4
 ```
 
 测试（`tests/unit/qt/`，只链 Qt Core，不需要屏幕）：
 
 ```bash
-cmake -S . -B build/qt-player -DAVBASE_BUILD_TESTS=ON    # 在原有配置上加这一项
+cmake -S . -B build/qt-player -DXMEDIA_BUILD_TESTS=ON    # 在原有配置上加这一项
 cmake --build build/qt-player --target qt_unittests
 ./build/qt-player/bin/qt_unittests
 ```
@@ -39,28 +39,28 @@ cmake --build build/qt-player --target qt_unittests
 
 ```bash
 cmake --preset qt && cmake --build build/qt && ctest --preset qt   # Linux
-AVBASE_QT_PREFIX=/usr/local/opt/qt tools/gate_local.sh --jobs qt   # 本地复刻门禁
+XMEDIA_QT_PREFIX=/usr/local/opt/qt tools/gate_local.sh --jobs qt   # 本地复刻门禁
 ```
 
 `qt` preset 刻意**不开 FFmpeg**——要证明的是「Qt 宿主目标能编译」，与解码层正交。
 详见 [docs/BUILDING.md §3.9](../../docs/BUILDING.md)。
 
-只要门面库、不要这个示例应用，就只开 `AVBASE_BUILD_QT_FACADE=ON`（它会建
-`player/qt/`，不建 `apps/player_qt/`）；`AVBASE_BUILD_QT_PLAYER=ON` 隐含把库也打开
+只要门面库、不要这个示例应用，就只开 `XMEDIA_BUILD_QT_FACADE=ON`（它会建
+`player/qt/`，不建 `apps/player_qt/`）；`XMEDIA_BUILD_QT_PLAYER=ON` 隐含把库也打开
 ——应用现在是库的消费者，不再拥有那些源文件。
 
-`AVBASE_BUILD_QT_PLAYER` 默认 **OFF**，所以不带 Qt 的机器照常构建整个树。
-`AVBASE_ENABLE_QT=ON` 建 `platform/qt/`（第四个窗口系统适配器），应用**硬依赖**它：
+`XMEDIA_BUILD_QT_PLAYER` 默认 **OFF**，所以不带 Qt 的机器照常构建整个树。
+`XMEDIA_ENABLE_QT=ON` 建 `platform/qt/`（第四个窗口系统适配器），应用**硬依赖**它：
 没有 GPU 路径的播放器骨架会误导人，所以缺这个开关时 CMake 直接报错并点名。
-`AVBASE_ENABLE_SDL2=ON` 时链接 `Sdl2AudioSinkFactory`（**有声音**）；关掉也能编，
-只是退回 avbase 的 null sink（静音），和 `play_glfw` 一样。
+`XMEDIA_ENABLE_SDL2=ON` 时链接 `Sdl2AudioSinkFactory`（**有声音**）；关掉也能编，
+只是退回 xmedia-kit 的 null sink（静音），和 `play_glfw` 一样。
 
 ## 目录
 
 **这个目录现在只装"应用"**：`main.cc` 与 `qml/`。其余（`PlayerBridge`、
 `VideoItem`、`GlVideoItem`、`GlVideoRenderer`、`QtVideoSink`、`FrameMailbox`、
 `TimelineModel`）已搬进 **[`player/qt/`](../../player/qt/)**，是可复用的门面库
-`avbase::qtfacade`，宿主链接它即可，不必再抄这个目录。
+`xmedia::qtfacade`，宿主链接它即可，不必再抄这个目录。
 
 | 文件 | 职责 | 行数量级 |
 |---|---|---|
@@ -69,11 +69,11 @@ AVBASE_QT_PREFIX=/usr/local/opt/qt tools/gate_local.sh --jobs qt   # 本地复�
 | `qml/TimelinePanel.qml` | Shotcut 风格时间线 | ~270 |
 | `qml/Main.qml` | 应用壳：视频面 + 控制栏 + 时间线 + 拖放 | ~330 |
 
-门面库那半边（都是 `avbase::qt` 命名空间）：
+门面库那半边（都是 `xmedia::qt` 命名空间）：
 
 | 文件 | 职责 |
 |---|---|
-| `player/qt/player_bridge.{h,cc}` | **唯一**让 avbase 与 Qt 相遇的地方：Q_PROPERTY + 状态/统计查询 |
+| `player/qt/player_bridge.{h,cc}` | **唯一**让 xmedia-kit 与 Qt 相遇的地方：Q_PROPERTY + 状态/统计查询 |
 | `player/qt/player_bridge_events.cc` | 事件那一半：`ApplyEvent` / `StateName`（C1 限 500 行） |
 | `player/qt/qt_video_sink.{h,cc}` | 自定义 `VideoRendererSink`，拉帧丢进 mailbox |
 | `player/qt/frame_mailbox.h` | 渲染线程 → GUI 线程的单槽帧交换 |
@@ -111,17 +111,17 @@ AVBASE_QT_PREFIX=/usr/local/opt/qt tools/gate_local.sh --jobs qt   # 本地复�
 
 ## 视频画面是怎么上屏的（两条路径）
 
-avbase 已有的三个后置 sink（SDL2 / GLFW / EGL）都是"把宿主的 GL context 交给
+xmedia-kit 已有的三个后置 sink（SDL2 / GLFW / EGL）都是"把宿主的 GL context 交给
 `GlVideoSink` 去画"。**Qt 走不了这条路**：`QQuickWindow` 的 GL context 由 Qt 的
-场景图线程持有，不允许从 avbase 的渲染线程 `makeCurrent()`。
+场景图线程持有，不允许从 xmedia-kit 的渲染线程 `makeCurrent()`。
 
-所以这里用了 avbase 早就留好的另一个缝：**自定义 `VideoRendererSink`**。
+所以这里用了 xmedia-kit 早就留好的另一个缝：**自定义 `VideoRendererSink`**。
 `VideoRendererSink` 是 pull 模型（自己起线程调 `upstream_->Render()` 拿
 `VideoFrame`），于是宿主可以把帧直接取到自己手里。两条路径共用这一个取帧通道，
 只在上屏方式上分叉：
 
 ```
-avbase 渲染线程                      Qt 侧
+xmedia-kit 渲染线程                      Qt 侧
   QtVideoSink::PollOnce()
     upstream_->Render() ──► FrameMailbox ─┬─► VideoItem::refresh()          [软件]
                                            │     I420 → QImage → QPainter
@@ -134,7 +134,7 @@ avbase 渲染线程                      Qt 侧
                                                        画进 Qt 给的 FBO
 ```
 
-用 `AVBASE_QT_GL=1` 切到 GPU 路径，不设就是软件路径。软件路径留着不是怀旧：
+用 `XMEDIA_QT_GL=1` 切到 GPU 路径，不设就是软件路径。软件路径留着不是怀旧：
 它是 GPU 路径的**判据**（见下面"像素判据"）。
 
 ### 实测成本（本机 Intel Iris Plus 655，1080p，2026-10-18）
@@ -162,7 +162,7 @@ avbase 渲染线程                      Qt 侧
 
 ### 像素判据：怎么证明两条路径画的是同一幅画
 
-`AVBASE_QT_GRAB_REF=<另一条路径的抓图>` 会把抓图与参考图逐像素比较，打印平均/最大
+`XMEDIA_QT_GRAB_REF=<另一条路径的抓图>` 会把抓图与参考图逐像素比较，打印平均/最大
 绝对差。两条路径渲染同一个 QML 场景，所以差的就是渲染本身。
 
 判据要成立，**画面内容必须与时间无关**：拿会动的片子抓两次，差的是"两个不同的帧"，
@@ -185,7 +185,7 @@ ffmpeg -loop 1 -i pattern.png -t 10 -r 30 -c:v libx264 -pix_fmt yuv420p still.mp
 ### 四个只有接上 Qt 才会遇到的坑
 
 1. **Qt 默认给的是 OpenGL 2.1 兼容 profile**（macOS 上实测 `2.1 INTEL-23.7.4`），
-   而 `avbase_gl` 要求 **3.3 core**。症状是 `GlApi::Load` 拒绝、GPU 项显示
+   而 `xmedia_gl` 要求 **3.3 core**。症状是 `GlApi::Load` 拒绝、GPU 项显示
    "gl unavailable" 并画一块纯色背景，其余 Qt 测试全绿。修法是在创建任何窗口**之前**
    `QSurfaceFormat::setDefaultFormat()` 请求 3.3 core（macOS 随后给 4.1 core）。
 1. **上下颠倒**。GL 的原点在左下、Qt 合成这个 FBO 时假设行从上往下，所以
@@ -226,7 +226,7 @@ QML 只负责把秒映射成像素。这意味着换成 QWidget 时间线、或�
 `loadFromMedia(name, duration, has_video, has_audio)` 填充：一条视频 clip（V1）
 加一条音频 clip（A1），长度就是该媒体的长度。
 
-**每种类型一条 clip，不是每条流一条**：avbase 同时只渲染一路视频和一路音频，
+**每种类型一条 clip，不是每条流一条**：xmedia-kit 同时只渲染一路视频和一路音频，
 把每条音频流都画成独立轨道等于宣称这个应用能混音，而它不能。媒体没给时长
 （直播流）时面板清空——没有尺子就不画格子，编一个长度是撒谎。
 
@@ -241,21 +241,21 @@ QML 只负责把秒映射成像素。这意味着换成 QWidget 时间线、或�
 ### 还**没有**的
 
 真编辑器需要、但和 UI 框架选型正交：undo/redo、涟漪编辑、吸附、每秒缩略图、
-音频波形、工程文件读写、导出面板（导出本身复用 `avbase::transcode`，地基是现成
+音频波形、工程文件读写、导出面板（导出本身复用 `xmedia::transcode`，地基是现成
 的）。clip 目前不可拖拽也不可增删——背后没有混音器，给了手柄就是接了空气的
 控件。
 
 ## 一个必须知道的 ABI 陷阱（实测踩过）
 
-**宿主目标必须调用 `avbase_configure_abi_definitions()`，不能只链接库就完事。**
+**宿主目标必须调用 `xmedia_configure_abi_definitions()`，不能只链接库就完事。**
 
-`SEQUENCE_CHECKER(name)` 这个宏在定义了 `AVBASE_ENABLE_DCHECK` 时展开成**一个成员变量**，
+`SEQUENCE_CHECKER(name)` 这个宏在定义了 `XMEDIA_ENABLE_DCHECK` 时展开成**一个成员变量**，
 没定义时展开成**空**：
 
 ```cpp
 // base/sequence_checker.h
-#if defined(AVBASE_ENABLE_DCHECK)
-#define SEQUENCE_CHECKER(name) mutable ::avbase::base::SequenceChecker name
+#if defined(XMEDIA_ENABLE_DCHECK)
+#define SEQUENCE_CHECKER(name) mutable ::xmedia::base::SequenceChecker name
 #else
 #define SEQUENCE_CHECKER(name)
 #endif
@@ -278,33 +278,33 @@ heap-use-after-free, 40 bytes inside a 232-byte region
 修法就是补宏，`apps/player_qt/CMakeLists.txt` 与 `player/qt/CMakeLists.txt` 各一行：
 
 ```cmake
-avbase_configure_abi_definitions(avbase_player_qt)
-avbase_configure_abi_definitions(avbase_qtfacade)
+xmedia_configure_abi_definitions(xmedia_player_qt)
+xmedia_configure_abi_definitions(xmedia_qtfacade)
 ```
 
-## 另一个陷阱：不要把 Qt 目标套进 `avbase_configure_target()`
+## 另一个陷阱：不要把 Qt 目标套进 `xmedia_configure_target()`
 
 那个 helper 会加 `-fno-exceptions -fno-rtti`——那是核心库的契约。Qt 的元对象系统
 （`qobject_cast`、QML 运行时类型转换、moc 生成的 cast）依赖 RTTI，套上去的失败发生在
 moc 生成的代码里，而不是你写的任何一行。
 
 所以 Qt 目标走的是「**宏全一样、RTTI/异常不一样**」的组合：ABI 由
-`avbase_configure_abi_definitions()` 保证，编译契约按 UI 应用来。
+`xmedia_configure_abi_definitions()` 保证，编译契约按 UI 应用来。
 
 ## 诊断开关（不设就没有任何开销）
 
 | 环境变量 | 作用 |
 |---|---|
-| `AVBASE_QT_GL=1` | 用 GPU 路径（`QQuickFramebufferObject`）而不是软件路径 |
-| `AVBASE_QT_GRAB=/tmp/x.png` | 抓窗口内容后退出；配合 `QT_QPA_PLATFORM=offscreen` 可在无显示环境验证（GPU 路径不行，它需要真实 GL context） |
-| `AVBASE_QT_GRAB_DELAY=1500` | 抓图前的等待毫秒数（默认 1500） |
-| `AVBASE_QT_GRAB_REF=/tmp/other.png` | 与参考图逐像素比较，打印 `mean_abs` / `max_abs` |
-| `AVBASE_QT_GRAB_SEEK=30` | 抓图前先暂停并 seek 到该秒数（用来把两次运行钉在同一帧上） |
-| `AVBASE_QT_GRAB_SEEK_WAIT=2500` | seek 之后等多少毫秒再抓（默认 800）。想证明"画面**停在**目标帧"而不是"路过它"，就把这个值调大 |
-| `AVBASE_QT_TIMING=1` | 打印每条路径的每帧成本（见上面实测表） |
-| `AVBASE_QT_NULL_VIDEO=1` | 用 avbase 的 null 视频 sink，隔离「是不是我的 sink」 |
-| `AVBASE_QT_NULL_AUDIO=1` | 用 null 音频 sink，隔离音频设备 |
-| `AVBASE_QT_NO_PIXELS=1` | 收帧但不做 YUV→RGB，隔离「是不是我的转换」 |
+| `XMEDIA_QT_GL=1` | 用 GPU 路径（`QQuickFramebufferObject`）而不是软件路径 |
+| `XMEDIA_QT_GRAB=/tmp/x.png` | 抓窗口内容后退出；配合 `QT_QPA_PLATFORM=offscreen` 可在无显示环境验证（GPU 路径不行，它需要真实 GL context） |
+| `XMEDIA_QT_GRAB_DELAY=1500` | 抓图前的等待毫秒数（默认 1500） |
+| `XMEDIA_QT_GRAB_REF=/tmp/other.png` | 与参考图逐像素比较，打印 `mean_abs` / `max_abs` |
+| `XMEDIA_QT_GRAB_SEEK=30` | 抓图前先暂停并 seek 到该秒数（用来把两次运行钉在同一帧上） |
+| `XMEDIA_QT_GRAB_SEEK_WAIT=2500` | seek 之后等多少毫秒再抓（默认 800）。想证明"画面**停在**目标帧"而不是"路过它"，就把这个值调大 |
+| `XMEDIA_QT_TIMING=1` | 打印每条路径的每帧成本（见上面实测表） |
+| `XMEDIA_QT_NULL_VIDEO=1` | 用 xmedia-kit 的 null 视频 sink，隔离「是不是我的 sink」 |
+| `XMEDIA_QT_NULL_AUDIO=1` | 用 null 音频 sink，隔离音频设备 |
+| `XMEDIA_QT_NO_PIXELS=1` | 收帧但不做 YUV→RGB，隔离「是不是我的转换」 |
 
 后三个是定位 ABI 那个崩溃时加的，留着是因为下次崩在别处还得用同一套二分。
 
@@ -317,7 +317,7 @@ moc 生成的代码里，而不是你写的任何一行。
 - **像素判据**：854x480 的合成静止片（自带对角标记）上，GPU 路径相对软件路径
   `mean_abs = 0.82`、`max_abs = 207`（孤立边缘像素）。改成错误朝向后立刻变成
   `mean_abs = 34.9`，所以这个数字是有鉴别力的，不是装饰。
-- 15 秒连续播放后自行退出 `EXIT=0`，6 条 avbase 线程全部干净停止。
+- 15 秒连续播放后自行退出 `EXIT=0`，6 条 xmedia-kit 线程全部干净停止。
 - **暂停中 seek 的画面判据**：`/tmp` 里合成一条每 0.25 秒换一次纯色的 10 秒片
   （40 色、g=30），抓图的中心像素直接翻译成"停在第几帧"。暂停后 seek 到 4.000 s，
   在 0.8 s / 3 s / 6 s 三个等待点抓到的都是**第 120 帧 = 4.00 s**——既真的动了，

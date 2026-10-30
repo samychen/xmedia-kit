@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "media/ffmpeg/url_data_source.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace hls_fetch {
 namespace {
 
@@ -137,4 +137,4 @@ std::vector<uint8_t> StringBytes(const std::string& text) {
 }
 
 }  // namespace hls_fetch
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -35,13 +35,13 @@ namespace {
 
 using namespace std::chrono_literals;  // NOLINT — an example, not the SDK.
 
-using namespace avbase;  // NOLINT — an example; base/ and media/ live
-                         // under avbase.
+using namespace xmedia;  // NOLINT — an example; base/ and media/ live
+                         // under xmedia.
 
-using avbase::media::NativeHandleKind;
-using avbase::media::VideoFrame;
-using avbase::media::VideoRendererSink;
-using avbase::media::VideoSinkStats;
+using xmedia::media::NativeHandleKind;
+using xmedia::media::VideoFrame;
+using xmedia::media::VideoRendererSink;
+using xmedia::media::VideoSinkStats;
 
 // The captured frame store. Render() runs on the sink's poll thread; the
 // reader is main(), so the reference swap goes through a mutex rather than
@@ -110,7 +110,7 @@ class FrameCaptureSink final : public VideoRendererSink {
   void Play() override { playing_.store(true); }
   void Flush() override {}
   void SetOutputTarget(
-      base::scoped_refptr<avbase::media::NativeDisplay> /*display*/) override {}
+      base::scoped_refptr<xmedia::media::NativeDisplay> /*display*/) override {}
   bool IsRunning() const override { return running_.load(); }
   bool GetDisplayInterval(base::TimeDelta* interval) const override {
     if (interval) {
@@ -154,11 +154,11 @@ class FrameCaptureSink final : public VideoRendererSink {
 };
 
 class FrameCaptureSinkFactory final
-    : public avbase::media::VideoRendererSinkFactory {
+    : public xmedia::media::VideoRendererSinkFactory {
  public:
   explicit FrameCaptureSinkFactory(FrameStore* store) : store_(store) {}
   std::unique_ptr<VideoRendererSink> Create(
-      base::scoped_refptr<avbase::media::NativeDisplay> /*display*/) override {
+      base::scoped_refptr<xmedia::media::NativeDisplay> /*display*/) override {
     return std::make_unique<FrameCaptureSink>(store_);
   }
   const char* name() const override { return "frame-capture-factory"; }
@@ -189,17 +189,17 @@ int main(int argc, char** argv) {
   }
 
   FrameStore store;
-  avbase::PlayerConfig config;
-  auto deps = std::make_unique<avbase::Deps>();
+  xmedia::PlayerConfig config;
+  auto deps = std::make_unique<xmedia::Deps>();
   deps->video_sink_factory = std::make_shared<FrameCaptureSinkFactory>(&store);
-  avbase::Player player(config, std::move(deps));
+  xmedia::Player player(config, std::move(deps));
 
-  if (const avbase::Status s = player.SetDataSource(url); !s) {
+  if (const xmedia::Status s = player.SetDataSource(url); !s) {
     std::fprintf(stderr, "SetDataSource failed: %s\n",
                  s.error().ToString().c_str());
     return 1;
   }
-  if (const avbase::Status s = player.PrepareSync(); !s) {
+  if (const xmedia::Status s = player.PrepareSync(); !s) {
     std::fprintf(stderr, "Prepare failed: %s\n", s.error().ToString().c_str());
     return 1;
   }
@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
   // rejects it and logs "Start in state Started is not legal" every run.
   // headless.cc guards the same way; this example had no such guard, so it
   // printed that ERROR on every single invocation while still working.
-  if (player.state() != avbase::PlayerState::kStarted) {
+  if (player.state() != xmedia::PlayerState::kStarted) {
     player.Start();
   }
 
@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
       std::string storage =
           handle.kind != NativeHandleKind::kNone
               ? std::string("handle=") +
-                    avbase::media::GetNativeHandleKindName(handle.kind)
+                    xmedia::media::GetNativeHandleKindName(handle.kind)
               : std::string("storage=cpu");
       std::printf("frame %3d  %dx%d  ts=%-9s  %s\n", reported,
                   frame->natural_size().width, frame->natural_size().height,

@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// `avbase-inspect record`: capture a source to a file for a bounded window.
+// `xmedia-inspect record`: capture a source to a file for a bounded window.
 //
 // WHAT THIS IS, AND WHAT IT IS NOT. This records by READING THE SOURCE, not by
 // tapping a playing pipeline. The difference matters and is why the summary
@@ -36,7 +36,7 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 #include "tools/inspect/inspect_common.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {}  // namespace
 
 int RunRecord(int argc, char** argv) {
@@ -145,4 +145,4 @@ int RunRecord(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace avbase
+}  // namespace xmedia

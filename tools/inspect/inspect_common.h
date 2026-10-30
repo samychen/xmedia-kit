@@ -1,11 +1,11 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Shared plumbing for the avbase-inspect subcommands.
+// Shared plumbing for the xmedia-inspect subcommands.
 
-#ifndef AVBASE_TOOLS_INSPECT_INSPECT_COMMON_H_
-#define AVBASE_TOOLS_INSPECT_INSPECT_COMMON_H_
+#ifndef XMEDIA_TOOLS_INSPECT_INSPECT_COMMON_H_
+#define XMEDIA_TOOLS_INSPECT_INSPECT_COMMON_H_
 
 #include <stdio.h>
 
@@ -26,7 +26,7 @@
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/transcode/ffmpeg_transcode_job.h"
 
-namespace avbase {
+namespace xmedia {
 
 // Parsed command line. Shared by every subcommand.
 struct Options {
@@ -133,6 +133,6 @@ int RunPreview(int argc, char** argv);
 int RunPublish(int argc, char** argv);
 int RunRecord(int argc, char** argv);
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_TOOLS_INSPECT_INSPECT_COMMON_H_
+#endif  // XMEDIA_TOOLS_INSPECT_INSPECT_COMMON_H_

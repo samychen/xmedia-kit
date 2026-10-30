@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_
-#define AVBASE_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_
+#ifndef XMEDIA_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_
+#define XMEDIA_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_
 
 #include <atomic>
 #include <cstdint>
@@ -12,7 +12,7 @@
 #include <string>
 #include <thread>
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 // A minimal HTTP/1.1 server for data-source unit tests, bound to a loopback
 // port chosen by the OS. It exists because the network semantics under test
@@ -81,6 +81,6 @@ class LocalHttpServer final {
   std::map<std::string, std::string> last_headers_;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_
+#endif  // XMEDIA_TESTS_SUPPORT_LOCAL_HTTP_SERVER_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase authors. All rights reserved.
+// Copyright 2026 The xmedia-kit authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -69,7 +69,7 @@
 #include "tests/support/fake_renderer_sinks.h"
 #include "tests/support/mock_renderer_client.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kFramesPerBuffer = 256;
@@ -83,8 +83,8 @@ class MaxFpsOptionTest : public ::testing::Test {
  protected:
   MaxFpsOptionTest()
       : env_(base::test::TaskEnvironment::TimeSource::kRealTime),
-        video_thread_("avbase-test-S3"),
-        audio_thread_("avbase-test-S4") {}
+        video_thread_("xmedia-test-S3"),
+        audio_thread_("xmedia-test-S4") {}
 
   void SetUp() override {
     runner_ = env_.GetMainThreadTaskRunnerRef();
@@ -376,4 +376,4 @@ TEST_F(MaxFpsOptionTest, VideoEnabledProducesAVideoRenderer) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

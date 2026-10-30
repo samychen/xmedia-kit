@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -6,10 +6,10 @@
 //
 // OnceCallback is move-only and can be Run() exactly once; RepeatingCallback
 // is copyable and can be Run() many times. Neither allocates on Run().
-// Neither throws: avbase is built with -fno-exceptions.
+// Neither throws: xmedia-kit is built with -fno-exceptions.
 
-#ifndef AVBASE_BASE_FUNCTIONAL_CALLBACK_H_
-#define AVBASE_BASE_FUNCTIONAL_CALLBACK_H_
+#ifndef XMEDIA_BASE_FUNCTIONAL_CALLBACK_H_
+#define XMEDIA_BASE_FUNCTIONAL_CALLBACK_H_
 
 #include <memory>
 #include <utility>
@@ -17,7 +17,7 @@
 #include "base/check.h"
 #include "base/functional/callback_forward.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 namespace internal {
 
 // Type-erased single-shot invocable.
@@ -183,6 +183,6 @@ class RepeatingCallback<R(Args...)> {
   std::shared_ptr<Invoker> invoker_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_FUNCTIONAL_CALLBACK_H_
+#endif  // XMEDIA_BASE_FUNCTIONAL_CALLBACK_H_

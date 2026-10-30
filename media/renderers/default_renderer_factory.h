@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_
-#define AVBASE_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_
+#ifndef XMEDIA_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_
+#define XMEDIA_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_
 
 #include <memory>
 #include <vector>
@@ -24,7 +24,7 @@
 #include "media/filters/video_filter_stage.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The production RendererFactory: assembles RendererImpl from the sink and
 // decoder factories it was constructed with, and falls back to the null sinks
@@ -42,7 +42,7 @@ namespace avbase::media {
 // the S3/S4 runners at construction from whoever owns the threads (Player::
 // Impl), and passes them into every RendererImpl it builds -- RendererImpl
 // borrows the runners and must be destroyed before they are.
-class AVBASE_MEDIA_EXPORT DefaultRendererFactory final
+class XMEDIA_MEDIA_EXPORT DefaultRendererFactory final
     : public RendererFactory {
  public:
   struct Deps {
@@ -151,6 +151,6 @@ class AVBASE_MEDIA_EXPORT DefaultRendererFactory final
   base::scoped_refptr<NativeDisplay> display_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_
+#endif  // XMEDIA_MEDIA_RENDERERS_DEFAULT_RENDERER_FACTORY_H_

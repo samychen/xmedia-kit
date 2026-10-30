@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,11 +20,11 @@
 #include "player/qt/qt_video_sink.h"
 #include "player/qt/timeline_model.h"
 
-#if defined(AVBASE_QT_HAVE_SDL2_AUDIO)
+#if defined(XMEDIA_QT_HAVE_SDL2_AUDIO)
 #include "platform/sdl2/sdl2_audio_sink.h"
 #endif
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 namespace {
 
@@ -99,12 +99,12 @@ void PlayerBridge::setMailbox(FrameMailbox* mailbox) {
   auto deps = std::make_unique<Deps>();
   // Two isolation switches, for bisecting a crash between the three components
   // that can cause one (decoder, our sink, the audio device). Unset in normal
-  // use; each replaces its factory with avbase's null implementation.
-  if (!qEnvironmentVariableIsSet("AVBASE_QT_NULL_VIDEO")) {
+  // use; each replaces its factory with xmedia-kit's null implementation.
+  if (!qEnvironmentVariableIsSet("XMEDIA_QT_NULL_VIDEO")) {
     deps->video_sink_factory = std::make_shared<QtVideoSinkFactory>(mailbox);
   }
-#if defined(AVBASE_QT_HAVE_SDL2_AUDIO)
-  if (!qEnvironmentVariableIsSet("AVBASE_QT_NULL_AUDIO")) {
+#if defined(XMEDIA_QT_HAVE_SDL2_AUDIO)
+  if (!qEnvironmentVariableIsSet("XMEDIA_QT_NULL_AUDIO")) {
     // Real sound. Sdl2AudioSink lazily runs SDL_INIT_AUDIO/QUIT itself, so the
     // app does not have to start the SDL audio subsystem -- and it needs no SDL
     // window, which is the point: Qt owns the window here.
@@ -396,4 +396,4 @@ void PlayerBridge::RebuildTracks() {
   emit tracksChanged();
 }
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt

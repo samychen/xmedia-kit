@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "media/base/video_frame.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr Size kSize{64, 48};
@@ -148,4 +148,4 @@ TEST(VideoFilterTest, AcceptsAMappableFrame) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

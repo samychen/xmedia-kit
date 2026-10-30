@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_
-#define AVBASE_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_
+#ifndef XMEDIA_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_
+#define XMEDIA_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_
 
 #include <stdint.h>
 
@@ -18,7 +18,7 @@
 #include "media/filters/async_data_source_base.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A DataSource decorator that plays through a growing local file -- the
 // byte-level port of CicadaPlayer's cacheModule ("边播边存"). Every byte the
@@ -45,7 +45,7 @@ namespace avbase::media {
 // THREADING. ReadBlocking runs on the demux thread (D3) under a lock; the
 // async Read() runs on the shared AsyncDataSourceBase worker. Abort() stops
 // both and forwards to the inner source (Delta 15).
-class AVBASE_MEDIA_EXPORT FileCacheDataSource final : public DataSource {
+class XMEDIA_MEDIA_EXPORT FileCacheDataSource final : public DataSource {
  public:
   struct Config {
     // Key for the cache file name; the URI the descriptor carried.
@@ -99,6 +99,6 @@ class AVBASE_MEDIA_EXPORT FileCacheDataSource final : public DataSource {
   AsyncDataSourceBase async_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_
+#endif  // XMEDIA_MEDIA_FILTERS_FILE_CACHE_DATA_SOURCE_H_

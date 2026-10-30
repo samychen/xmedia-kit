@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Degraded-network acceptance: the player must survive a bad source.
@@ -395,7 +395,7 @@ def main():
         print("check_weaknet: source media not found: %s" % source)
         return 2
 
-    workdir = tempfile.mkdtemp(prefix="avbase-weaknet-")
+    workdir = tempfile.mkdtemp(prefix="xmedia-weaknet-")
     try:
         clip, err = build_clip(ffmpeg, source, workdir, args.clip_seconds)
         if clip is None:

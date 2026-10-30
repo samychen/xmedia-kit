@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_GL_GL_SCENE_H_
-#define AVBASE_MEDIA_GL_GL_SCENE_H_
+#ifndef XMEDIA_MEDIA_GL_GL_SCENE_H_
+#define XMEDIA_MEDIA_GL_GL_SCENE_H_
 
 #include <array>
 #include <cstdint>
@@ -20,7 +20,7 @@
 #include "render/gl/gl_program.h"
 #include "render/gl/gl_quad.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // How a layer's picture is placed inside its rect.
 //
@@ -59,7 +59,7 @@ enum class LayerContentMode {
 // which it is doing.
 //
 // THREADING: not thread-safe. Every method must run on the thread holding the
-// GL context -- in avbase, the sink's render thread.
+// GL context -- in xmedia-kit, the sink's render thread.
 //
 // BAD NUMBERS: the setters REJECT a non-finite value (NaN, infinity) instead
 // of clamping it, and leave the previous value standing.
@@ -77,7 +77,7 @@ enum class LayerContentMode {
 //
 // So "reject" and "degrade" are one policy split by whether the call can
 // report failure. What is not allowed is a third answer chosen per call site.
-class AVBASE_MEDIA_EXPORT GlScene {
+class XMEDIA_MEDIA_EXPORT GlScene {
  public:
   // A layer handle. Handles are never reused, so a handle kept across a
   // RemoveLayer() addresses nothing rather than quietly becoming a different
@@ -299,6 +299,6 @@ class AVBASE_MEDIA_EXPORT GlScene {
   std::vector<size_t> draw_order_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_GL_GL_SCENE_H_
+#endif  // XMEDIA_MEDIA_GL_GL_SCENE_H_

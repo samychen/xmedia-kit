@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Enforce the coverage thresholds from docs/07 §12.
@@ -176,7 +176,7 @@ def normalize(path, root):
     if path.startswith(root):
         path = path[len(root):]
     # Strip a leading source root the tracefile may carry, e.g. ".../ijkpp/".
-    for marker in ("/ijkpp/", "/avbase/"):
+    for marker in ("/ijkpp/", "/xmedia-kit/"):
         index = path.find(marker)
         if index >= 0:
             return path[index + len(marker):]

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_FFMPEG_DECODER_FACTORIES_H_
-#define AVBASE_MEDIA_FFMPEG_DECODER_FACTORIES_H_
+#ifndef XMEDIA_MEDIA_FFMPEG_DECODER_FACTORIES_H_
+#define XMEDIA_MEDIA_FFMPEG_DECODER_FACTORIES_H_
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -11,7 +11,7 @@
 #include "media/base/video_decoder_factory.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Software-decoder factories backed by FFmpeg. They exist so that a platform
 // can inject hardware factories *ahead* of them (RendererFactory::
@@ -22,7 +22,7 @@ namespace avbase::media {
 // |task_runner| is where the decoder posts its callbacks; it must be the same
 // sequence the owning DecoderStream runs on (S3 for video, S4 for audio),
 // because DecoderStream's contract is that everything stays on one sequence.
-class AVBASE_MEDIA_EXPORT FFmpegVideoDecoderFactory final
+class XMEDIA_MEDIA_EXPORT FFmpegVideoDecoderFactory final
     : public VideoDecoderFactory {
  public:
   explicit FFmpegVideoDecoderFactory(
@@ -44,7 +44,7 @@ class AVBASE_MEDIA_EXPORT FFmpegVideoDecoderFactory final
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
-class AVBASE_MEDIA_EXPORT FFmpegAudioDecoderFactory final
+class XMEDIA_MEDIA_EXPORT FFmpegAudioDecoderFactory final
     : public AudioDecoderFactory {
  public:
   explicit FFmpegAudioDecoderFactory(
@@ -64,6 +64,6 @@ class AVBASE_MEDIA_EXPORT FFmpegAudioDecoderFactory final
   base::scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FFMPEG_DECODER_FACTORIES_H_
+#endif  // XMEDIA_MEDIA_FFMPEG_DECODER_FACTORIES_H_

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_MEDIA_BASE_NATIVE_DISPLAY_H_
-#define AVBASE_MEDIA_BASE_NATIVE_DISPLAY_H_
+#ifndef XMEDIA_MEDIA_BASE_NATIVE_DISPLAY_H_
+#define XMEDIA_MEDIA_BASE_NATIVE_DISPLAY_H_
 
 #include <stdint.h>
 
@@ -15,13 +15,13 @@
 #include "base/memory/scoped_refptr.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // A type-erased window-system handle.
 //
 // The media layer must never include X11/Wayland/SDL headers, so the handle is
 // carried as an opaque pointer plus a kind tag, with a release callback for
-// handles avbase was asked to own. See docs/archive/09 §3 for the embedding
+// handles xmedia-kit was asked to own. See docs/archive/09 §3 for the embedding
 // rules that govern who owns what.
 enum class NativeDisplayKind {
   kNone = 0,
@@ -39,29 +39,29 @@ enum class NativeDisplayKind {
   kEglWindow,   // EGL EGLSurface carrier, host-owned (see egl_surface.h).
 };
 
-AVBASE_MEDIA_EXPORT const char*
+XMEDIA_MEDIA_EXPORT const char*
 GetNativeDisplayKindName(NativeDisplayKind kind);
 
-struct AVBASE_MEDIA_EXPORT X11WindowHandle {
+struct XMEDIA_MEDIA_EXPORT X11WindowHandle {
   void* display{nullptr};  // X11 `Display*`, caller-owned unless noted.
   // X11's `Window` is an XID, i.e. `unsigned long` -- pointer-width on every
   // platform X11 runs on. Declaring it uintptr_t rather than uint64_t keeps the
   // void* round-trip in FromX11Window() cast-free (and -Wuseless-cast quiet on
   // LP64, where the two are the same type).
   uintptr_t window{0};
-  bool avbase_owns_display{false};
+  bool xmedia_owns_display{false};
 };
 
-struct AVBASE_MEDIA_EXPORT WaylandSurfaceHandle {
+struct XMEDIA_MEDIA_EXPORT WaylandSurfaceHandle {
   void* display{nullptr};  // `wl_display*`.
   void* surface{nullptr};  // `wl_surface*`.
-  bool avbase_owns_display{false};
+  bool xmedia_owns_display{false};
   // Wayland cannot report a surface size, so the embedder must supply one.
   int32_t width{0};
   int32_t height{0};
 };
 
-class AVBASE_MEDIA_EXPORT NativeDisplay
+class XMEDIA_MEDIA_EXPORT NativeDisplay
     : public base::RefCountedThreadSafe<NativeDisplay> {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
@@ -113,6 +113,6 @@ class AVBASE_MEDIA_EXPORT NativeDisplay
   base::OnceCallback<void(void*)> release_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_BASE_NATIVE_DISPLAY_H_
+#endif  // XMEDIA_MEDIA_BASE_NATIVE_DISPLAY_H_

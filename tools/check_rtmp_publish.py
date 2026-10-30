@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """RTMP publish acceptance: push a file to a real RTMP peer over loopback.
@@ -12,7 +12,7 @@ sandbox while still exercising the REAL protocol -- a local .flv file would
 prove nothing about rtmp://, which is the part that has never had a producer.
 
 WHAT IS ASSERTED
-  1. avbase-inspect publish exits 0 against rtmp://.
+  1. xmedia-inspect publish exits 0 against rtmp://.
   2. The peer actually received a stream (file non-empty), and re-opening it
      reports the same duration as the source (within a tolerance).
   3. The peer's stream count matches what was published.
@@ -122,7 +122,7 @@ def receive(inspect_bin, ffmpeg, ffprobe, source, realtime, workdir, log):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--inspect", required=True,
-                        help="avbase-inspect binary")
+                        help="xmedia-inspect binary")
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--ffprobe", default="ffprobe")
     parser.add_argument("--source", default=None,
@@ -134,7 +134,7 @@ def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     source = args.source or os.path.join(
         root, "tests", "testdata", "small_h264_aac_3s.mp4")
-    for tool, name in ((args.inspect, "avbase-inspect"),
+    for tool, name in ((args.inspect, "xmedia-inspect"),
                        (args.ffmpeg, "ffmpeg"),
                        (args.ffprobe, "ffprobe")):
         if shutil.which(tool) is None and not os.path.exists(tool):
@@ -144,7 +144,7 @@ def main():
         print("SKIP: source media not found (%s)" % source)
         return 2
 
-    workdir = tempfile.mkdtemp(prefix="avbase-rtmp-")
+    workdir = tempfile.mkdtemp(prefix="xmedia-rtmp-")
     log_path = os.path.join(workdir, "publish.log")
     failures = []
     walls = {}

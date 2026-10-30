@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,22 +6,22 @@
 
 #include <utility>
 
-#include "avbase/BuildConfig.h"
+#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "media/curl/curl_data_source.h"
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/url_data_source.h"
 #endif
 #include "media/filters/file_cache_data_source.h"
 #include "media/filters/retry_data_source.h"
 
-namespace avbase {
+namespace xmedia {
 namespace player_internal {
 
 media::DataSourceDescriptor
 WrapRetry(const media::DataSourceDescriptor& descriptor, const NetConfig& net,
           bool track, base::scoped_refptr<media::RetryDataSource>* out_retry) {
-#if AVBASE_ENABLE_CURL
+#if XMEDIA_ENABLE_CURL
   // The curl transport is the CicadaPlayer-parity path: pinned DNS, forced
   // IPv4/IPv6, a proxy, and the low-speed watchdog all come from
   // CurlDataSource::Config, none of which the avio layer can express. It is
@@ -49,7 +49,7 @@ WrapRetry(const media::DataSourceDescriptor& descriptor, const NetConfig& net,
     return wrapped;
   }
 #endif
-#if AVBASE_ENABLE_FFMPEG
+#if XMEDIA_ENABLE_FFMPEG
   if (descriptor.kind == media::DataSourceDescriptor::Kind::kUri &&
       (descriptor.uri.starts_with("http://") ||
        descriptor.uri.starts_with("https://")) &&
@@ -109,4 +109,4 @@ WrapCache(const media::DataSourceDescriptor& descriptor,
 }
 
 }  // namespace player_internal
-}  // namespace avbase
+}  // namespace xmedia

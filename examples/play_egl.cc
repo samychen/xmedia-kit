@@ -1,16 +1,16 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // EGL playback: the EGL backend acceptance example. Embedding mode
 // (docs/archive/09 §2) -- the host owns the EGLDisplay / EGLSurface /
-// EGLContext and carries them through NativeDisplay::FromEglSurface(); avbase
+// EGLContext and carries them through NativeDisplay::FromEglSurface(); xmedia-kit
 // renders into the surface through GlPresenter. Audio goes through the null
 // sink.
 //
 // NOTE: this example targets a Linux EGL stack (Mesa/GBM, X11 EGL, ...). It
 // is NOT buildable on macOS, which has no EGL development libraries; it is
-// gated behind -DAVBASE_ENABLE_EGL=ON and only compiled where EGL is present.
+// gated behind -DXMEDIA_ENABLE_EGL=ON and only compiled where EGL is present.
 // A real host builds the EGLSurface from its own window system; here a pbuffer
 // surface keeps the example self-contained and window-system-free.
 //
@@ -50,7 +50,7 @@ std::atomic<bool> g_completed{false};
 // of the position line.
 std::atomic<bool> g_print_stats{false};
 
-avbase::Player* g_player{nullptr};
+xmedia::Player* g_player{nullptr};
 
 // EGL handles the host owns for the playback lifetime.
 EGLDisplay g_display = EGL_NO_DISPLAY;
@@ -84,17 +84,17 @@ bool ParseOptions(int argc, char** argv, Options* out) {
   return true;
 }
 
-void OnPlayerEvent(const avbase::PlayerEvent& e) {
-  if (e.type == avbase::EventType::kError) {
-    if (const auto* payload = avbase::AsError(e)) {
+void OnPlayerEvent(const xmedia::PlayerEvent& e) {
+  if (e.type == xmedia::EventType::kError) {
+    if (const auto* payload = xmedia::AsError(e)) {
       std::fprintf(stderr, "error: %s\n", payload->error.ToString().c_str());
     }
     g_error.store(true);
-  } else if (e.type == avbase::EventType::kCompleted) {
+  } else if (e.type == xmedia::EventType::kCompleted) {
     g_completed.store(true);
-  } else if (e.type == avbase::EventType::kStats) {
+  } else if (e.type == xmedia::EventType::kStats) {
     if (g_print_stats.load()) {
-      if (const auto* payload = avbase::AsStats(e)) {
+      if (const auto* payload = xmedia::AsStats(e)) {
         std::printf("stats %s\n", payload->stats.ToJson().c_str());
       }
       return;
@@ -252,26 +252,26 @@ int main(int argc, char** argv) {
   surface.surface = g_surface;
   surface.context = g_context;
   surface.overlay = nullptr;
-  auto display = avbase::media::NativeDisplay::FromEglSurface(&surface);
+  auto display = xmedia::media::NativeDisplay::FromEglSurface(&surface);
 
-  auto deps = std::make_unique<avbase::Deps>();
+  auto deps = std::make_unique<xmedia::Deps>();
   deps->video_sink_factory =
-      std::make_shared<avbase::media::EglVideoSinkFactory>();
+      std::make_shared<xmedia::media::EglVideoSinkFactory>();
   deps->audio_sink_factory =
-      std::make_shared<avbase::media::NullAudioSinkFactory>();
+      std::make_shared<xmedia::media::NullAudioSinkFactory>();
 
-  avbase::Player player(avbase::PlayerConfig(), std::move(deps));
+  xmedia::Player player(xmedia::PlayerConfig(), std::move(deps));
   g_player = &player;
-  player.SetEventHandler(avbase::base::BindRepeating(&OnPlayerEvent));
+  player.SetEventHandler(xmedia::base::BindRepeating(&OnPlayerEvent));
   g_print_stats.store(options.stats);
   player.SetVideoSurface(display);
-  if (const avbase::Status s = player.SetDataSource(options.url); !s) {
+  if (const xmedia::Status s = player.SetDataSource(options.url); !s) {
     std::fprintf(stderr, "SetDataSource failed: %s\n",
                  s.error().ToString().c_str());
     DestroyEglResources();
     return 1;
   }
-  if (const avbase::Status s = player.PrepareAsync(); !s) {
+  if (const xmedia::Status s = player.PrepareAsync(); !s) {
     std::fprintf(stderr, "PrepareAsync failed: %s\n",
                  s.error().ToString().c_str());
     DestroyEglResources();
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
   const int exit_code = PumpUntilDone(options.max_seconds);
   // StopSync() blocks until the pipeline stopped, so the sink's render thread
   // (and its EGL context) is gone before we tear the EGL resources down here.
-  player.StopSync(avbase::base::Seconds(5));
+  player.StopSync(xmedia::base::Seconds(5));
 
   DestroyEglResources();
   return exit_code;

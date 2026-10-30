@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// avbase-inspect: a diagnostic CLI over the real media stack.
+// xmedia-inspect: a diagnostic CLI over the real media stack.
 //
 // Why this exists: ijkplayer's only window into its own behaviour is a wall of
 // LOGD lines from ff_ffplay.c, and several classes of bug -- a wrong time base,
@@ -26,40 +26,40 @@ int main(int argc, char** argv) {
   // it was not), and transcode's set is a different one (-o, --vcodec, ...).
   // Routing here keeps that refusal intact for the other three subcommands.
   if (argc > 1 && std::string(argv[1]) == "transcode") {
-    avbase::media::ffmpeg::InstallLogBridge();
-    return avbase::RunTranscode(argc - 1, argv + 1);
+    xmedia::media::ffmpeg::InstallLogBridge();
+    return xmedia::RunTranscode(argc - 1, argv + 1);
   }
   if (argc > 1 && std::string(argv[1]) == "preview") {
-    avbase::media::ffmpeg::InstallLogBridge();
-    return avbase::RunPreview(argc - 1, argv + 1);
+    xmedia::media::ffmpeg::InstallLogBridge();
+    return xmedia::RunPreview(argc - 1, argv + 1);
   }
   if (argc > 1 && std::string(argv[1]) == "publish") {
-    avbase::media::ffmpeg::InstallLogBridge();
-    return avbase::RunPublish(argc - 1, argv + 1);
+    xmedia::media::ffmpeg::InstallLogBridge();
+    return xmedia::RunPublish(argc - 1, argv + 1);
   }
   if (argc > 1 && std::string(argv[1]) == "record") {
-    avbase::media::ffmpeg::InstallLogBridge();
-    return avbase::RunRecord(argc - 1, argv + 1);
+    xmedia::media::ffmpeg::InstallLogBridge();
+    return xmedia::RunRecord(argc - 1, argv + 1);
   }
-  avbase::Options opts;
-  if (!avbase::ParseArgs(argc, argv, &opts)) {
+  xmedia::Options opts;
+  if (!xmedia::ParseArgs(argc, argv, &opts)) {
     return 1;
   }
-  // Route FFmpeg's own logging through avbase's so a single --verbose controls
+  // Route FFmpeg's own logging through xmedia-kit's so a single --verbose controls
   // both. Without this, libavformat's warnings go to stderr unformatted and
   // interleave with the report.
-  avbase::media::ffmpeg::InstallLogBridge();
+  xmedia::media::ffmpeg::InstallLogBridge();
 
   if (opts.subcommand == "probe") {
-    return avbase::RunProbe(opts);
+    return xmedia::RunProbe(opts);
   }
   if (opts.subcommand == "decode") {
-    return avbase::RunDecode(opts);
+    return xmedia::RunDecode(opts);
   }
   if (opts.subcommand == "sync") {
-    return avbase::RunSync(opts);
+    return xmedia::RunSync(opts);
   }
   fprintf(stderr, "error: unknown subcommand '%s'\n", opts.subcommand.c_str());
-  avbase::Usage();
+  xmedia::Usage();
   return 1;
 }

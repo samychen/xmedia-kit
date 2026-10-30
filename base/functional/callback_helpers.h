@@ -1,18 +1,18 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // API mirrors Chromium's `base/functional/callback_helpers.h` (BSD-3-Clause).
 
-#ifndef AVBASE_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_
-#define AVBASE_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_
+#ifndef XMEDIA_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_
+#define XMEDIA_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_
 
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 
-namespace avbase::base {
+namespace xmedia::base {
 
 // A closure that does nothing. Prefer this over binding an empty lambda so
 // that intent is explicit at the call site.
@@ -63,6 +63,6 @@ class ScopedClosureRunner {
   OnceClosure closure_;
 };
 
-}  // namespace avbase::base
+}  // namespace xmedia::base
 
-#endif  // AVBASE_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_
+#endif  // XMEDIA_BASE_FUNCTIONAL_CALLBACK_HELPERS_H_

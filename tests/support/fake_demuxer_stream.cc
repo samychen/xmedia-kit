@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 AudioDecoderConfig MakeValidAudioConfig() {
   AudioDecoderConfig config;
@@ -132,4 +132,4 @@ int FakeMediaResource::source_count() const {
   return static_cast<int>(sources_.size());
 }
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test

@@ -1,9 +1,9 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLAYER_VIDEO_DECODER_DEFAULTS_H_
-#define AVBASE_PLAYER_VIDEO_DECODER_DEFAULTS_H_
+#ifndef XMEDIA_PLAYER_VIDEO_DECODER_DEFAULTS_H_
+#define XMEDIA_PLAYER_VIDEO_DECODER_DEFAULTS_H_
 
 #include <vector>
 
@@ -12,7 +12,7 @@
 #include "media/base/video_decoder_factory.h"
 #include "media/filters/decoder_selector.h"
 
-namespace avbase {
+namespace xmedia {
 
 // The platform's default hardware-decoder factory list, in priority order.
 // Returns an empty vector when the build has no hardware factory enabled or
@@ -27,6 +27,6 @@ DefaultHardwareVideoDecoderFactories(
     const base::scoped_refptr<base::SequencedTaskRunner>& video_runner,
     media::HwCodecMask allowed_codecs);
 
-}  // namespace avbase
+}  // namespace xmedia
 
-#endif  // AVBASE_PLAYER_VIDEO_DECODER_DEFAULTS_H_
+#endif  // XMEDIA_PLAYER_VIDEO_DECODER_DEFAULTS_H_

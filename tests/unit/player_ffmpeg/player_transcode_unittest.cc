@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,11 +14,11 @@
 #include "media/base/media_log.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 
-namespace avbase {
+namespace xmedia {
 namespace {
 
 std::string TestFile(const char* name) {
-  return std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+  return std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
 }
 
 // Opens |path| through the regular demuxer — the round-trip check for every
@@ -170,4 +170,4 @@ TEST(PlayerRecorderTest, StopWithoutStartIsRejected) {
 }
 
 }  // namespace
-}  // namespace avbase
+}  // namespace xmedia

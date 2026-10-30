@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@
 #include "gtest/gtest.h"
 #include "media/base/media_error.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 using media::ffmpeg::UrlDataSource;
 
@@ -30,7 +30,7 @@ constexpr auto kWaitTimeout = std::chrono::seconds(20);
 constexpr auto kPostWaitTimeout = std::chrono::seconds(5);
 
 std::string TestFilePath(const std::string& name) {
-  return "file://" + std::string(AVBASE_TESTDATA_DIR) + "/" + name;
+  return "file://" + std::string(XMEDIA_TESTDATA_DIR) + "/" + name;
 }
 
 // The avio layer accepts file:// URLs, which makes the UrlDataSource
@@ -43,7 +43,7 @@ class UrlDataSourceTest : public ::testing::Test {
     ASSERT_TRUE(reader_thread_.Start());
     path_ = TestFilePath("audio_only.m4a");
     const std::string raw_path =
-        std::string(AVBASE_TESTDATA_DIR) + "/audio_only.m4a";
+        std::string(XMEDIA_TESTDATA_DIR) + "/audio_only.m4a";
     std::FILE* f = std::fopen(raw_path.c_str(), "rb");
     ASSERT_NE(f, nullptr);
     uint8_t buf[65536];
@@ -186,4 +186,4 @@ TEST_F(UrlDataSourceTest, UnknownSchemeFailsReadsWithActionableError) {
 }
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

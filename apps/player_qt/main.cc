@@ -1,8 +1,8 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-//   avbase_player_qt [media-file-or-url]
+//   xmedia_player_qt [media-file-or-url]
 //
 // The composition root, and the only file that knows about all four pieces.
 //
@@ -44,7 +44,7 @@ namespace {
 // than from a compiled-in resource keeps the QML editable while the skeleton is
 // being worked on: change a file, restart, see it. A shipped product would flip
 // this to a qrc path and gain the single-binary property.
-constexpr char kQmlDir[] = AVBASE_QT_QML_DIR;
+constexpr char kQmlDir[] = XMEDIA_QT_QML_DIR;
 
 // Mean absolute per-channel difference between two grabs, as the oracle for
 // "the GPU path draws the same picture as the software path". A pixel-exact
@@ -89,9 +89,9 @@ double MeanAbsDifference(const QImage& a, const QImage& b, int* max_delta) {
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);
-  QGuiApplication::setApplicationName(QStringLiteral("avbase player"));
+  QGuiApplication::setApplicationName(QStringLiteral("xmedia-kit player"));
   QGuiApplication::setApplicationDisplayName(
-      QStringLiteral("avbase player (Qt skeleton)"));
+      QStringLiteral("xmedia-kit player (Qt skeleton)"));
 
   // Basic, not the platform style: the control bar is a custom overlay and the
   // native styles each impose their own metrics on the buttons inside it, which
@@ -101,8 +101,8 @@ int main(int argc, char** argv) {
   // The one C++ type QML instantiates directly. PlayerBridge and TimelineModel
   // arrive as context properties instead, because there is exactly one of each
   // and QML should not be able to construct a second Player by accident.
-  qmlRegisterType<avbase::qt::VideoItem>("AvbasePlayer", 1, 0, "VideoItem");
-  qmlRegisterType<avbase::qt::GlVideoItem>("AvbasePlayer", 1, 0, "GlVideoItem");
+  qmlRegisterType<xmedia::qt::VideoItem>("XmediaPlayer", 1, 0, "VideoItem");
+  qmlRegisterType<xmedia::qt::GlVideoItem>("XmediaPlayer", 1, 0, "GlVideoItem");
 
   // Pin the scene graph to OpenGL rather than letting Qt choose.
   //
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
   //
   // Measured, not guessed: with Qt's defaults on macOS the scene graph gets a
   // 2.1 compatibility context ("context reports 2.1 INTEL-23.7.4"), and
-  // avbase_gl refuses anything below OpenGL 3.3 core -- so the GPU item reports
+  // xmedia_gl refuses anything below OpenGL 3.3 core -- so the GPU item reports
   // "gl unavailable" and paints a flat background while every other Qt test
   // stays green. macOS offers exactly two choices here, 2.1 legacy and 3.2+
   // core, so asking for 3.3 core is what selects the second one; the driver
@@ -146,14 +146,14 @@ int main(int argc, char** argv) {
   // Which surface to build. Opt-in rather than default, because the software
   // path is the oracle the GPU path is checked against and needs to stay one
   // environment variable away.
-  const bool use_gl_surface = qEnvironmentVariableIsSet("AVBASE_QT_GL");
+  const bool use_gl_surface = qEnvironmentVariableIsSet("XMEDIA_QT_GL");
   std::fprintf(stderr, "video surface: %s\n",
                use_gl_surface ? "opengl (QQuickFramebufferObject)"
                               : "software (QPainter)");
 
-  avbase::qt::FrameMailbox mailbox;
-  avbase::qt::TimelineModel timeline;
-  avbase::qt::PlayerBridge bridge(&timeline);
+  xmedia::qt::FrameMailbox mailbox;
+  xmedia::qt::TimelineModel timeline;
+  xmedia::qt::PlayerBridge bridge(&timeline);
   // Must precede the first load: the sink factory captures the mailbox at
   // Player construction and cannot be swapped afterwards.
   bridge.setMailbox(&mailbox);
@@ -193,12 +193,12 @@ int main(int argc, char** argv) {
   // observes instead of a fact it assumes.
   QObject* const root = engine.rootObjects().first();
   bool handed_over = false;
-  if (auto* soft = root->findChild<avbase::qt::VideoItem*>(
+  if (auto* soft = root->findChild<xmedia::qt::VideoItem*>(
           QStringLiteral("videoSurface"))) {
     soft->setMailbox(&mailbox);
     handed_over = true;
   }
-  if (auto* gpu = root->findChild<avbase::qt::GlVideoItem*>(
+  if (auto* gpu = root->findChild<xmedia::qt::GlVideoItem*>(
           QStringLiteral("glVideoSurface"))) {
     gpu->setMailbox(&mailbox);
     handed_over = true;
@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
     bridge.open(QString::fromLocal8Bit(argv[1]));
   }
 
-  // AVBASE_QT_STATS=<ms> prints the pipeline's own counters and exits.
+  // XMEDIA_QT_STATS=<ms> prints the pipeline's own counters and exits.
   //
   // "The picture stutters" is an impression; frames_presented against a known
   // frame rate is a measurement, and the two disagree often enough to be worth
@@ -228,9 +228,9 @@ int main(int argc, char** argv) {
   // The JSON comes from Player::GetPlaybackStats(), which is the same surface a
   // host can read at any time -- so this prints production telemetry, not a
   // debug-only view that could drift from it.
-  const QByteArray stats_after = qgetenv("AVBASE_QT_STATS");
+  const QByteArray stats_after = qgetenv("XMEDIA_QT_STATS");
   if (!stats_after.isEmpty()) {
-    const int stats_ms = qEnvironmentVariableIntValue("AVBASE_QT_STATS");
+    const int stats_ms = qEnvironmentVariableIntValue("XMEDIA_QT_STATS");
     QTimer::singleShot(stats_ms > 0 ? stats_ms : 3000, &app, [&bridge, &app]() {
       const QByteArray json = bridge.stats().toUtf8();
       std::fprintf(stderr, "stats %s\n", json.constData());
@@ -238,9 +238,9 @@ int main(int argc, char** argv) {
     });
   }
 
-  // AVBASE_QT_TRACE=<ms> prints one line per <ms> until the app exits.
+  // XMEDIA_QT_TRACE=<ms> prints one line per <ms> until the app exits.
   //
-  // AVBASE_QT_STATS answers "how many frames did the pipeline hand out", which
+  // XMEDIA_QT_STATS answers "how many frames did the pipeline hand out", which
   // is not the question "is the picture moving". Those two disagree in exactly
   // the case that is hardest to see from the outside: a compositor that
   // PRESENTS steadily while the frame it hands out carries the same timestamp
@@ -251,11 +251,11 @@ int main(int argc, char** argv) {
   // A trace line is also the only way to see a stall that RESOLVES: a playback
   // that freezes for three seconds and then plays correctly leaves no trace in
   // a single end-of-run sample, because the totals look fine.
-  const QByteArray trace_every = qgetenv("AVBASE_QT_TRACE");
+  const QByteArray trace_every = qgetenv("XMEDIA_QT_TRACE");
   QElapsedTimer trace_clock;
   QTimer trace_timer;
   if (!trace_every.isEmpty()) {
-    const int every_ms = qEnvironmentVariableIntValue("AVBASE_QT_TRACE");
+    const int every_ms = qEnvironmentVariableIntValue("XMEDIA_QT_TRACE");
     trace_clock.start();
     trace_timer.setInterval(every_ms > 0 ? every_ms : 250);
     QObject::connect(&trace_timer, &QTimer::timeout, &app, [&]() {
@@ -277,22 +277,22 @@ int main(int argc, char** argv) {
   // that the QML scene actually painted, and it works under
   // QT_QPA_PLATFORM=offscreen, which is what lets CI use it.
   //
-  //   AVBASE_QT_GRAB=/tmp/out.png [AVBASE_QT_GRAB_DELAY=1500] <app> <media>
+  //   XMEDIA_QT_GRAB=/tmp/out.png [XMEDIA_QT_GRAB_DELAY=1500] <app> <media>
   //
-  // AVBASE_QT_GRAB_REF=<earlier grab> turns the grab into a comparison: the two
+  // XMEDIA_QT_GRAB_REF=<earlier grab> turns the grab into a comparison: the two
   // images are the same scene rendered through two different video paths, so
   // the difference measures the paths and nothing else. See
   // MeanAbsDifference() above for what the number is good for.
   //
-  // AVBASE_QT_GRAB_SEEK=<seconds> pauses and seeks before grabbing, which is
+  // XMEDIA_QT_GRAB_SEEK=<seconds> pauses and seeks before grabbing, which is
   // what makes the comparison an oracle at all: a moving picture grabbed twice
   // at "2.5 seconds after start" differs by however many frames the two runs
   // drifted apart, and that noise is an order of magnitude larger than any
   // difference between the renderers. Seeking first pins both runs to the same
   // decoded frame, so what is left is the paths.
-  const QByteArray grab_path = qgetenv("AVBASE_QT_GRAB");
+  const QByteArray grab_path = qgetenv("XMEDIA_QT_GRAB");
   if (!grab_path.isEmpty()) {
-    const int delay_ms = qEnvironmentVariableIntValue("AVBASE_QT_GRAB_DELAY");
+    const int delay_ms = qEnvironmentVariableIntValue("XMEDIA_QT_GRAB_DELAY");
     QTimer::singleShot(
         delay_ms > 0 ? delay_ms : 1500, &app,
         [&engine, &app, &bridge, grab_path]() {
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
               std::fprintf(stderr, "grabbed %dx%d to %s: %s\n", image.width(),
                            image.height(), qPrintable(path),
                            saved ? "ok" : "failed");
-              const QByteArray ref_path = qgetenv("AVBASE_QT_GRAB_REF");
+              const QByteArray ref_path = qgetenv("XMEDIA_QT_GRAB_REF");
               if (!ref_path.isEmpty()) {
                 const QImage reference(QString::fromLocal8Bit(ref_path));
                 int peak = 0;
@@ -327,7 +327,7 @@ int main(int argc, char** argv) {
             app.quit();
           };
 
-          const QByteArray seek_s = qgetenv("AVBASE_QT_GRAB_SEEK");
+          const QByteArray seek_s = qgetenv("XMEDIA_QT_GRAB_SEEK");
           if (seek_s.isEmpty()) {
             do_grab();
             return;
@@ -348,7 +348,7 @@ int main(int argc, char** argv) {
           // a wait long enough for a resumed pipeline to have run away
           // visibly.
           const int seek_wait_ms =
-              qEnvironmentVariableIntValue("AVBASE_QT_GRAB_SEEK_WAIT");
+              qEnvironmentVariableIntValue("XMEDIA_QT_GRAB_SEEK_WAIT");
           QTimer::singleShot(seek_wait_ms > 0 ? seek_wait_ms : 800, &app,
                              do_grab);
         });

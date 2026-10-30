@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,8 +10,8 @@
 // differences are exactly what a Traits type can carry, so one implementation
 // serves both.
 
-#ifndef AVBASE_MEDIA_FILTERS_DECODER_STREAM_H_
-#define AVBASE_MEDIA_FILTERS_DECODER_STREAM_H_
+#ifndef XMEDIA_MEDIA_FILTERS_DECODER_STREAM_H_
+#define XMEDIA_MEDIA_FILTERS_DECODER_STREAM_H_
 
 #include <stdint.h>
 
@@ -41,7 +41,7 @@
 #include "media/base/waiting.h"
 #include "media/media_export.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // Reported when a DecoderStream has to abandon a decoder mid-stream. ijkplayer
 // surfaced several of these as hard errors; here they are recoverable and
@@ -60,9 +60,9 @@ enum class DecoderStreamEvent {
   kNoDecoderAvailable,
 };
 
-AVBASE_MEDIA_EXPORT const char* GetDecoderStreamEventName(DecoderStreamEvent e);
+XMEDIA_MEDIA_EXPORT const char* GetDecoderStreamEventName(DecoderStreamEvent e);
 
-struct AVBASE_MEDIA_EXPORT VideoDecoderStreamTraits {
+struct XMEDIA_MEDIA_EXPORT VideoDecoderStreamTraits {
   static constexpr bool kIsVideo = true;
   using DecoderType = VideoDecoder;
   using OutputType = VideoFrame;
@@ -102,7 +102,7 @@ struct AVBASE_MEDIA_EXPORT VideoDecoderStreamTraits {
   }
 };
 
-struct AVBASE_MEDIA_EXPORT AudioDecoderStreamTraits {
+struct XMEDIA_MEDIA_EXPORT AudioDecoderStreamTraits {
   static constexpr bool kIsVideo = false;
   using DecoderType = AudioDecoder;
   using OutputType = AudioBuffer;
@@ -150,7 +150,7 @@ struct AVBASE_MEDIA_EXPORT AudioDecoderStreamTraits {
 //
 // Not thread-safe: every method must run on |task_runner_|.
 template <typename Traits>
-class AVBASE_MEDIA_EXPORT DecoderStream {
+class XMEDIA_MEDIA_EXPORT DecoderStream {
  public:
   using DecoderType = typename Traits::DecoderType;
   using OutputType = typename Traits::OutputType;
@@ -164,7 +164,7 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
   using EventCB = base::RepeatingCallback<void(DecoderStreamEvent)>;
 
   // Watermarks, in output units. ffplay hardcodes these as
-  // VIDEO_PICTURE_QUEUE_SIZE (16) and SAMPLE_QUEUE_SIZE (9). avbase keeps the
+  // VIDEO_PICTURE_QUEUE_SIZE (16) and SAMPLE_QUEUE_SIZE (9). xmedia-kit keeps the
   // same relationship: stop asking the demuxer at |kDecodeWatermark|, start
   // again once the queue drops to |kPreloadWatermark|. Extracted rather than
   // retyped so the correspondence stays checkable.
@@ -336,13 +336,13 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
 
 // Explicit instantiations only: keeping the definitions in the .cc means a
 // compile error in the template surfaces once, not in every translation unit.
-extern template class AVBASE_MEDIA_EXPORT
+extern template class XMEDIA_MEDIA_EXPORT
     DecoderStream<VideoDecoderStreamTraits>;
-extern template class AVBASE_MEDIA_EXPORT
+extern template class XMEDIA_MEDIA_EXPORT
     DecoderStream<AudioDecoderStreamTraits>;
 using VideoDecoderStream = DecoderStream<VideoDecoderStreamTraits>;
 using AudioDecoderStream = DecoderStream<AudioDecoderStreamTraits>;
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_MEDIA_FILTERS_DECODER_STREAM_H_
+#endif  // XMEDIA_MEDIA_FILTERS_DECODER_STREAM_H_

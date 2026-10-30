@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2026 The avbase Authors. All rights reserved.
+# Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Protocol coverage acceptance: HLS VOD and HTTP progressive, over a real socket.
@@ -193,7 +193,7 @@ def main():
         print("check_protocols: source media not found: %s" % source)
         return 2
 
-    workdir = tempfile.mkdtemp(prefix="avbase-protocols-")
+    workdir = tempfile.mkdtemp(prefix="xmedia-protocols-")
     try:
         playlist, err = make_hls(ffmpeg, source, workdir)
         if playlist is None:

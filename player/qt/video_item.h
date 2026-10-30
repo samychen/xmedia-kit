@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -6,15 +6,15 @@
 // paints the newest frame with QPainter.
 //
 // QPainter rather than a QSG texture node on purpose. The heavy part of a
-// production player is not this: it is either a GPU path (avbase drawing into
+// production player is not this: it is either a GPU path (xmedia-kit drawing into
 // Qt's FBO through a platform/qt/ NativeGLContext) or nothing at all. Writing
 // the software path against QQuickItem's raw scene-graph API would add a
 // hundred lines of texture bookkeeping that the GPU path throws away. This
 // class is the placeholder that proves the wiring, and its public shape
 // (setMailbox / refresh / frameSize) is what the GPU version keeps.
 
-#ifndef AVBASE_PLAYER_QT_VIDEO_ITEM_H_
-#define AVBASE_PLAYER_QT_VIDEO_ITEM_H_
+#ifndef XMEDIA_PLAYER_QT_VIDEO_ITEM_H_
+#define XMEDIA_PLAYER_QT_VIDEO_ITEM_H_
 
 #include <QImage>
 #include <QQuickPaintedItem>
@@ -25,7 +25,7 @@
 
 class QTimer;
 
-namespace avbase::qt {
+namespace xmedia::qt {
 
 class VideoItem : public QQuickPaintedItem {
   Q_OBJECT
@@ -59,7 +59,7 @@ class VideoItem : public QQuickPaintedItem {
   QString frame_info_;
   QTimer* timer_{nullptr};
   int64_t last_serial_{-1};
-  // Only filled when AVBASE_QT_TIMING is set: the per-frame cost of the
+  // Only filled when XMEDIA_QT_TIMING is set: the per-frame cost of the
   // software conversion, which is the number the GPU path is measured against.
   // Counting always and dividing on demand would put a clock read in a path
   // that exists to prove the clock read is the cheap part.
@@ -67,6 +67,6 @@ class VideoItem : public QQuickPaintedItem {
   double convert_ms_{0.0};
 };
 
-}  // namespace avbase::qt
+}  // namespace xmedia::qt
 
-#endif  // AVBASE_PLAYER_QT_VIDEO_ITEM_H_
+#endif  // XMEDIA_PLAYER_QT_VIDEO_ITEM_H_

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -16,7 +16,7 @@
 
 #include "base/functional/bind.h"
 
-namespace avbase {
+namespace xmedia {
 
 void PlayerImpl::BeginAccurateWaitOnMedia(int64_t request_id,
                                           base::TimeDelta target) {
@@ -73,7 +73,7 @@ void PlayerImpl::EndAccurateWaitOnMedia() {
       accurate_seek_targets_.erase(at);
     }
   }
-  LOG(INFO) << "avbase: accurate seek superseded by a newer seek request";
+  LOG(INFO) << "xmedia-kit: accurate seek superseded by a newer seek request";
   SeekCompletedPayload payload;
   payload.request_id = id;
   payload.requested = requested;
@@ -180,4 +180,4 @@ void PlayerImpl::CompleteAccurateSeek(bool reached) {
   }
 }
 
-}  // namespace avbase
+}  // namespace xmedia

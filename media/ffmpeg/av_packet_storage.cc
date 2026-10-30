@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media::ffmpeg {
+namespace xmedia::media::ffmpeg {
 
 AvPacketStorage::~AvPacketStorage() = default;
 
@@ -40,4 +40,4 @@ std::span<const uint8_t> AvPacketStorage::data() const {
   return {packet_->data, static_cast<size_t>(packet_->size)};
 }
 
-}  // namespace avbase::media::ffmpeg
+}  // namespace xmedia::media::ffmpeg

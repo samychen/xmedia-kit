@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,7 +13,7 @@
 #include <cstdlib>
 #include <vector>
 
-namespace avbase::bench {
+namespace xmedia::bench {
 
 std::vector<Case>& Registry() {
   static std::vector<Case> r;
@@ -83,7 +83,7 @@ Stats Measure(const BenchFn& fn, uint64_t iters, int rounds,
   return s;
 }
 
-}  // namespace avbase::bench
+}  // namespace xmedia::bench
 
 int main(int argc, char** argv) {
   uint64_t iters = 200000;
@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  const auto& cases = avbase::bench::Registry();
-  std::vector<avbase::bench::Stats> stats;
+  const auto& cases = xmedia::bench::Registry();
+  std::vector<xmedia::bench::Stats> stats;
   stats.reserve(cases.size());
 
   printf("%-40s %12s %12s %14s\n", "benchmark", "mean ns/op", "p75 ns/op",
@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
     putchar('-');
   putchar('\n');
   for (const auto& c : cases) {
-    auto s = avbase::bench::Measure(c.fn, iters, rounds, min_round_ms);
+    auto s = xmedia::bench::Measure(c.fn, iters, rounds, min_round_ms);
     stats.push_back(s);
     printf("%-40s %12.1f %12.1f %14llu\n", c.name.c_str(), s.mean_ns_per_op,
            s.p75_ns_per_op, (unsigned long long)s.iters_per_round);

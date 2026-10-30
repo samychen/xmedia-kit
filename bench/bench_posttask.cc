@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,19 +15,19 @@
 
 namespace {
 
-AVBASE_BENCH(BM_PostTask_RoundTrip) {
-  avbase::base::Thread thread("bench-posttask");
+XMEDIA_BENCH(BM_PostTask_RoundTrip) {
+  xmedia::base::Thread thread("bench-posttask");
   thread.Start();
   auto runner = thread.task_runner();
-  avbase::base::WaitableEvent done(
-      avbase::base::WaitableEvent::ResetPolicy::kManualReset,
-      avbase::base::WaitableEvent::InitialState::kNotSignaled);
+  xmedia::base::WaitableEvent done(
+      xmedia::base::WaitableEvent::ResetPolicy::kManualReset,
+      xmedia::base::WaitableEvent::InitialState::kNotSignaled);
   for (uint64_t i = 0; i < iters; ++i) {
     done.Reset();
     runner->PostTask(
         FROM_HERE,
-        avbase::base::BindOnce(
-            [](avbase::base::WaitableEvent* e) { e->Signal(); }, &done));
+        xmedia::base::BindOnce(
+            [](xmedia::base::WaitableEvent* e) { e->Signal(); }, &done));
     done.Wait();
   }
   thread.Stop();

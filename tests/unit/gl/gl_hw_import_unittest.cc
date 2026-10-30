@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -51,7 +51,7 @@
 #include "platform/hwimport/hw_importer_factory.h"
 #endif
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
 constexpr int kWindowSize = 64;
@@ -337,4 +337,4 @@ TEST_F(HwImportTest, TheBackendNamesARectangleTarget) {
 #endif  // defined(__APPLE__)
 
 }  // namespace
-}  // namespace avbase::media
+}  // namespace xmedia::media

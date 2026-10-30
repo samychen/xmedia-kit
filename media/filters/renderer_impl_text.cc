@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // The reasoning lives at the declaration in renderer_impl.h.
 void RendererImpl::SetSourceLiveness(bool is_live,
@@ -31,7 +31,7 @@ void RendererImpl::SetSourceLiveness(bool is_live,
   max_cue_age_ =
       max_cue_age > base::TimeDelta() ? max_cue_age : base::TimeDelta();
   if (source_is_live_ && max_cue_age_ > base::TimeDelta()) {
-    LOG(INFO) << "avbase.text: live source, cues older than "
+    LOG(INFO) << "xmedia.text: live source, cues older than "
               << max_cue_age_.InMilliseconds() << "ms will be dropped";
   }
 }
@@ -82,7 +82,7 @@ void RendererImpl::OnTextRead(int source_id, int generation,
     // stops re-arming), so report it instead of letting subtitles die
     // silently. kAborted returned above is a flush, not an error.
     const std::string name = DemuxerStream::GetStatusName(status);
-    LOG(ERROR) << "avbase.text: read failed (" << name << ")";
+    LOG(ERROR) << "xmedia.text: read failed (" << name << ")";
     ReportError(MediaError(ErrorCode::kDecodeFailed, "text read failed", name,
                            "check the text track, or disable subtitles"));
     return;
@@ -97,7 +97,7 @@ void RendererImpl::OnTextRead(int source_id, int generation,
     }
     std::vector<TimedTextCue> cues;
     if (const Status decode = leg->decoder->Decode(*buffer, &cues); !decode) {
-      LOG(ERROR) << "avbase.text: decode failed: " << decode.error().ToString();
+      LOG(ERROR) << "xmedia.text: decode failed: " << decode.error().ToString();
       continue;
     }
     if (client_) {
@@ -119,4 +119,4 @@ void RendererImpl::OnTextRead(int source_id, int generation,
   PumpText(source_id);
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

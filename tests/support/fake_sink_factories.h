@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,8 +9,8 @@
 // that assembly, because Create() runs on the media sequence while the
 // pipeline is starting.
 
-#ifndef AVBASE_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_
-#define AVBASE_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_
+#ifndef XMEDIA_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_
+#define XMEDIA_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_
 
 #include <memory>
 #include <mutex>
@@ -21,7 +21,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "tests/support/fake_renderer_sinks.h"
 
-namespace avbase::media::test {
+namespace xmedia::media::test {
 
 class FakeVideoSinkFactory final : public VideoRendererSinkFactory {
  public:
@@ -123,6 +123,6 @@ class FakeAudioSinkFactory final : public AudioRendererSinkFactory {
   FakeAudioSink* last_ = nullptr;
 };
 
-}  // namespace avbase::media::test
+}  // namespace xmedia::media::test
 
-#endif  // AVBASE_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_
+#endif  // XMEDIA_TESTS_SUPPORT_FAKE_SINK_FACTORIES_H_

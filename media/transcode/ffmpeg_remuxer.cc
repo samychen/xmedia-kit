@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,10 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 namespace {
 
-namespace ff = ::avbase::media::ffmpeg;
+namespace ff = ::xmedia::media::ffmpeg;
 
 Status Fail(const std::string& summary, const std::string& detail,
             const std::string& suggestion) {
@@ -103,4 +103,4 @@ Status RemuxContainer(const std::string& src_path,
   return Status();
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,4 +1,4 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 #include "base/logging.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // static
 bool DecoderSelector::CodecAllowedByMask(VideoCodec codec, HwCodecMask mask) {
@@ -144,4 +144,4 @@ DecoderSelector::SelectVideoDecoder(
   return out;
 }
 
-}  // namespace avbase::media
+}  // namespace xmedia::media

@@ -1,13 +1,13 @@
-// Copyright 2026 The avbase Authors. All rights reserved.
+// Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AVBASE_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
-#define AVBASE_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
+#ifndef XMEDIA_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
+#define XMEDIA_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
 
 #include "render/gl/native_gl_context.h"
 
-namespace avbase::media {
+namespace xmedia::media {
 
 // NativeGLContext backed by SDL2: wraps a host-owned SDL_Window* and
 // SDL_GLContext. Borrowed semantics -- the destructor does NOT destroy the
@@ -29,6 +29,6 @@ class SdlGLContext final : public gl::NativeGLContext {
   void* context_;
 };
 
-}  // namespace avbase::media
+}  // namespace xmedia::media
 
-#endif  // AVBASE_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
+#endif  // XMEDIA_PLATFORM_SDL2_SDL_GL_CONTEXT_H_
