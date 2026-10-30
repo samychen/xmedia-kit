@@ -385,7 +385,7 @@ std::string dump = player.DumpDiagnostics();   // 播放中随时可取
 「用户说什么都卡」类工单的第一手材料；先 dump 再猜。
 **相关配置**：无。
 
-## 22. 从 ijkplayer 迁移配置
+## 22. 从 legacy 迁移配置
 
 ```cpp
 xmedia::PlayerBuilder builder;   // SetOption 在 builder 上，不在 Player 上

@@ -57,7 +57,7 @@ TEST(WeakPtrTest, InvalidatedWhenTargetDies) {
     p = target.GetWeakPtr();
     EXPECT_TRUE(p.MaybeValid());
   }
-  // This is the guarantee that removes ijkplayer's "callback fired after the
+  // This is the guarantee that removes legacy's "callback fired after the
   // player was released" crash class (docs/04 §7 R11).
   EXPECT_FALSE(p.MaybeValid());
   EXPECT_EQ(p.get(), nullptr);

@@ -343,7 +343,7 @@ Stop / SeekTo（按 request_id 回调）/ SelectTrack / TakeSnapshot / 音量 / 
 |---|---|---|
 | `cmake --preset linux-native` / `linux-all` | ❌ 配置期 `FATAL_ERROR` | X11/Wayland **原生窗口后端**仍是 M12（方案见 `docs/archive/09`）。注意它与已落地的 GL 渲染层不是一回事：`render/gl/` 加 `platform/{sdl2,glfw,egl}` 已经提供了完整的 GL 呈现，缺的是直接啃 X11/Wayland 的那一份 |
 | `cmake --preset android-arm64` | ❌ | `platform/android/` 不存在（M16） |
-| Golden Test | ⚠️ 部分 | `tools/golden_diff.py` 已建（按 docs/07 §7.4 容差分级对比两份 JSONL 录制 + `allowlist.yaml` 豁免，自带 selftest 与突变反证）。但**录制件与基线仍缺**：`tools/ijkplayer-recorder/`、`tests/golden/` 不存在（M10），被开放问题 Q8（锁哪个 ijkplayer 版本）卡住。没有基线可对比，故 CI 不跑对拍——跑出来等于没测 |
+| Golden Test | ⚠️ 部分 | `tools/golden_diff.py` 已建（按 docs/07 §7.4 容差分级对比两份 JSONL 录制 + `allowlist.yaml` 豁免，自带 selftest 与突变反证）。但**录制件与基线仍缺**：`tools/legacy-recorder/`、`tests/golden/` 不存在（M10），被开放问题 Q8（锁哪个 legacy 版本）卡住。没有基线可对比，故 CI 不跑对拍——跑出来等于没测 |
 
 **一句话：这个仓库现在能构建、能测、能分析媒体文件，能播放视频，能转码；精确 seek
 与音/视频轨切换均已闭合。播放通道验证过的有三条**：`headless`（无窗口系统）、
@@ -365,8 +365,8 @@ python3 tools/check_invariants.py --root .
 python3 tools/check_binary_freshness.py --root build/ffmpeg
 
 # 移植常量三方交叉校验：ffplay #define ⟷ xmedia-kit 代码 ⟷ docs/05 表 7
-python3 tools/extract_constants.py --root . --selftest            # 不需要 ijkplayer 源码
-python3 tools/extract_constants.py --root . --ijkplayer /path/to/ijkplayer   # 三方
+python3 tools/extract_constants.py --root . --selftest            # 不需要 legacy 源码
+python3 tools/extract_constants.py --root . --legacy /path/to/legacy   # 三方
 python3 tools/extract_constants.py --root . --selftest --json     # 机器可读
 
 # 选项表：A10 覆盖率 + docs/05 ⟷ player_config.h ⟷ option_map.py 三方核对

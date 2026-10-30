@@ -4,7 +4,7 @@
 //
 // Exhaustive tests for the pure decision core of VideoFrameCompositor.
 //
-// This file is the concrete payoff of the refactor: ijkplayer's equivalent
+// This file is the concrete payoff of the refactor: legacy's equivalent
 // logic lives inline in video_refresh() (ff_ffplay.c), reads is->frame_timer
 // and calls av_gettime_relative() directly, and therefore cannot be tested
 // without a real clock, a real media file and a real display. Here it is a
@@ -155,7 +155,7 @@ TEST(VideoFrameCompositorTest, DropsWhenLateBeyondFrameDuration) {
 TEST(VideoFrameCompositorTest, NeverDropsWhenFramedropDisabled) {
   auto in = MakeInput();
   in.master_clock = kTenSeconds + base::Milliseconds(200);
-  in.max_frame_drop = -1;  // ijkplayer's "framedrop=-1" disables dropping.
+  in.max_frame_drop = -1;  // legacy's "framedrop=-1" disables dropping.
   EXPECT_EQ(C::DecideNextFrame(in, Thresholds()).decision, D::kPresent);
 
   in.max_frame_drop = 0;
@@ -293,7 +293,7 @@ TEST(VideoFrameCompositorTest, PlaybackRateZeroDoesNotDivideByZero) {
 // ShouldDropForFpsCap for the measurement that made this a bug.
 TEST(VideoFrameCompositorTest, FpsCapDropsAFrameTooCloseToTheLastPresented) {
   auto in = MakeInput();
-  in.max_fps = 31;  // ijkplayer default.
+  in.max_fps = 31;  // legacy default.
   in.last_timestamp = in.next_timestamp - base::Microseconds(16000);  // 60 fps.
   const auto out = C::DecideNextFrame(in, Thresholds());
   EXPECT_EQ(out.decision, D::kDrop);
@@ -302,7 +302,7 @@ TEST(VideoFrameCompositorTest, FpsCapDropsAFrameTooCloseToTheLastPresented) {
 
 // 33.333 ms of spacing against a 31 fps cap (32.258 ms) leaves less than a
 // millisecond of room, which is exactly why this pairing has to be pinned: the
-// ijkplayer default cap may never drop a source that is AT or BELOW it. Get
+// legacy default cap may never drop a source that is AT or BELOW it. Get
 // this wrong and the player runs at 1 fps while every counter says the
 // pipeline is healthy.
 TEST(VideoFrameCompositorTest, FpsCapAllowsA30fpsSourceAtTheDefault31Cap) {
@@ -389,7 +389,7 @@ TEST(VideoFrameCompositorTest, DropsFrameFromStaleSeekGeneration) {
   EXPECT_EQ(out.drop_reason, R::kStaleSerial);
 }
 
-// REGRESSION: this is the bug class that costs ijkplayer forks a "multi-second
+// REGRESSION: this is the bug class that costs legacy forks a "multi-second
 // stall right after seek" report every so often. ffplay guards it with
 // `if (lastvp->serial == vp->serial)`; losing the guard makes the compositor
 // derive last_duration from a pts delta that spans the seek boundary.
@@ -691,7 +691,7 @@ class VideoFrameCompositorStateTest : public ::testing::Test {
 // timestamps, so none of them may be dropped.
 TEST_F(VideoFrameCompositorStateTest,
        ABatchOfFramesIsNotDroppedForBeingTooSoon) {
-  compositor_->SetMaxFps(31);  // ijkplayer's default, and the one that bit.
+  compositor_->SetMaxFps(31);  // legacy's default, and the one that bit.
   for (int64_t i = 0; i < 10; ++i) {
     compositor_->PutCurrentFrame(MakeFrame(i));
   }

@@ -15,7 +15,7 @@
 
 **现象**：直播源 3–10 秒才出画；VOD 也明显慢于 ffprobe。
 **原因**：默认 `demux.analyze_duration = 5s`、`probe_size = 5 MiB`——
-探测要读满额度才判定流。ijkplayer 同款默认，但它的宿主多数本地文件。
+探测要读满额度才判定流。legacy 同款默认，但它的宿主多数本地文件。
 **修复**：
 
 ```cpp

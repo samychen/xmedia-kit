@@ -75,8 +75,8 @@ xmedia::Player player(config, std::move(deps));
 
 装饰器（包装另一个 `scoped_refptr<DataSource>`）是官方推荐的复合方式：
 M9 的 `RetryDataSource`（重试/重连）就是这个形状；M18 的 `CacheDataSource`
-（边下边播）后置于同一接口。**ijkplayer 的 `ijkurlhook` URL 重写在 0.1.0
-没有对应组件**（见 MIGRATION Δ11），需要的业务按这个接口自己包一层。
+（边下边播）后置于同一接口。**legacy 的 URL 重写钩子在 0.1.0
+没有对应组件**，需要的业务按这个接口自己包一层。
 
 ## 3. 自定义解码器
 
@@ -227,7 +227,7 @@ docs/05 表 4（规格）  +  player/public/player_config.h（代码）
    任何管线序列。切到宿主 loop 后，回调线程语义 = 宿主的 loop 线程。
 
 旧消息 handler 不想改：`ToLegacyEvent(event, &out)` 输出 `(what, arg1, arg2,
-obj)`，与 ijkplayer 的 `FFP_MSG_*` 数值一致（05 表 5 的映射即来源）。
+obj)`，与 legacy 的 `FFP_MSG_*` 数值一致（05 表 5 的映射即来源）。
 
 ## 8. 合成层（多源/多图层）
 

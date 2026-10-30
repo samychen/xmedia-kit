@@ -24,7 +24,7 @@
 //
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // ResolveMasterType(), GetMasterClock(), ComputeAudioSampleAdjustment() and
-// AlignAudioDurationToVideo() are line-by-line ports of ijkplayer's
+// AlignAudioDurationToVideo() are line-by-line ports of legacy's
 // get_master_sync_type(), get_master_clock(), synchronize_audio() and
 // synchronize_audio_to_video(), which makes this a derivative work
 // (LGPL-2.1). The rest of xmedia-kit is BSD-3-Clause; see

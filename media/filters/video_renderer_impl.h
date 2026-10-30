@@ -161,7 +161,7 @@ class XMEDIA_MEDIA_EXPORT VideoRendererImpl final
   // config exists, and the whole ranking is a function of that config (codec,
   // coded size) plus each factory's declared capability. Ranking any earlier
   // would mean guessing the config, which is exactly the bug this replaces --
-  // ijkplayer picked its decoder from booleans set before the container was
+  // legacy picked its decoder from booleans set before the container was
   // even opened.
   //
   // Left unset, the injected order is used as-is: a host that assembled its

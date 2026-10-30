@@ -33,7 +33,7 @@ string(STRIP "${XMEDIA_VERSION_RAW}" XMEDIA_VERSION)
 project(xmedia-kit
     VERSION   ${XMEDIA_VERSION}
     LANGUAGES C CXX
-    DESCRIPTION "A C++20 reimplementation of the ijkplayer core, Chromium-style"
+    DESCRIPTION "A C++20 reimplementation of the legacy core, Chromium-style"
     HOMEPAGE_URL "https://example.com/xmedia-kit")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -359,7 +359,7 @@ Google C++ Style 禁用异常；Chromium 额外禁用 RTTI。这直接影响设�
 };
 ```
 
-解决 ijkplayer 用户的**头号集成痛点**：`libijkffmpeg.so` 导出全部 `av*` 符号，与 App 里另一个 FFmpeg 冲突。CI 检查 `nm -D --defined-only libxmedia.so | grep -E ' T (av|swr_|sws_|SDL_)'` 必须为空。
+解决 legacy 用户的**头号集成痛点**：`libijkffmpeg.so` 导出全部 `av*` 符号，与 App 里另一个 FFmpeg 冲突。CI 检查 `nm -D --defined-only libxmedia.so | grep -E ' T (av|swr_|sws_|SDL_)'` 必须为空。
 
 ---
 
@@ -1341,7 +1341,7 @@ lcov --capture --directory build/coverage -o cov.info && genhtml cov.info -o cov
 | `include/xmedia-kit/{player/public,media/base,base}/*.h` | 公开头（~60 个） | ~5000 行 |
 | `xmedia-kitConfig.cmake` / `xmedia.pc` | 集成入口 | — |
 
-对比：ijkplayer 的 `libijkplayer.so` + `libijkffmpeg.so` 通常 8–15 MB。
+对比：legacy 的 `liblegacy.so` + `libijkffmpeg.so` 通常 8–15 MB。
 
 ---
 

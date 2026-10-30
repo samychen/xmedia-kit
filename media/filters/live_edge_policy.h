@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef IJKPP_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_
-#define IJKPP_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_
+#ifndef XMEDIA_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_
+#define XMEDIA_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_
 
 #include "base/time/time.h"
 #include "media/media_export.h"
@@ -42,4 +42,4 @@ class XMEDIA_MEDIA_EXPORT LiveEdgePolicy {
 
 }  // namespace xmedia::media
 
-#endif  // IJKPP_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_
+#endif  // XMEDIA_MEDIA_FILTERS_LIVE_EDGE_POLICY_H_

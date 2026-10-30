@@ -64,7 +64,7 @@
 
 | key | 写入字段 | 读取者 |
 |---|---|---|
-| `max-fps` | `video.max_fps` | renderer deps（**默认 31**，ijk 原值；接线后才生效。判据问的是两帧的**时间戳**间隔，不是墙钟——把「画面 1 fps」的 bug 修在这里） |
+| `max-fps` | `video.max_fps` | renderer deps（**默认 31**，legacy 原值；接线后才生效。判据问的是两帧的**时间戳**间隔，不是墙钟——把「画面 1 fps」的 bug 修在这里） |
 | `framedrop` | `video.max_frame_drop` | renderer deps |
 | `start-on-prepared` | `start_on_prepared` | `player_impl_prepare.cc` 自动起播 |
 | `packet-buffering` | `buffer.enabled` | `BufferController`（时间域三级门控的开关） |
@@ -76,7 +76,7 @@
 | `volume` | `audio.startup_volume` | `PlayerImpl` 构造函数用它初始化运行时音量（`volume_`），`PrepareAsync` 就绪后再推给音频腿。**2026-10-26 补**：此前这个 key 不在注册表（`SetOption` 报 `unknown option key`），而 `audio.startup_volume` 除范围校验外无任何读取者——宿主配置的音量被静默丢弃。不足在「构造时播种」而不是「运行期设置」：`startup_volume` 只生效一次 |
 
 后 4 个 buffer key 早前因「`BufferController` 从不读 `config.buffer.*`」被判为静默 no-op 并
-移除；把 `BufferConfig` 真正接进三条下游后重新注册，语义对齐 ijkplayer：
+移除；把 `BufferConfig` 真正接进三条下游后重新注册，语义对齐 legacy：
 - 时间域：`BufferController(config.buffer)` 由 `first/next/last_high_water_mark` 推导三级
   mark，`enabled` 来自 `packet-buffering`，对外供出 `current_mark()` 与 `progress_percent()`。
   **门控本身在 `PipelineImpl`**；`BufferController::Evaluate` 是同一策略的纯函数模型，
@@ -93,7 +93,7 @@
 | key | 接在哪 | 与近邻的区别 |
 |---|---|---|
 | `nodisp` | `DefaultRendererFactory::CreateVideoRendererSink` 在 `disable_video_output` 时无视注入的 sink factory，直接造 `NullVideoSink` 并传 **nullptr** 目标（进 discard 模式，帧计入 dropped 而非 presented） | 不是 `vn`（`video.disabled`）：那条腿**仍解码**，av sync / 节奏 / 统计照旧，只是不上屏。也不是 `SetVideoSurface(nullptr)`：那是运行期换目标，而 `nodisp` 是配置层决定，宿主传了后端 sink 也压得住 |
-| `enable-accurate-seek` | `SeekTo` 里 `accurate = (mode == kAccurate && config.seek.accurate)`；被否决时降级为关键帧落点，`LOG(WARNING)` 只报一次（`accurate_seek_veto_logged_` 原子闩） | 不是 Δ19 里「`SeekMode` 取代 option」那种替代关系：`kAccurate` 仍是 per-call 的一等 API，这个位是**全局否决**。`PlayerConfig::SeekConfig::accurate` 默认 `true`（与 ijk 的 0 相反），因为 opt-in 已经在调用点发生；默认播放行为仍是关键帧，那由 `SeekMode` 的默认值决定 |
+| `enable-accurate-seek` | `SeekTo` 里 `accurate = (mode == kAccurate && config.seek.accurate)`；被否决时降级为关键帧落点，`LOG(WARNING)` 只报一次（`accurate_seek_veto_logged_` 原子闩） | 不是 Δ19 里「`SeekMode` 取代 option」那种替代关系：`kAccurate` 仍是 per-call 的一等 API，这个位是**全局否决**。`PlayerConfig::SeekConfig::accurate` 默认 `true`（与 legacy 的 0 相反），因为 opt-in 已经在调用点发生；默认播放行为仍是关键帧，那由 `SeekMode` 的默认值决定 |
 
 > **`accurate=false` 时的诚实性**：降级不是错误，`SeekCompletedPayload` 的
 > `requested` / `actual` 会显示没落到目标帧。测试

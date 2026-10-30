@@ -431,7 +431,7 @@ python3 tools/measure_e2e_cpu.py
 python3 tools/check_binary_freshness.py --root build/<preset>
 ```
 
-**许可分区是硬约束，不是风格**：`media/filters/legacy/` 下六个文件是 ijkplayer
+**许可分区是硬约束，不是风格**：`media/filters/legacy/` 下六个文件是 legacy
 `ff_ffplay.c` 的逐行移植（LGPL-2.1），其余 `media/` 是 BSD-3-Clause。
 往 `legacy/` 里"顺手优化"阈值，等于破坏 golden 测试的前提条件
 （阈值必须与原值一致，由 `tools/extract_constants.py` 校验）。
@@ -592,7 +592,7 @@ L230 写明「这一目录尚未建立」，非漂移。
 这才是 drift，前两者不是。
 
 **先读两处**：`media/base/video_frame.h`（头部注释直接引用 `docs/02` §9 D2，
-是唯一「代码反向标注规格」的地方，能看清 ↔Chromium/↔ijkplayer 两列怎么落到
+是唯一「代码反向标注规格」的地方，能看清 ↔Chromium/↔legacy 两列怎么落到
 一行代码上），以及 `media/filters/legacy/README.md`（展示项目如何**为一次
 偏离写清判据与许可证后果** —— 这是本仓库认可的偏离仪式）。
 

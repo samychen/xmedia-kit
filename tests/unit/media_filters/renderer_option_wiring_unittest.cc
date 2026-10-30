@@ -75,7 +75,7 @@ namespace {
 constexpr int kFramesPerBuffer = 256;
 constexpr auto kWaitTimeout = std::chrono::seconds(5);
 
-// ijkplayer's own default for max-fps, so this is the value a host gets
+// legacy's own default for max-fps, so this is the value a host gets
 // without setting anything -- which is why it has to work by default.
 constexpr int kCap = 31;
 

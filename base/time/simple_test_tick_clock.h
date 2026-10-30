@@ -15,7 +15,7 @@ namespace xmedia::base {
 
 // A TickClock whose time only moves when the test moves it. Every scheduling
 // test in media/filters/ uses this, which is why xmedia-kit can exhaustively test
-// logic that ijkplayer cannot test at all (it reads av_gettime() directly).
+// logic that legacy cannot test at all (it reads av_gettime() directly).
 class SimpleTestTickClock final : public TickClock {
  public:
   SimpleTestTickClock() = default;

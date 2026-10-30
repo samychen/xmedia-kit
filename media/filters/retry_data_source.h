@@ -19,7 +19,7 @@ namespace xmedia::media {
 
 // A DataSource decorator that retries a failed inner read instead of
 // reporting it upward -- the M9 answer to "the network died mid-stream"
-// (docs/08; ijkplayer's reconnect_streamed/delay_max options, Δ11's
+// (docs/08; legacy's reconnect_streamed/delay_max options, Δ11's
 // structured replacement). The fault-injection rig (ThrottledDataSource::
 // FailFrom) is what makes the retry path observable in tests.
 //

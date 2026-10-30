@@ -19,7 +19,7 @@
 此前 **166 个源文件头都写着 "governed by a BSD-style license that can be found
 in the LICENSE file"，而仓库里没有 LICENSE 文件**；同时 `video_frame_compositor` /
 `av_sync_controller` / `clock` 是 `ff_ffplay.c` 的逐行移植（LGPL-2.1 衍生作品），
-却挂着 BSD 头。R8 的应对①要求"移植算法的文件保留 LGPL-2.1 头 + ijkplayer 版权
+却挂着 BSD 头。R8 的应对①要求"移植算法的文件保留 LGPL-2.1 头 + legacy 版权
 声明，归入 `media/filters/legacy/` 子目录"，本轮执行：
 
 | 动作 | 结果 |
@@ -57,10 +57,10 @@ by tools/extract_constants.py, never retyped by hand" —— 工具此前并不�
 ffplay 源码 (#define)  ⟷  xmedia-kit 代码 (constexpr / 默认成员初始化器 / 尾注释)  ⟷  docs/05 表 7
 ```
 
-- `--ijkplayer <path>`：从 `ff_ffplay_def.h` / `ff_ffplay_options.h` / `ff_ffplay.c` /
+- `--legacy <path>`：从 `ff_ffplay_def.h` / `ff_ffplay_options.h` / `ff_ffplay.c` /
   `ff_ffplay.h` 递归解析 `#define`（支持 `15*1024*1024` 这类乘积与宏引用宏），
   再解析 xmedia-kit 侧三种写法，逐项比对，不一致即 **exit 1**
-- `--selftest`：不需要 ijkplayer 源码树即可跑——用内嵌的合成 `#define` 片段验证
+- `--selftest`：不需要 legacy 源码树即可跑——用内嵌的合成 `#define` 片段验证
   解析器本身（递归展开、乘积、`_MS`/`_US` 单位换算、十六进制），并跑
   "xmedia-kit ⟷ docs/05 表 7" 两方校验。**这是 CI 可以无条件启用的那一半**
 - `--json`：机器可读输出，供后续 `tools/golden_diff.py` 与 CI 消费
@@ -74,9 +74,9 @@ ffplay 源码 (#define)  ⟷  xmedia-kit 代码 (constexpr / 默认成员初始�
 `AV_SYNC_FRAMEDUP_THRESHOLD` · `AV_DIFF_AVG_NB/COEF` · `AV_DIFF_THRESHOLD` ·
 `SAMPLE_CORRECTION_PERCENT_MAX` · `MAX_SLEEP`。
 
-> ⚠️ **待真机验证**：本轮在**没有 ijkplayer 源码树**的环境里完成，因此
-> `--ijkplayer` 路径尚未对真实 `ff_ffplay_def.h` 跑过；`--selftest` 已跑通。
-> 下一步第一件事就是在有源码的机器上跑一次 `--ijkplayer`，
+> ⚠️ **待真机验证**：本轮在**没有 legacy 源码树**的环境里完成，因此
+> `--legacy` 路径尚未对真实 `ff_ffplay_def.h` 跑过；`--selftest` 已跑通。
+> 下一步第一件事就是在有源码的机器上跑一次 `--legacy`，
 > docs/05 表 7 的注记本身就警告过"个别项（`DEFAULT_MIN_FRAMES`、`BUFFERING_*`）
 > 在不同 fork 中有差异"——那正是要抓的东西。
 
@@ -108,7 +108,7 @@ ffplay 源码 (#define)  ⟷  xmedia-kit 代码 (constexpr / 默认成员初始�
 ```
 $ tools/extract_constants.py --selftest
   → exit 0 · 24 项一致 · 1 项 Δ4 声明偏离 · 1 项待 M9（BUFFERING_CHECK_*）
-$ tools/extract_constants.py --ijkplayer <合成的 ffplay 源码树>
+$ tools/extract_constants.py --legacy <合成的 ffplay 源码树>
   → exit 0 · 三方全部一致（ffplay ⟷ xmedia-kit ⟷ docs/05 表 7）
 # 负向 1：把 AV_SYNC_THRESHOLD_MIN 从 0.04 改成 0.4（最典型的手抄错）
   → AV_SYNC_THRESHOLD_MIN  ms  ffplay=400  xmedia-kit=40  docs/05=40  MISMATCH · exit 1
@@ -121,9 +121,9 @@ $ --emit  → 28 行带出处的注释块（M13 用它替换 media_constants.h �
 ```
 
 **已知局限（写在这里，免得被当成保证）**：
-- `--selftest` 里的合成 `#define` 是**上游 ffplay / ijkplayer 的常见值**，不是从
-  某个具体 commit 提取的。真正权威的校验必须跑 `--ijkplayer`，而**本轮环境里没有
-  ijkplayer 源码树，该路径只用合成树验证过**。
+- `--selftest` 里的合成 `#define` 是**上游 ffplay / legacy 的常见值**，不是从
+  某个具体 commit 提取的。真正权威的校验必须跑 `--legacy`，而**本轮环境里没有
+  legacy 源码树，该路径只用合成树验证过**。
 - docs/05 表 7 的解析是**故意宽松**的：一行里写 `VIDEO_PICTURE_QUEUE_SIZE_DEFAULT/MIN/MAX`
   时只有 `..._DEFAULT` 在反引号里，`MIN`/`MAX` 提取不到，会记为
   "macro absent from docs/05 table 7" 的 note 而不是失败。多宏共用一行（`3 / 2 / 16`）
@@ -138,7 +138,7 @@ $ --emit  → 28 行带出处的注释块（M13 用它替换 media_constants.h �
 - `.gitignore` 缺 `__pycache__/` 与 `*.pyc`（项目有两个 Python 工具，却没有忽略
   它们的字节码）→ 已补。
 - CI 的 quick 与 full 两个 job 都加了
-  `python3 tools/extract_constants.py --root . --selftest`——它不需要 ijkplayer
+  `python3 tools/extract_constants.py --root . --selftest`——它不需要 legacy
   源码树，因此可以无条件进门禁。
 
 ### (3) `media/base/` 七个管线接口头 — ✅ 冻结为 DRAFT（M7/M8 解锁）
@@ -628,7 +628,7 @@ media 接口，不把 5 个 media 头拖进每个 SDK 使用者的编译单元�
 由 `tools/gen_options.py` 生成"so the two can never drift"——工具不存在，表是手写的，
 **而且已经漂移**（9 个 key vs `PlayerConfig` 的 67 个字段 / docs/05 表 4 的 ~60 个 key）。
 后果是验收标准 **A10 只有 9/66**，且 Δ2（未知选项报错而非静默忽略）会让存量
-ijkplayer 配置大面积失败。
+legacy 配置大面积失败。
 
 本轮补齐工具，三方交叉核对：
 
@@ -669,7 +669,7 @@ docs/05 表 4（规格，表头自称"已核对原文"）
 修法不是改那一个数字，而是**从字符拼写推导**：
 
 ```python
-def fcc(chars):   # 与 ijksdl_fourcc.h 的 SDL_FOURCC(a,b,c,d) 同式
+def fcc(chars):   # 与 上游 SDL fourcc 头 的 SDL_FOURCC(a,b,c,d) 同式
     return ord(chars[0]) | ord(chars[1]) << 8 | ord(chars[2]) << 16 | ord(chars[3]) << 24
 enum={fcc("_es2"): "kNative", fcc("I420"): "kI420", ...}
 ```
@@ -1308,7 +1308,7 @@ docs/08 §5.1 明确说 L1/L2 **保持接口形态不变**（所以 `media/`、`
 > `option_registry.h:42` 与 `option_registry.cc:197` 的注释都声称这张表由
 > `tools/gen_options.py` 生成"so the two can never drift"——**该工具不存在，表是手写的，
 > 且已经漂移**。直接影响验收标准 **A10（所有原版 option 都有等价入口）= 8/60+**，
-> 以及 Δ2（未知选项返回 `kInvalidArgument`）会让存量 ijkplayer 配置大面积报错。
+> 以及 Δ2（未知选项返回 `kInvalidArgument`）会让存量 legacy 配置大面积报错。
 > 归入 M8 的 DoD 前置，不在本轮范围内。
 
 ---
@@ -1334,7 +1334,7 @@ LICENSE / LGPL 隔离 ✅ · 七个管线接口头 DRAFT ✅ · R2 降级债登�
 3. **在有编译器的机器上把 7 个 DRAFT 头转正**：`g++ -fsyntax-only -std=c++20
    -fno-exceptions -fno-rtti -I.` 逐个过，然后加进 `xmedia_media` 并写 10 个符号的
    `.cc`（清单已在各文件头）。**转正前它们对 M7/M8 只是纸面契约。**
-4. **`--ijkplayer` 真机跑一次**（需要 ijkplayer 源码树），把 docs/05 表 7 的
+4. **`--legacy` 真机跑一次**（需要 legacy 源码树），把 docs/05 表 7 的
    "个别 fork 有差异"变成确定结论；有差异就登记 Δ 而不是悄悄改阈值。
    顺带定案 `AV_SYNC_FRAMEDUP_THRESHOLD` 的注释矛盾（注释写 0.1、值是 10ms）。
 5. **CI**：打开 `ffmpeg-matrix`（注释写 "enabled at M4"，**M4 早已完成**）；
@@ -1477,8 +1477,8 @@ cmake --preset debug       && cmake --build build/debug       && (cd build/debug
 cmake --preset asan        && cmake --build --preset asan  -j2 && (cd build/asan  && ctest)
 cmake --preset tsan        && cmake --build --preset tsan  -j2 && (cd build/tsan  && ctest)
 python3 tools/check_invariants.py --root .
-python3 tools/extract_constants.py --root . --selftest   # 第九轮新增，无需 ijkplayer 源码
-python3 tools/extract_constants.py --root . --ijkplayer /path/to/ijkplayer  # 三方校验
+python3 tools/extract_constants.py --root . --selftest   # 第九轮新增，无需 legacy 源码
+python3 tools/extract_constants.py --root . --legacy /path/to/legacy  # 三方校验
 ```
 
 **实测结果（Debian 12 / GCC 12.2 / CMake 3.25 / Ninja）**：
@@ -1515,13 +1515,13 @@ python3 tools/extract_constants.py --root . --ijkplayer /path/to/ijkplayer  # �
 
 | 新增 | 说明 |
 |---|---|
-| `media/base/audio_buffer.{h,cc}` | 解码后音频值类型。替代 ijkplayer 里到处传递的裸 `AVFrame`——ffplay 在每个使用点重新推导 planar/interleaved、采样格式、声道数；这里构造时描述一次 |
+| `media/base/audio_buffer.{h,cc}` | 解码后音频值类型。替代 legacy 里到处传递的裸 `AVFrame`——ffplay 在每个使用点重新推导 planar/interleaved、采样格式、声道数；这里构造时描述一次 |
 | `media/base/audio_decoder.{h,cc}` | 异步音频解码器契约。**刻意与 `video_decoder.h` 同形**（`Initialize(config, …, InitCB, OutputCB, WaitingCB)` + `Decode(buffer, DecodeCB)` + `Reset(closure)`），因为 `DecoderStream<Traits>` 要泛型化两者 |
 | `media/base/waiting.{h,cc}` | 从 `video_decoder.h` 抽出 `WaitingReason`/`WaitingCB`。音频也要报告等待原因，但不应为此依赖视频头文件 |
 | `media/filters/ffmpeg_audio_decoder.{h,cc}` | 移植自 `ff_ffplay.c` 的 `audio_decode_frame()` |
 | `DecodeSample()`（`audio_parameters.cc`） | u8/s16/s32/f32 + 三种 planar → float 的单一转换点 |
 
-**与 ijkplayer 的关键差异**：ffplay 在 `audio_decode_frame()` 里对每帧做 `swr_convert`，且发生在**音频回调线程**上。xmedia-kit 的解码器输出编解码器原生格式，把转换留给消费者（`AudioBuffer::ReadFrames`）。这样解码器不依赖任何音频设备，输出设备切换时也不必销毁重建 resampler。
+**与 legacy 的关键差异**：ffplay 在 `audio_decode_frame()` 里对每帧做 `swr_convert`，且发生在**音频回调线程**上。xmedia-kit 的解码器输出编解码器原生格式，把转换留给消费者（`AudioBuffer::ReadFrames`）。这样解码器不依赖任何音频设备，输出设备切换时也不必销毁重建 resampler。
 
 **8 个端到端测试**（真实 AAC）：解码全流 / 采样率与声道正确 / pts 单调且覆盖 3 s 时长 / 转 float 不溢出且无 NaN / EOS 标记恰好一个 / 未初始化即 Decode 干净失败 / 未知编解码器给出**含编解码器名**的错误 / `kUnsupportedConfig` 与 `kUnsupportedCodec` 必须可区分（bug #28 的教训）。
 
@@ -1646,7 +1646,7 @@ tools/inspect/
 
 - **`AudioRendererAlgorithm`（WSOLA）** —— 本轮 (1) 的剩余部分。`AvSyncController::ComputeAudioSampleAdjustment()` 已有真实调用方（`xmedia-inspect sync` 会打印它），但还没有消费者去实际拉伸/压缩音频
 - **M7 / M8 / M11** —— 见上
-- **`ijkio` 缓存（M18）、C ABI（M15）、Android/iOS 后端（M16/M17）** —— 按原计划顺延
+- **边下边播缓存（M18）、C ABI（M15）、Android/iOS 后端（M16/M17）** —— 按原计划顺延
 - 既有待办：`thread_unittest.cc` 里 `make_shared<atomic<int>>` 触发的 2 处 GCC `-Wnull-dereference` 误报（在 `shared_ptr_base.h` 内），发布构建启用 `XMEDIA_WERROR` 前需处理
 
 
@@ -1702,7 +1702,7 @@ tools/inspect/
 
 | # | 缺陷 | 发现者 | 影响 | 修复 |
 |---|---|---|---|---|
-| 1 | `TaskQueue::Quit()` 不持锁就 `Broadcast()`，而 `Run()` 在持锁前检查 `quit_` → **lost wakeup，`Stop()` 永久挂起** | ASan（时序变慢才触发） | 🔴 这就是 ijkplayer "release 卡死" 那一类 bug（病灶 11 / R5） | `Quit()` 在锁内置标志；`Run()` 在锁内检查 |
+| 1 | `TaskQueue::Quit()` 不持锁就 `Broadcast()`，而 `Run()` 在持锁前检查 `quit_` → **lost wakeup，`Stop()` 永久挂起** | ASan（时序变慢才触发） | 🔴 这就是 legacy "release 卡死" 那一类 bug（病灶 11 / R5） | `Quit()` 在锁内置标志；`Run()` 在锁内检查 |
 | 2 | `WaitableEvent::Signal()` 在锁外 `notify_all()` → 等待者可能在 notify 返回前销毁对象 → **use-after-free** | TSan | 🔴 | notify 移到锁内；并在头文件写明析构契约 |
 | 3 | 任务捕获自己所属 `TaskQueue` 的 `scoped_refptr` → **引用环，队列永不析构** | LSan | 🟠 真泄漏 | 在 `task_queue.h` 写死 RULE：绝不强引用自己所在的 sequence，用 `WeakPtr` 或 `Clear()` |
 | 4 | `BindOnce` 里右值 `WeakPtr<T>&&` 匹配到泛型转发重载而非 `WeakPtr` 专用重载 → **未解引用成 `T*`**；且 `WeakPtr::get()` 传入会**静默关闭失效保护**（实测死对象被调用，`touches == -1`） | 普通构建 + TSan | 🔴 直接击穿 `WeakPtr` 这个核心安全机制 | 补右值重载；陷阱写进 `weak_ptr.h` 类注释 + 回归测试 |

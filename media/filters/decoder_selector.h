@@ -4,7 +4,7 @@
 //
 // Mirrors Chromium's `media/filters/decoder_selector.h` (BSD-3-Clause).
 //
-// Replaces ijkplayer's hard-coded boolean soup: `ffp->mediacodec_all_videos ||
+// Replaces legacy's hard-coded boolean soup: `ffp->mediacodec_all_videos ||
 // ffp->mediacodec_avc || ffp->mediacodec_hevc || ffp->mediacodec_mpeg2 ||
 // ffp->mediacodec_mpeg4` scattered across ffp_check_video_decoder() and
 // ff_ffplay.c. Here it is one pure function over a capability list, so the
@@ -35,7 +35,7 @@ enum class DecoderPreference {
   kHardwareOnly,   // Fail instead of falling back.
 };
 
-// Bitmask of codecs a hardware path is allowed to handle. Replaces ijkplayer's
+// Bitmask of codecs a hardware path is allowed to handle. Replaces legacy's
 // mediacodec-avc / -hevc / -mpeg2 / -mpeg4 / -all-videos booleans.
 enum class HwCodecFlag : uint32_t {
   kNone = 0,
@@ -52,7 +52,7 @@ using HwCodecMask = uint32_t;
 // Pure ranking function. Given the registered factories, a stream config and
 // the caller's preference, returns the factories to try in order. The caller
 // attempts Initialize() on each and falls back to the next on failure, emitting
-// a kDecoderFallback event (behaviour difference Δ12: ijkplayer surfaced a hard
+// a kDecoderFallback event (behaviour difference Δ12: legacy surfaced a hard
 // error in several of these cases).
 //
 // Deterministic and side-effect free so the ordering can be exhaustively unit

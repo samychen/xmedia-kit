@@ -12,11 +12,11 @@ namespace xmedia::player {
 
 // The three-tier high-water-mark policy behind PlayerState::kBuffering.
 //
-// ijkplayer's ffp_check_buffering_l waits for a progressively larger buffer
+// legacy's ffp_check_buffering_l waits for a progressively larger buffer
 // after each stall: the first stall only needs a little data to recover
 // (fast start), but every subsequent one raises the bar, because a stream
 // that starved once will starve again and re-buffering is the most visible
-// failure a player has. The three tiers, by ijkplayer's option names:
+// failure a player has. The three tiers, by legacy's option names:
 //
 //   first  -- the mark the INITIAL start waits for (fast first frame)
 //   next   -- the mark recovery waits for after the first stall

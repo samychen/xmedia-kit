@@ -19,7 +19,7 @@
 
 namespace xmedia {
 
-// Mirrors ijkplayer's IJKMP_OPT_CATEGORY_*.
+// Mirrors the legacy option categories.
 enum class OptionCategory { kPlayer = 0, kFormat, kCodec, kScaler };
 
 using OptionValue = std::variant<bool, int64_t, double, std::string>;
@@ -43,7 +43,7 @@ struct XMEDIA_PLAYER_EXPORT OptionDescriptor {
 };
 
 // String-keyed configuration, kept for migrating existing setOption() call
-// sites. Unlike ijkplayer, an unknown key or an out-of-range value is an
+// sites. Unlike legacy, an unknown key or an out-of-range value is an
 // error rather than a silent no-op (behaviour difference Δ2).
 //
 // The table is generated from player_config.h by tools/gen_options.py so the

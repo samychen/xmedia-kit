@@ -33,7 +33,7 @@ TEST(OptionRegistryGetFrameModeTest, SetsFieldAndDefaultsFalse) {
 
 TEST(OptionRegistryBufferTest, PacketBufferingSetsEnabled) {
   PlayerConfig config;
-  // ijkplayer passes "0"/"1"; accept both int and string forms.
+  // legacy passes "0"/"1"; accept both int and string forms.
   EXPECT_TRUE(
       Registry()
           .SetInt(&config, OptionCategory::kPlayer, "packet-buffering", 0)

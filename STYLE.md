@@ -52,7 +52,7 @@
 | `using namespace` 在头文件 | 禁止 | check_invariants C14 |
 | `std::shared_ptr` | **不推荐**，用 `scoped_refptr` + `base::RefCountedThreadSafe` | 与 Chromium 一致；`scoped_refptr` 无 `weak_ptr` 开销，控制块更小 |
 | 共享所有权的三个动词 | `base::MakeRefCounted<T>(...)` **创造** · `base::WrapRefCounted(p)` **共享** · `base::AdoptRef(p)` **接管** | 三者都在 `base/memory/scoped_refptr.h` 底部（不在 `ptr_util.h`：adopt 需要 `scoped_refptr` 的 tag ctor）。选错一个是生命周期 bug 而不是风格问题——`AdoptRef` 曾长期被写成 AddRef，修掉 |
-| 全局可变状态 | 禁止（`base::FeatureList` 与单例 logger 除外，且只读初始化） | ijkplayer 的 `g_ijkmp_*` 教训 |
+| 全局可变状态 | 禁止（`base::FeatureList` 与单例 logger 除外，且只读初始化） | legacy 全局单例句柄的教训 |
 | `std::function` | 公开 API 可用；内部一律用 `base::OnceCallback` / `RepeatingCallback` | 后者 move-only、零分配路径可测 |
 
 ## 2. 文件与命名（强制）
@@ -158,13 +158,13 @@ class XMEDIA_MEDIA_EXPORT VideoFrame
 ```
 
 - 参数用 `|param|` 竖线包裹（Chromium 风格）：`// Requests |buffer| to be decoded.`
-- 从 ijkplayer 移植的算法必须在函数头注明出处：
+- 从 legacy 移植的算法必须在函数头注明出处：
 
 ```cpp
 // Computes the delay before presenting the next frame.
 //
-// Ported line-by-line from ijkplayer's `compute_target_delay()` in
-// ijkmedia/ijkplayer/ff_ffplay.c (LGPL-2.1). Thresholds are intentionally
+// Ported line-by-line from legacy's `compute_target_delay()` in
+// ijkmedia/legacy/ff_ffplay.c (LGPL-2.1). Thresholds are intentionally
 // identical to the upstream constant. Do not "improve" without
 // golden-test evidence.
 ```
@@ -284,7 +284,7 @@ After a seek, |last_frame| and |next_frame| can belong to different
 serials. compute_target_delay() then derived a bogus duration from the
 pts delta across the seek boundary, causing a multi-second stall.
 
-This mirrors ijkplayer's `lastvp->serial == nextvp->serial` guard in
+This mirrors legacy's `lastvp->serial == nextvp->serial` guard in
 video_refresh(); the guard was lost during the port.
 
 Bug: xmedia-kit/45
@@ -313,19 +313,19 @@ Test: media/filters/video_frame_compositor_unittest.cc (SeekAfterSerialChange)
 | `base/observer_list.h` | 同名 | `ObserverList` + `Iterator` 完整实现；`ScopedObservation` 尚未落地 |
 | `base/check.h` / `base/logging.h` | 同名 | 精简版，`LOG()` 走 `base::LoggingDelegate` 可插拔 |
 | `base/trace_event/` | `base/trace_event/` | 默认 no-op；可接 Perfetto/Chrome tracing JSON |
-| `media::DecoderBuffer` | `media::DecoderBuffer` | 同名同语义（= ijkplayer 的 `AVPacket` 封装） |
+| `media::DecoderBuffer` | `media::DecoderBuffer` | 同名同语义（= legacy 的 `AVPacket` 封装） |
 | `media::VideoFrame` | `media::VideoFrame` | 同名同语义 |
 | `media::AudioBus` | `media::AudioBus` | 同名同语义 |
 | `media::DemuxerStream` | `media::DemuxerStream` | `Read(count, ReadCB)` + `Status` 完全对齐 |
 | `media::VideoDecoder` | `media::VideoDecoder` | `Initialize/Decode/Reset` 完全对齐 |
 | `media::Renderer` | `media::Renderer` | 对齐；去掉 Mojo/CDM/Flinging 等浏览器专属部分 |
 | `media::Pipeline` + `PipelineController` | `media::Pipeline` + `PipelineController` | 对齐 |
-| `media::VideoFrameCompositor` | `media::VideoFrameCompositor` | ★对应 ijkplayer 的 `video_refresh` + `compute_target_delay` |
+| `media::VideoFrameCompositor` | `media::VideoFrameCompositor` | ★对应 legacy 的 `video_refresh` + `compute_target_delay` |
 | `media::VideoRendererImpl` / `AudioRendererImpl` | 同名 | 含三级 watermark 逻辑 |
 | `media::DecoderStream<T,D>` + `DecoderSelector` | 同名 | 解码器选择 + 回退 + 异步泵 |
 | `media::AudioRendererSink` | `media::AudioRendererSink` | `RenderCallback::Render(delay, delay_timestamp, glitch, AudioBus*)` 完全对齐 |
 | `media::VideoRendererSink` | `media::VideoRendererSink` | `RenderCallback::Render(deadline_min, deadline_max, ...)` |
 | `media::MediaLog` | `media::MediaLog` | 结构化媒体事件日志 |
-| `media::AudioRendererAlgorithm` | `media::AudioRendererAlgorithm` | ★WSOLA 变速，替代 ijkplayer 的 SoundTouch 依赖 |
+| `media::AudioRendererAlgorithm` | `media::AudioRendererAlgorithm` | ★WSOLA 变速，替代 legacy 的 SoundTouch 依赖 |
 | `mojo::` / `blink::` / `cc::` / `viz::` | ❌ 不引入 | 浏览器专属，SDK 不需要 |
 | `media::CdmContext` | 🔜 预留接口不实现 | DRM 超范围 |

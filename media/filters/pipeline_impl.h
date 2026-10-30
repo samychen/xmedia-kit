@@ -96,7 +96,7 @@ class XMEDIA_MEDIA_EXPORT PipelineImpl final : public Pipeline,
     live_cue_max_age_ = max_age;
   }
 
-  // Buffering pre-buffer gate (ijkplayer packet-buffering / high-water-marks /
+  // Buffering pre-buffer gate (legacy packet-buffering / high-water-marks /
   // min-frames). The renderer decides starvation; this decides whether the
   // buffered TIME and PACKET-COUNT are enough to declare "have enough" yet, and
   // defers OnBufferingStateChange(kHaveEnough) until both clear. PlayerImpl

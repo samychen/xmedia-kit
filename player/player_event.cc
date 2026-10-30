@@ -253,7 +253,7 @@ bool ToLegacyEvent(const PlayerEvent& event, LegacyEvent* out) {
   case EventType::kDecoderOpened:
     out->what = 10001;
     return true;
-  // New in xmedia-kit; no ijkplayer equivalent.
+  // New in xmedia-kit; no legacy equivalent.
   case EventType::kDecoderFallback:
   case EventType::kWaiting:
   case EventType::kBufferedBytesUpdate:

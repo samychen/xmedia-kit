@@ -1,7 +1,7 @@
 # `media/filters/legacy/` — LGPL-2.1 quarantine
 
 Everything in this directory is a **line-by-line port of an algorithm from
-ijkplayer's `ff_ffplay.c`**, and is therefore a derivative work of ijkplayer
+legacy's `ff_ffplay.c`**, and is therefore a derivative work of legacy
 (LGPL-2.1). The rest of xmedia-kit is BSD-3-Clause. See the root `LICENSE` §1 and
 decision **D10** / risk **R8** in `docs/08` §4 and §5.
 

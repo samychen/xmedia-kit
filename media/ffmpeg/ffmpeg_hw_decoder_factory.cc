@@ -42,7 +42,7 @@ std::unique_ptr<media::VideoDecoder>
 FFmpegHwVideoDecoderFactory::CreateVideoDecoder(
     const media::VideoDecoderConfig& config) {
   // Codec-level gate: hardware masks are the player-config's answer to
-  // ijkplayer's mediacodec-avc/-hevc boolean soup; a codec the mask excludes
+  // legacy's mediacodec-avc/-hevc boolean soup; a codec the mask excludes
   // is a "not me" (the stream walks on to the software tail), not an error.
   if (!media::DecoderSelector::CodecAllowedByMask(config.codec,
                                                   allowed_codecs_)) {

@@ -65,7 +65,7 @@ struct XMEDIA_MEDIA_EXPORT StreamInfo {
 };
 
 // Everything the container told us, as one immutable snapshot. Replaces
-// ijkplayer's ijkmeta.c plus a dozen ijkmp_get_* accessors.
+// the legacy metadata module and its property accessors.
 struct XMEDIA_MEDIA_EXPORT MediaInfo {
   base::TimeDelta duration;
   // Live streams report a zero duration; use |is_live| rather than testing it.

@@ -24,7 +24,7 @@
 //
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // its scheduling algorithm is a line-by-line port of ffplay's video_refresh()
-// and compute_target_delay(), which makes it a derivative work of ijkplayer
+// and compute_target_delay(), which makes it a derivative work of legacy
 // (LGPL-2.1). Everything else in xmedia-kit is BSD-3-Clause (see the root LICENSE);
 // ported files are quarantined in media/filters/legacy/ so the boundary is
 // auditable by directory listing rather than by reading every header.
@@ -35,7 +35,7 @@
 // --------------------
 // ComputeTargetDelay() and the pacing/drop logic inside DecideNextFrame() are
 // a line-by-line port of compute_target_delay() and video_refresh() from
-// ijkmedia/ijkplayer/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui),
+// ijkmedia/legacy/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui),
 // which in turn derives from ffplay.c (LGPL-2.1, Copyright Fabrice Bellard).
 //
 // Every threshold and every branch below has a comment naming its origin. The
@@ -254,14 +254,14 @@ VideoFrameCompositor::ClassifyCandidate(const FrameSyncInput& in) {
     return DropReason::kStaleSerial;
   }
 
-  // ijkplayer's `enable-accurate-seek` drops every frame before the target.
+  // legacy's `enable-accurate-seek` drops every frame before the target.
   if (in.accurate_seek_pending && !IsNoTimestamp(in.accurate_seek_target) &&
       !IsNoTimestamp(in.next_timestamp) &&
       in.next_timestamp < in.accurate_seek_target) {
     return DropReason::kAccurateSeek;
   }
 
-  // ijkplayer's "max-fps". Note that this asks about the SOURCE, not about
+  // legacy's "max-fps". Note that this asks about the SOURCE, not about
   // when the sink happened to poll -- see ShouldDropForFpsCap.
   if (ShouldDropForFpsCap(in)) {
     return DropReason::kFpsCap;
@@ -272,7 +272,7 @@ VideoFrameCompositor::ClassifyCandidate(const FrameSyncInput& in) {
 
 // static
 //
-// ijkplayer's "max-fps": rather than lengthening the display interval (which
+// legacy's "max-fps": rather than lengthening the display interval (which
 // would grow A/V drift), a frame closer than one cap interval to its
 // predecessor is dropped. The distance is between TIMESTAMPS, not between
 // wall-clock instants, and that is the bug this replaced: a sink polls on its
@@ -400,7 +400,7 @@ bool VideoFrameCompositor::ShouldDropForLateness(const FrameSyncInput& in,
                                                  base::TimeDelta frame_duration,
                                                  const Thresholds& th) {
   if (in.max_frame_drop <= 0) {
-    return false;  // ijkplayer "framedrop" = 0 or -1 both disable dropping.
+    return false;  // legacy "framedrop" = 0 or -1 both disable dropping.
   }
   if (in.frames_dropped_since_last_present >= in.max_frame_drop) {
     return false;  // Budget exhausted; present rather than starve the display.

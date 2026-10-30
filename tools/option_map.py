@@ -1,12 +1,12 @@
 # Copyright 2026 The xmedia-kit Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""The legacy-option map: every ijkplayer option key and the PlayerConfig field
+"""The legacy-option map: every legacy option key and the PlayerConfig field
 it lands on.
 
 Data for tools/gen_options.py, kept in its own module for the same reason as
 tools/ported_constants.py: this table is what grows when a milestone adds
-config surface, and "can an existing ijkplayer configuration be migrated?"
+config surface, and "can an existing legacy configuration be migrated?"
 should be answerable by reading one file.
 
 Authority and drift
@@ -89,7 +89,7 @@ class Opt:
 
 
 def fcc(chars: str) -> int:
-    """Builds a FourCC the way ijksdl_fourcc.h does:
+    """Builds a FourCC the way 上游 SDL fourcc 头 does:
 
         #define SDL_FOURCC(a, b, c, d) \
             ((uint32_t)(a) | ((uint32_t)(b) << 8) | ((uint32_t)(c) << 16) | \

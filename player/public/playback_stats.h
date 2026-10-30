@@ -17,7 +17,7 @@
 
 namespace xmedia {
 
-// Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to
+// Replaces the 30+ FFP_PROP_* integer properties that legacy callers had to
 // poll one at a time, each taking a mutex. One call, one immutable snapshot.
 // See docs/05 table 6 for the field-by-field mapping.
 struct XMEDIA_PLAYER_EXPORT BufferStats {
@@ -48,7 +48,7 @@ struct XMEDIA_PLAYER_EXPORT BufferingStats {
   base::TimeDelta active_high_water_mark;
 };
 
-// First-frame latency decomposition. ijkplayer emitted FFP_MSG_OPEN_INPUT /
+// First-frame latency decomposition. legacy emitted FFP_MSG_OPEN_INPUT /
 // FIND_STREAM_INFO / COMPONENT_OPEN for exactly this purpose but left the
 // caller to stitch the timestamps together.
 struct XMEDIA_PLAYER_EXPORT StageTimings {

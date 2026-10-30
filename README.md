@@ -55,7 +55,7 @@
 | Linux 视频 | ① `platform/sdl2`（最快出画，已交付）② `platform/linux`（原生 OpenGL 3.3 + EGL/GLX + Wayland/X11 + ALSA/PulseAudio，零第三方）—— **M12 已顺延，方案见 docs/archive/09** |
 | 窗口归属 | **嵌入模式为核心**（渲染到调用方给的 `X11 Window` / `wl_surface`），`examples/` 额外提供内建窗口 |
 | 验收 demo | `examples/play_sdl2 --url x.mp4`（真窗口带音频）· `examples/headless`（无窗口播到 kCompleted）· `examples/pull_frames`（抽帧） |
-| 质量验收 | **Golden Test**：与原版 ijkplayer 逐帧 pts / 音频样本校验和对齐 |
+| 质量验收 | **Golden Test**：与原版 legacy 逐帧 pts / 音频样本校验和对齐 |
 | 工期 | 核心 + Linux 双后端 **单人约 23 周 / 双人约 12 周**（M0–M13） |
 
 ---
@@ -66,7 +66,7 @@
 |---|---|---|
 | — | [STYLE.md](STYLE.md) | **代码风格细则**：Google Style 落地规则、Chromium 约定、命名表、注释模板、clang-tidy 配置、提交规范、**与 Chromium 的对照速查表** |
 | — | [PROGRESS.md](docs/PROGRESS.md) | **实施进度活文档**：已完成/未完成清单、可执行验证命令、check_invariants 抓到的真实问题、移植中发现的 2 个缺陷 |
-| 01 | [现状剖析与设计目标](docs/01-现状剖析与设计目标.md) | ijkplayer 的 12 条病灶（代码取证）、设计目标 G1–G12、10 条设计原则、"为什么参照 Chromium media" |
+| 01 | [设计目标与设计原则](docs/01-设计目标与设计原则.md) | legacy 的 12 条病灶（代码取证）、设计目标 G1–G12、10 条设计原则、"为什么参照 Chromium media" |
 | 02 | [总体架构与模块划分](docs/02-总体架构与模块划分.md) | **Chromium 式四层架构**（base/media/player/platform）、完整目录树（镜像 `media/base` + `media/filters`）、CMake target 拓扑、依赖方向铁律 |
 | 03 | [核心类与接口设计](docs/03-核心类与接口设计.md) | 头文件级 C++20 声明，**命名与签名对齐 Chromium**：`DecoderBuffer` / `VideoFrame` / `AudioBus` / `DemuxerStream` / `VideoDecoder` / `Renderer` / `Pipeline` / `VideoFrameCompositor` / `AudioRendererSink` / `MediaLog` / `Player` |
 | 04 | [线程模型与数据流](docs/04-线程模型与数据流.md) | **Task Runner / Sequence 模型**、6 个线程与 sequence 归属、`PostTask` + `WeakPtr` 通信、`serial` 语义、seek/flush/stop 时序、锁与无锁边界、竞态清单 |
@@ -199,7 +199,7 @@ int main() {
 }
 ```
 
-对比原版 ijkplayer 需要 20+ 行（`ijkmp_create` → 若干 `ijkmp_set_option_int` → `set_data_source` → `set_native_window` → `prepare_async` → 起一个线程轮询 `ijkmp_get_msg`）。详见 [docs/10](docs/10-SDK易用性设计.md)。
+对比原版 legacy 需要 20+ 行（create → 逐个 set_option → set_data_source → 绑窗口 → prepare_async → 起一个线程轮询消息）详见 [docs/10](docs/10-SDK易用性设计.md)。
 
 **SDK 易用性的硬性要求**（进 CI/评审清单）：
 - 零配置可用：`xmedia::Player p; p.SetDataSource(url); p.PrepareAsync();` 就能出画出声（自动探测平台后端）
@@ -221,17 +221,17 @@ int main() {
 | D4 | 变速音频处理 | **自研 `AudioRendererAlgorithm`（WSOLA）**，对齐 Chromium，去掉 SoundTouch 依赖 | 03 §7 |
 | D5 | Linux 视频后端 | **两套都做**：SDL2（1.5 周，快速可用）+ 原生 OpenGL（3 周，展示抽象正确性 + 零依赖） | 09 |
 | D6 | 窗口归属 | **嵌入模式为核心**（`SetVideoSurface(NativeDisplay)`），`examples/` 提供内建窗口 | 09 §2 |
-| D7 | `ijkio` 边下边播缓存 | **后置**（M12），首期只留 `DataSource` 装饰器接口 | 08 §4 |
+| D7 | 边下边播缓存 | **后置**（M12），首期只留 `DataSource` 装饰器接口 | 08 §4 |
 | D8 | DRM / CDM | **不实现**，`CdmContext` 位置留空接口 | 08 §4 |
 | D9 | 是否首期提供 C ABI 兼容层 | **不提供**（已选现代 C++ API），预留 `player/public/c/` 目录与符号清单 | 08 §4 |
-| D10 | 许可证 | xmedia-kit 用 **BSD-3-Clause**（与 Chromium base 兼容），移植自 ijkplayer 的算法文件保留 **LGPL-2.1** 声明并单独归入 `media/filters/legacy/` | 08 §5 R8 ⚠️需法务确认 |
+| D10 | 许可证 | xmedia-kit 用 **BSD-3-Clause**（与 Chromium base 兼容），移植自 legacy 的算法文件保留 **LGPL-2.1** 声明并单独归入 `media/filters/legacy/` | 08 §5 R8 ⚠️需法务确认 |
 | D11 | FFmpeg 的 include 隔离强度 | **链接隔离 + 目录隔离，放弃 include 隔离**：所有需要 `libav*` 的代码（胶水层与 `ffmpeg_*` 实现）同在 **`media/ffmpeg/`** 一个目录、同属 `xmedia_ffmpeg` 一个 target，目录内可互相 include。更严格（include 也隔离）成本约 +15% | 02 §8 |
 
 ---
 
 ## 6. 新旧对照（速览）
 
-| ijkplayer | xmedia-kit（Chromium 对齐） |
+| legacy | xmedia-kit（Chromium 对齐） |
 |---|---|
 | `ff_ffplay.c` 5400 行 | 拆成 `media/filters/` 下 9 个文件，最大 ~700 行 |
 | `VideoState` ~200 字段上帝结构体 | `RendererImpl` + `VideoRendererImpl` + `AudioRendererImpl` + `VideoFrameCompositor`，各自 ≤ 15 私有字段 |
@@ -244,9 +244,9 @@ int main() {
 | `packet_queue_*` / `frame_queue_*` C 函数族 | `media::DecoderBufferQueue` / `VideoFrameQueue`（`scoped_refptr` 化） |
 | `FFP_MSG_*` int 常量 + arg1/arg2 | `player::PlayerEvent` 强类型 `std::variant` |
 | `ffp_context_options[]` 字符串表 + `offsetof` | `player::PlayerConfig` 强类型 + `OptionRegistry`（校验 + 可生成文档） |
-| `ijkmp_get_property_int64(FFP_PROP_*)` × 20 | `player.GetPlaybackStats()` 一次返回结构体 |
+| 属性查询 API × 20 次 | `player.GetPlaybackStats()` 一次返回结构体 |
 | `abort_request` + 手工 `SDL_CondSignal` × 5 处 | `base::SequencedTaskRunner::PostTask` + `WeakPtr` + `WaitableEvent` |
-| 全局 `g_ijkmp_*` | 无全局态，`Player` 实例独立 |
+| 全局单例句柄 | 无全局态，`Player` 实例独立 |
 | `Android.mk` + ndk-build + shell 脚本 | CMake + `CMakePresets.json` |
 | 需给 FFmpeg 打 patch | 用发行版 FFmpeg（`apt install libavformat-dev`） |
 | 无测试 | `base::test::TaskEnvironment` + gmock + Golden Test，核心覆盖率 ≥ 85% |
@@ -259,14 +259,14 @@ int main() {
 |---|---|
 | Sequence | Chromium 概念：一组必须串行执行的任务，不绑定具体线程（但可绑定）。用 `SEQUENCE_CHECKER` 断言 |
 | Task Runner | 任务投递目标。`SequencedTaskRunner`（串行）/ `SingleThreadTaskRunner`（固定线程） |
-| `DecoderBuffer` | 解复用后、解码前的压缩数据（= ijkplayer 的 `AVPacket` 封装） |
+| `DecoderBuffer` | 解复用后、解码前的压缩数据（= legacy 的 `AVPacket` 封装） |
 | `VideoFrame` / `AudioBuffer` | 解码后的数据（= `AVFrame` 封装），`scoped_refptr` 管理 |
 | `DemuxerStream` | 单条流的包来源，`Read(count, ReadCB)` 异步取包 |
-| `Renderer` | Chromium 概念：把 demuxer 的输出变成音视频输出的组件（≈ ijkplayer 的整个 `ff_ffplay.c`） |
-| `VideoFrameCompositor` | 决定"下一帧何时显示/是否丢弃"的组件（≈ ijkplayer 的 `video_refresh`） |
+| `Renderer` | Chromium 概念：把 demuxer 的输出变成音视频输出的组件（≈ legacy 的整个 `ff_ffplay.c`） |
+| `VideoFrameCompositor` | 决定"下一帧何时显示/是否丢弃"的组件（≈ legacy 的 `video_refresh`） |
 | `Sink` | 输出端：`VideoRendererSink`（送显）/ `AudioRendererSink`（送声卡） |
 | serial | seek 世代号（继承自 ffplay），区分 flush 前后的数据 |
-| Golden Test | 与原版 ijkplayer 在相同输入下逐帧比对，作为"平替"的验收手段 |
+| Golden Test | 与原版 legacy 在相同输入下逐帧比对，作为"平替"的验收手段 |
 
 ---
 

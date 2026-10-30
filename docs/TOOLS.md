@@ -236,13 +236,13 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 | 文件 | 作用 |
 |---|---|
 | `gen_options.py` | 生成 `OptionRegistry` 表，并把 **docs/05 表 4（规约）⟷ `player_config.h`（代码）⟷ `option_map.py`（映射）** 三方对账。`--check` CI 安全，`--emit` 写 `.inc` |
-| `option_map.py` | ijkplayer 选项键 → `PlayerConfig` 字段的映射表（数据）。kind 解释了迁移不是恒等的：三个键取反、 `volume` 换量程（Δ6，0..100→0.0..1.0）、四个键把毫秒送进 `base::TimeDelta` |
+| `option_map.py` | legacy 选项键 → `PlayerConfig` 字段的映射表（数据）。kind 解释了迁移不是恒等的：三个键取反、 `volume` 换量程（Δ6，0..100→0.0..1.0）、四个键把毫秒送进 `base::TimeDelta` |
 | `extract_constants.py` | 风险 R1（A/V 同步阈值抄错）的缓解措施 4："阈值用本工具提取，**禁止手抄**"。三方交叉：`ffplay #define` ⟷ xmedia-kit 代码 ⟷ docs/05 表 7 |
 | `ported_constants.py` | 移植常量表（数据）。**单位在这里声明，绝不推断**：ffplay 自己就不一致（`AV_SYNC_THRESHOLD_MIN` 是 0.04 秒，`MAX_SLEEP` 是 1000000 微秒，`AV_NOSYNC_THRESHOLD` 是 10.0——一个整数秒，任何"是不是浮点"的启发式都分不出它和"10 个别的东西"） |
 | `doxy_xml_to_md.py` | doxygen XML → `docs/API.md`。由 `gen_api_docs.sh` 调用，不单独跑 |
 | `doxygen_comment_filter.py` | doxygen 的 INPUT_FILTER：把仓库用的**前置 `//` 块**与**尾注**改写成 doxygen 认得的 `///` / `///<`。不重写纯分隔线块（挂到下一个成员会变成它的 brief，比丢掉更糟）；跟踪引号状态，所以 `"http://x"` 不会被当注释 |
 | `gcov_to_lcov.py` | macOS 缺 `lcov`、Apple clang 的 gcov 也不出那个格式，于是把 `.gcov` 文本转成 tracefile，让门禁只有**一种**输入格式。**行数是精确的，分支是近似的**（gcov 只说"71% taken"，不说跑了多少次：是否执行过是精确的，执行多少次是编的） |
-| `golden_diff.py` | golden 对拍的 **diff 件**（[07 §7](07-测试策略与可观测性.md)）。按容差分级判 pass/fail，有意差异走 `allowlist.yaml`。**诚实边界写在文件头**：0.1.0 没有可对比的基线（录制要 ijkplayer 原版，被 Q8 卡住），所以 CI 不跑对拍；`audio.checksum` 按**严格相等**判（它是 CRC32，32 bit 摘要表达不了"差 1 LSB"） |
+| `golden_diff.py` | golden 对拍的 **diff 件**（[07 §7](07-测试策略与可观测性.md)）。按容差分级判 pass/fail，有意差异走 `allowlist.yaml`。**诚实边界写在文件头**：0.1.0 没有可对比的基线（录制要 legacy 原版，被 Q8 卡住），所以 CI 不跑对拍；`audio.checksum` 按**严格相等**判（它是 CRC32，32 bit 摘要表达不了"差 1 LSB"） |
 
 ---
 
@@ -283,7 +283,7 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 
 **这个子目录是产品，不是工具**：它是交付给宿主的诊断命令行，只是住在 `tools/` 下。
 
-它存在的理由（写在 `inspect_main.cc` 头）是：ijkplayer 唯一能看到自己行为的地方是
+它存在的理由（写在 `inspect_main.cc` 头）是：legacy 唯一能看到自己行为的地方是
 `ff_ffplay.c` 的一墙 LOGD，而"时间基错了"、"同步修正反了号"、"解码器静默产出零帧"
 这几类 bug 在那份输出里**全都看不见**。每个子命令打印的是开发者原本要挂调试器才能
 拿到的中间值，走的是播放器走的那条代码路径，**没有测试替身**。

@@ -24,7 +24,7 @@
 //
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // this is a port of ffplay's `struct Clock` (get_clock / set_clock /
-// set_clock_at), i.e. a derivative work of ijkplayer (LGPL-2.1). The seqlock
+// set_clock_at), i.e. a derivative work of legacy (LGPL-2.1). The seqlock
 // read path is original to xmedia-kit (behaviour difference Δ14) but it implements
 // the same quantity, so the file stays under the ported licence. See
 // media/filters/legacy/README.md for the boundary rules.

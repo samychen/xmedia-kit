@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Mirrors Chromium's `media/base/data_source.h` (BSD-3-Clause), reduced to what
-// xmedia-kit needs. This is the extension point that replaces ijkplayer's ijkio
+// xmedia-kit needs. This is the extension point that replaces the legacy cache framework
 // cache framework: a host supplies its own DataSource (in-app downloader,
 // encrypted stream, disk cache) instead of xmedia-kit hooking FFmpeg's protocol
 // layer with a patched-in AVInputFormat.

@@ -27,7 +27,7 @@ namespace xmedia::media {
 
 // Backpressure envelope for a DecoderBufferQueue, expressed in media-layer
 // terms so it can be derived from a player BufferConfig without media/ ever
-// seeing that type (invariant C22). Mirrors ijkplayer's packet-queue controls:
+// seeing that type (invariant C22). Mirrors legacy's packet-queue controls:
 //   max_buffers -- hard cap on packet count (bounds RAM use);
 //   max_bytes   -- byte cap ("max-buffer-size"); 0 means unlimited ("infbuf").
 //
@@ -47,7 +47,7 @@ struct XMEDIA_MEDIA_EXPORT BufferQueueLimits {
   size_t max_bytes = 0;
 };
 
-// |limits| describes a budget for a PLAYER, not for one stream: ijkplayer
+// |limits| describes a budget for a PLAYER, not for one stream: legacy
 // compares MAX_QUEUE_SIZE against the sum of the audio, video and subtitle
 // queues. Split it across |stream_count| queues so a file with two streams does
 // not get two full budgets -- that silent doubling is what wiring the config
@@ -67,7 +67,7 @@ inline BufferQueueLimits SplitQueueBudget(const BufferQueueLimits& limits,
 // Bounded, serial-aware queue of compressed samples between a demuxer and a
 // decoder.
 //
-// Replaces ijkplayer's packet_queue_* function family (nine C functions sharing
+// Replaces legacy's packet_queue_* function family (nine C functions sharing
 // a PacketQueue struct embedded in the 200-field VideoState). Three properties
 // are load-bearing and are covered by unit tests:
 //

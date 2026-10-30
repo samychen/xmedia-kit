@@ -400,7 +400,7 @@ TEST(DecoderSelectorTest, HardwareOnlyDoesNotFallBack) {
   EXPECT_STREQ(selected[0]->name(), "vaapi");
 }
 
-// Replaces ijkplayer's mediacodec-avc / -hevc / -mpeg2 / -mpeg4 booleans with
+// Replaces legacy's mediacodec-avc / -hevc / -mpeg2 / -mpeg4 booleans with
 // one mask, and the rejection must be explainable.
 TEST(DecoderSelectorTest, HwCodecMaskFiltersByCodec) {
   const auto factories = MakeFactories();

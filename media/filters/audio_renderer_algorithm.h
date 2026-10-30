@@ -22,7 +22,7 @@
 // two and record the outcome here (and in docs/PROGRESS.md) before this file
 // leaves DRAFT. Everything else was read from source, not recalled.
 //
-// WHAT IT REPLACES. ijkplayer delegates variable-rate audio to SoundTouch, a
+// WHAT IT REPLACES. legacy delegates variable-rate audio to SoundTouch, a
 // third-party library that has to be compiled in and carries its own licence
 // (behaviour difference Δ17). This class removes that dependency: WSOLA is a
 // few hundred lines, needs no external code, and -- unlike naive resampling --

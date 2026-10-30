@@ -10,7 +10,7 @@ player/public/option_registry.h says:
     typed fields and the string keys can never drift apart (rule C13).
 
 Once a hand-written migration table (docs/05) also served as the
-specification source; that narrative retired with the ijkplayer rebrand, and
+specification source; that narrative retired with the legacy rebrand, and
 the reconciliation is now two-source:
 
     player_config.h     (the code: field names, types, defaults)
@@ -650,7 +650,7 @@ def selftest(tmp: pathlib.Path) -> list:
         pass
     if enum_id("buffer.first_high_water_mark") != "kBufferFirstHighWaterMark":
         failures.append(f"enum_id: {enum_id('buffer.first_high_water_mark')}")
-    # The FourCC formula, pinned against the values ijksdl_fourcc.h produces.
+    # The FourCC formula, pinned against the values 上游 SDL fourcc 头 produces.
     # One of the six was hand-typed wrong once (kNative as 0x32565220 = ' RV2');
     # deriving them from the characters plus this assertion is what keeps the
     # fix from being undone.

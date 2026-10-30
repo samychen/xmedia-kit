@@ -113,7 +113,7 @@ TEST(ThreadTest, DestructorStopsTheThread) {
   SUCCEED();
 }
 
-// The structural guarantee that removes ijkplayer's "callback fired after the
+// The structural guarantee that removes legacy's "callback fired after the
 // player was released" crash class: a WeakPtr bound into a posted task goes
 // inert when its owner dies, even though the task is already queued.
 TEST(ThreadTest, WeakPtrBoundTaskIsInertAfterOwnerDies) {

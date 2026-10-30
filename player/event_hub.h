@@ -23,7 +23,7 @@ namespace xmedia {
 // The S8 sequence of docs/04 §1: one FIFO thread that runs the user's event
 // handler and every PlayerObserver callback.
 //
-// WHY A DEDICATED THREAD. ijkplayer dispatched messages from inside its
+// WHY A DEDICATED THREAD. legacy dispatched messages from inside its
 // message loop while holding the player mutex, so a user callback that called
 // back into the player deadlocked (docs/01 defect #9). Here the pipeline never
 // runs user code: it posts an event, the hub serialises it, and the handler

@@ -8,7 +8,7 @@
 // cross-sequence callback binds a WeakPtr, so a task that outlives its target
 // becomes a no-op instead of a use-after-free. This structurally removes the
 // whole class of "player released while a callback is in flight" crashes that
-// ijkplayer cannot prevent (docs/04 §7 R11).
+// legacy cannot prevent (docs/04 §7 R11).
 
 #ifndef XMEDIA_BASE_MEMORY_WEAK_PTR_H_
 #define XMEDIA_BASE_MEMORY_WEAK_PTR_H_

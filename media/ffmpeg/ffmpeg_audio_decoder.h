@@ -5,7 +5,7 @@
 // Original implementation (BSD-3-Clause, LICENSE §3). The structure follows
 // Chromium's media::FFmpegAudioDecoder: an asynchronous AudioDecoder over
 // avcodec send/receive. It fills the ROLE ffplay's audio_decode_frame() plays
-// in ijkplayer (documented in docs/05), but shares no line or algorithm with
+// in legacy (documented in docs/05), but shares no line or algorithm with
 // it -- an earlier header comment said "ported from"; that overstated the
 // relationship and was corrected in PROGRESS round 14 (decision A).
 
@@ -27,7 +27,7 @@ namespace xmedia::media {
 
 // libavcodec-backed audio decoder producing AudioBuffer.
 //
-// Unlike ijkplayer, which resamples every decoded frame inside
+// Unlike legacy, which resamples every decoded frame inside
 // audio_decode_frame() via swr_convert on the audio callback thread, this
 // decoder emits buffers in the codec's native sample format and leaves
 // conversion to the consumer (AudioBuffer::ReadFrames). That keeps the decoder

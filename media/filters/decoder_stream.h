@@ -4,7 +4,7 @@
 //
 // Mirrors Chromium's `media/filters/decoder_stream.h` (BSD-3-Clause).
 //
-// Replaces ijkplayer's per-stream threads: ffplay runs video_thread() and
+// Replaces legacy's per-stream threads: ffplay runs video_thread() and
 // audio_thread() as two near-identical ~200-line functions whose only real
 // differences are the packet queue, the frame queue and the codec call. Those
 // differences are exactly what a Traits type can carry, so one implementation
@@ -43,7 +43,7 @@
 
 namespace xmedia::media {
 
-// Reported when a DecoderStream has to abandon a decoder mid-stream. ijkplayer
+// Reported when a DecoderStream has to abandon a decoder mid-stream. legacy
 // surfaced several of these as hard errors; here they are recoverable and
 // observable (behaviour difference Δ12).
 enum class DecoderStreamEvent {

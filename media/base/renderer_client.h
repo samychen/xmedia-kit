@@ -89,8 +89,8 @@ XMEDIA_MEDIA_EXPORT const char* OutputDeviceStatusToString(OutputDeviceStatus);
 // thread-safe to read because every field is written on one sequence and read
 // through a snapshot copy.
 //
-// The ijkplayer equivalents are the FFP_PROP_INT64_* family (docs/05 table 6):
-// twenty separate ijkmp_get_property_int64() calls become one struct return,
+// The legacy equivalents are the FFP_PROP_INT64_* family (docs/05 table 6):
+// twenty separate legacy property accessors become one struct return,
 // so a stats consumer can no longer observe a half-updated picture.
 struct XMEDIA_MEDIA_EXPORT PipelineStatistics {
   // Demuxer.

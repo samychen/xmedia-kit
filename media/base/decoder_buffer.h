@@ -4,7 +4,7 @@
 //
 // API mirrors Chromium's `media/base/decoder_buffer.h` (BSD-3-Clause).
 //
-// Replaces the raw AVPacket that ijkplayer passes through every layer of
+// Replaces the raw AVPacket that legacy passes through every layer of
 // ff_ffplay.c. No FFmpeg type appears here; the vendor adapter stores its
 // AVPacket inside a Storage subclass and retrieves it with storage_as<T>()
 // (docs/02 §9 D2).

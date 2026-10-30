@@ -64,7 +64,7 @@ VideoFrameQueue::SlotGuard::~SlotGuard() {
 void VideoFrameQueue::SlotGuard::Release() {
   if (queue_) {
     // Returning an uncommitted slot is the whole point of the guard: it is what
-    // makes the ijkplayer slot-leak deadlock structurally impossible.
+    // makes the legacy slot-leak deadlock structurally impossible.
     queue_->ReturnSlot(slot_, /*committed=*/false);
     queue_ = nullptr;
   }

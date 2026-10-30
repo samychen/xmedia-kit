@@ -70,7 +70,7 @@ using media::DataSourceDescriptor;
 //
 // The event handler runs on the event dispatch sequence, never on a pipeline
 // sequence, and it is safe to call any Player method from inside it — including
-// Stop() and Reset(). That fixes a real deadlock in ijkplayer, whose
+// Stop() and Reset(). That fixes a real deadlock in legacy, whose
 // message_loop dispatches while holding the player mutex.
 class XMEDIA_PLAYER_EXPORT Player {
  public:
@@ -116,7 +116,7 @@ class XMEDIA_PLAYER_EXPORT Player {
   // inside PrepareSync() before it returns, so the Start() you write right
   // after PrepareSync() is the ILLEGAL one, not the missing one. Guard it
   // (examples/pull_frames.cc) or set start_on_prepared=false if you mean to
-  // start playback yourself. ijkplayer cannot hit this at all: its start
+  // start playback yourself. legacy cannot hit this at all: its start
   // only clears pause_req and is not a state transition.
   //
   // Errors: none -- an illegal state is logged and ignored (the rejection
@@ -260,7 +260,7 @@ class XMEDIA_PLAYER_EXPORT Player {
   // Side effects: emits kSnapshotCompleted (success or failure).
   Status TakeSnapshot(base::TimeDelta at, std::string file_path);
   // Forces the retry path of NetConfig::reconnect immediately. Replaces
-  // ijkplayer's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property.
+  // legacy's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property.
   // Errors: none -- without a live source the request is dropped.
   // Side effects: re-runs the reconnect ladder (docs/04 §7).
   void ReconnectNow();
@@ -433,7 +433,7 @@ class XMEDIA_PLAYER_EXPORT PlayerBuilder {
   // Errors: none (validation happens in Build).
   // Side effects: none until Build.
   PlayerBuilder& SetConfig(PlayerConfig config);
-  // Migrates one ijkplayer-style string option; unknown keys are rejected
+  // Migrates one legacy-style string option; unknown keys are rejected
   // with a "did you mean" suggestion (Δ2).
   // Errors: kInvalidArgument for an unknown key or malformed value.
   // Side effects: records the option for Build.

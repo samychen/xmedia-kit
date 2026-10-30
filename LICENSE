@@ -1,4 +1,4 @@
-xmedia-kit — ijkplayer's core player, rewritten in C++20.
+xmedia-kit — legacy's core player, rewritten in C++20.
 
 Copyright (c) 2026, The xmedia-kit Authors. All rights reserved.
 
@@ -39,7 +39,7 @@ Third-party and derivative components
 1. media/filters/legacy/ — GNU Lesser General Public License v2.1 or later
    -----------------------------------------------------------------------
    The files in this directory are line-by-line ports of algorithms from
-   ijkplayer's ff_ffplay.c, and are therefore derivative works of it:
+   legacy's ff_ffplay.c, and are therefore derivative works of it:
 
      legacy/video_frame_compositor.{h,cc}   port of video_refresh() and
                                             compute_target_delay()

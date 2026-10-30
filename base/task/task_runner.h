@@ -23,7 +23,7 @@ namespace xmedia::base {
 // Posting is the ONLY sanctioned way to touch an object owned by another
 // sequence in xmedia. Combined with base::WeakPtr it structurally eliminates
 // the "player released while a callback is in flight" crash class that
-// ijkplayer cannot prevent (docs/04 §7 R11).
+// legacy cannot prevent (docs/04 §7 R11).
 //
 // PostTask never blocks and never runs the task inline.
 class XMEDIA_BASE_EXPORT TaskRunner : public RefCountedThreadSafe<TaskRunner> {

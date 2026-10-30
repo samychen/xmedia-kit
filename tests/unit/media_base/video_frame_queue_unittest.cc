@@ -41,7 +41,7 @@ TEST_F(VideoFrameQueueTest, ReserveCommitPop) {
   EXPECT_EQ(out->timestamp(), base::Milliseconds(0));
 }
 
-// THE regression this class exists to prevent. ijkplayer's
+// THE regression this class exists to prevent. legacy's
 // frame_queue_peek_writable() hands out a raw Frame* and relies on the caller
 // remembering to call frame_queue_push(); every early return between the two
 // permanently loses a slot, and once all slots are lost the decoder blocks

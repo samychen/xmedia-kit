@@ -79,7 +79,7 @@ class NativeDisplay;
 
 // Owns and drives one playback: demuxer in, renderer in the middle, sinks out.
 //
-// WHAT IT REPLACES. ijkplayer has no equivalent object. The closest thing is
+// WHAT IT REPLACES. legacy has no equivalent object. The closest thing is
 // ff_ffplay.c's read_thread() plus the VideoState it mutates: control flow,
 // buffering policy, clock ownership and teardown are all interleaved in one
 // function, which is why stop() can hang (docs/01 defect #11). Pipeline is the

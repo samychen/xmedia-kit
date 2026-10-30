@@ -9,7 +9,7 @@
 //   TimeTicks  monotonic wall time (scheduling, deadlines)
 //   Time       calendar wall time  (wall-clock timestamps)
 //
-// This replaces ijkplayer's habit of passing raw int64_t values whose unit
+// This replaces legacy's habit of passing raw int64_t values whose unit
 // (microseconds / milliseconds / stream ticks / seconds-as-double) is only
 // discoverable by reading the callee. See docs/01 §2 病灶 5.
 

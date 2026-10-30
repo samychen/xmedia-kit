@@ -22,7 +22,7 @@
 namespace xmedia::media::ffmpeg {
 
 // ---- RAII wrappers ---------------------------------------------------------
-// These replace the 50+ `goto fail` ladders in ijkplayer's ff_ffplay.c: with a
+// These replace the 50+ `goto fail` ladders in legacy's ff_ffplay.c: with a
 // unique_ptr per FFmpeg handle, an early return is correct by construction.
 struct FormatCtxDeleter {
   void operator()(AVFormatContext* p) const {

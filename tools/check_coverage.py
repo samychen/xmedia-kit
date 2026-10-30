@@ -175,8 +175,8 @@ def normalize(path, root):
     root = root.replace("\\", "/").rstrip("/")
     if path.startswith(root):
         path = path[len(root):]
-    # Strip a leading source root the tracefile may carry, e.g. ".../ijkpp/".
-    for marker in ("/ijkpp/", "/xmedia-kit/"):
+    # Strip a leading source root the tracefile may carry.
+    for marker in ("/xmedia-kit/",):
         index = path.find(marker)
         if index >= 0:
             return path[index + len(marker):]

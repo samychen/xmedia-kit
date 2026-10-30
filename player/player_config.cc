@@ -54,11 +54,11 @@ std::vector<ConfigIssue> ValidateConfig(const PlayerConfig& c) {
   }
   if (c.audio.startup_volume < 0.0 || c.audio.startup_volume > 1.0) {
     Add(&issues, "audio.startup_volume", "must be in [0.0, 1.0]",
-        "note the range changed from ijkplayer's 0..100 (see docs/05 Δ6)");
+        "note the range changed from legacy's 0..100 (see docs/05 Δ6)");
   }
   if (c.video.max_fps < -1 || c.video.max_fps > 121) {
     Add(&issues, "video.max_fps", "must be in [-1, 121]",
-        "-1 disables the cap; 31 is the ijkplayer default");
+        "-1 disables the cap; 31 is the legacy default");
   }
   if (c.video.max_frame_drop < -1 || c.video.max_frame_drop > 120) {
     Add(&issues, "video.max_frame_drop", "must be in [-1, 120]",

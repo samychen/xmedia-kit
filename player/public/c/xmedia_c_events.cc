@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 // C ABI: the legacy event channel -- docs/08 M15.
 //
-// The one place the C ABI has real work to do. An ijkplayer's mEventHandler is
+// The one place the C ABI has real work to do. An legacy's mEventHandler is
 // written against a (what, arg1, arg2, obj) quadruple, and this forwards
 // xmedia::PlayerEvent into exactly that shape so an existing Java handler keeps
 // working unchanged (docs/05). Player::ToLegacyEvent() already does the

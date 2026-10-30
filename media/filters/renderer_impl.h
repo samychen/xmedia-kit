@@ -13,7 +13,7 @@
 // open unless a later note says otherwise. (milestone M7, docs/08 §2).
 // Written without a compiler; never built or run. Excluded from every CMake
 // target on purpose.
-// WHAT IT REPLACES. In ijkplayer this role is played by the whole of
+// WHAT IT REPLACES. In legacy this role is played by the whole of
 // ff_ffplay.c: `read_thread()` plus the ~200-field VideoState that every thread
 // mutates. Here it is one class that owns two sub-renderers and one clock, and
 // whose only cross-sequence traffic is a periodic clock push and the two sinks'

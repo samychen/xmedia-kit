@@ -41,7 +41,7 @@ class XMEDIA_MEDIA_EXPORT AudioDecoder {
 
   // |current_serial| stamps every produced AudioBuffer so consumers can drop
   // audio that predates a seek. This is an addition over Chromium's contract:
-  // ijkplayer's audio path flushes by bumping a serial (ffplay's
+  // legacy's audio path flushes by bumping a serial (ffplay's
   // `is->audioq.serial`), and without it a DecoderStream cannot distinguish a
   // stale buffer from a live one after a flush.
   //

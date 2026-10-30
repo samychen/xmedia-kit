@@ -12,7 +12,7 @@
 namespace xmedia {
 namespace option_internal {
 
-// Edit distance used for the "did you mean" hint. ijkplayer silently ignores
+// Edit distance used for the "did you mean" hint. legacy silently ignores
 // an unknown key, which is why a typo'd option can ship unnoticed (Δ2).
 int Levenshtein(std::string_view a, std::string_view b) {
   if (a.empty())
@@ -68,7 +68,7 @@ base::unexpected<MediaError> TypeMismatch(std::string_view key,
              "pass the value with the matching type");
 }
 
-// ijkplayer exposes booleans as "1"/"0" (or true/false) and accepts them from
+// legacy exposes booleans as "1"/"0" (or true/false) and accepts them from
 // int- and string-typed setters. Parse any of those so a migrated call site
 // works regardless of which typed entry point it uses. Returns nullopt for an
 // unrecognized string, so the caller can raise a type-mismatch error.

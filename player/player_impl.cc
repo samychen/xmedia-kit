@@ -47,7 +47,7 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
       // Listed last because buffer_controller_ is declared after the members
       // above (init order follows declaration order; -Wreorder enforces it).
       buffer_controller_(config.buffer) {
-  // audio.startup_volume is the typed field behind ijkplayer's "volume" option
+  // audio.startup_volume is the typed field behind legacy's "volume" option
   // (0..100 -> 0..1, Δ6). It seeds the runtime volume here rather than at
   // first use: the value is what SetVolume() would have been called with, so a
   // host that configures a startup level and never calls SetVolume() still

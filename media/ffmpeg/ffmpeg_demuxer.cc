@@ -5,7 +5,7 @@
 // ALGORITHM PROVENANCE
 // --------------------
 // The demux loop's shape (read -> route -> watermark wait -> handle seek) and
-// the seek flags follow ijkplayer's read_thread() in ff_ffplay.c (LGPL-2.1).
+// the seek flags follow legacy's read_thread() in ff_ffplay.c (LGPL-2.1).
 // The class structure follows Chromium's media::FFmpegDemuxer. The threading
 // model differs from both on purpose; see docs/04 §2.1 (decision D3).
 
@@ -756,7 +756,7 @@ FFmpegDemuxer::ReadStep FFmpegDemuxer::ReadAndRouteOnePacket(void* ctx_raw,
 
   // Backpressure: if the consumer's queue is full, wait rather than growing
   // without bound. resume_event_ has four signallers over five Signal() sites
-  // (Flush, Stop, two Seeks, SetActiveStream) -- one event where ijkplayer
+  // (Flush, Stop, two Seeks, SetActiveStream) -- one event where legacy
   // poked continue_read_thread from five call stacks (docs/01 病灶 10).
   if (stream->type() == DemuxerStreamType::kText) {
     // Bounded drop-oldest; never blocks the demux thread. Returns false only
@@ -879,7 +879,7 @@ void FFmpegDemuxer::Stop() {
   // StartPlayingFrom (to break a read so a seek is picked up) and here.
   // Interrupting a read is not an error: ReadAndRouteOnePacket answers
   // AVERROR_EXIT with kContinue, so the loop survives to serve that seek.
-  // ijkplayer's abort_request had to be signalled from five places and hung
+  // legacy's abort_request had to be signalled from five places and hung
   // release() whenever one was missed (docs/01 病灶 11).
   interrupt_flag_.Set();
   resume_event_.Signal();

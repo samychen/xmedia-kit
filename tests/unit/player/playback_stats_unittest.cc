@@ -107,7 +107,7 @@ TEST(PlaybackStatsJsonTest, TheJsonCarriesTheDisplayLayersCounters) {
 }
 
 // audio.startup_volume used to be validated and then never read: it was a
-// config field with a comment pointing at ijkplayer's "volume" key and no code
+// config field with a comment pointing at legacy's "volume" key and no code
 // on the other end. The seed now lives in PlayerImpl's constructor, so the
 // observable statement is "the level a host configured is the level volume()
 // reports before it ever calls SetVolume()".

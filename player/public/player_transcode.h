@@ -38,7 +38,7 @@ using PlayerStatus = media::Status;
 // caller's thread; PlayerTranscoder owns a worker and never blocks Start().
 
 // Synchronous transcode with PlayerConfig-derived defaults applied on top
-// of |params|: config.video.disabled / config.audio.disabled (ijkplayer's
+// of |params|: config.video.disabled / config.audio.disabled (legacy's
 // -vn / -an) drop the corresponding output stream, exactly as they silence
 // the playback legs. Everything else passes through to media::Transcode
 // verbatim. |progress| runs on the calling thread; |cancel| is polled at

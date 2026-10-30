@@ -26,7 +26,7 @@ namespace xmedia::media {
 
 // Decoded audio: one buffer of interleaved or planar samples.
 //
-// Replaces the AVFrame that ijkplayer's audio_thread() passes to
+// Replaces the AVFrame that legacy's audio_thread() passes to
 // audio_decode_frame(), where the frame's layout (planar vs interleaved, sample
 // format, channel count) has to be re-derived at every use site. Here the
 // layout is described once, at construction.

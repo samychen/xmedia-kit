@@ -56,7 +56,7 @@ namespace xmedia::media {
 // Owns a Pipeline and makes its lifecycle explicit.
 //
 // WHY A WRAPPER AND NOT FLAGS IN PipelineImpl. The failure this prevents is
-// the one ijkplayer has: control methods that are callable in any order from
+// the one legacy has: control methods that are callable in any order from
 // any thread, where "what happens if you Seek() during Stop()" is answered by
 // whatever the code path happens to do. Here every transition is named, the
 // illegal ones are DCHECKed in debug builds and answered with kInvalidState in

@@ -737,7 +737,7 @@ jobs:
         run: |
           # Same exclusion set the local sweep used: media/filters/legacy/ is
           # the LGPL-2.1 quarantine (its provenance comments must keep the
-          # shape ijkplayer had), option_registry.inc is generated, and
+          # shape legacy had), option_registry.inc is generated, and
           # render/gl/third_party/ is the vendored glad output -- all three are
           # text the formatter is not entitled to rewrite.
           #

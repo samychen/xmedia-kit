@@ -25,7 +25,7 @@ namespace xmedia::media {
 // demuxer pulls is appended to a cache file keyed by the source URI; a later
 // session whose cache file is complete-enough serves those bytes from disk
 // and never touches the network for them (restart-resume, the property the
-// ijkio framework existed to provide and that M18's config fields
+// legacy cache framework existed to provide and that M18's config fields
 // data_source.enable_cache / cache_dir / cache_max_bytes have been reserved
 // for since they appeared in PlayerConfig).
 //

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// One-to-one mapping from ijkplayer's FFP_MSG_* constants; see docs/05 table 5.
+// One-to-one mapping from legacy's FFP_MSG_* constants; see docs/05 table 5.
 
 #ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_EVENT_H_
 #define XMEDIA_PLAYER_PUBLIC_PLAYER_EVENT_H_
@@ -85,7 +85,7 @@ struct XMEDIA_PLAYER_EXPORT StateChangedPayload {
   PlayerState from{PlayerState::kIdle};
   PlayerState to{PlayerState::kIdle};
 };
-// Merges ijkplayer's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401),
+// Merges legacy's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401),
 // which could arrive out of order (behaviour difference Δ8).
 struct XMEDIA_PLAYER_EXPORT VideoSizeChangedPayload {
   media::Size coded_size;
@@ -223,7 +223,7 @@ XMEDIA_DECLARE_EVENT_ACCESSOR(AsSnapshotCompleted, SnapshotCompletedPayload);
 XMEDIA_DECLARE_EVENT_ACCESSOR(AsStats, StatsPayload);
 #undef XMEDIA_DECLARE_EVENT_ACCESSOR
 
-// Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj)
+// Downgrade path for hosts that still speak legacy's (what, arg1, arg2, obj)
 // quadruple — used by the optional C ABI layer and the Android JNI binding so
 // that an existing Java message handler keeps working unchanged.
 // Side effects: none (pure mapping; |obj| in the result borrows the event's

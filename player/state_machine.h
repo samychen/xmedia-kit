@@ -12,7 +12,7 @@ namespace xmedia {
 
 // The SDK's playback states and the only transitions between them.
 //
-// WHY A TABLE AND NOT IF-CHAINS AT THE CALL SITES: ijkplayer's mp->mp_state
+// WHY A TABLE AND NOT IF-CHAINS AT THE CALL SITES: legacy's mp->mp_state
 // is a bag of state bits mutated from six threads, and "can this happen now"
 // is answered differently in a dozen places (docs/01 defect #3). Here every
 // caller asks one function, and an illegal request is rejected with

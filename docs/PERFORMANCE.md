@@ -76,7 +76,7 @@ CI 的 `bench` job **不硬 fail**，只记录并上传 artifact：共享 runner
 ### 4.1 内存预算——先搞清口径再调
 
 `max-buffer-size`（`buffer.max_bytes`，默认 **15 MiB**）是**全播放器预算**，
-不是每条流的额度：ijkplayer/xmedia-kit 比的是 audio+video+subtitle **三队列之和**。
+不是每条流的额度：legacy/xmedia-kit 比的是 audio+video+subtitle **三队列之和**。
 按流拆分走 `SplitQueueBudget()`（`media/base/decoder_buffer_queue.h:57`）：
 
 ```cpp
@@ -155,7 +155,7 @@ demuxer + 第二对渲染腿**，共用一个时钟——多一次完整解码�
   （事件队列溢出计数——宿主回调慢会在这里显形）。
 - `DumpDiagnostics()`：全量内部状态 JSON，~1ms，任何时刻可调；**bug 报告的
   第一附件**。
-- `kStats` 事件随统计 tick（1s）推送，替代 ijkplayer 的 20+ 次属性轮询。
+- `kStats` 事件随统计 tick（1s）推送，替代 legacy 的 20+ 次属性轮询。
 - 日志线程名前缀：`xmedia-media` / `xmedia-demux`（background 优先级）/
   `xmedia-video` / `xmedia-audio` / `xmedia-event`（Δ16）。
 
@@ -220,8 +220,8 @@ demuxer + 第二对渲染腿**，共用一个时钟——多一次完整解码�
   类型与顺序一致、`late_us` ±5000 µs、`stat` 跳过）并支持 `allowlist.yaml`
   豁免，自带 selftest 与突变反证。一处如实收窄：`audio.checksum` 按**全等**
   判定——录制格式里它是 CRC32，表达不了「逐样本差 ≤1 LSB」，需豁免时走
-  allowlist。**录制基线不在仓库**，需 ijkplayer 原版录制（docs/07 §7.3），
-  被开放问题 Q8（锁哪个 ijkplayer 版本）卡住且沙箱无原版，故 CI 不跑对拍：
+  allowlist。**录制基线不在仓库**，需 legacy 原版录制（docs/07 §7.3），
+  被开放问题 Q8（锁哪个 legacy 版本）卡住且沙箱无原版，故 CI 不跑对拍：
   没有基线可对比，跑出来等于没测。
 - **soak 48h 未跑**：脚本就绪（`tools/run_soak.py`，内存曲线斜率门禁），
   沙箱禁读他进程 RSS，需 CI 长跑机。

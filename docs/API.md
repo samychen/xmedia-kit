@@ -137,7 +137,7 @@
 - `XmediaStatus xmedia_player_take_snapshot(XmediaPlayer *player, int64_t at_ms, const char *file_path)`
   Writes the frame at |at_ms| to |file_path| (PNG); completion arrives as kSnapshotCompleted (what=1000, arg2 = Status). Side effects: writes one file; emits kSnapshotCompleted.
 - `void xmedia_player_reconnect_now(XmediaPlayer *player)`
-  Forces the network retry path now. Replaces ijkplayer's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property. Side effects: re-runs the reconnect ladder.
+  Forces the network retry path now. Replaces legacy's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property. Side effects: re-runs the reconnect ladder.
 - `int xmedia_player_state(const XmediaPlayer *player)`
   Mirrors PlayerState. See XMEDIA_STATE_* below. Side effects: none.
 - `int64_t xmedia_player_media_time_ms(const XmediaPlayer *player)`
@@ -212,7 +212,7 @@
 - `int32_t xmedia_display_debug_string(const XmediaNativeDisplay *display, char *out, int32_t capacity)`
   Copy-into-your-buffer contract, same as the title: returns the full length excluding the NUL, and a value >= |capacity| means truncated. Side effects: none.
 - `void xmedia_player_set_event_callback(XmediaPlayer *player, XmediaEventCallback cb, void *user_data)`
-  Replaces any previous callback (pass null to remove it). The callback runs on the event sequence, never on a pipeline sequence, and it is safe to call any xmedia_player_* function from inside it – including stop and reset. That is the deadlock fix over ijkplayer's message_loop; do not reintroduce a "must not reenter" rule here. Side effects: starts event delivery to |cb|.
+  Replaces any previous callback (pass null to remove it). The callback runs on the event sequence, never on a pipeline sequence, and it is safe to call any xmedia_player_* function from inside it – including stop and reset. That is the deadlock fix over legacy's message_loop; do not reintroduce a "must not reenter" rule here. Side effects: starts event delivery to |cb|.
 ### `struct` XmediaMediaInfo
 
 *player/public/c/xmedia_c.h:305*
@@ -310,7 +310,7 @@ RAII helper for programs that want symmetric init/shutdown.
 
 *player/public/option_registry.h:51*
 
-String-keyed configuration, kept for migrating existing setOption() call sites. Unlike ijkplayer, an unknown key or an out-of-range value is an error rather than a silent no-op (behaviour difference Δ2).
+String-keyed configuration, kept for migrating existing setOption() call sites. Unlike legacy, an unknown key or an out-of-range value is an error rather than a silent no-op (behaviour difference Δ2).
 
 The table is generated from player_config.h by tools/gen_options.py so the typed fields and the string keys can never drift apart (rule C13).
 
@@ -334,7 +334,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
   Returns the process-wide OptionRegistry. Thread safety: any thread; the instance is constructed once and then read-only, so the read path needs no locking. Errors: none (never fails). Side effects: none – first-call construction is deferred and idempotent.
 
 - `enum class OptionCategory`
-  Mirrors ijkplayer's IJKMP_OPT_CATEGORY_*.
+  Mirrors the legacy option categories.
   - `kPlayer` `= 0`
   - `kFormat`
   - `kCodec`
@@ -375,7 +375,7 @@ The table is generated from player_config.h by tools/gen_options.py so the typed
 
 *player/public/playback_stats.h:23*
 
-Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to poll one at a time, each taking a mutex. One call, one immutable snapshot. See docs/05 table 6 for the field-by-field mapping.
+Replaces the 30+ FFP_PROP_* integer properties that legacy callers had to poll one at a time, each taking a mutex. One call, one immutable snapshot. See docs/05 table 6 for the field-by-field mapping.
 
 - `base::TimeDelta cached_duration`
 - `size_t cached_bytes {0}`
@@ -460,7 +460,7 @@ Replaces the 30+ FFP_PROP_* integer properties that ijkplayer callers had to pol
 
 *player/public/playback_stats.h:54*
 
-First-frame latency decomposition. ijkplayer emitted FFP_MSG_OPEN_INPUT / FIND_STREAM_INFO / COMPONENT_OPEN for exactly this purpose but left the caller to stitch the timestamps together.
+First-frame latency decomposition. legacy emitted FFP_MSG_OPEN_INPUT / FIND_STREAM_INFO / COMPONENT_OPEN for exactly this purpose but left the caller to stitch the timestamps together.
 
 - `base::TimeDelta prepare_to_open_input`
 - `base::TimeDelta open_input_to_stream_info`
@@ -495,7 +495,7 @@ XMEDIA_RETURN_IF_ERROR(player.PrepareAsync());
 
 ```
 
-The event handler runs on the event dispatch sequence, never on a pipeline sequence, and it is safe to call any Player method from inside it — including Stop() and Reset(). That fixes a real deadlock in ijkplayer, whose message_loop dispatches while holding the player mutex.
+The event handler runs on the event dispatch sequence, never on a pipeline sequence, and it is safe to call any Player method from inside it — including Stop() and Reset(). That fixes a real deadlock in legacy, whose message_loop dispatches while holding the player mutex.
 
 - `using SeekCB = base::OnceCallback<void(Status)>;`
 - `using EventHandler = base::RepeatingCallback<void(const PlayerEvent &)>;`
@@ -516,7 +516,7 @@ The event handler runs on the event dispatch sequence, never on a pipeline seque
 - `void Start()`
   Legal only from kPrepared, kPaused and kCompleted; from any other state it logs "Player::Start in state <s> is not legal" and returns without changing anything (that rejection is deliberate, see player/state_machine.h).
 
-  WATCH OUT: with the default start_on_prepared=true, the autostart runs inside PrepareSync() before it returns, so the Start() you write right after PrepareSync() is the ILLEGAL one, not the missing one. Guard it (examples/pull_frames.cc) or set start_on_prepared=false if you mean to start playback yourself. ijkplayer cannot hit this at all: its start only clears pause_req and is not a state transition.
+  WATCH OUT: with the default start_on_prepared=true, the autostart runs inside PrepareSync() before it returns, so the Start() you write right after PrepareSync() is the ILLEGAL one, not the missing one. Guard it (examples/pull_frames.cc) or set start_on_prepared=false if you mean to start playback yourself. legacy cannot hit this at all: its start only clears pause_req and is not a state transition.
 
   Errors: none – an illegal state is logged and ignored (the rejection is deliberate, see player/state_machine.h). Side effects: emits kStateChanged(kStarted); from kCompleted replays from the beginning.
 - `void Pause()`
@@ -550,7 +550,7 @@ The event handler runs on the event dispatch sequence, never on a pipeline seque
 - `Status TakeSnapshot(base::TimeDelta at, std::string file_path)`
   Writes the frame at |at| to |file_path| (PNG). The write happens on a worker sequence; completion arrives as an event. Errors: kInvalidState when the position is not decodable yet. Side effects: emits kSnapshotCompleted (success or failure).
 - `void ReconnectNow()`
-  Forces the retry path of NetConfig::reconnect immediately. Replaces ijkplayer's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property. Errors: none – without a live source the request is dropped. Side effects: re-runs the reconnect ladder (docs/04 §7).
+  Forces the retry path of NetConfig::reconnect immediately. Replaces legacy's write-only FFP_PROP_INT64_IMMEDIATE_RECONNECT property. Errors: none – without a live source the request is dropped. Side effects: re-runs the reconnect ladder (docs/04 §7).
 - `PlayerState state() const`
 - `std::optional<MediaInfo> media_info() const`
   Media metadata once prepared (duration, streams, rotation...); nullopt before that. Errors: none. Side effects: none.
@@ -620,7 +620,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `PlayerBuilder & SetConfig(PlayerConfig config)`
   Takes ownership of |config| (a copy is kept). Errors: none (validation happens in Build). Side effects: none until Build.
 - `Status SetOption(OptionCategory category, std::string_view key, const OptionValue &value)`
-  Migrates one ijkplayer-style string option; unknown keys are rejected with a "did you mean" suggestion (Δ2). Errors: kInvalidArgument for an unknown key or malformed value. Side effects: records the option for Build.
+  Migrates one legacy-style string option; unknown keys are rejected with a "did you mean" suggestion (Δ2). Errors: kInvalidArgument for an unknown key or malformed value. Side effects: records the option for Build.
 - `PlayerBuilder & SetDeps(std::unique_ptr< Deps > deps)`
   Installs custom backends; the defaults are used for every factory the Deps leaves null. Errors: none. Side effects: none until Build.
 - `PlayerBuilder & SetLogLevel(base::logging::LogSeverity severity)`
@@ -677,7 +677,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `bool tempo_stretch {true}`
   "soundtouch"
 
-  True by default: uses the built-in WSOLA AudioRendererAlgorithm instead of ijkplayer's SoundTouch dependency (behaviour difference Δ17).
+  True by default: uses the built-in WSOLA AudioRendererAlgorithm instead of legacy's SoundTouch dependency (behaviour difference Δ17).
 - `bool preserves_pitch {true}`
 - `int frame_queue_size {9}`
 - `int selected_stream {-1}`
@@ -703,7 +703,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   "infbuf"
 - `base::TimeDelta max_cached_duration {base::Seconds(3)}`
 - `base::TimeDelta first_high_water_mark {base::Milliseconds(100)}`
-  Three-tier high water mark: each stall->recovery cycle steps to the next, and a seek resets to the first. Ported unchanged from ijkplayer.
+  Three-tier high water mark: each stall->recovery cycle steps to the next, and a seek resets to the first. Ported unchanged from legacy.
 - `base::TimeDelta next_high_water_mark {base::Seconds(1)}`
 - `base::TimeDelta last_high_water_mark {base::Seconds(5)}`
 - `bool sync_av_start {true}`
@@ -724,7 +724,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 *player/public/player_config.h:188*
 
 - `bool enable_cache {false}`
-  ijkio master switch (M18)
+  cache master switch (M18)
 - `std::string cache_dir`
 - `size_t cache_max_bytes {512ULL * 1024 * 1024}`
 
@@ -792,7 +792,7 @@ Builder form, for injecting custom backends and for migrating string options. No
   Upper bound on ~Player() and StopSync(). On expiry the offending sequence is detached and logged rather than blocking the caller forever (Δ15).
 - `base::TimeDelta stats_interval {base::Seconds(1)}`
 - `std::map<std::string, std::string> extra_format_options`
-  Escape hatches: passed through verbatim to FFmpeg, matching ijkplayer's IJKMP_OPT_CATEGORY_FORMAT / CODEC / SWS.
+  Escape hatches: passed through verbatim to FFmpeg, matching the legacy FORMAT / CODEC / SWS option categories.
 - `std::map<std::string, std::string> extra_codec_options`
 - `std::map<std::string, std::string> extra_scaler_options`
 
@@ -816,7 +816,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 *player/public/player_config.h:80*
 
 - `bool accurate {true}`
-  "enable-accurate-seek": whether SeekMode::kAccurate may land on the frame you asked for. Defaults to TRUE here, unlike ijkplayer's 0, because the opt-in already happened per call – kAccurate is a first-class argument, where ijkplayer only had this switch. So the field reads as a veto: leave it alone and kAccurate behaves exactly as before, switch it off and every kAccurate request degrades to the keyframe landing (with a warning) – which is what an ijk application passing enable-accurate-seek=0 expects. The default **playback** behaviour is still keyframe seek: that comes from SeekMode's default, not from this field.
+  "enable-accurate-seek": whether SeekMode::kAccurate may land on the frame you asked for. Defaults to TRUE here, unlike legacy's 0, because the opt-in already happened per call – kAccurate is a first-class argument, where legacy only had this switch. So the field reads as a veto: leave it alone and kAccurate behaves exactly as before, switch it off and every kAccurate request degrades to the keyframe landing (with a warning) – which is what a legacy application passing enable-accurate-seek=0 expects. The default **playback** behaviour is still keyframe seek: that comes from SeekMode's default, not from this field.
 - `base::TimeDelta accurate_timeout {
       base::Seconds(5)}`
   "accurate-seek-timeout"
@@ -848,7 +848,7 @@ Builder form, for injecting custom backends and for migrating string options. No
 - `DecoderPreference decoder_preference {DecoderPreference::kAuto}`
 - `HwCodecMask hw_codecs {static_cast<HwCodecMask>(HwCodecFlag::kAll)}`
   Which codecs the hardware path may handle; each bit is an HwCodecFlag. kAll (not 0) so that the Phase 3 default is "hardware first, fall back to
-  software", matching decoder_preference{kAuto}; opt OUT per codec with `hw_codecs & ~HwCodecFlag::kAvc`, or force software via kSoftware. Replaces ijkplayer's "mediacodec-*" booleans.
+  software", matching decoder_preference{kAuto}; opt OUT per codec with `hw_codecs & ~HwCodecFlag::kAvc`, or force software via kSoftware. Replaces legacy's "mediacodec-*" booleans.
 - `std::string hw_decoder_name`
   "mediacodec-default-name"
 - `bool hw_sync_mode {false}`
@@ -1055,7 +1055,7 @@ Every callback runs on the event dispatch sequence and must not block; the defau
 
 *player/public/player_event.h:231*
 
-Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) quadruple — used by the optional C ABI layer and the Android JNI binding so that an existing Java message handler keeps working unchanged. Side effects: none (pure mapping; |obj| in the result borrows the event's strings and stays valid while |event| does).
+Downgrade path for hosts that still speak legacy's (what, arg1, arg2, obj) quadruple — used by the optional C ABI layer and the Android JNI binding so that an existing Java message handler keeps working unchanged. Side effects: none (pure mapping; |obj| in the result borrows the event's strings and stays valid while |event| does).
 
 - `int what {0}`
 - `int64_t arg1 {0}`
@@ -1170,7 +1170,7 @@ Downgrade path for hosts that still speak ijkplayer's (what, arg1, arg2, obj) qu
 
 *player/public/player_event.h:90*
 
-Merges ijkplayer's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401), which could arrive out of order (behaviour difference Δ8).
+Merges legacy's FFP_MSG_VIDEO_SIZE_CHANGED (400) and SAR_CHANGED (401), which could arrive out of order (behaviour difference Δ8).
 
 - `media::Size coded_size`
 - `media::Size natural_size`

@@ -15,7 +15,7 @@ namespace xmedia::media::ffmpeg {
 // Routes av_log() into base/logging, so a host that installed a
 // base::logging::LoggingDelegate sees FFmpeg's messages alongside xmedia-kit's.
 //
-// ijkplayer hard-codes __android_log_print in ijksdl_android_jni.c and writes
+// the legacy Android backend hard-codes __android_log_print and writes
 // to stderr everywhere else; this is the platform-independent replacement
 // (behaviour difference Δ22).
 //

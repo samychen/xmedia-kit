@@ -29,7 +29,7 @@
 //      mapping, and every entry needs summary/detail/suggestion text that
 //      satisfies docs/10 §4.3 (ErrorMessagesTest asserts it verbatim).
 //   3. kAudioInitializationError / kVideoInitializationError are deliberately
-//      coarse. ijkplayer reports the same coarseness through FFP_MSG_ERROR; if
+//      coarse. legacy reports the same coarseness through FFP_MSG_ERROR; if
 //      M8 needs the decoder name in the event payload, extend the mapping
 //      rather than the enum (Δ12 already carries the decoder name separately).
 //

@@ -361,7 +361,7 @@ TEST_F(FFmpegDemuxerTest, StopIsPromptEvenWhileBlockedInRead) {
   demuxer_->Stop();
   const base::TimeDelta elapsed = base::TimeTicks::Now() - before;
   // Δ15: shutdown must be bounded. A full video queue plus a blocking read is
-  // exactly the situation that made ijkplayer's release() hang.
+  // exactly the situation that made legacy's release() hang.
   EXPECT_LT(elapsed, base::Seconds(2)) << "Stop() took " << elapsed.ToString();
 }
 
@@ -439,7 +439,7 @@ TEST_F(FFmpegDemuxerTest, SeekAfterEndOfStreamIsAnsweredAndResumesReads) {
 
 TEST_F(FFmpegDemuxerTest, ByteBudgetIsSplitAcrossStreams) {
   // max-buffer-size is one budget for the whole player, not one per stream:
-  // ijkplayer compares MAX_QUEUE_SIZE against the SUM of the
+  // legacy compares MAX_QUEUE_SIZE against the SUM of the
   // audio/video/subtitle queues. Wiring the config straight into every stream's
   // queue doubled the default envelope for the usual A/V file (15 MiB became
   // 30), which no test noticed because nothing reads the cap back. This one

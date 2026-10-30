@@ -24,7 +24,7 @@
 //
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // its scheduling algorithm is a line-by-line port of ffplay's video_refresh()
-// and compute_target_delay(), which makes it a derivative work of ijkplayer
+// and compute_target_delay(), which makes it a derivative work of legacy
 // (LGPL-2.1). Everything else in xmedia-kit is BSD-3-Clause (see the root LICENSE);
 // ported files are quarantined in media/filters/legacy/ so the boundary is
 // auditable by directory listing rather than by reading every header.
@@ -34,9 +34,9 @@
 // Structure mirrors Chromium's `media::VideoFrameCompositor`
 // (BSD-3-Clause, now at third_party/blink/renderer/platform/media/).
 //
-// The scheduling *algorithm* is a line-by-line port of ijkplayer's
+// The scheduling *algorithm* is a line-by-line port of legacy's
 // video_refresh() + compute_target_delay() from
-// ijkmedia/ijkplayer/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui).
+// ijkmedia/legacy/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui).
 // Thresholds are intentionally identical. Do not "improve" them without
 // golden-test evidence; see docs/01 §6 and docs/07 §7.
 
@@ -64,7 +64,7 @@ namespace xmedia::media {
 //
 // Design note — why DecideNextFrame() is a static pure function
 // -------------------------------------------------------------
-// ijkplayer keeps the same logic inline in video_refresh(): 400 lines with
+// legacy keeps the same logic inline in video_refresh(): 400 lines with
 // three `goto retry` edges that jump across local variable initialisation, and
 // mutable state (`is->frame_timer`, `is->last_duration`, `is->dropped`) living
 // in the god-struct VideoState. It cannot be unit tested, because running it
@@ -161,7 +161,7 @@ class XMEDIA_MEDIA_EXPORT VideoFrameCompositor {
     DropReason drop_reason{DropReason::kNone};
   };
 
-  // Thresholds ported verbatim from ffplay / ijkplayer. Values must be
+  // Thresholds ported verbatim from ffplay / legacy. Values must be
   // extracted from ff_ffplay_def.h by tools/extract_constants.py, not typed by
   // hand. See docs/05 table 7.
   struct Thresholds {
@@ -273,7 +273,7 @@ class XMEDIA_MEDIA_EXPORT VideoFrameCompositor {
   // makes the rejection rules readable on their own. Returns kNone when the
   // frame is acceptable.
   static DropReason ClassifyCandidate(const FrameSyncInput& in);
-  // ijkplayer's "max-fps": true when the candidate's TIMESTAMP is closer to
+  // legacy's "max-fps": true when the candidate's TIMESTAMP is closer to
   // the previous frame's than the cap allows. Timestamp, not wall clock -- a
   // poll-driven sink makes several frames share one instant, and comparing
   // those against "time since last present" drops the whole batch.
@@ -294,7 +294,7 @@ class XMEDIA_MEDIA_EXPORT VideoFrameCompositor {
   static base::TimeDelta ComputeTargetDelay(base::TimeDelta last_duration,
                                             const FrameSyncInput& in,
                                             const Thresholds& th);
-  // Port of ijkplayer's "max-fps" frame capping.
+  // Port of legacy's "max-fps" frame capping.
   static base::TimeDelta ApplyFpsCap(base::TimeDelta duration, int max_fps);
 
  private:

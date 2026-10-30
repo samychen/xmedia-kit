@@ -297,7 +297,7 @@ TEST_F(DecoderBufferQueueTest, PopStatusNames) {
 
 // ---- BufferQueueLimits (buffer.max_bytes / infbuf / min-frames) ------------
 
-// ijkplayer "infbuf": max_bytes == 0 removes the byte cap. The packet-count cap
+// legacy "infbuf": max_bytes == 0 removes the byte cap. The packet-count cap
 // still bounds the queue, so this is not literally unbounded memory.
 TEST(DecoderBufferQueueLimitsTest, MaxBytesZeroMeansUnlimited) {
   DecoderBufferQueue queue{"q", BufferQueueLimits{100, 0}, nullptr};

@@ -13,7 +13,7 @@ string(STRIP "${XMEDIA_VERSION_RAW}" XMEDIA_VERSION)
 project(xmedia-kit
     VERSION   ${XMEDIA_VERSION}
     LANGUAGES C CXX
-    DESCRIPTION "A C++20 reimplementation of the ijkplayer core, Chromium-style")
+    DESCRIPTION "A C++20 reimplementation of the legacy core, Chromium-style")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   set(XMEDIA_IS_TOP_LEVEL ON)

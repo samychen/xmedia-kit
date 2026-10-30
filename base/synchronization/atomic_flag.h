@@ -16,9 +16,9 @@ namespace xmedia::base {
 // set to break a blocking av_read_frame, then cleared so the next read can
 // proceed. Stop flags stay one-way in practice — nothing ever resets them.
 //
-// xmedia-kit uses exactly three of these per player, replacing ijkplayer's
+// xmedia-kit uses exactly three of these per player, replacing legacy's
 // `abort_request` plus five separate SDL_CondSignal call sites (docs/04 §2.1).
-// Missing one of those signals is what made ijkplayer's release() hang.
+// Missing one of those signals is what made legacy's release() hang.
 class AtomicFlag {
  public:
   AtomicFlag() = default;

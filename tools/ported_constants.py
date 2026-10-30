@@ -110,7 +110,7 @@ SPEC: list[Spec] = [
     Spec("AV_SYNC_FRAMEDUP_THRESHOLD", "ms",
          ((VFC, "Thresholds::sync_framedup_threshold"),), 0.01, source_unit="s",
          note="the code comment says '0.1 in ffplay' but the value is 10ms; "
-              "ffplay's actual #define settles it -- run with --ijkplayer"),
+              "ffplay's actual #define settles it -- run with --legacy"),
     Spec("AV_DIFF_AVG_NB", "n", ((ASC, "Thresholds::audio_diff_avg_count"),), 10),
     Spec("AV_DIFF_AVG_COEF", "r", ((ASC, "Thresholds::audio_diff_avg_coef"),), 0.9),
     Spec("AV_DIFF_THRESHOLD", "r",
@@ -131,9 +131,9 @@ FFPLAY_FILES = ("ff_ffplay_def.h", "ff_ffplay_options.h", "ff_ffplay.c",
 
 
 # ---------------------------------------------------------------------------
-# Self-test. Proves the parser works without an ijkplayer checkout so CI can
-# gate on it. The synthetic values are the upstream ffplay / ijkplayer ones; if
-# a real checkout disagrees, --ijkplayer says so and the checkout wins -- that
+# Self-test. Proves the parser works without an legacy checkout so CI can
+# gate on it. The synthetic values are the upstream ffplay / legacy ones; if
+# a real checkout disagrees, --legacy says so and the checkout wins -- that
 # is the entire point of the tool.
 # ---------------------------------------------------------------------------
 

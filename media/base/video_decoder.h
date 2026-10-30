@@ -6,7 +6,7 @@
 // including the "decode_cb is never run inline" and "output_cb may run before
 // or after decode_cb" guarantees.
 //
-// Replaces ijkplayer's ffpipenode hand-written vtable (pipeline/ffpipenode.c
+// Replaces legacy's ffpipenode hand-written vtable (pipeline/ffpipenode.c
 // plus ffpipenode_internal.h), and its synchronous run_sync/flush pair. The
 // async shape is not stylistic: hardware decoders (MediaCodec, VideoToolbox,
 // VAAPI) are inherently asynchronous, and a synchronous interface would force

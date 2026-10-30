@@ -51,8 +51,8 @@
 | Qt 目标进 CI | ✅ | 新增 `qt` preset + CI job（Ubuntu 24.04 的 Qt 6.4.2）+ `gate_local --jobs qt`：建 `xmedia_player_qt` 与 `qt_unittests` 并跑 ctest（本机 625/625，含 8 条 `TimelineModelTest`）。判据经突变验证：摘掉 `gtest_discover_tests` 后门禁变红（不是静默绿）|
 | soak 48h 长稳 | ⬜ | 脚本 `tools/run_soak.py` 已就绪，48h 未跑（沙箱禁读他进程 RSS） |
 | Windows CI 验证 | ⬜ | job 已加（no-ffmpeg，不开 `/WX`），首跑待回答 |
-| M13 发布 0.1.0 | 🔵 | 文档七份 + apidocs 门禁 ✅；V9 注释覆盖率 / V10 API 兼容 / 微基准 **8 项**（新增 `BM_DecoderBufferQueue_PushPop` / `BM_DecoderBuffer_MoveConstruct` / `BM_VideoFrame_RefCountChurn`，已进基线） / 端到端 CPU 判据 / golden diff 件 / cpack TGZ / vcpkg port 均已完成并入门禁。剩：golden **录制**基线（需 ijkplayer 原版）、依赖解码器的 4 项 `BM_*`（需开 FFmpeg 的 bench 变体）、`conan` 实跑（本机 pip 装不上，网络不可达）、`cpack -G DEB` 待 Linux 机、vcpkg 未提交 registry。**渲染 CPU 的机器判据不做**：`tools/bench_render.sh` 要 ffmpeg CLI 与真实 display，本机两者都没有 |
-| M14–M18 | ⏳ | VAAPI+HDR / Android / iOS / `ijkio` 缓存（后置增量） |
+| M13 发布 0.1.0 | 🔵 | 文档七份 + apidocs 门禁 ✅；V9 注释覆盖率 / V10 API 兼容 / 微基准 **8 项**（新增 `BM_DecoderBufferQueue_PushPop` / `BM_DecoderBuffer_MoveConstruct` / `BM_VideoFrame_RefCountChurn`，已进基线） / 端到端 CPU 判据 / golden diff 件 / cpack TGZ / vcpkg port 均已完成并入门禁。剩：golden **录制**基线（需 legacy 原版）、依赖解码器的 4 项 `BM_*`（需开 FFmpeg 的 bench 变体）、`conan` 实跑（本机 pip 装不上，网络不可达）、`cpack -G DEB` 待 Linux 机、vcpkg 未提交 registry。**渲染 CPU 的机器判据不做**：`tools/bench_render.sh` 要 ffmpeg CLI 与真实 display，本机两者都没有 |
+| M14–M18 | ⏳ | VAAPI+HDR / Android / iOS / 边下边播缓存（后置增量） |
 | 产品化能力（Android/iOS/Web/Unity/UE/Flutter/…） | ❌ | 全部未做，见 [TODO](TODO.md) |
 | HDR 检测 + tone mapping | ✅ | 检测按传输特性（PQ/HLG），`kHdrUnsupported` 在 `kPrepared` 前上报；**tone mapping 已真做**：`zscale=t=linear:npl= → tonemap=hable:desat=0.5 → zscale=t=bt709`，接在 `VideoConverter` 里并排在 libyuv/sws 之前。实测同一帧 naive 122 / tone mapped 235。三层判据，关掉转换时单元测试报 148vs148、e2e 报 avg luma 123.4 |
 | `kRotationChanged` | ✅ | 与 HDR 同类（值在 `video_rotation_` 里、事件零生产者）。现在源声明旋转时才发；测的是「事件值与 `video_rotation()` 必须一致」。角度是顺时针（270 = 90 逆时针 matrix），已核对 `gl_layer_geometry.cc` 的 CLOCKWISE 表 |

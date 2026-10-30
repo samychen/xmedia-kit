@@ -104,7 +104,7 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
   类型与顺序一致、arg ±5%、`late_us` ±5000 µs、`stat` 跳过）+ `allowlist.yaml`
   豁免；自带 selftest（7 类判定）与突变反证。如实收窄一处：`audio.checksum`
   按全等判定——格式里它是 CRC32，表达不了「逐样本差 ≤1 LSB」，需豁免走
-  allowlist。**录制基线仍缺**（需 ijkplayer 原版录制，Q8 未决 + 沙箱无原版），
+  allowlist。**录制基线仍缺**（需 legacy 原版录制，Q8 未决 + 沙箱无原版），
   故 CI 不跑对拍。
 - **文档**：COOKBOOK 22 条（每条按真实签名核对，代码块由
   `examples/doc_snippets` 编译验证）/ TROUBLESHOOTING 13 症状 /
@@ -164,8 +164,8 @@ Golden 对拍与微基准未落成，如实登记在文末 Known limitations（d
 
 - Golden 对拍：diff 件已建（`tools/golden_diff.py`，按 docs/07 §7.4 容差分级
   判定 + `allowlist.yaml` 豁免，自带 selftest 与突变反证），但**录制基线不在
-  仓库**——需 ijkplayer 原版录制（docs/07 §7.3），被开放问题 Q8（锁哪个
-  ijkplayer 版本）卡住、沙箱无原版，故 CI 不跑对拍（无基线可对比）。
+  仓库**——需 legacy 原版录制（docs/07 §7.3），被开放问题 Q8（锁哪个
+  legacy 版本）卡住、沙箱无原版，故 CI 不跑对拍（无基线可对比）。
   `tools/bench_render.sh` 仍是人工触发的单机基准。
 - 微基准：已落地 base 层两项（`bench/` 自包含 harness，无 Google Benchmark；
   `BM_PostTask_RoundTrip` / `BM_BindOnce_Invoke`），有入库基线

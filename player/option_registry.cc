@@ -110,7 +110,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
   // NullVideoSink in discard mode), and enable-accurate-seek is the veto
   // PlayerImpl::SeekTo consults before honouring SeekMode::kAccurate.
 
-  // get-frame-mode: ijkplayer's "decode, don't render" thumbnail mode. The
+  // get-frame-mode: legacy's "decode, don't render" thumbnail mode. The
   // xmedia-kit effect is the same render.disable_video_output flag nodisp drives
   // -- the video leg keeps decoding and feeding the compositor (so
   // Player::TakeSnapshot works headlessly), nothing reaches a window -- but
@@ -127,7 +127,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
        },
        [](const PlayerConfig& c) -> OptionValue { return c.get_frame_mode; },
        "thumbnail mode: decode without displaying; grab frames via "
-       "Player::TakeSnapshot (ijkplayer get-frame-mode)"});
+       "Player::TakeSnapshot (legacy get-frame-mode)"});
 
   e.push_back(
       {"nodisp", P, Type::kBool, "render.disable_video_output",
@@ -142,7 +142,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
          return c.render.disable_video_output;
        },
        "no video output: the video leg still decodes and paces the clock, but "
-       "nothing is presented (ijkplayer nodisp)"});
+       "nothing is presented (legacy nodisp)"});
 
   e.push_back(
       {"enable-accurate-seek", P, Type::kBool, "seek.accurate",
@@ -155,13 +155,13 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
        },
        [](const PlayerConfig& c) -> OptionValue { return c.seek.accurate; },
        "let SeekMode::kAccurate land on the requested frame; 0 degrades it to "
-       "the keyframe (ijkplayer enable-accurate-seek)"});
+       "the keyframe (legacy enable-accurate-seek)"});
 
-  // ---- buffer keys (ijkplayer packet-queue controls) ----------------------
+  // ---- buffer keys (legacy packet-queue controls) ----------------------
   // These four were previously dead no-ops because nothing read buffer.*. They
   // now reach BufferController (enabled), the demuxer queue (max_bytes /
   // unlimited), and the PipelineImpl pre-buffer gate (min_frames), so an
-  // existing ijkplayer setOption() call site keeps its meaning.
+  // existing legacy setOption() call site keeps its meaning.
 
   e.push_back(
       {"packet-buffering", P, Type::kBool, "buffer.enabled",
@@ -174,7 +174,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
        },
        [](const PlayerConfig& c) -> OptionValue { return c.buffer.enabled; },
        "wait for the high-water-mark buffer before starting/resuming "
-       "(ijkplayer packet-buffering)"});
+       "(legacy packet-buffering)"});
 
   e.push_back({"max-buffer-size", P, Type::kInt64, "buffer.max_bytes",
                [](PlayerConfig* c, const OptionValue& v) -> Status {
@@ -191,7 +191,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
                  return static_cast<int64_t>(c.buffer.max_bytes);
                },
                "maximum bytes in the demuxer packet queue "
-               "(ijkplayer max-buffer-size)"});
+               "(legacy max-buffer-size)"});
 
   e.push_back({"min-frames", P, Type::kInt64, "buffer.min_frames",
                [](PlayerConfig* c, const OptionValue& v) -> Status {
@@ -208,7 +208,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
                  return static_cast<int64_t>(c.buffer.min_frames);
                },
                "minimum packets buffered before the pre-buffer gate clears "
-               "(ijkplayer min-frames)"});
+               "(legacy min-frames)"});
 
   e.push_back(
       {"infbuf", P, Type::kBool, "buffer.unlimited",
@@ -220,9 +220,9 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
          return OkStatus();
        },
        [](const PlayerConfig& c) -> OptionValue { return c.buffer.unlimited; },
-       "unlimited demuxer packet buffer (ijkplayer infbuf)"});
+       "unlimited demuxer packet buffer (legacy infbuf)"});
 
-  // The startup gain, in ijkplayer's own unit (Δ6): the old string key carries
+  // The startup gain, in legacy's own unit (Δ6): the old string key carries
   // 0..100 and the config field is 0..1, so the conversion lives here, at the
   // boundary where the outside vocabulary is translated -- docs/05 table 4 and
   // docs/MIGRATION.md Δ6 both promise exactly this. It was missing: "volume"
@@ -230,7 +230,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
   // entry, so SetOption(kPlayer, "volume", 80) returned kInvalidArgument /
   // "unknown option key" and the migration table told hosts the opposite.
   //
-  // Integer 0..100 AND double 0..1 are both accepted: ijkplayer hosts pass an
+  // Integer 0..100 AND double 0..1 are both accepted: legacy hosts pass an
   // int, while a ported call site is more likely to have a fraction already.
   e.push_back(
       {"volume", P, Type::kDouble, "audio.startup_volume",
@@ -253,7 +253,7 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
        [](const PlayerConfig& c) -> OptionValue {
          return c.audio.startup_volume;
        },
-       "startup volume: ijkplayer's 0..100 becomes 0.0..1.0 (Δ6)"});
+       "startup volume: legacy's 0..100 becomes 0.0..1.0 (Δ6)"});
 }
 
 OptionRegistry::~OptionRegistry() = default;

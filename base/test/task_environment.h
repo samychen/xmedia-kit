@@ -4,7 +4,7 @@
 //
 // Mirrors Chromium's `base/test/task_environment.h` (BSD-3-Clause).
 //
-// This is what makes xmedia-kit's scheduling logic testable at all. ijkplayer's
+// This is what makes xmedia-kit's scheduling logic testable at all. legacy's
 // video_refresh() reads av_gettime_relative() directly and mutates a
 // 200-field god struct, so the only way to exercise it is to play a real file
 // in real time and watch. Here a test constructs a TaskEnvironment with

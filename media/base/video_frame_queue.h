@@ -26,12 +26,12 @@ namespace xmedia::media {
 // Bounded, serial-aware queue of decoded frames between a decoder and the
 // renderer, with a two-phase (reserve / commit) write protocol.
 //
-// WHY TWO PHASES. ijkplayer's frame_queue_peek_writable() hands the caller a
+// WHY TWO PHASES. legacy's frame_queue_peek_writable() hands the caller a
 // raw Frame* that must be filled in and then passed to frame_queue_push(). Any
 // early return between the two — a decode error, an abort check, a resolution
 // change — leaks that slot permanently. The queue has a fixed number of slots,
 // so after enough leaks the decoder blocks forever waiting for a writable slot
-// and playback hangs with no error and no log. That is a real ijkplayer bug
+// and playback hangs with no error and no log. That is a real legacy bug
 // class, and it is unfixable by discipline alone because the leak sites are
 // scattered across three thread functions.
 //

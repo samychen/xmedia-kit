@@ -131,7 +131,7 @@ void Part2_WeakPtr() {
   }
 
   // (b) 把 WeakPtr 绑进回调：拥有者死后，回调自动变成 no-op（不崩溃）。
-  //     这正是 xmedia-kit 最重要的安全机制 —— 从结构上消灭 ijkplayer 防不住的
+  //     这正是 xmedia-kit 最重要的安全机制 —— 从结构上消灭 legacy 防不住的
   //     “player 已释放但回调还在飞” 类崩溃。
   base::OnceClosure task_dead;
   {

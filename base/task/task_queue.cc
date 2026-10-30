@@ -107,7 +107,7 @@ void TaskQueue::Quit() {
   // The flag must be set *while holding the lock*. Signalling without it is a
   // lost wakeup: Run() can observe quit_==false, then block in cv_.Wait() after
   // this broadcast has already been delivered, and never wake again. That hang
-  // is exactly ijkplayer's "release() blocks forever" class of bug (docs/01
+  // is exactly legacy's "release() blocks forever" class of bug (docs/01
   // 病灶 11), and LeakSanitizer/ASan's slower timing is what exposed it here.
   {
     AutoLock scoped(lock_);

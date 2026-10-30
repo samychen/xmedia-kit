@@ -84,7 +84,7 @@ XMEDIA_MEDIA_EXPORT const char* RendererTypeToString(RendererType type);
 
 // Turns demuxed data into audio and video output.
 //
-// WHAT IT REPLACES. In ijkplayer this role is played by the whole of
+// WHAT IT REPLACES. In legacy this role is played by the whole of
 // ff_ffplay.c: a 5400-line translation unit whose VideoState god-struct holds
 // ~200 fields that any of four threads may touch. Here it is one interface
 // whose implementation (RendererImpl) owns three sub-renderers with at most 15
@@ -197,7 +197,7 @@ class XMEDIA_MEDIA_EXPORT Renderer {
   // able to put the player into an error state.
   virtual void SetPlaybackRate(double playback_rate) = 0;
 
-  // 0.0 .. 1.0 (Δ6: ijkplayer's 0..100 is converted in OptionRegistry).
+  // 0.0 .. 1.0 (Δ6: legacy's 0..100 is converted in OptionRegistry).
   virtual void SetVolume(float volume) = 0;
 
   // Thread-safe. The authoritative media time, from whichever clock

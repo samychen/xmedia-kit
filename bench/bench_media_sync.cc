@@ -11,7 +11,7 @@
 //   BM_DecideNextFrame   budget < 1 us    (pure decision core, once per frame)
 //
 // Both budgets exist because of risk R3 in docs/08: this tree is a layered
-// rewrite of ijkplayer, and every layer (virtual TimeSource, scoped_refptr,
+// rewrite of legacy, and every layer (virtual TimeSource, scoped_refptr,
 // seqlock) can quietly start charging for itself. Only a timed number notices.
 
 #include "bench.h"

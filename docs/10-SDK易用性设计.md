@@ -58,7 +58,7 @@ player.SeekTo(base::Seconds(90));          // ✅ 意图明确
 player.SeekTo(base::Milliseconds(90000));  // ✅
 // player.SeekTo(90000);                   // ❌ 编译不过：90000 是 ms 还是 µs？
 ```
-ijkplayer 的 `ijkmp_seek_to(mp, msec)` 与内部 `pts`（µs）、`audio_clock`（秒 double）三种单位混用是 bug 高发区，SDK 层彻底消除。
+legacy 的 `seek_to(ms)` 与内部 `pts`（µs）、`audio_clock`（秒 double）三种单位混用是 bug 高发区，SDK 层彻底消除。
 
 **E7 · 事件用强类型 + 便捷访问器，不强迫用户写 `std::visit`**
 ```cpp
@@ -83,20 +83,20 @@ class MyObserver : public xmedia::PlayerObserver {
 三种方式并存，用户按项目规模选。
 
 **E8 · 一次调用拿全部信息，不强迫轮询**
-`GetPlaybackStats()` 返回一个结构体，替代原版 20+ 次 `ijkmp_get_property_int64`。`DumpDiagnostics()` 返回完整 JSON。
+`GetPlaybackStats()` 返回一个结构体，替代原版 20+ 次属性查询调用。`DumpDiagnostics()` 返回完整 JSON。
 
 **E9 · 析构安全，不需要用户显式 `Release()`**
 ```cpp
 { xmedia::Player p; ... }        // 出作用域自动停止，有超时兜底，绝不卡死
 ```
-不需要 `ijkmp_dec_ref` / `ijkmp_shutdown` 的成对调用。
+不需要成对的 dec_ref / shutdown 调用。
 
 **E10 · 渐进式复杂度**
 ```
 Level 0  Player p; p.SetDataSource(url); p.PrepareAsync();          // 3 行
 Level 1  + SetEventHandler / SetVideoSurface / SeekTo                // 常用
 Level 2  + PlayerConfig 调参                                          // 进阶
-Level 3  + PlayerBuilder + OptionRegistry（字符串配置迁移）            // 从 ijkplayer 迁移
+Level 3  + PlayerBuilder + OptionRegistry（字符串配置迁移）            // 从 legacy 迁移
 Level 4  + Deps 注入自定义 VideoRendererSink / VideoDecoder / DataSource  // 深度定制
 ```
 文档与示例按 Level 组织，Level 0–1 的内容占 README 的 80%。
@@ -193,11 +193,11 @@ config.audio.backend               = xmedia::AudioBackend::kPulse;
 xmedia::Player player(config);
 ```
 
-### Level 3 — 从 ijkplayer 配置迁移（字符串选项）
+### Level 3 — 从 legacy 配置迁移（字符串选项）
 
 ```cpp
 xmedia::PlayerBuilder builder;
-// 你原来的 ijkmp_set_option_int 调用可以几乎原样搬过来
+// 你原来的选项设置调用可以几乎原样搬过来
 for (const auto& [cat, key, value] : legacy_options) {
   auto r = builder.SetOption(cat, key, value);
   if (!r) LOG(WARNING) << "option rejected: " << r.error().message();
@@ -556,7 +556,7 @@ void SeekTo(base::TimeDelta position, SeekMode mode, SeekCB cb);
 | 19 | 强制软解 / 强制硬解 | `config.video.decoder_preference` + 监听 `kDecoderFallback` |
 | 20 | 把日志接到自己的日志系统 | `Deps::logging_delegate` |
 | 21 | 线上问题排查 | `DumpDiagnostics()` + `xmedia-inspect dump` |
-| 22 | 从 ijkplayer 迁移配置 | `PlayerBuilder::SetOption(cat, key, value)` |
+| 22 | 从 legacy 迁移配置 | `PlayerBuilder::SetOption(cat, key, value)` |
 
 每条格式：**问题描述 → 完整可编译代码 → 注意事项 → 相关配置项**。
 
@@ -752,7 +752,7 @@ Try: xmedia-inspect play <file> --backend auto --log debug
 [x] TROUBLESHOOTING.md 覆盖 ≥ 10 个常见症状
       ✅ 2026-10-18（M13）：T1–T13 共 13 个症状，每条带症状 → 诊断命令 →
       常见原因 → 修复，诊断命令均在本机实跑过。
-[x] ~~MIGRATION.md 覆盖 05 文档的全部 Δ 项~~（两份迁移文档已随 ijkplayer 叙事移除）
+[x] ~~MIGRATION.md 覆盖 05 文档的全部 Δ 项~~（两份迁移文档已随 legacy 叙事移除）
       ✅ 2026-10-18（M13）：Δ1–Δ22 逐条三栏（设计说法 / 0.1.0 实况附代码
       位置 / 迁移动作）。核验中发现 4 处设计文档与代码漂移（Δ4 进度间隔、
       Δ7 字段名、Δ11 组件缺失、Δ20 死选项），按实况改写并在附录差异表登记。

@@ -20,7 +20,7 @@ class VideoDecoder;
 struct VideoDecoderConfig;
 
 // What a factory can actually decode. DecoderSelector ranks candidates using
-// this, which replaces ijkplayer's pile of booleans (`mediacodec`,
+// this, which replaces legacy's pile of booleans (`mediacodec`,
 // `mediacodec-avc`, `mediacodec-hevc`, `mediacodec-mpeg2`, ...).
 struct XMEDIA_MEDIA_EXPORT VideoDecoderCapability {
   bool hardware{false};

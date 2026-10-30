@@ -24,7 +24,7 @@
 //
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // ResolveMasterType(), GetMasterClock(), ComputeAudioSampleAdjustment() and
-// AlignAudioDurationToVideo() are line-by-line ports of ijkplayer's
+// AlignAudioDurationToVideo() are line-by-line ports of legacy's
 // get_master_sync_type(), get_master_clock(), synchronize_audio() and
 // synchronize_audio_to_video(), which makes this a derivative work
 // (LGPL-2.1). The rest of xmedia-kit is BSD-3-Clause; see
@@ -35,7 +35,7 @@
 // ResolveMasterType(), GetMasterClock(), ComputeAudioSampleAdjustment() and
 // AlignAudioDurationToVideo() are line-by-line ports of get_master_sync_type(),
 // get_master_clock(), synchronize_audio() and synchronize_audio_to_video() from
-// ijkmedia/ijkplayer/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui),
+// ijkmedia/legacy/ff_ffplay.c (LGPL-2.1, Copyright Bilibili / Zhang Rui),
 // which derives from ffplay.c (LGPL-2.1, Copyright Fabrice Bellard).
 //
 // Thresholds are identical by design. Do not tune them without golden-test
@@ -62,7 +62,7 @@ namespace xmedia::media {
 // Owns the three media clocks and resolves which one is authoritative.
 //
 // Replaces the loose `audclk`/`vidclk`/`extclk` fields plus `av_sync_type` in
-// ijkplayer's VideoState, where any of the three thread functions could read or
+// legacy's VideoState, where any of the three thread functions could read or
 // write any of them without synchronisation.
 class XMEDIA_MEDIA_EXPORT AvSyncController final : public TimeSource {
  public:

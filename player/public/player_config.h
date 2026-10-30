@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Every field names the ijkplayer option it replaces, so an existing
+// Every field names the legacy option it replaces, so an existing
 // setOption() call site can be migrated mechanically. Full table: docs/05 §4.
 
 #ifndef XMEDIA_PLAYER_PUBLIC_PLAYER_CONFIG_H_
@@ -68,7 +68,7 @@ struct XMEDIA_PLAYER_EXPORT BufferConfig {
   bool unlimited{false};                  // "infbuf"
   base::TimeDelta max_cached_duration{base::Seconds(3)};
   // Three-tier high water mark: each stall->recovery cycle steps to the next,
-  // and a seek resets to the first. Ported unchanged from ijkplayer.
+  // and a seek resets to the first. Ported unchanged from legacy.
   base::TimeDelta first_high_water_mark{base::Milliseconds(100)};
   base::TimeDelta next_high_water_mark{base::Seconds(1)};
   base::TimeDelta last_high_water_mark{base::Seconds(5)};
@@ -79,9 +79,9 @@ struct XMEDIA_PLAYER_EXPORT BufferConfig {
 
 struct XMEDIA_PLAYER_EXPORT SeekConfig {
   // "enable-accurate-seek": whether SeekMode::kAccurate may land on the frame
-  // you asked for. Defaults to TRUE here, unlike ijkplayer's 0, because the
+  // you asked for. Defaults to TRUE here, unlike legacy's 0, because the
   // opt-in already happened per call -- kAccurate is a first-class argument,
-  // where ijkplayer only had this switch. So the field reads as a veto: leave
+  // where legacy only had this switch. So the field reads as a veto: leave
   // it alone and kAccurate behaves exactly as before, switch it off and every
   // kAccurate request degrades to the keyframe landing (with a warning) --
   // which is what an ijk application passing enable-accurate-seek=0 expects.
@@ -103,7 +103,7 @@ struct XMEDIA_PLAYER_EXPORT VideoConfig {
   // kAll (not 0) so that the Phase 3 default is "hardware first, fall back to
   // software", matching decoder_preference{kAuto}; opt OUT per codec with
   // `hw_codecs & ~HwCodecFlag::kAvc`, or force software via kSoftware.
-  // Replaces ijkplayer's "mediacodec-*" booleans.
+  // Replaces legacy's "mediacodec-*" booleans.
   HwCodecMask hw_codecs{static_cast<HwCodecMask>(HwCodecFlag::kAll)};
   std::string hw_decoder_name;  // "mediacodec-default-name"
   bool hw_sync_mode{false};     // "mediacodec-sync"
@@ -133,7 +133,7 @@ struct XMEDIA_PLAYER_EXPORT AudioConfig {
   double startup_volume{1.0};                 // "volume" (0..100 -> 0..1, Δ6)
   AudioBackend backend{AudioBackend::kAuto};  // "opensles" etc.
   // True by default: uses the built-in WSOLA AudioRendererAlgorithm instead of
-  // ijkplayer's SoundTouch dependency (behaviour difference Δ17).
+  // legacy's SoundTouch dependency (behaviour difference Δ17).
   bool tempo_stretch{true};  // "soundtouch"
   bool preserves_pitch{true};
   int frame_queue_size{9};
@@ -202,7 +202,7 @@ struct XMEDIA_PLAYER_EXPORT AbrConfig {
 };
 
 struct XMEDIA_PLAYER_EXPORT DataSourceConfig {
-  bool enable_cache{false};  // ijkio master switch (M18)
+  bool enable_cache{false};  // cache master switch (M18)
   std::string cache_dir;
   size_t cache_max_bytes{512ULL * 1024 * 1024};
 
@@ -248,8 +248,8 @@ struct XMEDIA_PLAYER_EXPORT PlayerConfig {
   base::TimeDelta shutdown_timeout{base::Milliseconds(500)};
   base::TimeDelta stats_interval{base::Seconds(1)};
 
-  // Escape hatches: passed through verbatim to FFmpeg, matching ijkplayer's
-  // IJKMP_OPT_CATEGORY_FORMAT / CODEC / SWS.
+  // Escape hatches: passed through verbatim to FFmpeg, matching legacy's
+  // the legacy FORMAT / CODEC / SWS option categories.
   std::map<std::string, std::string> extra_format_options;
   std::map<std::string, std::string> extra_codec_options;
   std::map<std::string, std::string> extra_scaler_options;

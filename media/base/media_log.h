@@ -4,7 +4,7 @@
 //
 // Mirrors Chromium's `media/base/media_log.h` (BSD-3-Clause).
 //
-// Replaces ijkplayer's MPTRACE/av_log mix, which had no structure: a log line
+// Replaces legacy's MPTRACE/av_log mix, which had no structure: a log line
 // was a string with no machine-readable event type, so "what stage did the
 // first frame take" could only be answered by grepping timestamps by hand.
 // Events recorded here feed both base/logging and Player::DumpDiagnostics().

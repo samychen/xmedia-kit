@@ -4,7 +4,7 @@
 //
 // API mirrors Chromium's `media/base/video_frame.h` (BSD-3-Clause).
 //
-// Replaces the two parallel hierarchies ijkplayer maintains for the same
+// Replaces the two parallel hierarchies legacy maintains for the same
 // concept: `AVFrame` (software pixels) and `SDL_VoutOverlay` (hardware
 // surfaces). Chromium never needed the second one because VideoFrame carries
 // a StorageType; see docs/02 §9 D2.

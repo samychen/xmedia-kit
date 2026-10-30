@@ -84,7 +84,7 @@ VideoDecoderConfig MakeVideoDecoderConfig(const AVStream* stream) {
                                  static_cast<size_t>(par->extradata_size));
   }
   // Rotation lives in a display-matrix side-data entry, not in the codec
-  // parameters. ijkplayer reads it in three separate places.
+  // parameters. legacy reads it in three separate places.
   size_t matrix_size = 0;
   const uint8_t* matrix =
       xmedia_stream_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, &matrix_size);

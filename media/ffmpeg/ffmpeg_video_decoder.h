@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Replaces ijkplayer's pipeline/ffpipenode_ffplay_vdec.c.
+// Replaces legacy's pipeline/ffpipenode_ffplay_vdec.c.
 
 #ifndef XMEDIA_MEDIA_FFMPEG_VIDEO_DECODER_H_
 #define XMEDIA_MEDIA_FFMPEG_VIDEO_DECODER_H_

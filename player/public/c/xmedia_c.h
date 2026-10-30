@@ -10,7 +10,7 @@
 // even parse. This header is a strictly NARROWER door to the same engine, for
 // the hosts that cannot link C++ at all -- JNI (Android), Objective-C/Swift
 // (iOS/macOS), and plain C hosts. Per docs/05 the goal is a zero-change
-// migration for an existing ijkplayer's mEventHandler, so the event channel
+// migration for an existing legacy's mEventHandler, so the event channel
 // deliberately speaks the legacy (what, arg1, arg2, obj) quadruple rather than
 // inventing a new event vocabulary.
 //
@@ -235,7 +235,7 @@ XMEDIA_C_API XmediaStatus xmedia_player_take_snapshot(XmediaPlayer* player,
                                                       int64_t at_ms,
                                                       const char* file_path);
 
-// Forces the network retry path now. Replaces ijkplayer's write-only
+// Forces the network retry path now. Replaces legacy's write-only
 // FFP_PROP_INT64_IMMEDIATE_RECONNECT property.
 // Side effects: re-runs the reconnect ladder.
 XMEDIA_C_API void xmedia_player_reconnect_now(XmediaPlayer* player);
@@ -487,7 +487,7 @@ XMEDIA_C_API int32_t xmedia_display_debug_string(
 // Events -- the legacy (what, arg1, arg2, obj) quadruple
 // ---------------------------------------------------------------------------
 //
-// This is the whole reason the C ABI exists (docs/05): an ijkplayer's Java
+// This is the whole reason the C ABI exists (docs/05): an legacy's Java
 // mEventHandler is already written against these codes, so forwarding them
 // unchanged is what makes the migration a drop-in. The numbers below are the
 // ones ToLegacyEvent() in player/player_event.cc emits; they are an ABI
@@ -511,7 +511,7 @@ XMEDIA_C_API int32_t xmedia_display_debug_string(
 //   1000  kSnapshotCompleted arg1 = at ms, arg2 = Status, obj = file path
 //   10001 kDecoderOpened
 //
-// Events with no ijkplayer equivalent (kDecoderFallback, kWaiting,
+// Events with no legacy equivalent (kDecoderFallback, kWaiting,
 // kBufferedBytesUpdate, kBufferedTimeUpdate, kSeekRenderingStarted,
 // kTrackChanged, kStats, kHdrUnsupported) are reported with what == 0, and
 // their detail is available in full JSON via xmedia_player_dump_diagnostics().
@@ -525,7 +525,7 @@ typedef void (*XmediaEventCallback)(void* user_data, int what, int64_t arg1,
 // Replaces any previous callback (pass null to remove it). The callback runs
 // on the event sequence, never on a pipeline sequence, and it is safe to call
 // any xmedia_player_* function from inside it -- including stop and reset.
-// That is the deadlock fix over ijkplayer's message_loop; do not reintroduce
+// That is the deadlock fix over legacy's message_loop; do not reintroduce
 // a "must not reenter" rule here.
 // Side effects: starts event delivery to |cb|.
 XMEDIA_C_API void xmedia_player_set_event_callback(XmediaPlayer* player,

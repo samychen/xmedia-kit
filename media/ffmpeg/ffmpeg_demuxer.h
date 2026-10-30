@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Replaces ijkplayer's read_thread() in ff_ffplay.c. Structure follows
+// Replaces legacy's read_thread() in ff_ffplay.c. Structure follows
 // Chromium's media::FFmpegDemuxer; the threading model deliberately does not —
 // see docs/04 §2.1 (decision D3) for why the demux loop runs on its own
 // blocking thread instead of on the media sequence.
@@ -83,7 +83,7 @@ class XMEDIA_MEDIA_EXPORT FFmpegDemuxerStream final : public DemuxerStream {
     return queue_->buffered_duration();
   }
   // Packets currently queued; the PipelineImpl buffering gate sums this across
-  // streams to enforce the ijkplayer "min-frames" floor.
+  // streams to enforce the legacy "min-frames" floor.
   size_t buffered_packets() const { return queue_ ? queue_->size() : 0; }
 
   // ---- Called on the demux thread -----------------------------------------
@@ -152,7 +152,7 @@ class XMEDIA_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
   bool IsSeekable() const override { return media_info_.seekable; }
   DemuxerStats GetStats() const override;
   // Total compressed packets queued across all streams; the PipelineImpl
-  // buffering gate uses it to enforce the ijkplayer "min-frames" floor.
+  // buffering gate uses it to enforce the legacy "min-frames" floor.
   //
   // Inline on purpose. It is a trivial fold over |streams_| with no libav type
   // and no lifetime, which is exactly what does not need the .cc; moving it
@@ -257,12 +257,12 @@ class XMEDIA_MEDIA_EXPORT FFmpegDemuxer final : public Demuxer {
   std::atomic<int> active_text_{-1};
 
   // Cross-thread control. Exactly three writers of interrupt_flag_, all
-  // documented in the .cc — replacing ijkplayer's abort_request, which had to
+  // documented in the .cc — replacing legacy's abort_request, which had to
   // be signalled from five places and hung release() whenever one was missed.
   std::atomic<SeekRequest*> pending_seek_{nullptr};
   // Seek callbacks keyed by request id. A newer seek supersedes an older one,
   // and the superseded callback is answered with kAborted rather than being
-  // dropped silently — ijkplayer gave callers no way to match a completion to
+  // dropped silently — legacy gave callers no way to match a completion to
   // the request that produced it (docs/05 table 5).
   mutable base::Lock seek_cb_lock_;
   std::map<int64_t, SeekCB> pending_seek_cbs_ GUARDED_BY(seek_cb_lock_);

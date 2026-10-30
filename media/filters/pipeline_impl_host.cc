@@ -122,7 +122,7 @@ bool PipelineImpl::BufferingGateSatisfied() const {
     return false;
   }
   if (buffering_gate_min_packets_ > 0 && composite_) {
-    // The packet floor (ijkplayer min-frames). A reported count of 0 means the
+    // The packet floor (legacy min-frames). A reported count of 0 means the
     // demuxer does not track per-packet counts (synthetic sources) or its queue
     // has fully drained; the buffered-TIME mark above is the authority then, so
     // do not let an unreported count wedge the gate forever. A positive count
@@ -167,7 +167,7 @@ void PipelineImpl::OnBufferingStateChange(BufferingState state,
   }
   // kHaveEnough: the renderer has frames, but the pre-buffer gate (buffered
   // time + packet floor) may not be met yet. Defer forwarding until both clear,
-  // so the player does not start or resume on a too-thin buffer (ijkplayer's
+  // so the player does not start or resume on a too-thin buffer (legacy's
   // packet-buffering wait). The gate re-checks on every buffered-time update.
   if (!BufferingGateSatisfied()) {
     hold_have_enough_ = true;

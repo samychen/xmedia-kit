@@ -8,7 +8,7 @@
 // WHY THIS EXISTS. The field existed, docs/05 Δ19 described it, the option
 // registry used to accept the key -- and nothing read it. SeekTo decided
 // accuracy from the per-call SeekMode alone, so "enable-accurate-seek=0" (an
-// ijkplayer call site expecting keyframe landings) produced accurate seeks
+// legacy call site expecting keyframe landings) produced accurate seeks
 // anyway. The reading is now in PlayerImpl::SeekTo, and the assertions below
 // are what keeps it there: an option that is read but not asserted is one edit
 // away from being the dead field it just stopped being.

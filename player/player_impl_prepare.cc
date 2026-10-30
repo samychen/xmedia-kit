@@ -363,7 +363,7 @@ Status PlayerImpl::PrepareAsync() {
 
   // Arm the pre-buffer gate with the initial tier before playback can begin, so
   // the first kHaveEnough is held until the buffer reaches the first high-water
-  // mark (or packet floor), matching ijkplayer's initial packet-buffering wait.
+  // mark (or packet floor), matching legacy's initial packet-buffering wait.
   SyncBufferingGate();
   pipeline->Start(std::move(demuxers), renderer_factory.get(),
                   media::RendererType::kRendererImpl,
