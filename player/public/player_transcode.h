@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_refptr.h"
 #include "media/base/media_error.h"
@@ -78,8 +79,12 @@ class PlayerRecorder {
 
   // Starts recording |output_path| from this moment. The player should be
   // in kStarted (a record of a paused player holds the last frame only).
-  // Returns an error when a record is already running or the state does not
-  // allow it.
+  // Start re-anchors the pipeline at the current playhead -- the tap only
+  // sees packets pulled after it attached, and audio primes up to 3 s
+  // ahead, so the flush-and-repull guarantees the record covers every leg
+  // from the attach point; hosts observe it as a seek to the current
+  // position. Returns an error when a record is already running or the
+  // state does not allow it.
   Status Start(const std::string& output_path);
 
   // Detaches the tap and finalizes the container. Returns the recorded
@@ -95,6 +100,42 @@ class PlayerRecorder {
                    base::scoped_refptr<media::DecoderBuffer> buffer);
   // Record thread: decoder-open header and packet writes.
   void OnTapStream(const media::RecordStreamHeader& header);
+
+  // Record thread: pts re-base + muxer write for one tap buffer (shared by
+  // the direct path and the pending-queue flush).
+  void WriteBuffered(bool video, base::scoped_refptr<media::DecoderBuffer> buffer);
+  // Record thread: opens the gate when the expected legs have all delivered
+  // their stream header (or the grace timer / EOS / Stop forced it open) and
+  // flushes what became writable.
+  void MaybeOpenGateAndFlush();
+  // True when every leg enabled in |config_| has a registered muxer stream.
+  bool ExpectedLegsComplete() const;
+  // Grace timer: legs that never deliver a stream header (a source without
+  // that track) stop holding the header hostage after this.
+  void OnGraceExpired();
+  // Flushes what remains and finalizes the container; idempotent.
+  void FinalizeRecord();
+  // Backstop: finalizes after one leg ended if the other never delivers.
+  void OnFinalizeBackstop();
+
+  // Queues for packets that arrived before their leg's stream header. The
+  // tap's two legs post from different decoder sequences (S3/S4), so the
+  // stream headers and the first packets interleave arbitrarily on the
+  // record thread -- without this, whichever packet wins writes the muxer
+  // header with ONE stream and the other leg's stream lands after the
+  // header, where FFmpeg leaves its packet accumulator uninitialized and
+  // the first packet divides by zero (SIGFPE in compute_muxer_pkt_fields).
+  static constexpr size_t kMaxPending = 16384;
+  // How long one leg's end waits for the other before the backstop
+  // finalizes (covers an EOS consumed before the tap attached).
+  static constexpr base::TimeDelta kFinalizeBackstop = base::Milliseconds(500);
+  std::vector<base::scoped_refptr<media::DecoderBuffer>> video_pending_;
+  std::vector<base::scoped_refptr<media::DecoderBuffer>> audio_pending_;
+  // Gate: true once the muxer header may no longer change (first write
+  // passed through). Forced open by the grace timer, EOS, and Stop.
+  bool gate_open_ = false;
+  bool grace_open_ = false;
+  bool backstop_scheduled_ = false;
 
   Player& player_;
   PlayerConfig config_;

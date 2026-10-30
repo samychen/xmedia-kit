@@ -86,6 +86,16 @@ int FFmpegEncodeMuxer::AddAudioStream(const AudioStreamParams& params) {
   if (!ctx_) {
     return -1;
   }
+  // A stream added after avformat_write_header is invisible to init_pts:
+  // its priv_pts stays {0, 0, 0} and the first packet divides by that zero
+  // in compute_muxer_pkt_fields (SIGFPE). The header must be final before
+  // the first packet goes out -- callers gate this (PlayerRecorder holds
+  // packets until every expected leg's stream header has landed).
+  if (ctx_->header_written) {
+    LOG(ERROR) << "encode muxer: cannot add an audio stream after the "
+                  "header was written";
+    return -1;
+  }
   const AVCodec* codec =
       avcodec_find_encoder_by_name(params.codec_name.c_str());
   if (!codec) {
@@ -123,6 +133,12 @@ int FFmpegEncodeMuxer::AddAudioStream(const AudioStreamParams& params) {
 
 int FFmpegEncodeMuxer::AddVideoStream(const VideoStreamParams& params) {
   if (!ctx_) {
+    return -1;
+  }
+  // Same post-header refusal as AddAudioStream.
+  if (ctx_->header_written) {
+    LOG(ERROR) << "encode muxer: cannot add a video stream after the "
+                  "header was written";
     return -1;
   }
   const AVCodec* codec =

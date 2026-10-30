@@ -38,11 +38,11 @@
 > （原来只有自己的单测在调它）；后者把文件推到 rtmp:// 对端。两者都进
 > `gate_local --jobs e2e`，RTMP 那条用 FFmpeg 自身的 `rtmp_listen` 当服务端
 > ——不需要 MediaMTX 就能跑真协议，判据见 `tools/check_rtmp_publish.py`。
-> 此外 `record`（读源落盘）也进了同一批判据；播放侧取包录制仍未做。
+> 此外 `record`（读源落盘）也进了同一批判据；播放侧取包录制见下行。
 
 | 能力 | 现状 |
 |---|---|
-| 录制 | 🔶 **读源录制已落地（2026-10-28）**：`avbase-inspect record <input> -o <out> [--duration S]`，copy 优先，`--duration` 对文件是媒体预算、对直播是墙钟预算（实测 40 s 源 `--duration 3` 写出 3.03 s，判据钉住输出时长而不是退出码）。直播源也走通了：`total_duration <= 0` 曾让配速整段失效（条件里写了 `> 0.0`），已修。**仍未做：播放侧取包录制**——即“录下观众实际看到的那一份”（含他的 seek、切轨），那需要在播放管线加挂点，与“重读源”是两件事；CLI 明说自己是后者 |
+| 录制 | ✅ **两个半边都已落地**。读源录制（2026-10-28）：`avbase-inspect record <input> -o <out> [--duration S]`，copy 优先，`--duration` 对文件是媒体预算、对直播是墙钟预算（实测 40 s 源 `--duration 3` 写出 3.03 s，判据钉住输出时长而不是退出码）；直播源也走通了（`total_duration <= 0` 曾让配速整段失效，已修）。**播放侧取包录制（2026-10-30/31）**：`PlayerRecorder` + `RecordTap`（管线解码流消费侧挂点），录“观众实际看到的那一份”——seek 改变录制走向、切轨改变录制内容、播放结束自动收尾，copy 直写 `FFmpegEncodeMuxer`。落地时踩掉三个坑：**mux 线程化**（双腿并发 `av_interleaved_write_frame` 在 FFmpeg 内部死锁，收进专用录制线程）；**S3/S4 流头与首包竞速**（跨线程无全序，输家的流会被 post-header 补加 → FFmpeg 对新流的 `priv_pts` 不初始化 → 首包 `frac_add` 除零 SIGFPE——muxer 现在显式拒绝 post-header 加流，录制器用挂起队列 + 闸门等双腿流头齐了才写 header）；**音频深预取饿死**（算法队列可预取 3 s，中段挂载时整条腿的 compressed 包已解码完、EOS 也被消费 → 容器里是条死轨——`Start` 现在向当前播放位置重锚：flush 丢弃预取、双腿经 tap 重拉，录像恰好是 `[attach, 结束]` 一份；首条 EOS 挂 500 ms 兜底收尾，双腿 EOS 齐才立即收尾）。判据 `player_ffmpeg_unittests` 3 条，录制链压测 30/30 |
 | 推流 / RTMP publish | ✅ **已接线（2026-10-28）**：`avbase-inspect publish <file> -o rtmp://… --format flv` 走完整条转码链，`TranscodeParams::output_format` 让 muxer 在无扩展名的 URL 上也能定容器（不给就失败并说明原因，不静默写空流）。`TranscodeParams::realtime` 按输入时间戳配速——离线目标不需要，实时对端必须要（3.029 s 的源：实时 3.02 s / `--no-realtime` 0.05 s，两个模式都被断言）。真协议验收：`tools/check_rtmp_publish.py` 用 FFmpeg 的 `rtmp_listen` 起服务端，回环收到 2 条流、时长一致；缺 `--format` 必须拒绝 |
 | 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。**批量半边也已落地**：`PreviewFrames()`（`media/transcode/ffmpeg_preview_job.h`）+ `avbase-inspect preview -o <dir> --start S --count N [--interval S]`。seek 落在目标**之前**的关键帧上会让整段预览都是同一幅画，所以落盘前按时间戳丢弃早于目标的帧（`--start 0.5` 拿到的就是 500 ms，不是 0 ms）|
 | 解码器事件（`kDecoderOpened` / `kDecoderFallback`） | ✅ **已接通（2026-10-28）**：两个事件此前零生产者（名字只进了 `VideoRendererImpl` 的 LOG(INFO)）。新通道 `DecoderStream → 两个子 renderer → RendererImpl::ForwardDecoderEvent → PipelineImpl → PlayerImpl → EventHub`，另有四个查询（`video_decoder_name` / `audio_decoder_name` / `video_decoder_opaque` / `decoder_fallback_count`），因为宿主通常在播放起来之后才问。两个实测坑：给 `ForwardDecoderEvent` 绑 `WeakPtr` 会在 S3/S4 上 CHECK 中止（改 `Unretained`，同 `ReportError`）；回调参数是 `(type, from, to, reason, opaque)`，把名字填进 `from` 会让每次「打开」都像「回落」 |

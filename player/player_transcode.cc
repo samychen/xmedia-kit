@@ -109,8 +109,37 @@ Status PlayerRecorder::Start(const std::string& output_path) {
   audio_stream_ = video_stream_ = -1;
   audio_last_pts_ = video_last_pts_ = media::kNoPtsValue;
   audio_shift_ = video_shift_ = 0;
+  video_pending_.clear();
+  audio_pending_.clear();
+  gate_open_ = false;
+  grace_open_ = false;
+  backstop_scheduled_ = false;
   recording_.store(true);
   player_.SetRecordTap(tap_);
+  // Re-anchor at the current playhead. The tap only sees packets the decoder
+  // streams pull AFTER it attached -- audio primes up to 3 s ahead
+  // (audio_renderer_algorithm kMaxCapacity), so a mid-playback attach to a
+  // short file would otherwise find its whole audio already decoded (and its
+  // EOS consumed), leaving the container with a dead track. The seek's flush
+  // discards the primed decode and both legs re-pull through the tap, so the
+  // record is exactly [attach .. end] on every leg. Hosts observe it as a
+  // seek to the current position.
+  const auto seek =
+      player_.SeekTo(player_.GetMediaTime(), SeekMode::kPreviousKeyframe,
+                     Player::SeekCB());
+  if (!seek) {
+    LOG(WARNING) << "recorder: re-anchor seek failed ("
+                 << seek.error().ToString() << "); recording un-anchored";
+  }
+  // The legs' stream headers fire on their own decoder sequences (S3/S4) and
+  // race the first packets; the gate below keeps the muxer header from being
+  // written until the stream set is final. A leg that never delivers a header
+  // (the source has no such track) must not hold the file hostage: after the
+  // grace period the gate opens with whatever streams exist.
+  record_runner_->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&PlayerRecorder::OnGraceExpired, base::Unretained(this)),
+      base::Milliseconds(300));
   return OkStatus();
 }
 
@@ -126,15 +155,17 @@ Status PlayerRecorder::Stop() {
   base::WaitableEvent done;
   record_runner_->PostTask(
       FROM_HERE, base::BindOnce(
-                     [](media::FFmpegEncodeMuxer* muxer, bool* finished,
+                     [](PlayerRecorder* self, bool* finished,
                         base::WaitableEvent* ev) {
                        if (!*finished) {
-                         muxer->Finish();
+                         // Force the gate open so queued packets still land
+                         // in the container before it finalizes.
+                         self->FinalizeRecord();
                          *finished = true;
                        }
                        ev->Signal();
                      },
-                     base::Unretained(muxer_.get()), &finished_, &done));
+                     base::Unretained(this), &finished_, &done));
   done.Wait();
   record_thread_->Stop();
   record_runner_.reset();
@@ -152,22 +183,132 @@ void PlayerRecorder::OnTapStream(const media::RecordStreamHeader& header) {
   if (!muxer_ || finished_) {
     return;
   }
+  // One muxer stream per leg, registered before the header opens. A second
+  // header on the same leg (track switch mid-record) keeps the current
+  // stream: the container cannot grow after its header is written, and the
+  // muxer refuses post-header additions outright.
   if (header.video) {
+    if (video_stream_ >= 0 || gate_open_) {
+      return;
+    }
     media::FFmpegEncodeMuxer::VideoStreamParams stream;
     stream.codec_name = header.codec_name;
     stream.width = header.width;
     stream.height = header.height;
     stream.extradata = header.extra_data;
     video_stream_ = muxer_->AddVideoStream(stream);
+    if (video_stream_ < 0) {
+      LOG(ERROR) << "recorder: video stream registration failed";
+    }
   } else {
+    if (audio_stream_ >= 0 || gate_open_) {
+      return;
+    }
     media::FFmpegEncodeMuxer::AudioStreamParams stream;
     stream.codec_name = header.codec_name;
     stream.sample_rate = header.sample_rate;
     stream.channels = header.channels;
     stream.extradata = header.extra_data;
     audio_stream_ = muxer_->AddAudioStream(stream);
-    audio_rate_ = header.sample_rate;
+    if (audio_stream_ < 0) {
+      LOG(ERROR) << "recorder: audio stream registration failed";
+    } else {
+      audio_rate_ = header.sample_rate;
+    }
   }
+  MaybeOpenGateAndFlush();
+}
+
+bool PlayerRecorder::ExpectedLegsComplete() const {
+  const bool want_video = !config_.video.disabled;
+  const bool want_audio = !config_.audio.disabled;
+  return (!want_video || video_stream_ >= 0) &&
+         (!want_audio || audio_stream_ >= 0);
+}
+
+void PlayerRecorder::MaybeOpenGateAndFlush() {
+  if (finished_) {
+    return;
+  }
+  if (gate_open_) {
+    // Already open: flush anything still queued for registered legs.
+    std::vector<base::scoped_refptr<media::DecoderBuffer>> pending;
+    pending.swap(video_pending_);
+    for (auto& b : pending) {
+      WriteBuffered(true, std::move(b));
+      if (finished_) {
+        return;
+      }
+    }
+    pending.swap(audio_pending_);
+    for (auto& b : pending) {
+      WriteBuffered(false, std::move(b));
+      if (finished_) {
+        return;
+      }
+    }
+    return;
+  }
+  if (!ExpectedLegsComplete() && !grace_open_) {
+    return;  // The stream set may still grow; keep holding packets.
+  }
+  gate_open_ = true;
+  // Legs that never registered a stream lose their queued packets: the
+  // container's stream set is final and the muxer refuses late additions.
+  for (const bool video : {true, false}) {
+    const int stream = video ? video_stream_ : audio_stream_;
+    auto& pending = video ? video_pending_ : audio_pending_;
+    if (stream < 0 && !pending.empty()) {
+      LOG(WARNING) << "recorder: dropping " << pending.size() << " queued "
+                   << (video ? "video" : "audio") << " packets (no stream)";
+      pending.clear();
+    }
+  }
+  std::vector<base::scoped_refptr<media::DecoderBuffer>> pending;
+  pending.swap(video_pending_);
+  for (auto& b : pending) {
+    WriteBuffered(true, std::move(b));
+    if (finished_) {
+      return;
+    }
+  }
+  pending.swap(audio_pending_);
+  for (auto& b : pending) {
+    WriteBuffered(false, std::move(b));
+    if (finished_) {
+      return;
+    }
+  }
+}
+
+void PlayerRecorder::OnGraceExpired() {
+  if (!muxer_ || finished_) {
+    return;
+  }
+  grace_open_ = true;
+  MaybeOpenGateAndFlush();
+}
+
+void PlayerRecorder::FinalizeRecord() {
+  if (finished_) {
+    return;
+  }
+  grace_open_ = true;
+  MaybeOpenGateAndFlush();
+  muxer_->Finish();
+  finished_ = true;
+  recording_.store(false);
+}
+
+void PlayerRecorder::OnFinalizeBackstop() {
+  if (!muxer_ || finished_) {
+    return;
+  }
+  // One leg ended and the other delivered nothing more within the backstop
+  // window (its EOS was likely consumed before the tap attached): close the
+  // record with what exists rather than hanging until Stop.
+  LOG(WARNING) << "recorder: finalize backstop; closing the record";
+  FinalizeRecord();
 }
 
 void PlayerRecorder::OnTapPacket(
@@ -182,16 +323,56 @@ void PlayerRecorder::OnTapPacket(
     } else {
       audio_ended_ = true;
     }
-    // End of playback finalizes the file: IsRecording() flips to false and
-    // the host's Stop() becomes a no-op-safe finalize.
-    muxer_->Finish();
-    finished_ = true;
-    recording_.store(false);
+    // First end: the other leg may still owe data (a burst drain delivers
+    // one leg entirely before the other starts, and a primed leg's EOS can
+    // be consumed before the tap attached) -- the backstop closes the
+    // record if nothing more arrives. Both ends: finalize now.
+    if (video_ended_ && audio_ended_) {
+      FinalizeRecord();
+      return;
+    }
+    if (!backstop_scheduled_) {
+      backstop_scheduled_ = true;
+      record_runner_->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&PlayerRecorder::OnFinalizeBackstop,
+                         base::Unretained(this)),
+          kFinalizeBackstop);
+    }
     return;
   }
   const int stream = video ? video_stream_ : audio_stream_;
   if (stream < 0) {
-    return;  // Packets before the decoder-open header; drop.
+    auto& pending = video ? video_pending_ : audio_pending_;
+    if (pending.size() < kMaxPending) {
+      pending.push_back(std::move(buffer));
+    } else {
+      LOG(WARNING) << "recorder: " << (video ? "video" : "audio")
+                   << " pending queue full; dropping packets";
+    }
+    return;
+  }
+  if (!gate_open_) {
+    if (ExpectedLegsComplete()) {
+      MaybeOpenGateAndFlush();
+    } else {
+      // Another enabled leg's stream header is still in flight (S3 vs S4
+      // race); hold the packet so the header carries the full stream set.
+      auto& pending = video ? video_pending_ : audio_pending_;
+      if (pending.size() < kMaxPending) {
+        pending.push_back(std::move(buffer));
+      }
+      return;
+    }
+  }
+  WriteBuffered(video, std::move(buffer));
+}
+
+void PlayerRecorder::WriteBuffered(
+    bool video, base::scoped_refptr<media::DecoderBuffer> buffer) {
+  const int stream = video ? video_stream_ : audio_stream_;
+  if (stream < 0) {
+    return;  // Flushed for a leg that never registered; nothing to write.
   }
   int64_t pts = 0;
   if (video) {
@@ -217,9 +398,7 @@ void PlayerRecorder::OnTapPacket(
   ep.flags = 1;  // Keyframe: a tap cannot know better, and players accept it.
   if (!muxer_->WritePacket(stream, ep)) {
     LOG(ERROR) << "recorder: packet write failed; finalizing";
-    muxer_->Finish();
-    finished_ = true;
-    recording_.store(false);
+    FinalizeRecord();
   }
 }
 

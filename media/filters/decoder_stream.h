@@ -209,9 +209,6 @@ class AVBASE_MEDIA_EXPORT DecoderStream {
         header.channels = config_.channels;
       }
       header.extra_data = config_.extra_data;
-      if (getenv("REC_DBG")) {
-        fprintf(stderr, "[rec] late-attach on_stream fired\n");
-      }
       record_tap_.on_stream(header);
     }
   }
