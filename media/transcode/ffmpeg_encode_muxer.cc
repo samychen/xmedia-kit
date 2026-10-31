@@ -120,6 +120,12 @@ int FFmpegEncodeMuxer::AddAudioStream(const AudioStreamParams& params) {
   if (!params.extradata.empty()) {
     stream->codecpar->extradata = static_cast<uint8_t*>(
         av_mallocz(params.extradata.size() + AV_INPUT_BUFFER_PADDING_SIZE));
+    if (!stream->codecpar->extradata) {
+      // M10 (2026-10-10 review): every FFmpeg allocation is checked; these
+      // two extradata sites were the last unchecked ones.
+      LOG(ERROR) << "encode muxer: extradata allocation failed";
+      return -1;
+    }
     std::memcpy(stream->codecpar->extradata, params.extradata.data(),
                 params.extradata.size());
     stream->codecpar->extradata_size =
@@ -164,6 +170,12 @@ int FFmpegEncodeMuxer::AddVideoStream(const VideoStreamParams& params) {
   if (!params.extradata.empty()) {
     stream->codecpar->extradata = static_cast<uint8_t*>(
         av_mallocz(params.extradata.size() + AV_INPUT_BUFFER_PADDING_SIZE));
+    if (!stream->codecpar->extradata) {
+      // M10 (2026-10-10 review): every FFmpeg allocation is checked; these
+      // two extradata sites were the last unchecked ones.
+      LOG(ERROR) << "encode muxer: extradata allocation failed";
+      return -1;
+    }
     std::memcpy(stream->codecpar->extradata, params.extradata.data(),
                 params.extradata.size());
     stream->codecpar->extradata_size =
