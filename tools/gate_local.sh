@@ -19,7 +19,6 @@
 #   fmt     -> check-format                   (clang-format --dry-run --Werror)
 #   lint    -> check-cpplint                  (cpplint --repository=., whole tree)
 #   tidy    -> check-clang-tidy (core scope)  (clang-tidy 18, no PCH scratch db)
-#   apidocs -> apidocs                        (doxygen zero-warning gate + API.md freshness)
 #   commentcov -> commentcov                   (V9: player/public four-question comment coverage)
 #   apicompat -> apicompat                     (V10: API-surface diff vs committed baseline)
 #   bench   -> bench                          (M13: self-contained micro-benchmarks + trend guard; no Google Benchmark)
@@ -113,23 +112,12 @@ job_lint() {
     | grep -v 'legacy/' | xargs "$CP" --repository=.
 }
 
-job_apidocs() {
-  # Mirrors the CI apidocs job. doxygen is not on every machine (this one
-  # keeps it at /tmp/xmedia_tools), so DOXYGEN= overrides the lookup; with
-  # neither present the job is skipped, per this script's contract.
-  if [ -z "${DOXYGEN:-}" ] && ! command -v doxygen >/dev/null 2>&1; then
-    echo "doxygen not found; set DOXYGEN=/path/to/doxygen to run this job"
-    return 0
-  fi
-  tools/gen_api_docs.sh && git diff --exit-code docs/API.md
-}
-
 job_commentcov() {
   # V9 (docs/10 §5 and §12): every public method's comment in player/public
   # must answer four questions (what / thread+blocking / failure / side
   # effects), and coverage of declarations that HAVE a comment must be >= 95%.
   # Pure Python, no libclang, so it runs on a clean runner the same way the
-  # apidocs gate does. --min-full-rate 0 = report the four-dimension "full"
+  # same clean-runner contract. --min-full-rate 0 = report the four-dimension "full"
   # metric but do not fail on it yet (pure getters legitimately answer "none",
   # and forcing every comment to spell that out is the noise the design avoids
   # -- see tools/check_comment_coverage.py's docstring).
@@ -504,7 +492,7 @@ job_ubsan()   { gate_preset ubsan   "--test-dir build/ubsan --output-on-failure"
 job_coverage(){ gate_preset coverage "--test-dir build/coverage --output-on-failure"; }
 
 # --- Dispatch ----------------------------------------------------------------
-ALL_JOBS="inv fmt lint tidy apidocs commentcov apicompat bench e2ecpu macos capi qt core ffmpeg e2e asan tsan ubsan coverage"
+ALL_JOBS="inv fmt lint tidy commentcov apicompat bench e2ecpu macos capi qt core ffmpeg e2e asan tsan ubsan coverage"
 DEFAULT_JOBS="inv fmt commentcov apicompat macos capi"
 
 if [ "${1:-}" = "--list" ]; then
@@ -513,7 +501,6 @@ if [ "${1:-}" = "--list" ]; then
   echo "  fmt     check-format (clang-format --dry-run --Werror)"
   echo "  lint    check-cpplint (cpplint 1.6.1)"
   echo "  tidy    check-clang-tidy (clang-tidy 18, PCH off scratch db)"
-  echo "  apidocs apidocs (doxygen zero warnings; needs DOXYGEN= if not on PATH)"
   echo "  commentcov comment_comment_coverage (V9 player/public four-question coverage; python3, no deps)"
   echo "  apicompat apicompat (V10 API-surface diff vs tools/api_baseline.json; python3, no deps)"
   echo "  bench    bench (M13 self-contained micro-benchmarks; xmedia::base + xmedia::player, no FFmpeg, no Google Benchmark)"

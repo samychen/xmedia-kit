@@ -35,7 +35,7 @@ What is compatible (allowed for a minor bump):
 
 Scope: public sections of classes/structs in player/public/**/*.h, the
 file-level C ABI functions in player/public/c/xmedia_c.h, and public enums.
-Two exclusions match docs/Doxyfile: xmedia_c_internal.h and xmedia_c_export.h
+Two exclusions apply: xmedia_c_internal.h and xmedia_c_export.h
 are implementation-side. Plain public DATA MEMBERS are intentionally NOT
 tracked in v1 (see Known limitations in docs/10 §12 V10 note) -- they are a
 future extension; v1 covers the callable surface + enums + vtable layout,

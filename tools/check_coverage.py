@@ -60,7 +60,7 @@ import sys
 # spells them `media/filters/video_frame_compositor.cc` and
 # `media/filters/av_sync_controller.cc`, but those paths do not exist in the
 # tree -- the files were moved under `media/filters/legacy/` when the ffplay port
-# was separated for LGPL provenance (see docs/archive/PROGRESS-rounds-1-9.md).
+# was separated for LGPL provenance.
 # Left as written, both rules matched nothing and the gate reported them as
 # passing. UNMATCHED_THRESHOLDS below turns that class of mistake into a loud
 # failure instead.

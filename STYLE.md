@@ -218,7 +218,7 @@ ASSIGN_OR_RETURN(auto info, demuxer->GetMediaInfo());
 - 两者失败后**都是 `abort()`** —— `DCHECK` 在 debug 下就是 `CHECK`（`base/check.h:35`）。说 `DCHECK`「可恢复」指的是 release 里整行被编译掉、不为它付代价，**不是**失败后程序还能继续跑。
 - **不允许用 `DCHECK` 代替对不可信输入（媒体数据）的校验** —— 媒体数据一律走 `base::expected` 返回错误。
 - release 下断言的操作数可能不求值：`DCHECK_EQ(a, b)` 的 `a`、`b` 完全不求值（`base/check.h:44-49`），**禁止**在里面放有副作用的调用；而 `DCHECK(c) << f()` 的 `f()` 仍会求值。
-- 错误消息必须包含：出错的上下文、期望值 vs 实际值、以及**建议的修复动作**（见 [docs/10](docs/10-SDK易用性设计.md) §3）。
+- 错误消息必须包含：出错的上下文、期望值 vs 实际值、以及**建议的修复动作**（三段式：summary / detail / suggestion）。
 
 ## 7. 并发（强制）
 

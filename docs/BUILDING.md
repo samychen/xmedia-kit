@@ -270,7 +270,7 @@ target_link_libraries(my_app PRIVATE xmedia::gl)   # 注意不是 xmedia::xmedia
 
 它不依赖 media/base/窗口 SDK，也不依赖外部 GL 加载器——所以可以被一个完全不玩播放器的
 项目直接拿走。完整的对外契约（context 接缝、入口点表从哪来、GLSL 桌面/ES 方言）见
-[13-GL模块独立使用指南](13-GL模块独立使用指南.md)。
+[GL模块独立使用指南](GL模块独立使用指南.md)。
 
 注意「零依赖」不等于「零第三方代码」：入口点与枚举表是**内嵌**在
 `render/gl/third_party/glad/` 的 glad 生成物，随源码走。消费者不用装 glad、不用联网、

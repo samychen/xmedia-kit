@@ -1,13 +1,11 @@
 # 实施进度（活文档）
 
-> 设计文档：[README](../README.md) ｜ 里程碑定义：[08 实施路线图](08-实施路线图与风险.md)
-> 剩余工作权威清单：[12-剩余工作清单](12-剩余工作清单.md) ｜ 产品化能力 / 死选项 / 环境项：[TODO](TODO.md)
+> 设计文档：[README](../README.md) ｜ 产品化能力 / 死选项 / 环境项：[TODO](TODO.md)
 > CI 不可见时的等价门禁信号：[tools/gate_local.sh](tools/gate_local.sh)
 
 > ⚠️ 本文档只保留**当前状态**与**已完成/未做速览**。过程性记录已移除——
 > 属历史审计轨，不进活文档；如需追溯见 `git log` 与旧版 `PROGRESS.md` 的 git 历史。
 >
-> 早期的记录在 [archive/PROGRESS-rounds-1-9](archive/PROGRESS-rounds-1-9.md)。
 > 代码注释里写的 `PROGRESS.md §3l`、`§(5)` 等旧章节号指向的是**那里**——本文档精简后
 > 已没有这些小节（约 40 处注释仍用旧写法，按此转发阅读即可）。
 
@@ -59,9 +57,9 @@
 | 读源录制 | ✅ | `xmedia-inspect record`，copy 优先，`--duration` 有界；判据量输出时长（40 s 源配 `--duration 3` 必须约 3 s）。**播放侧取包录制未做** |
 | `kDecoderOpened` / `kDecoderFallback` | ✅ | 通道 `DecoderStream → 子 renderer → RendererImpl → PipelineImpl → PlayerImpl → EventHub` 接通，另有四个查询。踩坑：WeakPtr 跨序列 CHECK 中止（改 Unretained）、参数顺序错位会把「打开」报成「回落」 |
 | 转码链的像素正确性 | ✅ | 10-bit / NV12 源此前转码「成功」但画面损坏（muxer OK、时长对、退出码 0，SSIM 0.035）；`AvFrameToVideoFrame` 改为按源格式分派（I420 走逐平面快路径，其余走 `ff::VideoConverter`），修后 SSIM 0.883。两条测试钉像素值，突变验过 |
-| 决策项 | — | LL-HLS 自研 vs 接受 ~3s、M12 原生后端是否启动、版权主体、golden 基线锁版本，见 [12-剩余工作清单](12-剩余工作清单.md) §6 |
+| 决策项 | — | LL-HLS 自研 vs 接受 ~3s、M12 原生后端是否启动、版权主体、golden 基线锁版本（开放决策项）|
 
-> 完整开放项、降级项、死选项、环境项见 [12-剩余工作清单](12-剩余工作清单.md) 与 [TODO](TODO.md)；
+> 完整开放项、降级项、死选项、环境项见 [TODO](TODO.md)；
 > 已修关键缺陷（关闭竞态 / VOD 死锁 / 解码器丢包 / corpus 三崩溃 / EOF 后 seek 永不回调 /
 > 暂停中 seek 画面跑飞 / 丢帧计数变成刷新率函数 / fps-cap 判错对象 · 丢帧原因说不出来 /
-> 起播后画面定格 / 时间线面板假数据）记录在 [12-剩余工作清单](12-剩余工作清单.md) §3。
+> 起播后画面定格 / 时间线面板假数据）记录在本表下方状态栏。

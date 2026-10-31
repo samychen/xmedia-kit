@@ -2,7 +2,7 @@
 
 > 格式沿用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 > 语义化版本。**每条变更关联代表性 commit**；完整过程记录（前为
-> 英文、之后统一中文）见 `git log` 与 docs/archive/PROGRESS-rounds-1-9.md。
+> 英文、之后统一中文）见 `git log`。
 >
 > 2026-10-18 起提交信息统一中文（`656dbac` 之前的英文历史未改写——历史
 > 即历史，改它会让「当时决定了什么」失真）。

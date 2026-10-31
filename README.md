@@ -71,14 +71,9 @@
 | 03 | [核心类与接口设计](docs/03-核心类与接口设计.md) | 头文件级 C++20 声明，**命名与签名对齐 Chromium**：`DecoderBuffer` / `VideoFrame` / `AudioBus` / `DemuxerStream` / `VideoDecoder` / `Renderer` / `Pipeline` / `VideoFrameCompositor` / `AudioRendererSink` / `MediaLog` / `Player` |
 | 04 | [线程模型与数据流](docs/04-线程模型与数据流.md) | **Task Runner / Sequence 模型**、6 个线程与 sequence 归属、`PostTask` + `WeakPtr` 通信、`serial` 语义、seek/flush/stop 时序、锁与无锁边界、竞态清单 |
 | 06 | [CMake 工程与构建体系](docs/06-CMake工程与构建体系.md) | `.cc` + Google flags + `-fno-exceptions`、`FindFFmpeg`（三级查找）、FFmpeg 4.4~7.x 兼容层、**Linux 依赖探测**（SDL2/OpenGL/EGL/X11/Wayland/ALSA/Pulse）、install/export、CI 矩阵、符号隐藏 |
-| 07 | [测试策略与可观测性](docs/07-测试策略与可观测性.md) | **`base::test::TaskEnvironment`** 单测模型、Chromium 式 Mock（`MockVideoDecoder`/`MockDemuxerStream`）、合成数据源、Golden Test、Fuzz、Sanitizer、覆盖率门禁 |
-| 08 | [实施路线图与风险](docs/08-实施路线图与风险.md) | M0–M12 里程碑与 DoD、双人并行方案、工作量估算、砍掉/后置清单、**16 条风险登记册**、"平替"验收标准 A1–A16 |
-| ~~09~~ | [Linux 平台实现方案](docs/archive/09-Linux平台实现方案.md) | **已归档**：M12 原生 OpenGL 后端顺延为可选，`platform/linux/` 从未落地，Linux 出画由 SDL2 交付。原文为双后端（SDL2 + 原生 OpenGL）的详细设计，保留为决策记录 |
-| 10 | [SDK 易用性设计](docs/10-SDK易用性设计.md) | **面向二次开发者**：10 行 quick-start、可操作错误信息规范、API 人体工学清单、文档体系、示例矩阵、打包与集成方式、常见任务 cookbook |
-| 11 | [行为规范卷](docs/11-行为规范卷.md) | **验收依据**（自 xmedia_design.md §5/§7/§8 并入）：线程与任务模型、背压级联与 seek 序列、三级水位表。Phase 1–2 的验收标准引用本章 |
-| 12 | [剩余工作清单](docs/12-剩余工作清单.md) | **执行快照**：Phase 0–4 逐阶段完成度、剩余项（零拷贝显示 / Qt 门面 / soak / Windows CI）、环境事项与开放决策点 |
-| 13 | [GL 模块独立使用指南](docs/13-GL模块独立使用指南.md) | **`xmedia_gl` 对外手册**：`find_package(xmedia_gl)` 用法、context 契约、入口点表的来源与重新生成命令（内嵌 glad 2.0.8 生成物，含每个选项的理由）、glad 覆盖不到的那一例、GLSL 桌面/ES 方言、零依赖边界与换装载器的接缝 |
-| 14 | [管线多源改造设计](docs/14-管线多源改造设计.md) | **多源轴的设计与沿革**：`GetStream(source_id, type)` 取代"第 N 路"接口、每源 A/V 偏移、次源 sink 与文本腿、docs/14 阶段 0–4 的接线顺序 |
+| ~~09~~ | [Linux 平台实现方案](docs/archive/Linux平台实现方案.md) | **已归档**：M12 原生 OpenGL 后端顺延为可选，`platform/linux/` 从未落地，Linux 出画由 SDL2 交付。原文为双后端（SDL2 + 原生 OpenGL）的详细设计，保留为决策记录 |
+| — | [GL 模块独立使用指南](docs/GL模块独立使用指南.md) | **`xmedia_gl` 对外手册**：`find_package(xmedia_gl)` 用法、context 契约、入口点表的来源与重新生成命令（内嵌 glad 2.0.8 生成物，含每个选项的理由）、glad 覆盖不到的那一例、GLSL 桌面/ES 方言、零依赖边界与换装载器的接缝 |
+| — | [管线多源改造设计](docs/管线多源改造设计.md) | **多源轴的设计与沿革**：`GetStream(source_id, type)` 取代"第 N 路"接口、每源 A/V 偏移、次源 sink 与文本腿、docs/14 阶段 0–4 的接线顺序 |
 | — | [TOOLS.md](docs/TOOLS.md) | **`tools/` 逐文件说明**（44 个受版本控制的文件）：门禁、行为验收、度量、生成器各自管什么，什么时候该跑哪个，以及全目录通用的退出码约定（0 通过 / 1 被测物有问题 / 2 无从判断） |
 | — | [EXAMPLES.md](docs/EXAMPLES.md) | **`examples/` 逐文件说明**：6 个可执行目标各自的构建开关与行数、为什么两个头文件留在 `examples/` 而不是库里、压在这个目录上的 C30 与 300 行度量 |
 | — | [LEARNING-media.md](docs/LEARNING-media.md) | **`media/` 入门学习指南**：按一帧数据生命周期的 9 站阅读路线、10 段值得模仿的写法、8 处陷阱（含绕过 FFmpeg 隔离区入口），附双轴审查报告、复核记录与「刻意保留 vs 静默漂移」的判别方法 |
@@ -199,7 +194,7 @@ int main() {
 }
 ```
 
-对比原版 legacy 需要 20+ 行（create → 逐个 set_option → set_data_source → 绑窗口 → prepare_async → 起一个线程轮询消息）详见 [docs/10](docs/10-SDK易用性设计.md)。
+对比原版 legacy 需要 20+ 行（create → 逐个 set_option → set_data_source → 绑窗口 → prepare_async → 起一个线程轮询消息）判据是 `examples/play_sdl2/main.cc` 的行数与可读性。
 
 **SDK 易用性的硬性要求**（进 CI/评审清单）：
 - 零配置可用：`xmedia::Player p; p.SetDataSource(url); p.PrepareAsync();` 就能出画出声（自动探测平台后端）
@@ -336,10 +331,10 @@ xmedia-kit/
 │                                · task 414 · threading 367 · synchronization 315），
 │                                只链 xmedia::base，见 docs/EXAMPLES.md §7
 ├── third_party/             ⬜ 按设计保持为空（不 vendor）
-└── docs/                    ✅ 12 篇编号卷（01–04 + 06–08 + 10–14）+
-                             PROGRESS · BUILDING · TODO · API（Doxygen 生成，
-                             apidocs 门禁零 warning）· COOKBOOK ·
-                             TROUBLESHOOTING · EXTENDING · PERFORMANCE ·
+└── docs/                    ✅ 编号卷 01–04 + 06 · GL 模块独立使用指南 ·
+                             管线多源改造设计 · PROGRESS · BUILDING · TODO ·
+                             COOKBOOK · TROUBLESHOOTING · EXTENDING ·
+                             PERFORMANCE ·
                              CHANGELOG · TOOLS（tools/ 逐文件）· EXAMPLES
                              （examples/ 逐文件）· LEARNING-media（media/ 入门）
                              + archive/（1–9 轮进度 · 09 Linux 方案）+ reviews/

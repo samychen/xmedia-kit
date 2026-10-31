@@ -47,4 +47,4 @@ cmake --build build && ./build/consumer
 - CPack：release 机上 `cpack -G TGZ`（+ `DEB`）各一次，`dpkg -c` 核对文件
   清单，再在 README 挂下载链接。
 
-返回：[README](../README.md) ｜ [docs/10 §9 打包与集成](docs/10-SDK易用性设计.md)
+返回：[README](../README.md) ｜ 打包与集成约定见本目录各文件

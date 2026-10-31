@@ -1,6 +1,6 @@
 # TODO · 未完成工作
 
-> 与 [12-剩余工作清单](12-剩余工作清单.md)（剩余工作权威清单）和
+> 与
 > [PROGRESS.md](PROGRESS.md)（当前状态速览）互补。
 > 本文件只收**未完成**工作；已完成项已移出，详见 12 / PROGRESS。
 
@@ -47,7 +47,7 @@
 | 缩略图 / seek preview | ✅ **已接线（2026-10-28）**：`get-frame-mode` 进注册表并落到 `DefaultRendererFactory::Deps::disable_video_output`（与 nodisp 同开关、不同意图——取帧不要屏），解码腿照常喂 compositor，取帧走 `Player::TakeSnapshot`。**批量半边也已落地**：`PreviewFrames()`（`media/transcode/ffmpeg_preview_job.h`）+ `xmedia-inspect preview -o <dir> --start S --count N [--interval S]`。seek 落在目标**之前**的关键帧上会让整段预览都是同一幅画，所以落盘前按时间戳丢弃早于目标的帧（`--start 0.5` 拿到的就是 500 ms，不是 0 ms）|
 | 解码器事件（`kDecoderOpened` / `kDecoderFallback`） | ✅ **已接通（2026-10-28）**：两个事件此前零生产者（名字只进了 `VideoRendererImpl` 的 LOG(INFO)）。新通道 `DecoderStream → 两个子 renderer → RendererImpl::ForwardDecoderEvent → PipelineImpl → PlayerImpl → EventHub`，另有四个查询（`video_decoder_name` / `audio_decoder_name` / `video_decoder_opaque` / `decoder_fallback_count`），因为宿主通常在播放起来之后才问。两个实测坑：给 `ForwardDecoderEvent` 绑 `WeakPtr` 会在 S3/S4 上 CHECK 中止（改 `Unretained`，同 `ReportError`）；回调参数是 `(type, from, to, reason, opaque)`，把名字填进 `from` 会让每次「打开」都像「回落」 |
 | HDR / tone mapping | ✅ **已落地（2026-10-28）**：检测（PQ `smpte2084` / HLG `arib-std-b67` + Dolby Vision/HDR10+）+ `kHdrUnsupported` 上报 + **真 tone mapping**。渲染器只有 8-bit SDR 一条输出，把 PQ 码值当 SDR 交给 sws 会丢掉整条传输函数：实测同一帧 naive 平均亮度 122、正确 Hable 235。实现走 FFmpeg `zscale=t=linear:npl=<峰值>` → `tonemap=hable:desat=0.5` → `zscale=t=bt709`，在 `VideoConverter::Convert` 里**排在 libyuv/sws 之前**（libyuv 矩阵硬编码 BT.601，sws 没有传输函数概念，两者对 HDR 都错得无声）。`npl` 取自 mastering-display 侧数据的真实峰值，没有元数据时交给 zscale 用传输函数默认值。判据三层：单元测试比较 tone-mapped 与 naive 的像素差（关掉后报 148 vs 148）、e2e 量输出平均亮度（关掉后报 123.4）、SDR 不进 tonemapper（按位深判会把 10-bit SDR 压黑）。**zimg 直连方案不成立**：libzimg 无 tone mapping API（nm 查零个 tonemap 符号），压缩曲线在 FFmpeg 的 tonemap filter 里 |
-| PBO 上传 | ❌ 未实现。`render_perf_stats.h` 的 `kPbo` 是**预留枚举**——抄 MediaComponent 的 `UploadPath` 词汇表时一并搬过来的，本树从未有生产者（名字/JSON/单测都齐，唯独没有赋值点）。它是软解时代的中间态：只把 1080p 那 8.2 ms 的同步拷贝**搬出渲染线程**，字节数一点没少（每帧 3.1 MB 照样过总线）；能零拷贝的平台上多余，没零拷贝的平台上应直接做 [12 §1](12-剩余工作清单.md) 的 3.1/3.2。见 [07 §11.3](07-测试策略与可观测性.md) |
+| PBO 上传 | ❌ 未实现。`render_perf_stats.h` 的 `kPbo` 是**预留枚举**——抄 MediaComponent 的 `UploadPath` 词汇表时一并搬过来的，本树从未有生产者（名字/JSON/单测都齐，唯独没有赋值点）。它是软解时代的中间态：只把 1080p 那 8.2 ms 的同步拷贝**搬出渲染线程**，字节数一点没少（每帧 3.1 MB 照样过总线）；能零拷贝的平台上多余，没零拷贝的平台上应直接做零拷贝上传路径 |
 | 真色彩管理 | ❌ 无。仅 YUV→RGB 矩阵，无 gamut/EOTF/ICC/HDR→SDR |
 
 ---
@@ -121,7 +121,7 @@ FORMAT/CODEC 透传项。它们的 `PlayerConfig` 字段同样多数无人读；
 | Linux 显示侧零拷贝（VAAPI→EGL） | 需 Linux + VAAPI 设备 |
 | Windows 显示侧零拷贝（D3D11-GL） | 需 Windows + D3D11 环境 |
 | 硬解性能对照（4K CPU < 15%） | 需 4K 样本入库 |
-| **E5 硬件编码本体** | 需 Apple Silicon 或 Linux VAAPI 机器。本机 Intel i5-8279U 上 `h264_videotoolbox` 建不了压缩会话（`-12903`，`allow_sw=1` 才行＝软件实现）；编码链路本身已实测通，见 [12 §1](12-剩余工作清单.md) |
+| **E5 硬件编码本体** | 需 Apple Silicon 或 Linux VAAPI 机器。本机 Intel i5-8279U 上 `h264_videotoolbox` 建不了压缩会话（`-12903`，`allow_sw=1` 才行＝软件实现）；编码链路本身已实测通 |
 | soak 48h | Phase 4 剩余（见 12 §2）；脚本就绪，缺 CI 长跑机 |
 
 > **已从本节移出**：RTMP / RTSP / SRT 播放验收（实测全绿，MediaMTX v1.21.2
@@ -132,7 +132,7 @@ FORMAT/CODEC 透传项。它们的 `PlayerConfig` 字段同样多数无人读；
 > **Qt 门面**也从本节移出了：它不属环境阻塞。骨架已在 `apps/player_qt` 跑通
 > （QObject 桥 + 两条上屏路径；起时间线显示真实 `MediaInfo`，判据是
 > `tests/unit/qt/` 的 8 条），剩余的是把 `player/qt/` 抽成可复用库，见
-> [12 §2](12-剩余工作清单.md) 的 4.2 行。CI 一侧已补上：新增 `qt` preset 与 `qt`
+> CI 一侧已补上：新增 `qt` preset 与 `qt`
 > job（Ubuntu 24.04 装 Qt 6.4.2），本地 `XMEDIA_QT_PREFIX=... tools/gate_local.sh
 > --jobs qt` 可复刻，见同表 4.10 行与 [BUILDING §3.9](BUILDING.md)。
 

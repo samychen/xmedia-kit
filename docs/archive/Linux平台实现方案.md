@@ -4,9 +4,9 @@
 > `platform/linux/` 目录从未落地（`linux-native` preset 至今仍是 `FATAL_ERROR`），
 > Linux 出画由 SDL2 后端交付。全文 29 处 `platform/linux/*` 路径均指向不存在的目录。**
 > 保留为决策记录（当时为什么选双后端、dlopen 弱依赖、xvfb 验收），**不作为当前状态的依据**；
-> 当前状态以 [PROGRESS.md](../PROGRESS.md) 与 [12-剩余工作清单](../12-剩余工作清单.md) 为准。
+> 当前状态以 [PROGRESS.md](../PROGRESS.md) 为准。
 
-> 上一篇：[08 实施路线图与风险](../08-实施路线图与风险.md) ｜ 返回：[README](../../README.md)
+> 返回：[README](../../README.md)
 
 > **实现状态**：本篇是设计文档，描述目标形态。**当前已落地到哪一步以
 > [PROGRESS.md](../PROGRESS.md) 为唯一真相源**；两者的差异（已实现 / 计划中）在 PROGRESS.md 里逐项标注。
@@ -78,7 +78,7 @@ scoped_refptr<PlatformBackend> LinuxBackend::Detect(const PlayerConfig& config) 
 }
 ```
 
-**探测失败不报错，而是降级并记日志** —— SDK 的第一原则是"能跑就先跑起来"（见 [docs/10](10-SDK易用性设计.md)）。
+**探测失败不报错，而是降级并记日志** —— SDK 的第一原则是"能跑就先跑起来"。
 
 ---
 
@@ -458,7 +458,7 @@ VAAPI 解码（可选，M14+）
 
 ### 8.4 `examples/headless/` + `examples/stats_dump/` + `examples/xmedia_inspect/`
 
-见 [07 §11.3](07-测试策略与可观测性.md) 与 [10 §7](10-SDK易用性设计.md)。
+见 fd 生命周期各节。
 
 ---
 
@@ -513,7 +513,7 @@ llvmpipe 软渲染下阈值放宽（`--min-frames 100`、`--max-av-diff-ms 60`�
 | L9 | 容器/CI 无 GPU、无 X server | xvfb + llvmpipe（§9）；`NullVideoRendererSink` 兜底 |
 | L10 | `libGL.so.1` 在某些 minimal 镜像里叫 `libGL.so` 或不存在 | dlopen 多候选名 + 优雅降级到 NullSink（§6） |
 | L11 | 宿主进程 fork 后 GL context 失效 | 文档明确：不支持 fork-after-init；`GlobalInit()` 注册 `pthread_atfork` 在子进程标记 backend 失效并 LOG(FATAL) |
-| L12 | 长时间播放后 fd 泄漏（dmabuf / wl_buffer / XShm） | `FdGuard` 类 + 压力测试采样 `/proc/self/fd` 数量（[07 §9](07-测试策略与可观测性.md)） |
+| L12 | 长时间播放后 fd 泄漏（dmabuf / wl_buffer / XShm） | `FdGuard` 类 + 压力测试采样 `/proc/self/fd` 数量） |
 | L13 | Wayland 下 `wl_display_dispatch` 与 render 循环竞争导致 100% CPU | 用 `wl_display_prepare_read_queue` / `read_events` / `dispatch_queue_pending` 三段式，配合 `poll()` 超时而非忙等 |
 | L14 | SDL2 后端在 Wayland 上默认走 XWayland，模糊 | 检测并 `SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR, ...)`；文档说明可用原生后端获得清晰渲染 |
 
@@ -521,7 +521,7 @@ llvmpipe 软渲染下阈值放宽（`--min-frames 100`、`--max-av-diff-ms 60`�
 
 ## 11. Linux 后端契约测试
 
-两个后端跑同一套（见 [07 §3](07-测试策略与可观测性.md)）：
+两个后端跑同一套：
 
 ```cpp
 INSTANTIATE_TEST_SUITE_P(AllVideoSinks, VideoRendererSinkContract,

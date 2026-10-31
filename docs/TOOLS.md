@@ -23,7 +23,6 @@
 | 验证协议能不能播 | `check_protocols.py`（HLS/HTTP）· `check_live_protocols.py`（RTMP/RTSP/SRT） |
 | 验证弱网不挂死 | `tools/check_weaknet.py` |
 | 长跑看内存曲线 | `tools/run_soak.py` |
-| 改了公共头，重生成 API 文档 | `tools/gen_api_docs.sh` |
 | 装依赖 | `setup_ffmpeg.sh` / `setup_glfw.sh` |
 
 ---
@@ -39,12 +38,12 @@ GitHub Actions**（代理掐掉了 api.github.com），而 CI 是"这棵树是�
 19 个 job（`ALL_JOBS`）：
 
 ```
-inv fmt lint tidy apidocs commentcov apicompat bench e2ecpu macos capi qt \
+inv fmt lint tidy commentcov apicompat bench e2ecpu macos capi qt \
 core ffmpeg e2e asan tsan ubsan coverage
 ```
 
 映射关系（脚本头注释有完整表）：`inv`→`check_invariants.py`、`fmt`→check-format、
-`lint`→check-cpplint、`tidy`→check-clang-tidy、`apidocs`/`commentcov`/`apicompat`→
+`lint`→check-cpplint、`tidy`→check-clang-tidy、`commentcov`/`apicompat`→
 同名 CI job、`macos`/`capi`/`qt`/`core`/`ffmpeg`/`e2e`→对应 preset 的 build+ctest。
 
 ### 1.2 `check_invariants.py` — 结构不变量
@@ -77,7 +76,7 @@ core ffmpeg e2e asan tsan ubsan coverage
 
 ### 1.3 `check_comment_coverage.py` — V9 注释覆盖率
 
-[10 §5](10-SDK易用性设计.md) 要求每个公共方法的注释回答四个问题：做什么、哪个
+注释门禁要求每个公共方法的注释回答四个问题：做什么、哪个
 线程/是否阻塞、何时失败返回什么、副作用/发什么事件。§12 把它变成可查项 V9：
 **存在率 ≥95%**（四维度齐全率默认 0，只报告）。
 
@@ -90,7 +89,7 @@ core ffmpeg e2e asan tsan ubsan coverage
 
 ### 1.4 `check_api_compat.py` — V10 API 兼容性
 
-次要版本升级不能让已有用户代码编不过（[10 §4](10-SDK易用性设计.md)）。**不调用上游
+次要版本升级不能让已有用户代码编不过（语义化版本约定）。**不调用上游
 的 abi-compliance-checker**（要 Perl + abi-dumper + 完整编译产物），而是用 V9 同一套
 状态机抽出**声明出来的**公共 API 表面，与 `api_baseline.json` 比对。
 
@@ -119,28 +118,13 @@ GlApi::Load(NativeGLContext*)` 里的 "eGL" 被当成 EGL 依赖——**一个�
 
 ### 1.6 `check_coverage.py` — 覆盖率门禁
 
-[07 §12](07-测试策略与可观测性.md) 的阈值是**分模块、分指标（行 + 分支）**的，还有
+覆盖率阈值是**分模块、分指标（行 + 分支）**的，还有
 两个模块被要求 100% 行覆盖。这些状态塞不进 shell 一行式；而"只有 CI 能跑的 YAML 块"
 正是门禁腐烂的形状。前一版是 `lcov --summary ... || true`——**构造上就不可能失败**。
 
 两种模式：默认（绝对值）是规约的可执行形式；`--ratchet` 把今天测到的数当地板，
 让覆盖率只能涨。**阈值不可从命令行调**：能让一次 CI 调用悄悄放过一个本该红的构建，
 正是 `|| true` 的那个失效模式。
-
-### 1.7 `gen_api_docs.sh` — `docs/API.md` 生成 + 文档门禁
-
-验收判据是 **doxygen 零 warning**，这里用两种方式断言：`WARN_AS_ERROR=YES` 让
-doxygen 自己非零退出，另外直接检查 WARN_LOGFILE——warning 既不能悄悄过，也不能藏在
-零退出码后面。缺 doxygen 是**硬失败（rc 2）不是跳过**。
-
-第三道门：INPUT_FILTER 必须真的跑过。doxygen 在 filter 输出为空时**是静默的**——空流
-解析成空文件，两道 warning 门全绿而每个 brief 都没了。这个假绿在本地真出现过
-（doxygen 用 stdin 传文件且**不带 argv**，filter 于是打印了它的用法行）。
-
-管线：`docs/Doxyfile`（XML 后端 + INPUT_FILTER）→ `doxy_xml_to_md.py` → `docs/API.md`。
-**`docs/API.md` 是生成物，禁止手改**；门禁判据是重新生成零 diff。
-
----
 
 ## 2. 度量（性能）
 
@@ -239,10 +223,8 @@ tools/bench_render.sh [build-dir] [seconds-per-clip] [canvas WxH]
 | `option_map.py` | legacy 选项键 → `PlayerConfig` 字段的映射表（数据）。kind 解释了迁移不是恒等的：三个键取反、 `volume` 换量程（Δ6，0..100→0.0..1.0）、四个键把毫秒送进 `base::TimeDelta` |
 | `extract_constants.py` | 风险 R1（A/V 同步阈值抄错）的缓解措施 4："阈值用本工具提取，**禁止手抄**"。三方交叉：`ffplay #define` ⟷ xmedia-kit 代码 ⟷ docs/05 表 7 |
 | `ported_constants.py` | 移植常量表（数据）。**单位在这里声明，绝不推断**：ffplay 自己就不一致（`AV_SYNC_THRESHOLD_MIN` 是 0.04 秒，`MAX_SLEEP` 是 1000000 微秒，`AV_NOSYNC_THRESHOLD` 是 10.0——一个整数秒，任何"是不是浮点"的启发式都分不出它和"10 个别的东西"） |
-| `doxy_xml_to_md.py` | doxygen XML → `docs/API.md`。由 `gen_api_docs.sh` 调用，不单独跑 |
-| `doxygen_comment_filter.py` | doxygen 的 INPUT_FILTER：把仓库用的**前置 `//` 块**与**尾注**改写成 doxygen 认得的 `///` / `///<`。不重写纯分隔线块（挂到下一个成员会变成它的 brief，比丢掉更糟）；跟踪引号状态，所以 `"http://x"` 不会被当注释 |
 | `gcov_to_lcov.py` | macOS 缺 `lcov`、Apple clang 的 gcov 也不出那个格式，于是把 `.gcov` 文本转成 tracefile，让门禁只有**一种**输入格式。**行数是精确的，分支是近似的**（gcov 只说"71% taken"，不说跑了多少次：是否执行过是精确的，执行多少次是编的） |
-| `golden_diff.py` | golden 对拍的 **diff 件**（[07 §7](07-测试策略与可观测性.md)）。按容差分级判 pass/fail，有意差异走 `allowlist.yaml`。**诚实边界写在文件头**：0.1.0 没有可对比的基线（录制要 legacy 原版，被 Q8 卡住），所以 CI 不跑对拍；`audio.checksum` 按**严格相等**判（它是 CRC32，32 bit 摘要表达不了"差 1 LSB"） |
+| `golden_diff.py` | golden 对拍的 **diff 件**。按容差分级判 pass/fail，有意差异走 `allowlist.yaml`。**诚实边界写在文件头**：0.1.0 没有可对比的基线（录制要 legacy 原版，被 Q8 卡住），所以 CI 不跑对拍；`audio.checksum` 按**严格相等**判（它是 CRC32，32 bit 摘要表达不了"差 1 LSB"） |
 
 ---
 

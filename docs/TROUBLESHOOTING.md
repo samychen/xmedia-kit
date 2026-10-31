@@ -4,7 +4,7 @@
 > 代码路径（2026-10-18，M13 第八波整理）。排查三件套：
 > `player.DumpDiagnostics()`（运行中快照）、`xmedia-inspect probe <url>`
 > （离线容器诊断）、`kError` 事件的三段式错误
-> （summary / detail / suggestion，[V5](10-SDK易用性设计.md)）。
+> （summary / detail / suggestion 三段式）。
 >
 > **先看错误本身**：xmedia-kit 的每个 `MediaError` 都带 suggestion，别跳过它
 > 直接猜。
@@ -202,4 +202,4 @@ media 层的阶段日志（`open-input` / `find-stream-info` 等）也走同一�
 | 日志 | `SetMinLogLevel` / `logging_delegate` | T13 |
 
 返回：[README](README.md) ｜ 配方见 [COOKBOOK](COOKBOOK.md) ｜ 错误约定见
-[10 §4](10-SDK易用性设计.md)
+语义化版本约定

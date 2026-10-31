@@ -1,7 +1,7 @@
 # COOKBOOK · 常见任务配方
 
 > 每条配方都是**可编译的真实代码**：签名逐个对照 `player/public/` 头文件核过
-> （2026-10-18，M13 第八波）。目录引自 [10 §8](10-SDK易用性设计.md)，其中两条
+> （2026-10-18，M13 第八波）。其中两条
 > 与现实不符的已按代码改正并在文末「与设计目录的差异」登记。
 >
 > 每条格式：**场景 → 代码 → 注意 → 相关配置**。代码省略了 `#include
@@ -27,7 +27,7 @@ if (const xmedia::Status s = player.PrepareAsync(); !s) { /* ... */ }
 ```
 
 > `Status` 是 `base::expected<void, MediaError>`：`!s` 即失败，`s.error()` 取
-> 三段式详情（summary / detail / suggestion，见 [V5](10-SDK易用性设计.md)）。
+> 三段式详情（summary / detail / suggestion 三段式）。
 > 析构前用 `StopSync(timeout)` 而不是 `Stop()`：后者异步，拆窗口会竞态
 > （examples/play_sdl2.cc 的 L6 注释有完整说明）。
 
@@ -425,5 +425,4 @@ std::unique_ptr<xmedia::Player> player = std::move(*built);
 > 逐条编译（已建目标 `doc_snippets`，编译并运行通过；剩余条目的 snippet
 > 与 CI 接入见 M13 第九波）。
 
-返回：[README](README.md) ｜ 相关：[10 SDK 易用性设计](10-SDK易用性设计.md) ·
-[11 行为规范卷](11-行为规范卷.md) · [TROUBLESHOOTING](TROUBLESHOOTING.md)
+返回：[README](../README.md) ｜ 相关：[TROUBLESHOOTING](TROUBLESHOOTING.md)

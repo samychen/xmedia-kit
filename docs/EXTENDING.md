@@ -190,7 +190,7 @@ auto mine = media::NativeDisplay::Wrap(ptr, media::NativeDisplayKind::kGlfwWindo
 ## 5. 平台后端与 GL
 
 - `render/gl/` 是**独立模块**（glad2 内嵌、零 media 依赖，C28），可以单独使用：
-  见 [13-GL模块独立使用指南](13-GL模块独立使用指南.md)。
+  见 [GL模块独立使用指南](GL模块独立使用指南.md)。
 - 加一个新后端（比如 Win32）：`platform/win32/` 下实现 sink 工厂 + 后端选择，
   经 `render.linux_backend`/平台等价键接入自动探测链；**可移植代码不要放进
   `platform/`**（会被门禁按目录规则拦）。

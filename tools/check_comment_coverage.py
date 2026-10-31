@@ -30,7 +30,7 @@ people to write noise).
 
 Scope: public sections of classes/structs in player/public/**/*.h, plus the
 file-level C ABI functions in player/public/c/xmedia_c.h. Two exclusions
-match docs/Doxyfile's (same surface, same rule): xmedia_c_internal.h and
+match the API-surface rule (same surface, same rule): xmedia_c_internal.h and
 xmedia_c_export.h are implementation-side, and special members
 (constructors, destructors, operator overloads) are not counted -- their
 behaviour is fixed by the language and the class contract. Data-only structs
@@ -319,7 +319,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
             # whatever keywords the banner happens to carry ("thread-safe,
             # non-blocking" in the Queries banner), which is exactly the
             # false-positive shape a comment gate must not have. Same rule as
-            # tools/doxygen_comment_filter.py applies to banners.
+            # the same banner convention the API docs used to apply.
             if re.match(r"^[-=*_#]{3,}", body):
                 continue
             if pending_gap:
@@ -453,7 +453,7 @@ def parse_header(text: str, path: str) -> list[Decl]:
     return decls
 
 
-# Same exclusions as docs/Doxyfile: these two are implementation-side files,
+# Same exclusions as the API surface: these two are implementation-side files,
 # not the public surface.
 EXCLUDED_NAMES = {"xmedia_c_internal.h", "xmedia_c_export.h"}
 

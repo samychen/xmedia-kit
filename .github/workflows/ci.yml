@@ -886,31 +886,6 @@ jobs:
                          'platform/*.cc' 'tools/*.cc' | grep -v 'legacy/')
           "$RUNNER_TEMP/cpplint-venv/bin/cpplint" --repository=. $files
 
-  # docs/10 §12 acceptance criterion: doxygen over player/public with ZERO
-  # warnings. tools/gen_api_docs.sh asserts that itself three ways
-  # (WARN_AS_ERROR, the warn-log, and stderr), so a warning can neither pass
-  # silently nor hide behind a zero exit.
-  #
-  # The third assertion in that script exists because of a failure mode found
-  # locally: doxygen is SILENT when an INPUT_FILTER produces empty output --
-  # an empty stream parses as an empty file, so zero warnings survive while
-  # every brief is gone and API.md degrades to bare signatures. The script
-  # therefore also asserts the XML actually carries prose.
-  #
-  # The final `git diff --exit-code` is the part that makes this a gate rather
-  # than a generator: editing a player/public comment without regenerating
-  # docs/API.md is a review failure this catches mechanically.
-  apidocs:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen
-      - name: Regenerate docs/API.md, expect zero doxygen warnings
-        run: |
-          tools/gen_api_docs.sh
-          git diff --exit-code docs/API.md
-
   # docs/10 §12 acceptance criterion (V9): every public method's comment in
   # player/public answers four questions (what / thread+blocking / failure /
   # side effects), and coverage of declarations that HAVE a comment is >= 95%.
@@ -1000,6 +975,6 @@ jobs:
 
   # Every style gate the project keeps is now present and blocking:
   # check-format, check-clang-tidy and check-cpplint. Still open
-  # (docs/12-剩余工作清单.md): check-no-vendor-leak, the coverage job (a
+  # the release checklist: check-no-vendor-leak, the coverage job (a
   # `lcov --summary || true` that cannot fail), and the ffmpeg-matrix /
   # e2e-linux jobs, both still `if: false`.
