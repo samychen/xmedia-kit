@@ -6,9 +6,11 @@
 //
 // When the toolchain provides <expected> (C++23), base::expected *is*
 // std::expected. Otherwise a minimal in-house implementation with the same
-// subset of the interface is used, so xmedia-kit builds on GCC 10-12 / Clang 14.
+// subset of the interface is used, so xmedia-kit builds on GCC 10-12 / Clang
+// 14.
 //
-// IMPORTANT: xmedia-kit is built with -fno-exceptions. In the std::expected branch
+// IMPORTANT: xmedia-kit is built with -fno-exceptions. In the std::expected
+// branch
 // (this toolchain), value() on an unexpected value throws
 // std::bad_expected_access, which is uncaught and terminates the process; the
 // in-house fallback branch CHECK-fails instead -- so under the project's build

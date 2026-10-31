@@ -111,7 +111,8 @@ OptionRegistry::OptionRegistry() : impl_(std::make_unique<Impl>()) {
   // PlayerImpl::SeekTo consults before honouring SeekMode::kAccurate.
 
   // get-frame-mode: legacy's "decode, don't render" thumbnail mode. The
-  // xmedia-kit effect is the same render.disable_video_output flag nodisp drives
+  // xmedia-kit effect is the same render.disable_video_output flag nodisp
+  // drives
   // -- the video leg keeps decoding and feeding the compositor (so
   // Player::TakeSnapshot works headlessly), nothing reaches a window -- but
   // it is a separate KEY because the intent differs: nodisp says "I have no

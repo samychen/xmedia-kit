@@ -66,7 +66,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/base/renderer_client.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/timed_text.h"
@@ -122,6 +122,12 @@ class XMEDIA_MEDIA_EXPORT Pipeline {
                                    const std::string& to_decoder,
                                    const std::string& reason) {}
     virtual void OnTimedText(const media::TimedTextCue& /*cue*/) {}
+    // Wall-clock anchor from a source that carries one (HLS
+    // EXT-X-PROGRAM-DATE-TIME): |epoch_ms| is the UTC time of |media_time| on
+    // that source's timeline. Default no-op so pipeline tests compile
+    // unchanged; PlayerImpl overrides it to cache the anchor and raise
+    // EventType::kUtcTime.
+    virtual void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {}
 
    protected:
     Client() = default;
@@ -235,7 +241,8 @@ class XMEDIA_MEDIA_EXPORT Pipeline {
   virtual int GetVideoStreamId() const = 0;
   virtual int GetTextStreamId() const = 0;
 
-  // Add/Remove{Video,Audio,Text}Stream describe a shape xmedia-kit does not have.
+  // Add/Remove{Video,Audio,Text}Stream describe a shape xmedia-kit does not
+  // have.
   //
   // They came from Chromium's MediaResource, where one resource can carry
   // several streams of the same type and `id` selects among them. xmedia-kit's

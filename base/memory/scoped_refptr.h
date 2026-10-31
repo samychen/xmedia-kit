@@ -4,7 +4,8 @@
 //
 // API mirrors Chromium's `base/memory/scoped_refptr.h` (BSD-3-Clause).
 //
-// xmedia-kit uses scoped_refptr (not std::shared_ptr) for ref-counted media objects
+// xmedia-kit uses scoped_refptr (not std::shared_ptr) for ref-counted media
+// objects
 // such as media::DecoderBuffer and media::VideoFrame, matching Chromium. It is
 // smaller (no weak count), has no exception paths, and interoperates with the
 // REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE() guard.

@@ -4,7 +4,8 @@
 //
 // Mirrors Chromium's `media/base/renderer_factory.h` (BSD-3-Clause) in role,
 // not in signature: Chromium's version is a selector over mojo/renderer types
-// for the browser process, whereas xmedia-kit's is the seam through which the SDK
+// for the browser process, whereas xmedia-kit's is the seam through which the
+// SDK
 // facade injects platform backends. That difference is deliberate and is the
 // mechanism behind the "zero configuration works" requirement in docs/10 §2.
 //

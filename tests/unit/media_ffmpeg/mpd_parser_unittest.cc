@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
+
 #include "media/ffmpeg/mpd_parser.h"
 
 #include "gtest/gtest.h"
@@ -45,6 +47,20 @@ TEST(MpdParserTest, ParsesRepresentationsAndSegmentTemplates) {
   EXPECT_EQ(v720.segment_urls[5], "http://cdn/live/v720/5.m4s");
   EXPECT_EQ(v720.segment_duration, base::Seconds(2));
   EXPECT_EQ(v720.total_duration, base::Seconds(10));
+}
+
+TEST(MpdParserTest, ParsesTheTsFixtureManifest) {
+  std::ifstream in(std::string(XMEDIA_TESTDATA_DIR) + "/dash/local.mpd");
+  ASSERT_TRUE(in.good());
+  std::string body((std::istreambuf_iterator<char>(in)),
+                   std::istreambuf_iterator<char>());
+  auto mpd = ParseMpd(body, "file://" XMEDIA_TESTDATA_DIR "/dash/local.mpd");
+  ASSERT_TRUE(mpd.has_value()) << mpd.error().summary();
+  ASSERT_EQ(mpd->representations.size(), 1u);
+  EXPECT_EQ(mpd->representations[0].mime_type, "video/mp2t");
+  EXPECT_EQ(mpd->representations[0].segment_urls.size(), 2u);
+  EXPECT_EQ(mpd->representations[0].segment_duration, base::Seconds(1));
+  EXPECT_EQ(mpd->representations[0].total_duration, base::Seconds(2));
 }
 
 TEST(MpdParserTest, StartNumberOffsetsTheSequence) {

@@ -4,12 +4,14 @@
 //
 // The Qt video output endpoint.
 //
-// WHY THIS SHAPE. xmedia-kit already ships three window-system sinks (SDL2, GLFW,
+// WHY THIS SHAPE. xmedia-kit already ships three window-system sinks (SDL2,
+// GLFW,
 // EGL) and all three are thin adapters over GlVideoSink: the backend only
 // supplies a NativeGLContext and the shared sink does the drawing. Qt is not
 // one of those, because Qt insists on owning the paint of its own window, and
 // a GL context bound to a QQuickWindow cannot legally be made current from
-// xmedia-kit's render thread. Rather than add a fourth window-system backend, this
+// xmedia-kit's render thread. Rather than add a fourth window-system backend,
+// this
 // app takes the seam xmedia-kit already exposes for exactly this case: a custom
 // VideoRendererSink. It renders nowhere, polls the compositor at display rate,
 // and hands each frame to the GUI thread through a FrameMailbox.
@@ -17,7 +19,8 @@
 // The cost is one YUV->RGB conversion and one texture upload per painted
 // frame, on the CPU. That is fine for a UI skeleton and for 1080p30; a
 // production player should grow a platform/qt/ backend with a NativeGLContext
-// (5 methods -- see render/gl/native_gl_context.h) and let xmedia-kit draw straight
+// (5 methods -- see render/gl/native_gl_context.h) and let xmedia-kit draw
+// straight
 // into Qt's FBO. The public shape of this file would not change.
 
 #ifndef XMEDIA_PLAYER_QT_QT_VIDEO_SINK_H_

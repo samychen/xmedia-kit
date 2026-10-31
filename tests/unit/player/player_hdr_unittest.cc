@@ -156,7 +156,8 @@ TEST(PlayerRotationChangedTest, RotatedSourceReportsTheEvent) {
   EXPECT_EQ(probe.rotation_events.load(), 1)
       << "a rotated source produced no kRotationChanged event";
   // 270, not 90, and that is not a bug: av_display_rotation_get() reports the
-  // angle COUNTERCLOCKWISE, while xmedia-kit's rotation is CLOCKWISE everywhere it
+  // angle COUNTERCLOCKWISE, while xmedia-kit's rotation is CLOCKWISE
+  // everywhere it
   // is consumed (gl_layer_geometry.cc's kCosSin table is labelled clockwise,
   // and NaturalSizeForRotation only cares about quarter turns). The demuxer
   // negates to convert, so a 90-degree counterclockwise display matrix is a

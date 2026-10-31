@@ -9,7 +9,8 @@
 
 namespace xmedia::base::internal {
 
-// CHECK/DCHECK failure path. xmedia-kit is built with -fno-exceptions, so a failed
+// CHECK/DCHECK failure path. xmedia-kit is built with -fno-exceptions, so a
+// failed
 // check logs at FATAL severity (which aborts) and then aborts unconditionally,
 // matching Chromium's behaviour.
 CheckOpStreamHelper::~CheckOpStreamHelper() {

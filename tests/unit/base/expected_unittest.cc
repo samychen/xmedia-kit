@@ -75,7 +75,8 @@ TEST(ExpectedTest, MacrosPropagateErrors) {
 TEST(ExpectedTest, ExplicitConstructionAvoidsBoolAmbiguity) {
   // expected<bool, long> would silently accept 123L as a *value* under the
   // standard's implicit conversion rules. Constructing explicitly from the
-  // intended type is the guard, since xmedia-kit does not ship base::ok (see the
+  // intended type is the guard, since xmedia-kit does not ship base::ok (see
+  // the
   // note in base/types/expected.h).
   // A named bool rather than static_cast<bool>(true): the literal `true` is
   // already a bool, so that cast is a no-op that -Wuseless-cast (debug preset,

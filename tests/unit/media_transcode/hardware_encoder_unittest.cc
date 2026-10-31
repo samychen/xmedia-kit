@@ -41,7 +41,8 @@ namespace ff = ::xmedia::media::ffmpeg;
 
 // Not 16x16 like the software tests: hardware encoders work in macroblocks and
 // some reject dimensions they cannot tile, which would make a failure here
-// look like an xmedia-kit bug. 320x240 is 16-aligned and small enough to stay fast.
+// look like an xmedia-kit bug. 320x240 is 16-aligned and small enough to stay
+// fast.
 constexpr int kWidth = 320;
 constexpr int kHeight = 240;
 // One second of 30 fps. Hardware encoders may buffer frames before emitting

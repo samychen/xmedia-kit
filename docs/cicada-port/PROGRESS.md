@@ -1,9 +1,18 @@
 # CicadaPlayer 能力移植进度（PROGRESS）
 
-> 活文档。恢复执行协议见 [PLAN.md](PLAN.md) §2：接手者读本表，从第一个未完成任务继续。
-> 状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
+> 活文档。状态标记：`[ ]` 未开始 · `[~]` 进行中（必须带 `since:` 时间戳）· `[x]` 完成（带证据）。
+> 原计划书 PLAN.md（范围裁决 §0 / DoD §1 / 核销表 §1.5）已随文档精简移除，内容可经
+> `git log --all -- docs/cicada-port/PLAN.md` 找回；本表自足记录剩余与完成。
 
-**当前整体状态**：全部完成（T1–T9，2026-10-29）。
+**当前整体状态**：T1–T9 完成（2026-10-29）+ T8 三条延伸收口（UTC/追帧/DASH 静态，2026-10-31）；余 DASH 动态侧为登记后续。
+
+## 剩余移植工作（PLAN §0 裁决为"部分"或"后置"的部分）
+
+- [x] **T8a UTC 同步**（2026-10-31）：`hls::ParseIsoDateTimeMs`（自研 days-from-civil，Z/±HH[:]MM/闰日）+ `Segment::program_date_time_ms` 解析 EXT-X-PROGRAM-DATE-TIME；demuxer 经 `Host::OnUtcAnchor` 发布锚点（CompositeDemuxer 补转发）→ `Pipeline::Client` → `kUtcTime` 事件缓存 + `Player::GetUtcTimeMs()` 外推查询。判据 4 单测（解析 3 形状/闰日/拒绝；锚点事件 wire + 无锚拒绝）。多源时最后写入者赢（与主时间线=source 0 一致）。
+- [x] **DASH demuxer 集成（静态 SegmentTemplate）**（2026-10-31）：`media/ffmpeg/dash_segment_demuxer.{h,cc,_open,_read}`（C1 三拆）。按 mime/带宽选 Representation（TS 复用 rep 一条链覆盖多类型；fMP4 init 段取一次、逐段前拼）；逐段 FFmpegDemuxer + 统一 SegmentTemplate 网格 rebase；跨段读无缝、seek 落目标段（多链 seek 栅栏）；动态 MPD 结构化拒绝（登记后续）。`.mpd` URI 进 factory。判据 4 e2e（打开暴露流/跨段单时间线/seek/动态拒绝）。
+- [ ] **DASH 后续**（登记不 开题）：动态 MPD 重载窗口、多 Period、SegmentList/SegmentBase、代表切换（对齐 HLS 的 ABR 半边）、UTCTiming 时钟同步。
+- [x] **T8b 直播追帧**：`media/filters/live_edge_policy.*` 已落地（config.net.live_max_latency 驱动），2026-10-31 核对补记。
+- 不移植（范围裁决，勿重开题）：Android/iOS/Flutter 平台栈、MediaCodec 原生集成、HDR10(AVFoundation)、插件机制/DCA。
 
 ---
 
@@ -17,11 +26,7 @@
 - [x] **T6 外挂字幕**（SRT/VTT 解析 + Player API + ticker 发 cue）
 - [x] **T7 画面控制**（kCrop/mirror 进 GlScene + Scene 主层持久模式 + Player 四件套 API）
 - [x] **T8 直播增强 + DASH MPD 延伸**（mpd_parser SegmentTemplate 基线；完整 DASH demuxer 为登记后续项）
-- [x] **T9 总验收**（888/888 + no-ffmpeg 665/665 + invariants 全过，见 PLAN §1.5 核销）
-- [ ] **T6 外挂字幕**（media/text：SRT/VTT 解析 + 加载 API + cue 调度）
-- [ ] **T7 画面控制**（rotate/mirror/scale：player API + GL sink）
-- [ ] **T8 直播增强 + DASH MPD 延伸**（追帧配置 + UTC 事件 + mpd_parser）
-- [ ] **T9 总验收**（全构建/测试/invariants/文档登记/对照 PLAN §0 核销）
+- [x] **T9 总验收**（888/888 + no-ffmpeg 665/665 + invariants 全过，核销记录见完成表）
 
 ## 完成记录
 

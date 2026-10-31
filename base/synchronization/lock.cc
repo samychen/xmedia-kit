@@ -23,7 +23,8 @@ namespace {
 // if the reverse ordering was also observed, the two can deadlock.
 //
 // Chromium heap-allocates these and leaks them deliberately, to avoid touching
-// a thread_local after its destructor ran during AtExit. xmedia-kit does not take
+// a thread_local after its destructor ran during AtExit. xmedia-kit does not
+// take
 // locks from exit handlers, so a plain thread_local is used instead: it is
 // destroyed at thread exit and LeakSanitizer stays clean, which matters
 // because "0 leaks under LSan" is a release blocker (docs/07 §9.1).
@@ -65,7 +66,8 @@ void Lock::AssertAcquiredInOrder() {
         std::find(orders.begin(), orders.end(), forward) == orders.end()) {
       LOG(FATAL) << "Lock order inversion detected: this Lock was acquired "
                     "both before and after another Lock on the SAME thread. "
-                    "See docs/04 §3.1 for the per-thread ordering xmedia-kit locks "
+                    "See docs/04 §3.1 for the per-thread ordering xmedia-kit "
+                    "locks "
                     "must follow. NOTE: a cross-thread inversion (the classic "
                     "two-thread deadlock) is not detected by this checker.";
     }

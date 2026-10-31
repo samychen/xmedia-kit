@@ -23,6 +23,7 @@
 #include <string>
 #include <utility>
 
+#include "media/base/media_constants.h"
 #include "player/public/player_event.h"
 
 namespace xmedia {
@@ -71,6 +72,45 @@ void PlayerImpl::OnDecoderFallback(media::DemuxerStreamType type,
   payload.reason = reason;
   event_hub_.Post(EventType::kDecoderFallback, std::move(payload),
                   GetMediaTime());
+}
+
+void PlayerImpl::OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(buffer_controller_sequence_);
+  {
+    base::AutoLock scoped(snapshot_lock_);
+    has_utc_anchor_ = true;
+    utc_anchor_media_us_ = media_time.InMicroseconds();
+    utc_anchor_epoch_ms_ = epoch_ms;
+  }
+  UtcTimePayload payload;
+  payload.epoch_ms = epoch_ms;
+  payload.anchor_media_time_us = media_time.InMicroseconds();
+  event_hub_.Post(EventType::kUtcTime, std::move(payload), GetMediaTime());
+}
+
+Result<int64_t> PlayerImpl::GetUtcTimeMs() const {
+  int64_t anchor_media_us = 0;
+  int64_t anchor_epoch_ms = 0;
+  {
+    base::AutoLock scoped(snapshot_lock_);
+    if (!has_utc_anchor_) {
+      return base::unexpected(MediaError::Of(
+          ErrorCode::kInvalidState, "the source carries no utc anchor",
+          "only sources with a wall-clock mapping answer this (HLS "
+          "EXT-X-PROGRAM-DATE-TIME today)",
+          "check IsLive and the playlist's tags, or fall back to wall clock"));
+    }
+    anchor_media_us = utc_anchor_media_us_;
+    anchor_epoch_ms = utc_anchor_epoch_ms_;
+  }
+  const base::TimeDelta now = GetMediaTime();
+  if (now == media::kNoTimestamp) {
+    return base::unexpected(MediaError::Of(
+        ErrorCode::kInvalidState, "the media clock has not started",
+        "GetMediaTime answered kNoTimestamp",
+        "query again once playback started"));
+  }
+  return anchor_epoch_ms + (now.InMicroseconds() - anchor_media_us) / 1000;
 }
 
 std::string PlayerImpl::video_decoder_name() const {

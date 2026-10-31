@@ -82,6 +82,11 @@ class XMEDIA_MEDIA_EXPORT Demuxer : public MediaResource {
     virtual void OnBufferedTimeUpdate(base::TimeDelta buffered,
                                       base::TimeDelta playback_time) = 0;
     virtual void OnDemuxerError(MediaError error) = 0;
+    // The wall-clock anchor for the source's media timeline (HLS
+    // EXT-X-PROGRAM-DATE-TIME today; DASH UTCTiming later): |epoch_ms| is the
+    // UTC time of |media_time| on the demuxer's own timeline. Sources without
+    // a mapping simply never call this. Fired on the media sequence.
+    virtual void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {}
 
    protected:
     Host() = default;

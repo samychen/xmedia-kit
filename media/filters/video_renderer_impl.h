@@ -31,7 +31,8 @@
 // three reasons: 1. Decode and publish are one causal step. Splitting them
 // inserts a queue and a task hop between "the decoder produced frame N" and
 // "the compositor may show frame N", and that queue is a second place where
-// frames can be dropped, reordered or stranded after a seek. xmedia-kit already has
+// frames can be dropped, reordered or stranded after a seek. xmedia-kit
+// already has
 // one such queue (VideoFrameQueue); adding an implicit second one to satisfy a
 // table row is how ffplay ended up with pictq AND sampq AND a refresh thread.
 // 2. The compositor is internally locked (it takes base::Lock) and its read
@@ -94,7 +95,7 @@
 #include "media/filters/decoder_selector.h"
 #include "media/filters/decoder_stream.h"
 #include "media/filters/legacy/video_frame_compositor.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/filters/video_filter_stage.h"
 #include "media/media_export.h"
 

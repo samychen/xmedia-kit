@@ -35,7 +35,8 @@ bool PostTaskAndReplyWithResult(TaskRunner* task_runner,
   // The reply runs on the *calling sequence*, matching Chromium's
   // PostTaskAndReplyWithResult / PostTaskAndReply: |task| executes on
   // |task_runner| (the worker), but the result is delivered back where the
-  // async call was issued. xmedia-kit media objects are only ever touched on their
+  // async call was issued. xmedia-kit media objects are only ever touched on
+  // their
   // own sequence (docs/04 §3), so redirecting the reply onto |task_runner|
   // would let a different sequence reach into them. Capture the caller's
   // sequence now, before |task| is posted and possibly starts running.

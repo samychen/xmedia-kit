@@ -31,7 +31,7 @@
 #include "media/base/audio_decoder_factory.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decoder_config.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/base/decoder_status.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_types.h"
@@ -164,7 +164,8 @@ class XMEDIA_MEDIA_EXPORT DecoderStream {
   using EventCB = base::RepeatingCallback<void(DecoderStreamEvent)>;
 
   // Watermarks, in output units. ffplay hardcodes these as
-  // VIDEO_PICTURE_QUEUE_SIZE (16) and SAMPLE_QUEUE_SIZE (9). xmedia-kit keeps the
+  // VIDEO_PICTURE_QUEUE_SIZE (16) and SAMPLE_QUEUE_SIZE (9). xmedia-kit keeps
+  // the
   // same relationship: stop asking the demuxer at |kDecodeWatermark|, start
   // again once the queue drops to |kPreloadWatermark|. Extracted rather than
   // retyped so the correspondence stays checkable.

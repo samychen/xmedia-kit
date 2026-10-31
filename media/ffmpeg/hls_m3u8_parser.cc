@@ -118,6 +118,124 @@ std::string ResolveUrl(const std::string& base_url, std::string_view relative) {
   return dir + std::string(relative);
 }
 
+// Days from 1970-01-01 for a proleptic-Gregorian Y/M/D (Howard Hinnant's
+// algorithm). Negative for earlier dates; correct across leap years and the
+// 1900/2100 century rules.
+static int64_t DaysFromCivil(int64_t y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const int64_t era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = static_cast<unsigned>(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + static_cast<int64_t>(doe) - 719468;
+}
+
+std::optional<int64_t> ParseIsoDateTimeMs(std::string_view text) {
+  // Shape: YYYY-MM-DD(T| )HH:MM[:SS[.fff]][Z|(+|-)HH[:MM]]
+  auto digits = [&text](size_t& pos, int count) -> int {
+    if (pos + count > text.size()) {
+      return -1;
+    }
+    int value = 0;
+    for (int i = 0; i < count; ++i) {
+      const char c = text[pos + static_cast<size_t>(i)];
+      if (c < '0' || c > '9') {
+        return -1;
+      }
+      value = value * 10 + (c - '0');
+    }
+    pos += static_cast<size_t>(count);
+    return value;
+  };
+  size_t pos = 0;
+  const int year = digits(pos, 4);
+  if (year < 0 || pos >= text.size() || text[pos++] != '-') {
+    return std::nullopt;
+  }
+  const int month = digits(pos, 2);
+  if (month < 1 || month > 12 || pos >= text.size() || text[pos++] != '-') {
+    return std::nullopt;
+  }
+  const int day = digits(pos, 2);
+  if (day < 1 || day > 31 || pos >= text.size()) {
+    return std::nullopt;
+  }
+  const char sep = text[pos++];
+  if (sep != 'T' && sep != 't' && sep != ' ') {
+    return std::nullopt;
+  }
+  const int hour = digits(pos, 2);
+  if (hour < 0 || hour > 23 || pos >= text.size() || text[pos++] != ':') {
+    return std::nullopt;
+  }
+  const int minute = digits(pos, 2);
+  if (minute < 0 || minute > 59) {
+    return std::nullopt;
+  }
+  int second = 0;
+  if (pos < text.size() && text[pos] == ':') {
+    ++pos;
+    second = digits(pos, 2);
+    if (second < 0 || second > 60) {  // 60: leap second tolerance
+      return std::nullopt;
+    }
+  }
+  int64_t millis = 0;
+  if (pos < text.size() && text[pos] == '.') {
+    ++pos;
+    int fraction_digits = 0;
+    int64_t fraction = 0;
+    while (pos < text.size() && text[pos] >= '0' && text[pos] <= '9') {
+      if (fraction_digits < 3) {
+        fraction = fraction * 10 + (text[pos] - '0');
+        ++fraction_digits;
+      }
+      ++pos;
+    }
+    if (fraction_digits == 0) {
+      return std::nullopt;
+    }
+    while (fraction_digits < 3) {
+      fraction *= 10;
+      ++fraction_digits;
+    }
+    millis = fraction;
+  }
+  int64_t offset_minutes = 0;
+  if (pos < text.size()) {
+    const char zone = text[pos++];
+    if (zone == 'Z' || zone == 'z') {
+      // UTC.
+    } else if (zone == '+' || zone == '-') {
+      const int zh = digits(pos, 2);
+      if (zh < 0 || zh > 23) {
+        return std::nullopt;
+      }
+      int zm = 0;
+      if (pos < text.size() && text[pos] == ':') {
+        ++pos;
+        zm = digits(pos, 2);
+      } else if (pos < text.size() && text[pos] >= '0' && text[pos] <= '9') {
+        zm = digits(pos, 2);
+      }
+      if (zm < 0 || zm > 59) {
+        return std::nullopt;
+      }
+      offset_minutes = zh * 60 + zm;
+      if (zone == '-') {
+        offset_minutes = -offset_minutes;
+      }
+    } else {
+      return std::nullopt;
+    }
+  }
+  const int64_t days = DaysFromCivil(year, static_cast<unsigned>(month),
+                                     static_cast<unsigned>(day));
+  const int64_t seconds =
+      days * 86400 + hour * 3600 + minute * 60 + second - offset_minutes * 60;
+  return seconds * 1000 + millis;
+}
+
 base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
                                                const std::string& base_url) {
   Playlist playlist;
@@ -132,6 +250,9 @@ base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
   Variant pending_variant;
   std::optional<int64_t> pending_byterange_length;
   std::optional<int64_t> pending_byterange_start;
+  // EXT-X-PROGRAM-DATE-TIME applies to the NEXT segment (and, per spec, the
+  // mapping then continues implicitly -- the demuxer extrapolates).
+  std::optional<int64_t> pending_pdt_ms;
   int64_t sequence_counter = playlist.media_sequence;
 
   size_t line_start = 0;
@@ -219,6 +340,13 @@ base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
         }
       } else if (tag == "#EXT-X-DISCONTINUITY") {
         pending_discontinuity = true;
+      } else if (tag == "#EXT-X-PROGRAM-DATE-TIME") {
+        auto parsed_dt = ParseIsoDateTimeMs(value);
+        if (parsed_dt.has_value()) {
+          pending_pdt_ms = *parsed_dt;
+        }
+        // An unparseable datetime is ignored, not fatal: the mapping is
+        // best-effort and a bad clock line must not kill playback.
       } else if (tag == "#EXT-X-BYTERANGE") {
         // "<length>[@<start>]", placed between EXTINF and the URI line: it
         // applies to the NEXT segment. A start without an explicit value
@@ -290,6 +418,11 @@ base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
       segment.key = active_key;
       segment.media_sequence = sequence_counter++;
       segment.timeline_start = timeline;
+      if (pending_pdt_ms.has_value()) {
+        segment.has_program_date_time = true;
+        segment.program_date_time_ms = *pending_pdt_ms;
+        pending_pdt_ms = std::nullopt;
+      }
       timeline += segment.duration;
       if (pending_byterange_length) {
         segment.byterange_length = *pending_byterange_length;

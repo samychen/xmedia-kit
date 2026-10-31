@@ -157,6 +157,10 @@ class XMEDIA_MEDIA_EXPORT CompositeDemuxer : public Demuxer,
   void OnBufferedTimeUpdate(base::TimeDelta buffered,
                             base::TimeDelta playback_time) override;
   void OnDemuxerError(MediaError error) override;
+  // A child's wall-clock anchor (HLS EXT-X-PROGRAM-DATE-TIME): forwarded
+  // verbatim; with several sources the last writer wins, which matches the
+  // master timeline being source 0's.
+  void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) override;
 
  private:
   struct Child {

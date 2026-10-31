@@ -69,6 +69,7 @@ enum class EventType {
   kSnapshotCompleted,
   kStats,
   kHdrUnsupported,
+  kUtcTime,
 };
 // Stable spelling of |type| for logs and diagnostics; never null.
 // Side effects: none.
@@ -179,6 +180,15 @@ struct XMEDIA_PLAYER_EXPORT CompletedPayload {};
 struct XMEDIA_PLAYER_EXPORT HdrUnsupportedPayload {
   std::string transfer;
 };
+// Wall-clock anchor from a source that carries one (HLS
+// EXT-X-PROGRAM-DATE-TIME): at media position |anchor_media_time| the stream
+// showed wall clock |epoch_ms|. Hosts extrapolate linearly
+// (now_media_time - anchor) for the current UTC; the Player's
+// GetUtcTimeMs() does exactly that with its own media clock.
+struct XMEDIA_PLAYER_EXPORT UtcTimePayload {
+  int64_t epoch_ms{0};
+  int64_t anchor_media_time_us{0};
+};
 
 using EventPayload = std::variant<
     PreparedPayload, CompletedPayload, FlushedPayload, ErrorPayload,
@@ -188,7 +198,7 @@ using EventPayload = std::variant<
     BufferingProgressPayload, BufferedUpdatePayload, SeekCompletedPayload,
     AccurateSeekCompletedPayload, SeekRenderingStartedPayload, TimedTextPayload,
     TrackChangedPayload, SnapshotCompletedPayload, StatsPayload,
-    HdrUnsupportedPayload>;
+    HdrUnsupportedPayload, UtcTimePayload>;
 
 struct XMEDIA_PLAYER_EXPORT PlayerEvent {
   EventType type{EventType::kError};
@@ -205,6 +215,7 @@ struct XMEDIA_PLAYER_EXPORT PlayerEvent {
   XMEDIA_PLAYER_EXPORT const Type* Name(const PlayerEvent& event)
 
 XMEDIA_DECLARE_EVENT_ACCESSOR(AsPrepared, PreparedPayload);
+XMEDIA_DECLARE_EVENT_ACCESSOR(AsUtcTime, UtcTimePayload);
 XMEDIA_DECLARE_EVENT_ACCESSOR(AsError, ErrorPayload);
 XMEDIA_DECLARE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload);
 XMEDIA_DECLARE_EVENT_ACCESSOR(AsVideoSizeChanged, VideoSizeChangedPayload);

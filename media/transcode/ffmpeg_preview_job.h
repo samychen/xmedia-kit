@@ -21,7 +21,8 @@ namespace xmedia::media {
 // get-frame-mode + TakeSnapshot cover the single-frame case). Seeks |input|
 // to |start_time_seconds| (keyframe seek, ffmpeg.c's -ss semantics) and
 // decodes up to |max_frames| video frames from that point on. No encode, no
-// mux — the frames come back as xmedia-kit VideoFrames for the host to turn into
+// mux — the frames come back as xmedia-kit VideoFrames for the host to turn
+// into
 // a filmstrip, a scrubber preview, or whatever the product needs.
 //
 // Synchronous and blocking, like Transcode(); cancellable at packet

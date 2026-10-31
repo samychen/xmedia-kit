@@ -31,6 +31,7 @@
 #include "media/ffmpeg/ffmpeg_audio_filter.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
 #include "media/ffmpeg/ffmpeg_video_filter.h"
+#include "media/ffmpeg/dash_segment_demuxer.h"
 #include "media/ffmpeg/hls_playlist_demuxer.h"
 #endif
 #include "player/scene_internal.h"
@@ -107,6 +108,13 @@ PlayerImpl::CreateDemuxerFor(const media::DataSourceDescriptor& descriptor) {
   // keeping the URI for exactly this kind of inspection.
   if (descriptor.uri.find(".m3u8") != std::string::npos) {
     return std::make_unique<media::HlsPlaylistDemuxer>(media_log_, limits);
+  }
+  // The DASH counterpart: a static SegmentTemplate .mpd goes to the DASH
+  // client demuxer, which expands the template through mpd_parser and chains
+  // per-segment inner FFmpegDemuxers, instead of relying on FFmpeg's own
+  // dash handling. Matched on the URI for the same reason as .m3u8 above.
+  if (descriptor.uri.find(".mpd") != std::string::npos) {
+    return std::make_unique<media::DashSegmentDemuxer>(media_log_, limits);
   }
   return std::make_unique<media::FFmpegDemuxer>(media_log_, limits);
 #else
@@ -408,7 +416,8 @@ Status PlayerImpl::PrepareSync(base::TimeDelta timeout) {
   return base::unexpected(MediaError(
       ErrorCode::kInvalidState, "prepare ended in an unexpected state",
       std::string("final state: ") + GetPlayerStateName(s),
-      "inspect the event stream; this is an xmedia-kit bug, please report it with "
+      "inspect the event stream; this is an xmedia-kit bug, please report "
+      "it with "
       "DumpDiagnostics() output"));
 }
 

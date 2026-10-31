@@ -168,7 +168,8 @@ QRectF FitRect(const QSizeF& source, const QRectF& box) {
 }  // namespace
 
 VideoItem::VideoItem(QQuickItem* parent) : QQuickPaintedItem(parent) {
-  // The frame arrives on xmedia-kit's render thread; this item only ever reads it
+  // The frame arrives on xmedia-kit's render thread; this item only ever reads
+  // it
   // from the GUI thread, one mailbox swap per tick.
   timer_ = new QTimer(this);
   timer_->setInterval(16);

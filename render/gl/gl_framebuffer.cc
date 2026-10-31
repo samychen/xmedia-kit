@@ -20,7 +20,8 @@ constexpr char kIncomplete[] = "framebuffer: incomplete at requested size";
 
 // Reports a failure through the out-parameter convention this module uses
 // (no logging here -- a module meant to be taken on its own cannot call
-// xmedia-kit's logger) and returns false, so every failure path is one statement.
+// xmedia-kit's logger) and returns false, so every failure path is one
+// statement.
 bool Fail(std::string* error, const char* message) {
   if (error) {
     *error = message;

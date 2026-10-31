@@ -246,6 +246,19 @@ size_t HlsPlaylistDemuxer::SegmentIndexForTime(base::TimeDelta time) const {
   return index;
 }
 
+void HlsPlaylistDemuxer::PublishUtcAnchor() {
+  // The last tagged segment is the most recent anchor; extrapolation for
+  // the untagged segments between anchors happens on the consumer side
+  // (linear, same rate as the media timeline).
+  for (auto it = playlist_.segments.rbegin(); it != playlist_.segments.rend();
+       ++it) {
+    if (it->has_program_date_time) {
+      host_->OnUtcAnchor(it->timeline_start, it->program_date_time_ms);
+      return;
+    }
+  }
+}
+
 void HlsPlaylistDemuxer::CloseInner() {
   // Only the EOS / seek paths call this: both run after the inner stream
   // answered its last read, so there is no outstanding inner work.

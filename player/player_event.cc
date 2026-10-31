@@ -90,6 +90,8 @@ const char* GetEventTypeName(EventType type) {
     return "Stats";
   case EventType::kHdrUnsupported:
     return "HdrUnsupported";
+  case EventType::kUtcTime:
+    return "UtcTime";
   }
   return "Invalid";
 }
@@ -111,6 +113,7 @@ const T* PayloadIf(const PlayerEvent& event, EventType expected) {
     return PayloadIf<Type>(event, EventType::Kind);    \
   }
 
+XMEDIA_DEFINE_EVENT_ACCESSOR(AsUtcTime, UtcTimePayload, kUtcTime)
 XMEDIA_DEFINE_EVENT_ACCESSOR(AsPrepared, PreparedPayload, kPrepared)
 XMEDIA_DEFINE_EVENT_ACCESSOR(AsError, ErrorPayload, kError)
 XMEDIA_DEFINE_EVENT_ACCESSOR(AsStateChanged, StateChangedPayload, kStateChanged)
@@ -262,6 +265,7 @@ bool ToLegacyEvent(const PlayerEvent& event, LegacyEvent* out) {
   case EventType::kTrackChanged:
   case EventType::kStats:
   case EventType::kHdrUnsupported:
+  case EventType::kUtcTime:
     return false;
   }
   return false;

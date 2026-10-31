@@ -4,7 +4,8 @@
 //
 // The QML video surface, GPU version: a QQuickFramebufferObject whose renderer
 // uploads the newest frame's three planes as textures and draws them through
-// xmedia-kit's own YUV->RGB shader, inside Qt's framebuffer, on Qt's render thread.
+// xmedia-kit's own YUV->RGB shader, inside Qt's framebuffer, on Qt's render
+// thread.
 //
 // WHY THIS REPLACES video_item.cc RATHER THAN EXTENDING IT. The software item
 // converts every pixel on the CPU and then hands QPainter a QImage: at 1080p

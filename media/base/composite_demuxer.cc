@@ -375,4 +375,11 @@ void CompositeDemuxer::OnDemuxerError(MediaError error) {
   }
 }
 
+void CompositeDemuxer::OnUtcAnchor(base::TimeDelta media_time,
+                                   int64_t epoch_ms) {
+  if (host_) {
+    host_->OnUtcAnchor(media_time, epoch_ms);
+  }
+}
+
 }  // namespace xmedia::media

@@ -37,7 +37,8 @@ TEST(FfmpegUtilTest, PixelFormatRoundTrip) {
 }
 
 TEST(FfmpegUtilTest, PixelFormatYV12SharesYUV420P) {
-  // Not a round trip: xmedia-kit's YV12 is YUV420P with V and U swapped, which the
+  // Not a round trip: xmedia-kit's YV12 is YUV420P with V and U swapped, which
+  // the
   // table deliberately collapses. Anything that reads planes positionally must
   // not rely on this entry surviving a rename.
   EXPECT_EQ(ToAvPixelFormat(media::VideoFormat::kYV12), AV_PIX_FMT_YUV420P);

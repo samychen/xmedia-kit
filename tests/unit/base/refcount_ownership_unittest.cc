@@ -116,7 +116,8 @@ TEST(WrapRefCountedTest, OverloadAcceptsAnExistingScopedRefptr) {
 
 TEST(AdoptRefTest, TakesOverAnExistingReferenceWithoutAddingOne) {
   // This test asserted the wrong thing in its first version: it did
-  // `AdoptRef(new Probe())` and expected a count of 1. But in xmedia-kit a freshly
+  // `AdoptRef(new Probe())` and expected a count of 1. But in xmedia-kit a
+  // freshly
   // newed ref-counted object has count 0, MakeRefCounted reaches 1 by way of
   // the *adding* constructor, and ~RefCountedBase DCHECKs the count is back to
   // 0. AdoptRef therefore means "take over a reference someone already holds",

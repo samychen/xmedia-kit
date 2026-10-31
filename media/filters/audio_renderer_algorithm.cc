@@ -1,7 +1,6 @@
 // Copyright 2026 The xmedia-kit Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
 // STATUS: IN THE BUILD (promoted from DRAFT, tenth round)
 // PROMOTED into the build in the tenth round, after a full compile and test
 // run (docs/PROGRESS.md §3l). Any wording below saying this file has never
@@ -13,7 +12,6 @@
 // algorithm's provenance and the one function in it whose provenance is
 // incomplete are all documented in audio_renderer_algorithm.h; the DSP
 // primitives this file calls live in wsola_internals.{h,cc}.
-//
 // The five constants below were read out of Chromium's
 // media/filters/audio_renderer_algorithm.cc (fetched from
 // chromium.googlesource.com at refs/heads/main, 2026-09-29) and each names the
@@ -21,7 +19,6 @@
 // mitigation 4 ("thresholds are extracted, never hand-copied") applies to any
 // ported constant and not only to the A/V-sync ones -- and because the first
 // version of tools/gen_options.py got a hand-copied FourCC wrong.
-//
 // LENGTH: this exceeds MAX_FILE_LINES (invariant C1, limit 500) and carries a
 // C1 allowlist entry, currently 660, the way ffmpeg_demuxer.cc does. The first
 // version of this note described that entry as still owed, from when the file
@@ -84,7 +81,8 @@ void AudioRendererAlgorithm::Initialize(const AudioParameters& params) {
   CHECK(params.is_valid());
   channels_ = params.channels();
   samples_per_second_ = params.sample_rate();
-  // xmedia-kit's AudioParameters has no bitstream flag yet; AC3/EAC3 passthrough
+  // xmedia-kit's AudioParameters has no bitstream flag yet; AC3/EAC3
+  // passthrough
   // (where no post-processing is allowed at all) needs one. Until then this
   // stays false and passthrough formats go through WSOLA, which is wrong for
   // them. Recorded as gap 7 in the header.
@@ -324,7 +322,8 @@ int AudioRendererAlgorithm::FillBuffer(AudioBus* dest, int dest_offset,
       effective_playback_rate_ = 1.0;
       break;
     case FillBufferMode::kResampler:
-      // Gap 4: xmedia-kit has no MultiChannelResampler. Falling through to WSOLA
+      // Gap 4: xmedia-kit has no MultiChannelResampler. Falling through to
+      // WSOLA
       // keeps the duration right and the pitch wrong, which is the safer of
       // the two errors for A/V sync, and it is logged so the mistake cannot
       // be mistaken for correct behaviour.
@@ -364,7 +363,8 @@ int AudioRendererAlgorithm::RunWsola(AudioBus* dest, int dest_offset,
 
   // At end of stream the queue eventually gets too narrow for even one
   // candidate window, and what is left is handed out unprocessed rather than
-  // dropped. Chromium has no equivalent and simply loses the tail; xmedia-kit keeps
+  // dropped. Chromium has no equivalent and simply loses the tail; xmedia-kit
+  // keeps
   // it, because a truncated ending is audible on every track while the last
   // few milliseconds at the wrong rate are not. EffectiveSearchBlockFrames()
   // bounds the raw remainder to under one ola_window_size_ -- before that, the
@@ -494,7 +494,8 @@ bool AudioRendererAlgorithm::RunOneWsolaIteration(double playback_rate) {
   }
   // Room check that Chromium does not need: its callers always request at least
   // a full device buffer, so num_complete_frames_ never grows past one hop.
-  // xmedia-kit's FillBuffer() takes an arbitrary |requested_frames|, and a caller
+  // xmedia-kit's FillBuffer() takes an arbitrary |requested_frames|, and a
+  // caller
   // asking for a handful of frames in a loop would let num_complete_frames_
   // grow without bound and write past the end of wsola_output_. Refusing the
   // iteration is correct behaviour -- the caller simply gets fewer frames this

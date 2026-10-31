@@ -13,7 +13,8 @@
 namespace xmedia::media {
 
 // One decoded subtitle cue. The base's contract for text tracks is "text +
-// time only" (xmedia-kit upgrade plan §Phase 4.2): layout and rendering belong to
+// time only" (xmedia-kit upgrade plan §Phase 4.2): layout and rendering belong
+// to
 // the host, which is why both a plain string and the raw markup are carried.
 struct XMEDIA_MEDIA_EXPORT TimedTextCue {
   // Which source this cue belongs to (docs/14 stage 4). The host's subtitle

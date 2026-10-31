@@ -62,7 +62,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/video_frame.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/media_export.h"
 
 namespace xmedia::media {

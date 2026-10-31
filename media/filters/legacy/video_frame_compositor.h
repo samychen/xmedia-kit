@@ -5,7 +5,8 @@
 //
 // This file is part of xmedia.
 //
-// xmedia-kit is free software; you can redistribute it and/or modify it under the
+// xmedia-kit is free software; you can redistribute it and/or modify it under
+// the
 // terms of the GNU Lesser General Public License as published by the Free
 // Software Foundation; either version 2.1 of the License, or (at your option)
 // any later version.
@@ -25,7 +26,8 @@
 // WHY THIS FILE IS LGPL AND NOT BSD-3 (decision D10, risk R8, docs/08 §4/§5):
 // its scheduling algorithm is a line-by-line port of ffplay's video_refresh()
 // and compute_target_delay(), which makes it a derivative work of legacy
-// (LGPL-2.1). Everything else in xmedia-kit is BSD-3-Clause (see the root LICENSE);
+// (LGPL-2.1). Everything else in xmedia-kit is BSD-3-Clause (see the root
+// LICENSE);
 // ported files are quarantined in media/filters/legacy/ so the boundary is
 // auditable by directory listing rather than by reading every header.
 // Do not move non-ported code in here, and do not move these files out without

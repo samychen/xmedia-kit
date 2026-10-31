@@ -177,7 +177,8 @@ class XMEDIA_MEDIA_EXPORT VideoFrame
     return storage_type_ == StorageType::kStorageOwned;
   }
 
-  // Zero-copy contract (xmedia-kit §6.2): a hardware-decoded frame is passed GPU
+  // Zero-copy contract (xmedia-kit §6.2): a hardware-decoded frame is passed
+  // GPU
   // to GPU end to end; pixels are only read back when a consumer EXPLICITLY
   // calls ToI420(). Returns:
   //   - this same frame (new reference) when the pixels are already owned

@@ -47,7 +47,8 @@ int PipelineImpl::GetTextStreamId() const {
 
 // These six reject, and the reason is NOT that they are unimplemented -- see
 // the block above AddVideoStream in media/base/pipeline.h. They name a shape
-// xmedia-kit does not have: `id` would select among several streams of one type,
+// xmedia-kit does not have: `id` would select among several streams of one
+// type,
 // and Demuxer::GetStream(type) returns ONE per type. A second picture is a
 // second URL (a second Demuxer, or a second Player feeding the scene's
 // mailbox), not an id.
@@ -64,27 +65,33 @@ int PipelineImpl::GetTextStreamId() const {
 // diagnostic and no effect -- which is exactly what the interface promises.
 void PipelineImpl::AddVideoStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: AddVideoStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 void PipelineImpl::RemoveVideoStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: RemoveVideoStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 void PipelineImpl::AddAudioStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: AddAudioStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 void PipelineImpl::RemoveAudioStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: RemoveAudioStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 void PipelineImpl::AddTextStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: AddTextStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 void PipelineImpl::RemoveTextStream(int id) {
   LOG(WARNING) << "xmedia.pipeline: RemoveTextStream(" << id
-               << ") rejected: xmedia-kit has one stream per type, not an id axis";
+               << ") rejected: xmedia-kit has one stream per type, "
+               << "not an id axis";
 }
 
 // ---- Demuxer::Host ----------------------------------------------------------
@@ -93,6 +100,13 @@ void PipelineImpl::SetDuration(base::TimeDelta duration) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   duration_micros_.store(duration.InMicroseconds());
   client_->OnDurationChange(duration);
+}
+
+void PipelineImpl::OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (client_) {
+    client_->OnUtcAnchor(media_time, epoch_ms);
+  }
 }
 
 void PipelineImpl::OnBufferedTimeUpdate(base::TimeDelta buffered,

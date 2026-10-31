@@ -337,7 +337,7 @@ xmedia-kit/
                              PERFORMANCE ·
                              CHANGELOG · TOOLS（tools/ 逐文件）· EXAMPLES
                              （examples/ 逐文件）· LEARNING-media（media/ 入门）
-                             + archive/（1–9 轮进度 · 09 Linux 方案）+ reviews/
+                             + archive/（Linux 方案归档）
 ```
 
 合计：**540 个 `.h`/`.cc`** —— **55,427 行实现（含 examples/bench）+ 30,667 行测试**，

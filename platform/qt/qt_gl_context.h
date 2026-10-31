@@ -17,7 +17,8 @@ namespace xmedia::media {
 //
 // The fourth of these adapters, and the two files next to this one are worth
 // comparing with it: SDL2, GLFW and EGL each OWN the swap (an embedder hands
-// over a window and xmedia-kit paints into it, then calls SwapBuffers), while Qt
+// over a window and xmedia-kit paints into it, then calls SwapBuffers), while
+// Qt
 // owns the whole frame. A Qt host draws video INSIDE its scene graph, into a
 // framebuffer object Qt bound, on a thread Qt runs, and Qt presents once for
 // everything in the window. So this adapter is the first one where two of the

@@ -14,7 +14,8 @@
 //   1. The Player is CONSTRUCTED and DESTROYED on the GUI thread. ~Player()
 //      joins the event thread, and doing that from a thread QML does not own is
 //      how shutdown turns into a hang.
-//   2. OnEvent() runs on xmedia-kit's event dispatch thread and touches NOTHING but
+// 2. OnEvent() runs on xmedia-kit's event dispatch thread and touches NOTHING
+// but
 //      a queued invocation. Reading a Q_PROPERTY from there would be a data
 //      race, and calling into QML from there is not allowed at all.
 //   3. The poll timer runs on the GUI thread and only calls the Player's

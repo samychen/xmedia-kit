@@ -163,6 +163,11 @@ class XMEDIA_MEDIA_EXPORT HlsPlaylistDemuxer final : public Demuxer {
   void SeekSegmentOpened(base::TimeDelta request, SeekCB cb);
   size_t SegmentIndexForTime(base::TimeDelta time) const;
   void CloseInner();
+  // Publishes the playlist's wall-clock anchor (the LAST tagged segment --
+  // the most recent mapping) through Host::OnUtcAnchor. Called after every
+  // parse and every live-reload append; a playlist without PDT tags simply
+  // never publishes.
+  void PublishUtcAnchor();
 
   // Blocking halves, on the worker thread.
   void FetchUrlOnWorker(const std::string& url,

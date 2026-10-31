@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -27,8 +28,9 @@ namespace xmedia::media::hls {
 // EXT-X-PRELOAD-HINT) are recognised and recorded (has_ll_hls_tags) so a
 // caller can detect a low-latency stream, but part prefetching is not built
 // yet -- the playlist demuxer treats such a stream as an ordinary live
-// playlist. EXT-X-PROGRAM-DATE-TIME, EXT-X-DATERANGE and
-// EXT-X-I-FRAMES-ONLY are CicadaPlayer's documented unsupported list too.
+// playlist. EXT-X-DATERANGE and EXT-X-I-FRAMES-ONLY are CicadaPlayer's
+// documented unsupported list too. EXT-X-PROGRAM-DATE-TIME IS parsed
+// (Segment::program_date_time_ms) and feeds the player's UTC anchor.
 
 struct XMEDIA_MEDIA_EXPORT KeyInfo {
   // EXT-X-KEY:METHOD -- NONE, AES-128, SAMPLE-AES.
@@ -59,6 +61,12 @@ struct XMEDIA_MEDIA_EXPORT Segment {
   // of the durations of every segment before it. This is what the demuxer's
   // seek maps timestamps with and what segment switches align on.
   base::TimeDelta timeline_start;
+  // EXT-X-PROGRAM-DATE-TIME of this segment's first sample, as Unix epoch
+  // milliseconds (UTC). The tag applies to the segment that follows it;
+  // segments without the tag inherit the mapping implicitly, which the
+  // DEMUXER extrapolates from the anchor (the last tagged segment).
+  bool has_program_date_time{false};
+  int64_t program_date_time_ms{0};
 };
 
 struct XMEDIA_MEDIA_EXPORT Variant {
@@ -116,6 +124,14 @@ ParseM3U8(std::string_view text, const std::string& base_url);
 // wild are one of those four shapes.
 XMEDIA_MEDIA_EXPORT std::string ResolveUrl(const std::string& base_url,
                                            std::string_view relative);
+
+// Parses an ISO 8601 datetime ("2026-10-31T12:00:00.500Z", "…+08:00",
+// "…-05:30"; the "T" may be a space) into Unix epoch MILLISECONDS. A
+// datetime without a zone counts as UTC (the HLS spec's own examples are
+// all Z-suffixed). Returns nullopt on anything it cannot fully parse --
+// callers treat that as "no anchor", never as an error.
+XMEDIA_MEDIA_EXPORT std::optional<int64_t>
+ParseIsoDateTimeMs(std::string_view text);
 
 }  // namespace xmedia::media::hls
 

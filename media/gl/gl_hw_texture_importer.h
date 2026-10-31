@@ -30,7 +30,8 @@ struct XMEDIA_MEDIA_EXPORT PlaneUploadLayout {
 // The seam between the GL video path and a host's GPU-interop API.
 //
 // A hardware-decoded frame never reaches CPU memory -- VideoFrame carries a
-// typed NativeHandle for exactly that reason (xmedia-kit §6.2). An importer takes
+// typed NativeHandle for exactly that reason (xmedia-kit §6.2). An importer
+// takes
 // that handle and points GL textures at the SAME graphics surface the decoder
 // wrote, so the pixels go GPU to GPU with no readback and no upload. That is
 // the whole of "zero copy", and it is what UploadPath::kHwZeroCopy reports.
@@ -45,7 +46,8 @@ struct XMEDIA_MEDIA_EXPORT PlaneUploadLayout {
 // this from needing a registration hook or a weak symbol.
 //
 // THREADING: every method runs on the thread that has the GL context current --
-// in xmedia-kit, the sink's render thread. CanImport() reads only the frame, so any
+// in xmedia-kit, the sink's render thread. CanImport() reads only the frame,
+// so any
 // thread may ask it while the frame is alive; frames are immutable once
 // published, which is what makes that safe.
 //

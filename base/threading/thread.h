@@ -22,7 +22,8 @@ namespace xmedia::base {
 
 // A dedicated thread running a TaskQueue.
 //
-// xmedia-kit creates exactly six of these per Player (docs/04 §2): xmedia-media,
+// xmedia-kit creates exactly six of these per Player (docs/04 §2):
+// xmedia-media,
 // xmedia-demux, xmedia-video, xmedia-audio, xmedia-text and xmedia-event.
 // Each owns a set of objects that only it may touch, which is what
 // SEQUENCE_CHECKER verifies at runtime.

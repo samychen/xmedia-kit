@@ -6,7 +6,8 @@
 // paints the newest frame with QPainter.
 //
 // QPainter rather than a QSG texture node on purpose. The heavy part of a
-// production player is not this: it is either a GPU path (xmedia-kit drawing into
+// production player is not this: it is either a GPU path (xmedia-kit drawing
+// into
 // Qt's FBO through a platform/qt/ NativeGLContext) or nothing at all. Writing
 // the software path against QQuickItem's raw scene-graph API would add a
 // hundred lines of texture bookkeeping that the GPU path throws away. This

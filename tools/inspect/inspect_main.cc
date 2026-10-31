@@ -45,7 +45,8 @@ int main(int argc, char** argv) {
   if (!xmedia::ParseArgs(argc, argv, &opts)) {
     return 1;
   }
-  // Route FFmpeg's own logging through xmedia-kit's so a single --verbose controls
+  // Route FFmpeg's own logging through xmedia-kit's so a single --verbose
+  // controls
   // both. Without this, libavformat's warnings go to stderr unformatted and
   // interleave with the report.
   xmedia::media::ffmpeg::InstallLogBridge();

@@ -14,7 +14,7 @@
 #include "base/time/time.h"
 #include "media/base/data_source_descriptor.h"
 #include "media/base/video_frame.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "player/public/deps.h"
 #include "player/public/error.h"
 #include "player/public/global.h"
@@ -279,6 +279,11 @@ class XMEDIA_PLAYER_EXPORT Player {
   // How much media is buffered ahead of the playhead.
   // Errors: none. Side effects: none.
   base::TimeDelta GetBufferedTime() const;
+  // Unix epoch milliseconds of the current media position, extrapolated from
+  // the source's wall-clock anchor (HLS EXT-X-PROGRAM-DATE-TIME; kUtcTime
+  // events carry each new anchor). Errors with kInvalidState when the source
+  // carries no anchor or the clock has not started.
+  Result<int64_t> GetUtcTimeMs() const;
   // Total duration, or zero for a live source.
   // Errors: none. Side effects: none.
   base::TimeDelta GetDuration() const;

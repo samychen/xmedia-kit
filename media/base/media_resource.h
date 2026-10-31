@@ -24,7 +24,7 @@
 //      through interface review.
 //   2. RendererImpl::Initialize() is the only caller (M7).
 //   3. Chromium's GetFirstDataSource()/byte-range loaders are intentionally
-//      absent: decision D2 keeps FFmpeg types out of media/base, and xmedia-kit's
+// absent: decision D2 keeps FFmpeg types out of media/base, and xmedia-kit's
 //      byte source is media::DataSource, reached through the Demuxer rather
 //      than through the resource. If M9's DataSource decorators
 //      (RetryDataSource / LiveDataSource) need a second access path, add it

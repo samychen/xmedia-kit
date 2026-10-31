@@ -19,7 +19,8 @@
 // first time it compiles, and delete this banner at the same moment.
 //
 // This is the checklist from docs/07 §3.9, which is also behaviour difference
-// Δ17's acceptance test: xmedia-kit replaces legacy's SoundTouch dependency with
+// Δ17's acceptance test: xmedia-kit replaces legacy's SoundTouch dependency
+// with
 // its own WSOLA, and the only thing that proves the substitution did not change
 // how 2x playback sounds is the pitch assertion below. Item 7 of that checklist
 // (diff against Chromium's output at -40 dB) is NOT implemented: it needs
@@ -294,7 +295,8 @@ TEST_F(AudioRendererAlgorithmTest, RateHalfDoublesTheDuration) {
 // ---- docs/07 §3.9 item 4: pitch is unchanged (Δ17's acceptance) -----------
 
 // This is Δ17's acceptance test: the only thing that proves replacing
-// legacy's SoundTouch with xmedia-kit's own WSOLA did not change how 2x playback
+// legacy's SoundTouch with xmedia-kit's own WSOLA did not change how 2x
+// playback
 // sounds. The stimulus choice below is load-bearing, so the measurement that
 // settled it is recorded rather than asserted.
 TEST_F(AudioRendererAlgorithmTest, PitchIsPreservedAtTwoX) {

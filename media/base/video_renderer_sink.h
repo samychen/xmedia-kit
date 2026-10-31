@@ -32,7 +32,8 @@ struct XMEDIA_MEDIA_EXPORT VideoSinkStats {
   uint64_t frames_dropped{0};
   uint64_t submit_failures{0};
   double measured_refresh_hz{0.0};
-  // What each presented frame cost, split by stage. An xmedia-kit addition -- the
+  // What each presented frame cost, split by stage. An xmedia-kit addition --
+  // the
   // Chromium shape of this struct stops at the counters above -- because the
   // render thread is the only place these can be measured and the sink is the
   // only object that outlives a frame to report them.

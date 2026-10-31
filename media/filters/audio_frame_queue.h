@@ -7,7 +7,8 @@
 // AudioBuffers, which is what a time-stretching renderer needs because WSOLA
 // reads the same frames several times (once as the target block, once inside
 // the search block) before consuming them. DELIBERATE DEVIATION: Chromium puts
-// this in media/base. xmedia-kit puts it in media/filters because media/base is the
+// this in media/base. xmedia-kit puts it in media/filters because media/base
+// is the
 // frozen interface layer and its headers are reviewed as an API surface
 // (docs/03 §11), whereas this class has exactly one consumer --
 // AudioRendererAlgorithm. Promoting it to media/base later costs a move and an

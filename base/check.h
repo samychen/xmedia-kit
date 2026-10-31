@@ -5,7 +5,8 @@
 // API mirrors Chromium's `base/check.h` and `base/check_op.h`
 // (BSD-3-Clause, Copyright The Chromium Authors).
 //
-// xmedia-kit is built with -fno-exceptions, so a failed check aborts the process
+// xmedia-kit is built with -fno-exceptions, so a failed check aborts the
+// process
 // after logging, exactly like Chromium.
 
 #ifndef XMEDIA_BASE_CHECK_H_

@@ -149,7 +149,8 @@ void GlVideoSink::PresentOne() {
     if (frame) {
       gate_.NoteFrameReceived();
     }
-    // Zero-copy contract (xmedia-kit §6.2): a hardware frame arrives GPU-resident,
+    // Zero-copy contract (xmedia-kit §6.2): a hardware frame arrives
+    // GPU-resident,
     // and the sink's job is to keep it that way when it can.
     //
     // Two questions here, and only two. Is there a frame, and is the target

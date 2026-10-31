@@ -23,8 +23,10 @@ namespace xmedia::base {
 
 // A SequencedTaskRunner backed by one ordered queue plus a run loop.
 //
-// This is xmedia-kit's message loop. Chromium splits the same responsibility across
-// base::MessageLoop, base::MessagePump and base::TaskQueue; xmedia-kit collapses
+// This is xmedia-kit's message loop. Chromium splits the same responsibility
+// across
+// base::MessageLoop, base::MessagePump and base::TaskQueue; xmedia-kit
+// collapses
 // them because the core needs neither fd watching nor nested RunLoops — the
 // platform layer runs its own poll loop for Wayland/epoll (docs/04 §2.1, D3).
 // If fd watching is ever needed in base/, split MessagePump back out behind the

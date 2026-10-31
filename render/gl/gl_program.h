@@ -22,7 +22,8 @@ namespace xmedia::gl {
 //
 // Borrows the GlApi, which must outlive it. There is no logging here on
 // purpose: a library that wants to be usable outside xmedia-kit cannot call
-// xmedia-kit's logger, so every failure is reported through an out-parameter and
+// xmedia-kit's logger, so every failure is reported through an out-parameter
+// and
 // the caller decides whether it is a warning or a crash.
 class GlProgram {
  public:

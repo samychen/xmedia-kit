@@ -43,7 +43,8 @@ namespace xmedia::media {
 //
 // PARAMETERS NOT IN THE FROZEN SIGNATURE. Pipeline::Start() takes a demuxer
 // but not a source: Chromium's Start() reached the source through
-// MediaResource. xmedia-kit's demuxer needs the DataSourceDescriptor and options to
+// MediaResource. xmedia-kit's demuxer needs the DataSourceDescriptor and
+// options to
 // open
 // with, so the owner sets them via SetSource() before calling Start(). That is
 // a concrete-side parameter channel, not an interface extension.
@@ -195,6 +196,7 @@ class XMEDIA_MEDIA_EXPORT PipelineImpl final : public Pipeline,
 
   // Demuxer::Host (media sequence):
   void SetDuration(base::TimeDelta duration) override;
+  void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) override;
   void OnBufferedTimeUpdate(base::TimeDelta buffered,
                             base::TimeDelta playback_time) override;
   void OnDemuxerError(MediaError error) override;

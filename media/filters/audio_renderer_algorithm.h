@@ -11,7 +11,8 @@
 // identifier it came from. The code is xmedia-kit's own: Chromium's version
 // leans on AudioBufferQueue, AudioBus::CopyPartialFramesTo, base::HeapArray,
 // MultiChannelResampler and cc::ScopedSubnormalFloatDisabler, none of which
-// exist in xmedia-kit, so the queue and the window arithmetic are written directly
+// exist in xmedia-kit, so the queue and the window arithmetic are written
+// directly
 // against AudioBuffer::ReadFrames() and AudioBus::channel().
 //
 // ★ONE PROVENANCE GAP, stated rather than papered over: the similarity metric
@@ -55,7 +56,8 @@
 // SetChannelMask() (Chromium uses it to shrink the search space). Purely an
 // optimisation, but WSOLA is the expensive path in the audio thread and the p99
 // < 100us budget in AudioRendererSinkContract is measured with it. 6.
-// PeekFrames() copies through a scratch AudioBus because xmedia-kit's AudioBus has
+// PeekFrames() copies through a scratch AudioBus because xmedia-kit's AudioBus
+// has
 // no CopyPartialFramesTo(src_offset, n, dest_offset, dest). Adding that one
 // method to AudioBus would remove a copy per peek. 7. This file is one of
 // three; the split mirrors Chromium's own, which keeps each half under the
@@ -63,7 +65,8 @@
 // gap: wsola_internals.{h,cc}      DSP primitives, incl. Similarity()
 // audio_frame_queue.{h,cc}    Chromium's AudioBufferQueue equivalent
 // audio_renderer_algorithm.*  buffering, index bookkeeping, FillBuffer() 8.
-// xmedia-kit's AudioParameters has no bitstream flag, so is_bitstream_format_ is
+// xmedia-kit's AudioParameters has no bitstream flag, so is_bitstream_format_
+// is
 // hardcoded false and AC3/EAC3 passthrough would be mangled by WSOLA. Adding
 // the flag touches a frozen M3 header, so it needs the same review as the other
 // cross-file items in docs/PROGRESS.md.

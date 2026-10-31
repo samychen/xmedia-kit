@@ -51,7 +51,8 @@ class XMEDIA_PLAYER_EXPORT EventDispatcher {
   virtual ~EventDispatcher() = default;
 };
 
-// Everything xmedia-kit needs from the outside world. Every field may be null, in
+// Everything xmedia-kit needs from the outside world. Every field may be null,
+// in
 // which case the auto-detected platform default is used — that is what makes
 // `Player player; player.SetDataSource(url);` work with zero setup (rule E1).
 struct XMEDIA_PLAYER_EXPORT Deps {

@@ -119,7 +119,8 @@ base::TimeDelta ToTimeDelta(int64_t ts, AVRational time_base);
 int64_t FromTimeDelta(base::TimeDelta t, AVRational time_base);
 
 // ---- Errors -----------------------------------------------------------------
-// Translates an AVERROR into xmedia-kit's three-part MediaError (docs/10 §4), using
+// Translates an AVERROR into xmedia-kit's three-part MediaError (docs/10 §4),
+// using
 // av_strerror for the human-readable text.
 MediaError ToMediaError(int av_error, std::string_view context);
 MediaError ToMediaError(int av_error, std::string_view context,

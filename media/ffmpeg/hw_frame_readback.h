@@ -13,7 +13,8 @@ struct AVFrame;
 
 namespace xmedia::media::ffmpeg {
 
-// The explicit-readback half of the zero-copy contract (xmedia-kit §6.2): copies
+// The explicit-readback half of the zero-copy contract (xmedia-kit §6.2):
+// copies
 // a hardware frame's pixels into a freshly allocated owned I420 VideoFrame.
 // Only ever called from behind VideoFrame::ToI420() -- never as part of the
 // decode path, which keeps the surface GPU-resident end to end.

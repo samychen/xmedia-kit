@@ -83,7 +83,8 @@ ColorSpaceFromAvFrame(const AVFrame* frame,
   if (cs.IsSpecified()) {
     return cs;
   }
-  // xmedia-kit risk §14.4: FFmpeg does not always propagate the container's colour
+  // xmedia-kit risk §14.4: FFmpeg does not always propagate the container's
+  // colour
   // tags onto decoded frames -- the hwaccel paths in particular frequently
   // hand back "unspecified". The container-level facts (codec, size, HDR flag)
   // are what the muxer actually recorded, so fall back to the table keyed on

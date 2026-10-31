@@ -94,7 +94,8 @@ class XMEDIA_MEDIA_EXPORT GlVideoSink : public VideoRendererSink {
   // in particular that the layer is created on the GL thread, so a host that
   // wants to place it does that with an update callback, not here.
   //
-  // This is the whole of what a host has to do to composite a stream xmedia-kit is
+  // This is the whole of what a host has to do to composite a stream
+  // xmedia-kit is
   // not playing: decode it however it likes, Publish() the frames, and the
   // sink picks them up at the next present.
   std::shared_ptr<GlLayerSource> AddSceneSource(std::string name, int z);

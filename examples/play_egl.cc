@@ -4,7 +4,8 @@
 //
 // EGL playback: the EGL backend acceptance example. Embedding mode
 // (docs/archive/09 §2) -- the host owns the EGLDisplay / EGLSurface /
-// EGLContext and carries them through NativeDisplay::FromEglSurface(); xmedia-kit
+// EGLContext and carries them through NativeDisplay::FromEglSurface();
+// xmedia-kit
 // renders into the surface through GlPresenter. Audio goes through the null
 // sink.
 //

@@ -105,7 +105,8 @@ void PlayerImpl::StopSync(base::TimeDelta timeout) {
     }
     if (deps_->tick_clock->NowTicks() >= deadline) {
       LOG(ERROR)
-          << "xmedia-kit: StopSync timed out after " << timeout.InMillisecondsF()
+          << "xmedia-kit: StopSync timed out after "
+          << timeout.InMillisecondsF()
           << "ms with the pipeline still running; detaching (delta 15: "
              "leak a thread, never hang). The renderer or demuxer did "
              "not finish tearing down, so ~PipelineImpl will run against "

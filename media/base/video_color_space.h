@@ -74,7 +74,8 @@ XMEDIA_MEDIA_EXPORT const char* GetColorRangeName(ColorRange range);
 
 // FFmpeg does not always tag hardware-decoded frames with colour metadata the
 // way the container did (the hwaccel path frequently reports "unspecified" for
-// streams whose container actually said BT.709) -- xmedia-kit risk §14.4. When the
+// streams whose container actually said BT.709) -- xmedia-kit risk §14.4. When
+// the
 // decoder bridge sees an unspecified frame it falls back to this table, keyed
 // on what the CONTAINER said (codec, profile, coded size, HDR flag) rather
 // than the frame tag. The rules are the ones in ITU-R BT.709 §4 / common

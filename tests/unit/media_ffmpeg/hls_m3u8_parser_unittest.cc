@@ -86,6 +86,47 @@ TEST(HlsM3U8ParserTest, AppliesKeyAndDiscontinuityToTheRightSegments) {
   EXPECT_TRUE(result->session_key.is_aes_128());
 }
 
+TEST(HlsM3U8ParserTest, ParsesProgramDateTimeIntoAnEpochAnchor) {
+  const std::string body =
+      "#EXTM3U\n"
+      "#EXT-X-TARGETDURATION:1\n"
+      "#EXT-X-MEDIA-SEQUENCE:0\n"
+      "#EXT-X-PROGRAM-DATE-TIME:2026-10-31T08:00:00.500Z\n"
+      "#EXTINF:1.0,\n"
+      "seg0.ts\n"
+      "#EXT-X-PROGRAM-DATE-TIME:2026-10-31T08:00:02+08:00\n"
+      "#EXTINF:1.0,\n"
+      "seg1.ts\n"
+      "#EXT-X-ENDLIST\n";
+  auto parsed = hls::ParseM3U8(body, "https://example.com/a.m3u8");
+  ASSERT_TRUE(parsed.has_value());
+  ASSERT_EQ(parsed->segments.size(), 2u);
+  // Epochs verified against the proleptic Gregorian civil-from-days the
+  // parser implements: 2026-10-31T00:00:00Z = 1793404800.
+  EXPECT_TRUE(parsed->segments[0].has_program_date_time);
+  EXPECT_EQ(parsed->segments[0].program_date_time_ms,
+            (int64_t{1793404800} + 8 * 3600) * 1000 + 500);
+  // +08:00 means the wall clock reads 08:00:02 where UTC is 00:00:02.
+  EXPECT_TRUE(parsed->segments[1].has_program_date_time);
+  EXPECT_EQ(parsed->segments[1].program_date_time_ms,
+            int64_t{1793404800} * 1000 + 2000);
+}
+
+TEST(HlsM3U8ParserTest, IsoDateTimeParserAcceptsTheDocumentedShapes) {
+  // Z suffix, explicit offset, space separator, no fraction, offset without
+  // minutes, and the two rejection shapes (garbage; date only).
+  EXPECT_EQ(hls::ParseIsoDateTimeMs("1970-01-01T00:00:00Z"), 0);
+  // 00:00:01 minus the +00:30 offset lands before the epoch.
+  EXPECT_EQ(hls::ParseIsoDateTimeMs("1970-01-01T00:00:01+00:30"),
+            -1799 * 1000);
+  EXPECT_EQ(hls::ParseIsoDateTimeMs("2000-02-29 12:00:00Z"),
+            int64_t{11016} * 86400 * 1000 + 12 * 3600 * 1000);  // leap day
+  EXPECT_EQ(hls::ParseIsoDateTimeMs("2026-10-31T08:00:00+0800"),
+            int64_t{1793404800} * 1000);  // 08:00+08:00 == 00:00Z
+  EXPECT_FALSE(hls::ParseIsoDateTimeMs("not-a-date").has_value());
+  EXPECT_FALSE(hls::ParseIsoDateTimeMs("2026-10-31").has_value());
+}
+
 TEST(HlsM3U8ParserTest, ParsesAMasterPlaylistWithVariantsAndRenditions) {
   const std::string text =
       "#EXTM3U\n"

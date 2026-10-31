@@ -63,7 +63,8 @@
 // arithmetic, not measurement; `BM_AudioRenderCallback` (docs/07 §10) is what
 // settles it. 2. Media time is tracked by counting frames from the first
 // buffer's timestamp. Chromium uses AudioTimestampHelper, which stays exact
-// across priming padding and rounding; xmedia-kit has no equivalent, so this drifts
+// across priming padding and rounding; xmedia-kit has no equivalent, so this
+// drifts
 // by up to a frame per buffer. Fine for the audio clock (AvSyncController
 // re-anchors on every call), not fine for anything that reports position. 3.
 // Preroll is not modelled. Chromium distinguishes "decoded enough to start"
@@ -104,7 +105,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/filters/audio_filter_stage.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/filters/audio_renderer_algorithm.h"
 #include "media/filters/decoder_stream.h"
 #include "media/filters/legacy/av_sync_controller.h"

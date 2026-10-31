@@ -348,7 +348,8 @@ inline bool CreateSdlWindow(bool want_gl, SDL_Window** window,
                         SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     *window = SDL_CreateWindow(
-        "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
+        "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        kWindowWidth,
         kWindowHeight,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_OPENGL);
     if (*window) {
@@ -374,7 +375,8 @@ inline bool CreateSdlWindow(bool want_gl, SDL_Window** window,
     // Fall through to the SDL_Renderer path.
   }
   *window = SDL_CreateWindow(
-      "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWindowWidth,
+      "xmedia-kit", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+      kWindowWidth,
       kWindowHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   *renderer = SDL_CreateRenderer(
       *window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);

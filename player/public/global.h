@@ -23,7 +23,8 @@ XMEDIA_PLAYER_EXPORT void GlobalInit();
 // Version of xmedia-kit, e.g. "0.1.0".
 XMEDIA_PLAYER_EXPORT const char* GetVersion();
 
-// Version of the FFmpeg xmedia-kit was built against, e.g. "7.1", or "none" when
+// Version of the FFmpeg xmedia-kit was built against, e.g. "7.1", or "none"
+// when
 // built with XMEDIA_ENABLE_FFMPEG=OFF.
 XMEDIA_PLAYER_EXPORT const char* GetFFmpegVersion();
 

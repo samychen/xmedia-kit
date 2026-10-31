@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 //
 // Add/Remove{Video,Audio,Text}Stream are declared on the frozen Pipeline
-// interface but describe an axis xmedia-kit does not have: `id` would select among
+// interface but describe an axis xmedia-kit does not have: `id` would select
+// among
 // several streams of one type, and Demuxer::GetStream(type) returns ONE stream
 // per type. A second picture is a second URL -- a second Demuxer, or a second
 // Player feeding the scene's mailbox -- not a second id.

@@ -231,7 +231,8 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
   ctx_->converted->color_range = in->color_space().range == ColorRange::kFull
                                      ? AVCOL_RANGE_JPEG
                                      : AVCOL_RANGE_MPEG;
-  // The frame's timestamp is microseconds (xmedia-kit VideoFrame); the encoder's
+  // The frame's timestamp is microseconds (xmedia-kit VideoFrame); the
+  // encoder's
   // time_base ticks are frame intervals. Rescale instead of feeding raw
   // microseconds: under the old {1, fps_den} time_base a 33333 us frame
   // interval became 33333 SECONDS of timeline.

@@ -13,7 +13,8 @@
 
 namespace xmedia::qt {
 
-// 60 Hz. This is a poll interval, not a promise: the compositor inside xmedia-kit
+// 60 Hz. This is a poll interval, not a promise: the compositor inside
+// xmedia-kit
 // decides which frame is current, and Render() returns the same frame on a
 // refresh where none is due. Storing it again is cheap (one refcount bump) and
 // harmless -- the mailbox serial advances and the GUI repaints.

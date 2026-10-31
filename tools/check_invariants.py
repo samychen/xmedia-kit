@@ -131,6 +131,17 @@ LINE_LIMIT_ALLOWLIST = {
              "(Flush resets every leg's generation; StartPlayingFrom re-arms "
              "each leg's pump), raising it 590 -> 598. Revisit when M9 "
              "BufferController absorbs CheckBufferingTransitions()."),
+    "media/filters/renderer_impl.cc": (
+        624, "Multi-source reporting and the record tap: per-source clock "
+             "offset fan-out, the kUtcTime anchor hop and the output-target "
+             "routing grew the lifecycle plumbing the 598 entry describes "
+             "(2026-10-31 rebrand audit; the growth is the same call-for-call "
+             "mirrored fan-out, not a new concern). Revisit with the same "
+             "seam hunt as the 598 entry."),
+    "media/filters/renderer_impl.h": (
+        502, "The header of the 624 entry: one declaration block per "
+             "mirrored half. 500 -> 502 is the record-tap and output-target "
+             "declarations (2026-10-31)."),
 }
 
 # Layers that must never see a vendor or platform header (invariants C4, C5).

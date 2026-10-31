@@ -14,7 +14,8 @@ namespace xmedia::base {
 
 // A TaskRunner whose tasks run one at a time in posting order.
 //
-// "Sequence" in xmedia-kit means exactly this: a serialised execution context. Most
+// "Sequence" in xmedia-kit means exactly this: a serialised execution context.
+// Most
 // sequences are backed by a dedicated thread (base::Thread), but a sequence is
 // not a thread — base::test::TaskEnvironment runs one inline on the test
 // thread, which is what makes scheduling logic deterministically testable.
@@ -32,7 +33,8 @@ class XMEDIA_BASE_EXPORT SequencedTaskRunner : public TaskRunner {
 };
 
 // Convenience alias matching Chromium usage where a sequence is pinned to one
-// thread. xmedia-kit does not distinguish the two at the type level: every sequence
+// thread. xmedia-kit does not distinguish the two at the type level: every
+// sequence
 // here is single-threaded by construction.
 using SingleThreadTaskRunner = SequencedTaskRunner;
 

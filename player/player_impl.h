@@ -95,6 +95,12 @@ class PlayerImpl final : public media::Pipeline::Client {
   std::optional<MediaInfo> media_info() const;
   base::TimeDelta GetMediaTime() const;
   base::TimeDelta GetBufferedTime() const;
+  // Unix epoch milliseconds of the CURRENT media position, extrapolated from
+  // the source's wall-clock anchor (HLS EXT-X-PROGRAM-DATE-TIME). Errors with
+  // kInvalidState when the source carries no anchor (FFmpeg sources) or the
+  // clock has not started; errors with kAborted when the media time is
+  // unknown (kNoTimestamp from the master clock).
+  Result<int64_t> GetUtcTimeMs() const;
   base::TimeDelta GetDuration() const;
   bool is_live() const;
   bool IsPlaying() const;
@@ -195,6 +201,7 @@ class PlayerImpl final : public media::Pipeline::Client {
                          const std::string& from_decoder,
                          const std::string& to_decoder,
                          const std::string& reason) override;
+  void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) override;
 
   // The ready signal arrives as the pipeline's first
   // OnBufferingStateChange(kHaveMetadata); snapshot media info and publish
@@ -374,6 +381,13 @@ class PlayerImpl final : public media::Pipeline::Client {
   // PipelineStatistics: the pipeline reports how many frames, the player
   // reports how fast.
   base::TimeTicks last_stats_ticks_ GUARDED_BY(snapshot_lock_);
+  // The source's wall-clock anchor (HLS EXT-X-PROGRAM-DATE-TIME): at media
+  // position |utc_anchor_media_us_| the stream showed |utc_anchor_epoch_ms_|.
+  // GetUtcTimeMs() extrapolates linearly with the live media clock. Written
+  // from the media sequence (kUtcTime events), read from any thread.
+  bool has_utc_anchor_ GUARDED_BY(snapshot_lock_) = false;
+  int64_t utc_anchor_media_us_ GUARDED_BY(snapshot_lock_) = 0;
+  int64_t utc_anchor_epoch_ms_ GUARDED_BY(snapshot_lock_) = 0;
   double video_output_fps_ GUARDED_BY(snapshot_lock_) = 0.0;
   media::Size video_coded_size_ GUARDED_BY(snapshot_lock_);
   media::Size video_natural_size_ GUARDED_BY(snapshot_lock_);

@@ -15,7 +15,7 @@
 #include "player/public/error.h"
 #include <memory>
 
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
 #include "media/base/decoder_buffer.h"
 #include "base/threading/thread.h"
@@ -103,7 +103,8 @@ class PlayerRecorder {
 
   // Record thread: pts re-base + muxer write for one tap buffer (shared by
   // the direct path and the pending-queue flush).
-  void WriteBuffered(bool video, base::scoped_refptr<media::DecoderBuffer> buffer);
+  void WriteBuffered(bool video,
+                     base::scoped_refptr<media::DecoderBuffer> buffer);
   // Record thread: opens the gate when the expected legs have all delivered
   // their stream header (or the grace timer / EOS / Stop forced it open) and
   // flushes what became writable.

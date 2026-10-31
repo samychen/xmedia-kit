@@ -18,7 +18,8 @@ namespace xmedia::media {
 // One audio filter-graph stage, driven by the "af" filter_graph config.
 //
 // Ported role from MediaComponent's framework/ffmpeg/audio_filter.h, rewritten
-// onto xmedia-kit's AudioBuffer contract: buffers in (matching the stream config),
+// onto xmedia-kit's AudioBuffer contract: buffers in (matching the stream
+// config),
 // buffers out (the graph's negotiated output). Requires avfilter in the
 // FFmpeg build (tools/setup_ffmpeg.sh enables it and the common audio
 // filters).

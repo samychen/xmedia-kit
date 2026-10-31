@@ -85,7 +85,7 @@
 #include "media/filters/legacy/av_sync_controller.h"
 #include "media/filters/legacy/video_frame_compositor.h"
 #include "media/filters/video_filter_stage.h"
-#include "media/filters/record_tap.h"
+#include "media/base/record_tap.h"
 #include "media/filters/video_renderer_impl.h"
 #include "media/media_export.h"
 

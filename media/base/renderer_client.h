@@ -172,7 +172,8 @@ struct XMEDIA_MEDIA_EXPORT PipelineStatistics {
   uint64_t seek_count{0};
   base::TimeDelta last_seek_duration;
 
-  // What presenting each frame cost, from the video sink. An xmedia-kit addition
+  // What presenting each frame cost, from the video sink. An xmedia-kit
+  // addition
   // to the Chromium shape, kept as one nested struct so the field list here
   // does not grow by one per render stage; see render_perf_stats.h for what
   // the stages mean and why the upload path travels with them.

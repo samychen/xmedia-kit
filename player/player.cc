@@ -97,6 +97,10 @@ void Player::StepOnce() {
                     "pause and seek by one frame duration instead")
                     .ToString();
 }
+Result<int64_t> Player::GetUtcTimeMs() const {
+  return impl_->core.GetUtcTimeMs();
+}
+
 void Player::SetPlaybackRate(double rate) {
   impl_->core.SetPlaybackRate(rate);
 }

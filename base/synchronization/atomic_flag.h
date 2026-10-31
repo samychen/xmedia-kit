@@ -11,7 +11,8 @@ namespace xmedia::base {
 
 // A settable boolean flag for cross-thread cancellation.
 //
-// Chromium's AtomicFlag is deliberately one-way (Set only). xmedia-kit adds Reset()
+// Chromium's AtomicFlag is deliberately one-way (Set only). xmedia-kit adds
+// Reset()
 // because the demuxer's interrupt flag must be cleared before each seek: it is
 // set to break a blocking av_read_frame, then cleared so the next read can
 // proceed. Stop flags stay one-way in practice — nothing ever resets them.

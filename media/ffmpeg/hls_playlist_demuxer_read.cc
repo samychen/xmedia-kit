@@ -245,6 +245,7 @@ void HlsPlaylistDemuxer::OnPlaylistReloaded(OpenCompletion completion, bool ok,
       if (!playlist_.segments.empty()) {
         playlist_.total_duration = timeline;
       }
+      PublishUtcAnchor();
     }
   }
   // Whether or not the reload brought anything: the next open either finds

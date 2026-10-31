@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static"
+     mediaPresentationDuration="PT2S" profiles="urn:mpeg:dash:profile:isoff-live:2011">
+  <Period>
+    <AdaptationSet contentType="video" mimeType="video/mp2t">
+      <SegmentTemplate media="seg$Number$.ts" duration="1" timescale="1" startNumber="0"/>
+      <Representation id="v0" bandwidth="1200000" codecs="avc1.64001f"/>
+    </AdaptationSet>
+  </Period>
+</MPD>
