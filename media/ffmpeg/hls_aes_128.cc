@@ -4,10 +4,11 @@
 
 #include "media/ffmpeg/hls_aes_128.h"
 
-#include "av_includes.h"  // NOLINT: the wrap point every ffmpeg TU shares
 extern "C" {
 #include <libavutil/aes.h>  // this build's aes.h has no own extern "C"
 }
+
+#include "av_includes.h"  // NOLINT: the wrap point every ffmpeg TU shares
 
 namespace xmedia::media::hls {
 namespace {
@@ -49,7 +50,7 @@ Aes128CbcDecrypter::Create(const std::string& key, const std::string& iv) {
 std::string Aes128CbcDecrypter::SequenceNumberIv(int64_t media_sequence) {
   std::string iv(kBlock, '\0');
   // Big-endian sequence number in the LOW 8 bytes (the RFC 8216 default).
-  for (int i = 0; i < 8; ++i) {
+  for (size_t i = 0; i < 8; ++i) {
     iv[15 - i] = static_cast<char>((media_sequence >> (i * 8)) & 0xFF);
   }
   return iv;

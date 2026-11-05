@@ -59,10 +59,10 @@ struct XMEDIA_MEDIA_EXPORT StreamRecordTap {
 inline StreamRecordTap BindTap(const RecordTap& tap, bool video) {
   StreamRecordTap stream_tap;
   stream_tap.on_stream = tap.on_stream;
-  stream_tap.on_packet = [video, cb = tap.on_packet](
-                             base::scoped_refptr<DecoderBuffer> buffer) {
-    cb(video, std::move(buffer));
-  };
+  stream_tap.on_packet =
+      [video, cb = tap.on_packet](base::scoped_refptr<DecoderBuffer> buffer) {
+        cb(video, std::move(buffer));
+      };
   return stream_tap;
 }
 

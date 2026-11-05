@@ -48,8 +48,8 @@ TEST(TextRasterTest, RasterizesSingleLine) {
   ASSERT_TRUE(raster.Rasterize(font, 28, white, "xmedia-kit", &bitmap));
   EXPECT_GT(bitmap.width, 0);
   EXPECT_GT(bitmap.height, 0);
-  EXPECT_EQ(bitmap.rgba.size(),
-            static_cast<size_t>(bitmap.width) * bitmap.height * 4);
+  EXPECT_EQ(bitmap.rgba.size(), static_cast<size_t>(bitmap.width) *
+                                    static_cast<size_t>(bitmap.height) * 4);
   // Real ink, not an empty bitmap.
   EXPECT_GT(CountNonTransparent(bitmap), 100);
 #else

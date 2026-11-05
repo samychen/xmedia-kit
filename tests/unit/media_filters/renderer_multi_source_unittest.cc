@@ -942,14 +942,14 @@ TEST_F(RendererMultiSourceTest, FlushDisarmsEveryTextLegAndStartReArmsThem) {
 
   // Select BOTH sources' text tracks. Each leg pumps to EOS synchronously
   // (FakeDemuxerStream completes Read inline), one cue per source.
-  for (int source = 0; source < 2; ++source) {
+  for (size_t source = 0; source < 2; ++source) {
     text_streams_[source]->AppendBuffer(
         test::MakeDataBuffer(DemuxerStreamType::kText, /*serial=*/0));
     std::atomic<bool> changed{false};
     renderer_->OnTracksChanged(
         DemuxerStreamType::kText, text_streams_[source].get(),
         base::BindOnce([](std::atomic<bool>* c) { c->store(true); }, &changed),
-        source);
+        static_cast<int>(source));
     EXPECT_TRUE(changed.load());
   }
   ASSERT_EQ(client_.cues().size(), 2u);
@@ -957,7 +957,7 @@ TEST_F(RendererMultiSourceTest, FlushDisarmsEveryTextLegAndStartReArmsThem) {
   EXPECT_EQ(client_.cues()[1].source_id, 1);
 
   // Data waiting for the post-seek read, on BOTH legs.
-  for (int source = 0; source < 2; ++source) {
+  for (size_t source = 0; source < 2; ++source) {
     text_streams_[source]->AppendBuffer(
         test::MakeDataBuffer(DemuxerStreamType::kText, /*serial=*/0));
   }

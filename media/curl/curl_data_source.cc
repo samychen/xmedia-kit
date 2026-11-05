@@ -264,23 +264,30 @@ DataSource::ReadResult CurlDataSource::PrepareRequestLocked(int64_t offset,
     }
     easy_ = easy;
     error_buffer_[0] = '\0';
+    // libcurl's CURLOPT_* take `long` by ABI contract, so these
+    // casts are required; runtime/int is suppressed per line.
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION,
                      config_.follow_redirects ? 1L : 0L);
     curl_easy_setopt(easy, CURLOPT_MAXREDIRS,
+                     // NOLINTNEXTLINE(runtime/int)
                      static_cast<long>(config_.max_redirects));
     curl_easy_setopt(
         easy, CURLOPT_CONNECTTIMEOUT_MS,
+        // NOLINTNEXTLINE(runtime/int)
         static_cast<long>(config_.connect_timeout.InMilliseconds()));
     if (config_.low_speed_limit > 0 &&
         config_.low_speed_time > base::TimeDelta()) {
       curl_easy_setopt(easy, CURLOPT_LOW_SPEED_LIMIT,
+                       // NOLINTNEXTLINE(runtime/int)
                        static_cast<long>(config_.low_speed_limit));
       curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME,
+                       // NOLINTNEXTLINE(runtime/int)
                        static_cast<long>(config_.low_speed_time.InSeconds()));
     }
     curl_easy_setopt(
         easy, CURLOPT_IPRESOLVE,
+        // NOLINTNEXTLINE(runtime/int)
         static_cast<long>(config_.ip_resolve == IpResolve::kV4
                               ? CURL_IPRESOLVE_V4
                               : (config_.ip_resolve == IpResolve::kV6
@@ -362,6 +369,7 @@ CurlDataSource::PerformLocked(int64_t offset, size_t size, uint8_t* data) {
     return base::unexpected(std::move(error));
   }
 
+  // NOLINTNEXTLINE(runtime/int)
   long status = 0;
   curl_easy_getinfo(static_cast<CURL*>(easy_), CURLINFO_RESPONSE_CODE, &status);
   if (status == 416) {

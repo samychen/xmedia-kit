@@ -4,6 +4,8 @@
 
 #include "media/ffmpeg/hls_fetch_utils.h"
 
+#include <utility>
+
 #include "media/ffmpeg/url_data_source.h"
 
 namespace xmedia::media {

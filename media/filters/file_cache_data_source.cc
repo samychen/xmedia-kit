@@ -4,6 +4,7 @@
 
 #include "media/filters/file_cache_data_source.h"
 
+#include <cinttypes>
 #include <cstdio>
 #include <filesystem>
 #include <string>
@@ -32,8 +33,7 @@ std::string CacheFileName(const std::string& url) {
     hash *= 1099511628211ULL;
   }
   char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%016llx",
-           static_cast<unsigned long long>(hash));
+  snprintf(buffer, sizeof(buffer), "%016" PRIx64, hash);
   return std::string(buffer) + ".avcache";
 }
 
@@ -98,7 +98,7 @@ void FileCacheDataSource::OpenCacheFileLocked() {
     return;  // read-through only; playback is never blocked by this.
   }
   fseek(file, 0, SEEK_END);
-  const long size = ftell(file);
+  const long size = ftell(file);  // NOLINT(runtime/int): ftell returns long
   downloaded_mark_ = static_cast<int64_t>(size);
   cache_file_ = file;
   cache_active_ = true;
@@ -142,6 +142,8 @@ size_t FileCacheDataSource::ReadFromCacheLocked(int64_t offset, size_t size,
   }
   const size_t available = static_cast<size_t>(downloaded_mark_ - offset);
   const size_t take = available < size ? available : size;
+  // fseek takes long by the C standard; the cast is the API, not a choice.
+  // NOLINTNEXTLINE(runtime/int)
   fseek(static_cast<FILE*>(cache_file_), static_cast<long>(offset), SEEK_SET);
   const size_t got = fread(data, 1, take, static_cast<FILE*>(cache_file_));
   if (got < take) {
@@ -163,7 +165,8 @@ void FileCacheDataSource::AppendToCacheLocked(const uint8_t* data,
   if (static_cast<size_t>(downloaded_mark_) + bytes > config_.max_bytes) {
     return;  // budget reached: read-through only from here on.
   }
-  fseek(static_cast<FILE*>(cache_file_), static_cast<long>(downloaded_mark_),
+  fseek(static_cast<FILE*>(cache_file_),
+        static_cast<long>(downloaded_mark_),  // NOLINT(runtime/int)
         SEEK_SET);
   const size_t wrote = fwrite(data, 1, bytes, static_cast<FILE*>(cache_file_));
   if (wrote == bytes) {

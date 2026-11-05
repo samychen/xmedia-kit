@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <map>
 #include <optional>
+#include <utility>
 
 namespace xmedia::media::hls {
 namespace {
@@ -121,30 +122,31 @@ std::string ResolveUrl(const std::string& base_url, std::string_view relative) {
 // Days from 1970-01-01 for a proleptic-Gregorian Y/M/D (Howard Hinnant's
 // algorithm). Negative for earlier dates; correct across leap years and the
 // 1900/2100 century rules.
-static int64_t DaysFromCivil(int64_t y, unsigned m, unsigned d) {
+static int64_t DaysFromCivil(int64_t y, int m, int d) {
   y -= m <= 2;
   const int64_t era = (y >= 0 ? y : y - 399) / 400;
   const unsigned yoe = static_cast<unsigned>(y - era * 400);
-  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doy =
+      static_cast<unsigned>((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1);
   const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
   return era * 146097 + static_cast<int64_t>(doe) - 719468;
 }
 
 std::optional<int64_t> ParseIsoDateTimeMs(std::string_view text) {
   // Shape: YYYY-MM-DD(T| )HH:MM[:SS[.fff]][Z|(+|-)HH[:MM]]
-  auto digits = [&text](size_t& pos, int count) -> int {
+  auto digits = [&text](size_t& pos, size_t count) -> int {
     if (pos + count > text.size()) {
       return -1;
     }
     int value = 0;
-    for (int i = 0; i < count; ++i) {
-      const char c = text[pos + static_cast<size_t>(i)];
+    for (size_t i = 0; i < count; ++i) {
+      const char c = text[pos + i];
       if (c < '0' || c > '9') {
         return -1;
       }
       value = value * 10 + (c - '0');
     }
-    pos += static_cast<size_t>(count);
+    pos += count;
     return value;
   };
   size_t pos = 0;
@@ -229,8 +231,7 @@ std::optional<int64_t> ParseIsoDateTimeMs(std::string_view text) {
       return std::nullopt;
     }
   }
-  const int64_t days = DaysFromCivil(year, static_cast<unsigned>(month),
-                                     static_cast<unsigned>(day));
+  const int64_t days = DaysFromCivil(year, month, day);
   const int64_t seconds =
       days * 86400 + hour * 3600 + minute * 60 + second - offset_minutes * 60;
   return seconds * 1000 + millis;

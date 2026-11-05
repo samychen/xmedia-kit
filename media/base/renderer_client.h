@@ -241,9 +241,9 @@ class XMEDIA_MEDIA_EXPORT RendererClient {
   // or fall back to a different policy when hardware decode is unavailable,
   // and Player::GetPlaybackStats() reports throughput with no attribution.
   // Default no-op so existing clients keep compiling.
-  virtual void OnDecoderOpened(DemuxerStreamType type,
-                               const std::string& decoder_name,
-                               bool outputs_opaque_surface) {}
+  virtual void OnDecoderOpened(DemuxerStreamType /*type*/,
+                               const std::string& /*decoder_name*/,
+                               bool /*outputs_opaque_surface*/) {}
 
   // The callback shape the sub-renderers use to report those two facts
   // upward. Declared once, here, because both legs need the identical
@@ -264,10 +264,10 @@ class XMEDIA_MEDIA_EXPORT RendererClient {
   // This is a recovery, not an error -- but it is the difference between
   // "4K is smooth" and "4K is smooth until the driver resets", so it must be
   // observable rather than a log line. Default no-op.
-  virtual void OnDecoderFallback(DemuxerStreamType type,
-                                 const std::string& from_decoder,
-                                 const std::string& to_decoder,
-                                 const std::string& reason) {}
+  virtual void OnDecoderFallback(DemuxerStreamType /*type*/,
+                                 const std::string& /*from_decoder*/,
+                                 const std::string& /*to_decoder*/,
+                                 const std::string& /*reason*/) {}
 
   // Audio output device switched, or the attempt failed. No caller until
   // media/audio/ exists (M7); see gap 2 in the file header.

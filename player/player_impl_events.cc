@@ -16,9 +16,9 @@
 #include <string>
 #include <utility>
 
-#include "xmedia-kit/BuildConfig.h"
 #include "base/functional/bind.h"
 #include "media/base/media_constants.h"
+#include "xmedia-kit/BuildConfig.h"
 #if XMEDIA_ENABLE_FFMPEG
 #include "media/ffmpeg/ffmpeg_image_snapshot.h"
 #endif
@@ -375,7 +375,14 @@ std::string PlayerImpl::DumpDiagnostics() const {
 }
 
 void PlayerImpl::SetRecordTap(media::RecordTap tap) {
-  pipeline_->SetRecordTap(std::move(tap));
+  // Taken through the locked snapshot like every other pipeline touch in this
+  // file: a concurrent Reset() replaces pipeline_, so reading the member
+  // directly is a data race (clang's -Wthread-safety-analysis says so, and it
+  // is right -- this line was the one place that skipped the accessor).
+  const std::shared_ptr<media::PipelineImpl> pipeline = GetPipeline();
+  if (pipeline) {
+    pipeline->SetRecordTap(std::move(tap));
+  }
 }
 
 Status PlayerImpl::TakeSnapshot(base::TimeDelta at,

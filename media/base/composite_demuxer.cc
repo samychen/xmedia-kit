@@ -39,7 +39,7 @@ DemuxerStream* CompositeDemuxer::GetStream(int source_id,
   if (source_id < 0 || source_id >= static_cast<int>(sources_.size())) {
     return nullptr;
   }
-  return sources_[source_id].demuxer->GetStream(type);
+  return sources_[static_cast<size_t>(source_id)].demuxer->GetStream(type);
 }
 
 std::vector<DemuxerStream*>
@@ -147,7 +147,7 @@ Demuxer* CompositeDemuxer::source(int id) const {
   if (id < 0 || id >= static_cast<int>(sources_.size())) {
     return nullptr;
   }
-  return sources_[id].demuxer.get();
+  return sources_[static_cast<size_t>(id)].demuxer.get();
 }
 
 void CompositeDemuxer::Initialize(

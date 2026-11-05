@@ -18,11 +18,13 @@ AbrBufferAlgoStrategy::AbrBufferAlgoStrategy(Config config) : config_(config) {}
 
 AbrDecision AbrBufferAlgoStrategy::Decide(const AbrInput& input) {
   AbrDecision decision;
-  const int rungs = static_cast<int>(input.variant_bandwidths_bps.size());
+  const auto rungs = input.variant_bandwidths_bps.size();
   if (rungs == 0) {
     return decision;
   }
-  const int current = std::clamp(input.current_index, 0, rungs - 1);
+  const int current =
+      std::clamp(input.current_index, 0, static_cast<int>(rungs) - 1);
+  const size_t current_index = static_cast<size_t>(current);
   decision.target_index = current;
 
   // Panic: the pipeline is starving -- quality is the last concern.
@@ -32,14 +34,14 @@ AbrDecision AbrBufferAlgoStrategy::Decide(const AbrInput& input) {
   }
 
   // Drop when the estimate can no longer sustain the current rung.
-  const int64_t current_bandwidth = input.variant_bandwidths_bps[current];
+  const int64_t current_bandwidth = input.variant_bandwidths_bps[current_index];
   if (input.estimated_bandwidth_bps > 0 &&
       input.estimated_bandwidth_bps < current_bandwidth) {
     // Land on the highest rung the estimate sustains.
     int target = 0;
-    for (int i = 0; i < rungs; ++i) {
+    for (size_t i = 0; i < rungs; ++i) {
       if (input.estimated_bandwidth_bps >= input.variant_bandwidths_bps[i]) {
-        target = i;
+        target = static_cast<int>(i);
       }
     }
     decision.target_index = std::min(target, current);
@@ -56,10 +58,11 @@ AbrDecision AbrBufferAlgoStrategy::Decide(const AbrInput& input) {
   const bool buffer_healthy =
       input.buffer_capacity > base::TimeDelta() &&
       input.buffered_duration.InMicroseconds() >= climb_mark_us;
-  if (!buffer_healthy || current + 1 >= rungs) {
+  if (!buffer_healthy || current_index + 1 >= rungs) {
     return decision;
   }
-  const int64_t next_bandwidth = input.variant_bandwidths_bps[current + 1];
+  const int64_t next_bandwidth =
+      input.variant_bandwidths_bps[current_index + 1];
   if (input.estimated_bandwidth_bps >=
       next_bandwidth * config_.climb_bandwidth_headroom) {
     decision.target_index = current + 1;

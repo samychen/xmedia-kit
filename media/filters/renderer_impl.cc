@@ -168,7 +168,7 @@ void RendererImpl::Initialize(
   // a single-source resource walks exactly the same path it always did.
   const int source_count = media_resource->source_count();
   std::vector<SourceStreams> sources;
-  sources.reserve(source_count);
+  sources.reserve(static_cast<size_t>(std::max(source_count, 0)));
   bool any_media = false;
   for (int id = 0; id < source_count; ++id) {
     SourceStreams s;
@@ -471,21 +471,19 @@ void RendererImpl::SetRecordTap(RecordTap tap) {
   // renderer is one leg.
   for (const auto& renderer : video_renderers_) {
     deps_.video_task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](VideoRendererImpl* r, const RecordTap& tap) {
-              r->SetRecordTap(BindTap(tap, true));
-            },
-            base::Unretained(renderer.get()), tap));
+        FROM_HERE, base::BindOnce(
+                       [](VideoRendererImpl* r, const RecordTap& tap) {
+                         r->SetRecordTap(BindTap(tap, true));
+                       },
+                       base::Unretained(renderer.get()), tap));
   }
   if (audio_) {
     deps_.audio_task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](AudioRendererImpl* r, const RecordTap& tap) {
-              r->SetRecordTap(BindTap(tap, false));
-            },
-            base::Unretained(audio_.get()), tap));
+        FROM_HERE, base::BindOnce(
+                       [](AudioRendererImpl* r, const RecordTap& tap) {
+                         r->SetRecordTap(BindTap(tap, false));
+                       },
+                       base::Unretained(audio_.get()), tap));
   }
 }
 

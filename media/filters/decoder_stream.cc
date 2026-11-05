@@ -19,6 +19,8 @@ const char* GetDecoderStreamEventName(DecoderStreamEvent e) {
   switch (e) {
   case DecoderStreamEvent::kNone:
     return "none";
+  case DecoderStreamEvent::kDecoderOpened:
+    return "decoder-opened";
   case DecoderStreamEvent::kDecoderFallbackOnInit:
     return "decoder-fallback-on-init";
   case DecoderStreamEvent::kDecoderFallbackOnDecodeError:

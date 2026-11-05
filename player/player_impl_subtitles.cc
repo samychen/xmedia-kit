@@ -51,10 +51,6 @@ Result<std::string> LoadLocalTextFile(const std::string& uri) {
   return text;
 }
 
-bool HasVttExtension(const std::string& uri) {
-  return uri.ends_with(".vtt") || uri.ends_with(".webvtt");
-}
-
 }  // namespace
 
 Result<int> PlayerImpl::AddExternalSubtitle(std::string_view uri,

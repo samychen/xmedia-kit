@@ -16,7 +16,8 @@ AbrInput MakeInput(std::vector<int64_t> ladder, int current,
   AbrInput input;
   input.variant_bandwidths_bps = std::move(ladder);
   input.current_index = current;
-  input.current_variant_bandwidth_bps = input.variant_bandwidths_bps[current];
+  input.current_variant_bandwidth_bps =
+      input.variant_bandwidths_bps[static_cast<size_t>(current)];
   input.estimated_bandwidth_bps = bandwidth_bps;
   input.buffered_duration = buffered;
   input.buffer_capacity = capacity;

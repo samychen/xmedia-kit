@@ -11,9 +11,9 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <functional>
-#include <cstdio>
 #include <string>
 #include <thread>
 
@@ -25,10 +25,6 @@
 
 namespace xmedia {
 namespace {
-
-std::string TempPath(const char* name) {
-  return testing::TempDir() + "/" + name;
-}
 
 class PlayerUtcTest : public ::testing::Test {
  protected:
@@ -112,8 +108,7 @@ TEST_F(PlayerUtcTest, ProgramDateTimeBecomesTheUtcAnchor) {
     player.Start();
   }
   ASSERT_TRUE(PumpUntil([&] { return got_anchor.load(); }, 500));
-  EXPECT_EQ(anchor_epoch.load(),
-            (int64_t{1793404800} + 8 * 3600) * 1000 + 500);
+  EXPECT_EQ(anchor_epoch.load(), (int64_t{1793404800} + 8 * 3600) * 1000 + 500);
   EXPECT_EQ(anchor_media_us.load(), 0);  // the first segment's start
 
   // The query extrapolates: at media time t the answer is anchor + t. Read
@@ -123,9 +118,9 @@ TEST_F(PlayerUtcTest, ProgramDateTimeBecomesTheUtcAnchor) {
   ASSERT_TRUE(utc.has_value()) << utc.error().ToString();
   const auto media = player.GetMediaTime();
   ASSERT_NE(media, media::kNoTimestamp);
-  const int64_t expected = anchor_epoch.load() +
-                           (media.InMicroseconds() -
-                            anchor_media_us.load()) / 1000;
+  const int64_t expected =
+      anchor_epoch.load() +
+      (media.InMicroseconds() - anchor_media_us.load()) / 1000;
   EXPECT_EQ(utc.value(), expected);
   player.StopSync(base::Seconds(5));
 }
@@ -135,10 +130,10 @@ TEST_F(PlayerUtcTest, ProgramDateTimeBecomesTheUtcAnchor) {
 TEST_F(PlayerUtcTest, SourceWithoutAnchorRefusesTheQuery) {
   Player player(config_, nullptr);
   player.SetEventHandler(base::BindRepeating([](const PlayerEvent&) {}));
-  ASSERT_TRUE(
-      player.SetDataSource("file://" + std::string(XMEDIA_TESTDATA_DIR) +
-                           "/hls/local.m3u8")
-          .has_value());
+  ASSERT_TRUE(player
+                  .SetDataSource("file://" + std::string(XMEDIA_TESTDATA_DIR) +
+                                 "/hls/local.m3u8")
+                  .has_value());
   ASSERT_TRUE(player.PrepareSync(base::Seconds(10)).has_value());
   const auto utc = player.GetUtcTimeMs();
   ASSERT_FALSE(utc.has_value());

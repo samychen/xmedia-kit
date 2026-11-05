@@ -13,6 +13,7 @@
 #include "media/ffmpeg/hls_playlist_demuxer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -76,8 +77,9 @@ void HlsPlaylistDemuxer::FetchSegmentOnWorker(size_t index) {
     const size_t end = std::min(
         bytes.size(), start + static_cast<size_t>(segment.byterange_length));
     if (start < bytes.size()) {
-      bytes = std::vector<uint8_t>(bytes.begin() + static_cast<long>(start),
-                                   bytes.begin() + static_cast<long>(end));
+      bytes = std::vector<uint8_t>(
+          bytes.begin() + static_cast<std::ptrdiff_t>(start),
+          bytes.begin() + static_cast<std::ptrdiff_t>(end));
     }
   }
   if (segment.key.is_aes_128()) {
@@ -173,7 +175,7 @@ void HlsPlaylistDemuxer::OnSegmentBytesReady(
   // ABR sample: the whole-file fetch of this segment over its playback
   // duration is the throughput observation the estimator consumes.
   if (options_.abr_enabled && index < playlist_.segments.size()) {
-    abr_estimator_.OnSample(open_segment_bytes_.size(),
+    abr_estimator_.OnSample(static_cast<int64_t>(open_segment_bytes_.size()),
                             playlist_.segments[index].duration);
   }
   auto inner = std::make_unique<FFmpegDemuxer>(media_log_, limits_);

@@ -116,7 +116,11 @@ TEST(RtmpPublishTest, DurationBoundedCaptureStopsAtTheLimit) {
   }
   ASSERT_TRUE(opened) << opened.error().ToString();
   const base::TimeDelta got = demuxer.media_info().duration;
-  EXPECT_GE(got, base::Seconds(2.5)) << "cut too early: " << got.InSecondsF();
+  // Milliseconds, not Seconds(2.5): base::Seconds takes an integer, so the
+  // literal 2.5 silently truncated to 2 and the check was weaker than it
+  // read (-Wliteral-conversion caught it).
+  EXPECT_GE(got, base::Milliseconds(2500))
+      << "cut too early: " << got.InSecondsF();
   EXPECT_LE(got, base::Seconds(4.0))
       << "the 3 s limit did not stop a 40 s source: " << got.InSecondsF()
       << " s written";

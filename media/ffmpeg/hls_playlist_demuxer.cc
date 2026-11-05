@@ -89,9 +89,9 @@ void HlsPlaylistDemuxer::OnPlaylistFetched(InitializeCB init_cb, bool ok,
   if (playlist_.is_master) {
     // The ABR ladder: the master's variants sorted ascending by bandwidth.
     abr_ladder_.clear();
-    for (int i = 0; i < static_cast<int>(playlist_.variants.size()); ++i) {
+    for (size_t i = 0; i < playlist_.variants.size(); ++i) {
       abr_ladder_.push_back(playlist_.variants[i]);
-      abr_ladder_.back().variant_index = i;
+      abr_ladder_.back().variant_index = static_cast<int>(i);
     }
     std::sort(abr_ladder_.begin(), abr_ladder_.end(),
               [](const hls::Variant& a, const hls::Variant& b) {
@@ -104,18 +104,19 @@ void HlsPlaylistDemuxer::OnPlaylistFetched(InitializeCB init_cb, bool ok,
     int start = static_cast<int>(abr_ladder_.size()) - 1;
     if (options_.abr_enabled && options_.abr_initial_bandwidth_bps > 0) {
       start = 0;
-      for (int i = 0; i < static_cast<int>(abr_ladder_.size()); ++i) {
+      for (size_t i = 0; i < abr_ladder_.size(); ++i) {
         if (abr_ladder_[i].bandwidth <= options_.abr_initial_bandwidth_bps) {
-          start = i;
+          start = static_cast<int>(i);
         }
       }
     }
-    active_variant_ = abr_ladder_[start].variant_index;
+    active_variant_ = abr_ladder_[static_cast<size_t>(start)].variant_index;
     active_rung_ = start;
     if (options_.abr_enabled) {
       abr_algo_ = std::make_unique<AbrBufferAlgoStrategy>();
     }
-    const std::string variant_url = master_variants_[active_variant_].uri;
+    const std::string variant_url =
+        master_variants_[static_cast<size_t>(active_variant_)].uri;
     worker_.task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&HlsPlaylistDemuxer::FetchUrlOnWorker,

@@ -60,9 +60,9 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/record_tap.h"
 #include "media/base/renderer_client.h"
 #include "media/base/video_frame.h"
-#include "media/base/record_tap.h"
 #include "media/media_export.h"
 
 namespace xmedia::media {

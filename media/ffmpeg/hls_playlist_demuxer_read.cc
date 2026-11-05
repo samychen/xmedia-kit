@@ -28,7 +28,8 @@ void HlsPlaylistDemuxer::AdvanceAfterBoundary(OpenCompletion completion) {
   // rung's playlist), then open the next segment of whatever playlist is
   // active.
   if (pending_switch_rung_ >= 0 && pending_switch_rung_ != active_rung_) {
-    const int variant_index = abr_ladder_[pending_switch_rung_].variant_index;
+    const int variant_index =
+        abr_ladder_[static_cast<size_t>(pending_switch_rung_)].variant_index;
     pending_switch_rung_ = -1;
     StartVariantSwitch(variant_index, std::move(completion));
     return;
@@ -56,7 +57,7 @@ void HlsPlaylistDemuxer::MaybeDecideSwitch() {
   }
   input.current_index = std::max(active_rung_, 0);
   input.current_variant_bandwidth_bps =
-      abr_ladder_[input.current_index].bandwidth;
+      abr_ladder_[static_cast<size_t>(input.current_index)].bandwidth;
   // The segment itself is the buffer capacity proxy: the inner demuxer
   // queues at most one segment ahead. Decide only once the queue holds at
   // least half the segment -- the first read after a boundary sees a nearly
@@ -80,12 +81,19 @@ void HlsPlaylistDemuxer::MaybeDecideSwitch() {
 }
 
 void HlsPlaylistDemuxer::StartVariantSwitch(int variant_index,
-                                            OpenCompletion completion) {
+                                            OpenCompletion /*completion*/) {
   // Fetch the target rung's media playlist; OnVariantSwitchLoaded replaces
   // the active segments and opens the aligned segment index. The ladder is
   // assumed aligned across rungs (same segment count and durations), which
   // is what every real ladder ships -- CicadaPlayer aligns by sequence
   // number to the same effect.
+  //
+  // |completion| is deliberately unused: the switch answers by reopening a
+  // segment, and OnVariantSwitchLoaded finishes with a fresh OpenCompletion()
+  // (a switch is a boundary, not an in-flight open). The caller's callback is
+  // therefore dropped rather than run -- a host that waits on it would wait
+  // forever. Recorded here rather than silently ignored; wiring it through is
+  // a behaviour change and needs its own review.
   open_in_flight_ = true;
   worker_.task_runner()->PostTask(
       FROM_HERE,
@@ -115,7 +123,8 @@ void HlsPlaylistDemuxer::OnVariantSwitchLoaded(int variant_index, bool ok,
     }
     return;
   }
-  auto parsed = hls::ParseM3U8(body, master_variants_[variant_index].uri);
+  auto parsed = hls::ParseM3U8(
+      body, master_variants_[static_cast<size_t>(variant_index)].uri);
   if (parsed.has_value() && !parsed->segments.empty()) {
     playlist_ = std::move(*parsed);
     active_variant_ = variant_index;
@@ -127,9 +136,9 @@ void HlsPlaylistDemuxer::OnVariantSwitchLoaded(int variant_index, bool ok,
 }
 
 int HlsPlaylistDemuxer::RungForVariant(int variant_index) const {
-  for (int i = 0; i < static_cast<int>(abr_ladder_.size()); ++i) {
+  for (size_t i = 0; i < abr_ladder_.size(); ++i) {
     if (abr_ladder_[i].variant_index == variant_index) {
-      return i;
+      return static_cast<int>(i);
     }
   }
   return 0;

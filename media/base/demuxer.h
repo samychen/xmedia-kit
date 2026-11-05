@@ -86,7 +86,8 @@ class XMEDIA_MEDIA_EXPORT Demuxer : public MediaResource {
     // EXT-X-PROGRAM-DATE-TIME today; DASH UTCTiming later): |epoch_ms| is the
     // UTC time of |media_time| on the demuxer's own timeline. Sources without
     // a mapping simply never call this. Fired on the media sequence.
-    virtual void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {}
+    virtual void OnUtcAnchor(base::TimeDelta /*media_time*/,
+                             int64_t /*epoch_ms*/) {}
 
    protected:
     Host() = default;

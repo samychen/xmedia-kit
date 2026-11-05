@@ -149,9 +149,9 @@ int main() {
     std::vector<int> order;
     std::vector<std::thread::id> ids(5);
     base::WaitableEvent done(base::WaitableEvent::ResetPolicy::kManualReset);
-    for (int i = 0; i < 5; ++i) {
+    for (size_t i = 0; i < 5; ++i) {
       w.task_runner()->PostTask(FROM_HERE, base::BindOnce([&order, &ids, i] {
-                                  order.push_back(i);
+                                  order.push_back(static_cast<int>(i));
                                   ids[i] = std::this_thread::get_id();
                                 }));
     }
@@ -323,9 +323,9 @@ int main() {
   // DCHECK 是否仍是同一线程；不一致即 debug 下断言失败。它不提供任何锁、不
   // 阻止并发，只是开发期把“方法被用错线程/序列”提前炸出来。
   //
-  // 为什么用线程 id 当 sequence：xmedia-kit 每条逻辑 sequence 都绑定一条专享线程
-  // （docs/04 §2），线程身份就是 Chromium sequence 令牌的忠实替身 —— 这正是
-  // Thread 的价值所在。
+  // 为什么用线程 id 当 sequence：xmedia-kit 每条逻辑 sequence
+  // 都绑定一条专享线程 （docs/04 §2），线程身份就是 Chromium sequence
+  // 令牌的忠实替身 —— 这正是 Thread 的价值所在。
   //
   // 三个宏（DCHECK 关闭时整段塌成空，release 零开销）：
   //   SEQUENCE_CHECKER(name)           声明一个 mutable 成员守卫

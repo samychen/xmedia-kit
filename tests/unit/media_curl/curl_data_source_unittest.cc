@@ -74,9 +74,9 @@ TEST_F(CurlDataSourceTest, ReadsShortNearTheEndAndZeroPastIt) {
       source->ReadBlocking(kBodySize - 10, buffer.size(), buffer.data());
   ASSERT_TRUE(tail.has_value()) << tail.error().summary();
   EXPECT_EQ(*tail, 10);
-  for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(buffer[static_cast<size_t>(i)],
-              static_cast<uint8_t>(body_[kBodySize - 10 + i]));
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_EQ(buffer[i], static_cast<uint8_t>(
+                             body_[static_cast<size_t>(kBodySize) - 10 + i]));
   }
   auto eof = source->ReadBlocking(kBodySize, buffer.size(), buffer.data());
   ASSERT_TRUE(eof.has_value()) << eof.error().summary();

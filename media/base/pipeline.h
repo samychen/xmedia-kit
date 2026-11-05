@@ -64,9 +64,8 @@
 #include "media/base/demuxer.h"
 #include "media/base/media_error.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/pipeline_status.h"
-#include "media/base/renderer.h"
 #include "media/base/record_tap.h"
+#include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/timed_text.h"
@@ -114,20 +113,21 @@ class XMEDIA_MEDIA_EXPORT Pipeline {
     // Which decoder is in use, and when one was replaced. Default no-ops so a
     // client that does not care (the pipeline's own tests, tools) compiles
     // unchanged; PlayerImpl overrides both to raise the player events.
-    virtual void OnDecoderOpened(DemuxerStreamType type,
-                                 const std::string& decoder_name,
-                                 bool outputs_opaque_surface) {}
-    virtual void OnDecoderFallback(DemuxerStreamType type,
-                                   const std::string& from_decoder,
-                                   const std::string& to_decoder,
-                                   const std::string& reason) {}
+    virtual void OnDecoderOpened(DemuxerStreamType /*type*/,
+                                 const std::string& /*decoder_name*/,
+                                 bool /*outputs_opaque_surface*/) {}
+    virtual void OnDecoderFallback(DemuxerStreamType /*type*/,
+                                   const std::string& /*from_decoder*/,
+                                   const std::string& /*to_decoder*/,
+                                   const std::string& /*reason*/) {}
     virtual void OnTimedText(const media::TimedTextCue& /*cue*/) {}
     // Wall-clock anchor from a source that carries one (HLS
     // EXT-X-PROGRAM-DATE-TIME): |epoch_ms| is the UTC time of |media_time| on
     // that source's timeline. Default no-op so pipeline tests compile
     // unchanged; PlayerImpl overrides it to cache the anchor and raise
     // EventType::kUtcTime.
-    virtual void OnUtcAnchor(base::TimeDelta media_time, int64_t epoch_ms) {}
+    virtual void OnUtcAnchor(base::TimeDelta /*media_time*/,
+                             int64_t /*epoch_ms*/) {}
 
    protected:
     Client() = default;
