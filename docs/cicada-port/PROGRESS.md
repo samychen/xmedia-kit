@@ -4,13 +4,16 @@
 > 原计划书 PLAN.md（范围裁决 §0 / DoD §1 / 核销表 §1.5）已随文档精简移除，内容可经
 > `git log --all -- docs/cicada-port/PLAN.md` 找回；本表自足记录剩余与完成。
 
-**当前整体状态**：T1–T9 完成（2026-10-29）+ T8 三条延伸收口（UTC/追帧/DASH 静态，2026-10-31）；余 DASH 动态侧为登记后续。
+**当前整体状态**：T1–T9 完成（2026-10-29）+ T8 三条延伸收口（UTC/追帧/DASH 静态，2026-10-31）
++ DASH 动态侧（live 重载窗口，2026-10-31）。CicadaPlayer 移植范围内**无未开题项**；
+DASH 的 SegmentList/SegmentBase、多 Period、代表切换仍按 §"DASH 后续"登记。
 
 ## 剩余移植工作（PLAN §0 裁决为"部分"或"后置"的部分）
 
 - [x] **T8a UTC 同步**（2026-10-31）：`hls::ParseIsoDateTimeMs`（自研 days-from-civil，Z/±HH[:]MM/闰日）+ `Segment::program_date_time_ms` 解析 EXT-X-PROGRAM-DATE-TIME；demuxer 经 `Host::OnUtcAnchor` 发布锚点（CompositeDemuxer 补转发）→ `Pipeline::Client` → `kUtcTime` 事件缓存 + `Player::GetUtcTimeMs()` 外推查询。判据 4 单测（解析 3 形状/闰日/拒绝；锚点事件 wire + 无锚拒绝）。多源时最后写入者赢（与主时间线=source 0 一致）。
-- [x] **DASH demuxer 集成（静态 SegmentTemplate）**（2026-10-31）：`media/ffmpeg/dash_segment_demuxer.{h,cc,_open,_read}`（C1 三拆）。按 mime/带宽选 Representation（TS 复用 rep 一条链覆盖多类型；fMP4 init 段取一次、逐段前拼）；逐段 FFmpegDemuxer + 统一 SegmentTemplate 网格 rebase；跨段读无缝、seek 落目标段（多链 seek 栅栏）；动态 MPD 结构化拒绝（登记后续）。`.mpd` URI 进 factory。判据 4 e2e（打开暴露流/跨段单时间线/seek/动态拒绝）。
-- [ ] **DASH 后续**（登记不 开题）：动态 MPD 重载窗口、多 Period、SegmentList/SegmentBase、代表切换（对齐 HLS 的 ABR 半边）、UTCTiming 时钟同步。
+- [x] **DASH demuxer 集成（静态 SegmentTemplate）**（2026-10-31）：`media/ffmpeg/dash_segment_demuxer.{h,cc,_open,_read}`（C1 三拆）。按 mime/带宽选 Representation（TS 复用 rep 一条链覆盖多类型；fMP4 init 段取一次、逐段前拼）；逐段 FFmpegDemuxer + 统一 SegmentTemplate 网格 rebase；跨段读无缝、seek 落目标段（多链 seek 栅栏）；（动态 MPD 当时结构化拒绝，已由下一条的 live 重载窗口接上）。`.mpd` URI 进 factory。判据 4 e2e（打开暴露流/跨段单时间线/seek/动态拒绝）。
+- [x] **DASH 动态侧：live 重载窗口**（2026-10-31）：`mpd_parser` 解析 `availabilityStartTime`/`publishTime`/`minimumUpdatePeriod`/`timeShiftBufferDepth`，动态 manifest 由 `(publishTime − availabilityStartTime)` 落在段网格上定位窗口（不再拒绝）；`dash_segment_demuxer_live.{h,cc}` 按最小更新周期（钳在 0.5–30 s）重取 MPD，**按 URL 尾部对齐就地延长**各链而不重建（重建会让游标下的索引重编号、时间线跳变），并按 rep id 查找以免重载时静默换档。直播链尾**挂起读而不发 EOS**（发 EOS 会让最后一次 manifest 的地平线成为流终点），重载补到新段后重发。判据：2 条解析单测（窗口展开 11 段/无锚点结构化拒绝）+ 1 条 e2e（本地 HTTP 服务发布 2 段→重发 4 段，新段可播）。
+- [ ] **DASH 后续**（登记不开题）：多 Period、SegmentList/SegmentBase、代表切换（对齐 HLS 的 ABR 半边）、UTCTiming 时钟同步。
 - [x] **T8b 直播追帧**：`media/filters/live_edge_policy.*` 已落地（config.net.live_max_latency 驱动），2026-10-31 核对补记。
 - 不移植（范围裁决，勿重开题）：Android/iOS/Flutter 平台栈、MediaCodec 原生集成、HDR10(AVFoundation)、插件机制/DCA。
 
@@ -42,12 +45,13 @@
 | T7 画面控制 | 2026-10-29 04:15 | `LayerContentMode::kCrop` + `GlScene::SetLayerMirror` + `CoverSourceRect` 纯几何（4 单测）+ `Scene::SetMainLayerModes`（Present 时主层应用，host hook 仍可覆写）+ `Player::{SetRotateMode,SetMirrorMode,SetScaleMode,SetVideoBackgroundColor}`。883/883 ctest 通过；invariants 全过。提交：feature/cicada-port |
 
 | T8 DASH 基线 | 2026-10-29 04:35 | `media/ffmpeg/mpd_parser.*`（自研 XML 子集 tokenizer + SegmentTemplate 展开 + ISO-8601 时长），5 单测。888/888 ctest 通过。提交：feature/cicada-port |
-| T9 总验收 | 2026-10-29 04:40 | macos-sdl2+curl 888/888；no-ffmpeg 665/665；`check_invariants` 603 文件全过；`check_api_compat` 0 breaking。核销表见 PLAN.md §1.5 |
+| T9 总验收 | 2026-10-29 04:40 | macos-sdl2+curl 888/888；no-ffmpeg 665/665；`check_invariants` 603 文件全过；`check_api_compat` 0 breaking。核销表见本文件「完成记录」|
 
 ## 交接备注
 
 - 工作分支：`feature/cicada-port`（基于 main @ 8844f10）。
-- 移植范围裁决（哪些不移植及原因）见 PLAN.md §0，勿在执行中重新开题。
+- 移植范围裁决（哪些不移植及原因）见本文档 §0 的「不移植」一行，勿在执行中重新开题。
+  PLAN.md 已随文档精简移除，原文可经 `git log --all -- docs/cicada-port/PLAN.md` 找回。
 - xmedia-kit 硬性风格：C++20、`-fno-exceptions -fno-rtti`、Google Style（.cc/.h、2 空格、80 列、
   license 头、`XMEDIA_*_EXPORT` 宏、命名 `CamelCase()`/`snake_case()`/`member_` 尾下划线）。
   提交前尽量跑 `clang-format`、`cpplint`、`tools/check_invariants.py`，至少保证目标构建通过。
