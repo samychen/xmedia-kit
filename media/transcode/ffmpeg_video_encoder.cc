@@ -11,6 +11,7 @@
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/ffmpeg_util.h"
+#include "media/ffmpeg/gif_palette.h"
 #include "media/ffmpeg/video_convert.h"
 
 namespace xmedia::media {
@@ -27,6 +28,14 @@ struct FFmpegVideoEncoder::Context {
   AVPixelFormat dst_fmt = AV_PIX_FMT_YUV420P;  // Converted frame format.
   ff::VideoConverter converter;
   ff::FramePtr converted;
+  // The GIF leg: the codec takes PAL8 only and swscale cannot output pal8,
+  // so Encode() converts into RGBA, quantizes with the median-cut palette,
+  // and sends a PAL8 frame. |rgba| is the quantizer's input; |palette| is
+  // rebuilt per frame (GIF palettes are per-frame by spec).
+  bool is_gif = false;
+  ff::FramePtr rgba;
+  ff::GifFramePalette palette;
+  ff::FramePtr pal;
 
   Context() = default;
   Context(const Context&) = delete;
@@ -121,12 +130,40 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
     LOG(WARNING) << "video encoder: crf not supported by this encoder";
   }
 
-  // The conversion target: encoders whose native input is full-range J
-  // variants (mjpeg) get YUVJ420P; everything else (libx264) gets YUV420P.
+  // The conversion target: per-codec negotiation.
+  //  * GIF takes PAL8 only and swscale cannot output pal8 -- handled by the
+  //    median-cut quantizer in Encode() (the converter targets RGBA).
+  //  * Encoders whose native input is full-range J variants (mjpeg) get
+  //    YUVJ420P; every codec that accepts the standard 4:2:0 (libx264) gets
+  //    YUV420P -- the existing behavior, byte-for-byte.
+  //  * Anything else takes the first format its descriptor advertises that
+  //    swscale can produce (prores_ks lists yuv422p10le first -- the ProRes
+  //    delivery convention).
+  const bool is_gif = strcmp(codec->name, "gif") == 0;
+  c->is_gif = is_gif;
   const bool full_range = strcmp(codec->name, "mjpeg") == 0;
-  c->dst_fmt = full_range ? AV_PIX_FMT_YUVJ420P : AV_PIX_FMT_YUV420P;
-  c->codec->pix_fmt = c->dst_fmt;
-  c->codec->color_range = full_range ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
+  bool accepts_420 = codec->pix_fmts == nullptr;
+  for (const AVPixelFormat* f = codec->pix_fmts;
+       f && *f != AV_PIX_FMT_NONE; ++f) {
+    if (*f == AV_PIX_FMT_YUV420P || *f == AV_PIX_FMT_YUVJ420P) {
+      accepts_420 = true;
+      break;
+    }
+  }
+  if (is_gif) {
+    c->codec->pix_fmt = AV_PIX_FMT_PAL8;
+    c->dst_fmt = AV_PIX_FMT_RGBA;
+  } else if (accepts_420) {
+    c->dst_fmt = full_range ? AV_PIX_FMT_YUVJ420P : AV_PIX_FMT_YUV420P;
+    c->codec->pix_fmt = c->dst_fmt;
+    c->codec->color_range = full_range ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG;
+  } else if (codec->pix_fmts != nullptr) {
+    c->dst_fmt = codec->pix_fmts[0];
+    c->codec->pix_fmt = c->dst_fmt;
+  } else {
+    c->dst_fmt = AV_PIX_FMT_YUV420P;
+    c->codec->pix_fmt = c->dst_fmt;
+  }
 
   // OWNERSHIP: avcodec_open2 takes AVDictionary** and, on BOTH the success
   // and the failure path, frees the dictionary it was handed and writes back
@@ -156,6 +193,28 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
     LOG(ERROR) << "video encoder: conversion setup failed";
     avcodec_free_context(&c->codec);
     return false;
+  }
+  if (c->is_gif) {
+    c->rgba = ff::MakeFrame();
+    c->rgba->width = params.width;
+    c->rgba->height = params.height;
+    c->rgba->format = c->dst_fmt;
+    if (av_frame_get_buffer(c->rgba.get(), 32) != 0) {
+      LOG(ERROR) << "video encoder: rgba buffer alloc failed";
+      avcodec_free_context(&c->codec);
+      return false;
+    }
+    c->pal = ff::MakeFrame();
+    c->pal->width = params.width;
+    c->pal->height = params.height;
+    c->pal->format = AV_PIX_FMT_PAL8;
+    if (av_frame_get_buffer(c->pal.get(), 32) != 0) {
+      LOG(ERROR) << "video encoder: pal8 buffer alloc failed";
+      avcodec_free_context(&c->codec);
+      return false;
+    }
+    ctx_ = std::move(c);
+    return true;
   }
   c->converted = ff::MakeFrame();
   c->converted->width = params.width;
@@ -207,6 +266,28 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
     const auto plane = static_cast<VideoFrame::Plane>(p);
     src->data[p] = const_cast<uint8_t*>(in->visible_data(plane).data());
     src->linesize[p] = in->stride(plane);
+  }
+  if (ctx_->is_gif) {
+    // GIF leg: YUV420P -> RGBA -> median-cut PAL8. The palette is per frame
+    // (GIF's own model); the encoder stores it in the frame's palette plane.
+    if (!ctx_->converter.Convert(*src, ctx_->rgba->data,
+                                 ctx_->rgba->linesize)) {
+      LOG(ERROR) << "video encoder: rgba conversion failed";
+      return false;
+    }
+    ctx_->palette.Build(ctx_->rgba->data[0], ctx_->codec->width,
+                        ctx_->codec->height, ctx_->rgba->linesize[0]);
+    memcpy(ctx_->pal->data[1], ctx_->palette.palette_bgra(),
+           AVPALETTE_SIZE);
+    ctx_->pal->pts =
+        ff::FromTimeDelta(in->timestamp(), ctx_->codec->time_base);
+    const int send = avcodec_send_frame(ctx_->codec, ctx_->pal.get());
+    if (send < 0) {
+      LOG(ERROR) << "video encoder: gif send_frame failed";
+      return false;
+    }
+    ctx_->DrainPackets(out);
+    return true;
   }
   if (!ctx_->converter.Convert(*src, ctx_->converted->data,
                                ctx_->converted->linesize)) {

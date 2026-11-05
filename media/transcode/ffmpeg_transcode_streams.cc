@@ -198,6 +198,44 @@ void RescaleTimestamps(EncodedPacket* ep, int in_num, int in_den, int out_num,
   }
 }
 
+void ApplyContainerCodecDefaults(TranscodeParams* params) {
+  const std::string path = params->output_path;
+  const auto ends_with = [&path](const char* suffix) {
+    return path.size() >= strlen(suffix) &&
+           path.compare(path.size() - strlen(suffix), strlen(suffix),
+                        suffix) == 0;
+  };
+  // The codec specs carry DEFAULTS that are indistinguishable from a user's
+  // explicit choice -- the struct's own ("libx264" / "aac") and the inspect
+  // CLI's ("mjpeg" / "aac"; the two encoders the minimal build whitelist
+  // used to carry). For the two convention-driven containers the container
+  // convention outranks those defaults. A genuinely explicit codec (anything
+  // else) always wins.
+  const bool video_is_default =
+      params->video_codec.codec.empty() ||
+      params->video_codec.codec == "libx264" ||
+      params->video_codec.codec == "mjpeg";
+  const bool audio_is_default =
+      params->audio_codec.codec.empty() || params->audio_codec.codec == "aac";
+  if (ends_with(".gif")) {
+    if (video_is_default) {
+      params->video_codec.codec = "gif";
+    }
+    if (audio_is_default) {
+      params->audio_codec.codec.clear();  // the gif container has no audio
+    }
+    return;
+  }
+  if (ends_with(".mov")) {
+    if (video_is_default) {
+      params->video_codec.codec = "prores_ks";
+    }
+    if (audio_is_default) {
+      params->audio_codec.codec = "pcm_s16le";
+    }
+  }
+}
+
 Status PrepareAudioStream(AVFormatContext* in_ctx, int audio_stream_idx,
                           const TranscodeParams& params,
                           FFmpegEncodeMuxer* muxer, AudioState* out) {

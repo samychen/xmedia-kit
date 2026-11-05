@@ -31,9 +31,11 @@ namespace xmedia::media {
 // already codec-name driven.
 //
 // Input contract: planar float AudioBuffers (the decode path's output),
-// single rate/channels fixed at Initialize. Output: raw packets plus the
-// codec extradata (an ADTS writer or a muxer adds the framing for codecs
-// that need it).
+// single rate/channels fixed at Initialize; sample format converts inside
+// when the codec wants something else than FLTP (pcm_s16le is S16 packed --
+// the ProRes deliverable's audio). Output: raw packets plus the codec
+// extradata (an ADTS writer or a muxer adds the framing for codecs that
+// need it).
 class XMEDIA_MEDIA_EXPORT FFmpegAudioEncoder {
  public:
   struct Params {
@@ -81,6 +83,10 @@ class XMEDIA_MEDIA_EXPORT FFmpegAudioEncoder {
   int64_t next_pts_samples() const { return ctx_next_pts_samples_; }
 
  private:
+  // The non-FLTP leg (see the header comment on sample-format conversion).
+  bool EncodeConverted(base::scoped_refptr<AudioBuffer> in,
+                       std::vector<EncodedPacket>* out);
+
   struct Context;
   std::unique_ptr<Context> ctx_;
   std::vector<uint8_t> ctx_extradata_;

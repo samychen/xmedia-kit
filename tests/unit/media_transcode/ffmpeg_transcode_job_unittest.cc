@@ -5,6 +5,7 @@
 #include "media/transcode/ffmpeg_transcode_job.h"
 
 #include <algorithm>
+#include <iterator>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -640,5 +641,111 @@ TEST(TranscodeJobTest, CancelStopsTheJobWithCancelledStatus) {
   std::remove(output.c_str());
 }
 
-}  // namespace
+}  // namespace// --- HyperFrames 对齐的输出格式扩展（2026-11-04 移植） -------------------
+// GIF：扩展名即裁决——video 编码器默认 gif，音频腿直接不建（gif 容器没有
+// 音频轨）。判据钉产物形态：单视频流、gif 容器、时长与输入一致。
+TEST(TranscodeJobTest, GifOutputEncodesWithoutAudio) {
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+  const std::string input =
+      std::string(XMEDIA_TESTDATA_DIR) + "/small_h264_aac_3s.mp4";
+  const std::string output = testing::TempDir() + "transcode_out.gif";
+
+  TranscodeParams params;
+  params.output_path = output;  // codecs left empty: container defaults apply
+  const Status st = Transcode(input, params);
+  ASSERT_TRUE(st) << st.error().ToString();
+
+  base::scoped_refptr<MediaLog> media_log = base::MakeRefCounted<MediaLog>();
+  FFmpegDemuxer demuxer(media_log);
+  class Host final : public Demuxer::Host {
+   public:
+    void SetDuration(base::TimeDelta) override {}
+    void OnBufferedTimeUpdate(base::TimeDelta, base::TimeDelta) override {}
+    void OnDemuxerError(MediaError) override {}
+  } host;
+  Status opened = Err(ErrorCode::kNotImplemented, "", {}, {});
+  bool done = false;
+  demuxer.Initialize(DataSourceDescriptor::FromUri(output), {}, &host,
+                     env.GetMainThreadTaskRunnerRef(),
+                     base::BindOnce(
+                         [](Status* out, bool* flag, Status s) {
+                           *out = std::move(s);
+                           *flag = true;
+                         },
+                         &opened, &done));
+  for (int i = 0; i < 2000 && !done; ++i) {
+    env.RunUntilIdle();
+    if (!done) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  }
+  ASSERT_TRUE(opened) << opened.error().ToString();
+  DemuxerStream* video = demuxer.GetStream(DemuxerStreamType::kVideo);
+  ASSERT_TRUE(video) << "the gif output lost its video stream";
+  EXPECT_EQ(demuxer.GetStream(DemuxerStreamType::kAudio), nullptr)
+      << "gif containers carry no audio; the audio leg must be dropped";
+  EXPECT_GT(video->video_decoder_config().coded_size.width, 0);
+
+  std::remove(output.c_str());
+}
+
+// ProRes 422：.mov 的容器默认——video prores_ks、audio pcm_s16le（交付惯例：
+// 4:2:2 10-bit 视频 + 无压缩 PCM 音频）。pcm_s16le 的采样格式协商是这条
+// 用例顺带钉住的另一半（S16 是 packed 格式，与 FLTP 的 planar 直喂不同）。
+TEST(TranscodeJobTest, ProResMovOutputUsesTheDeliveryDefaults) {
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+  const std::string input =
+      std::string(XMEDIA_TESTDATA_DIR) + "/small_h264_aac_3s.mp4";
+  const std::string output = testing::TempDir() + "transcode_out.mov";
+
+  TranscodeParams params;
+  params.output_path = output;
+  const Status st = Transcode(input, params);
+  ASSERT_TRUE(st) << st.error().ToString();
+
+  base::scoped_refptr<MediaLog> media_log = base::MakeRefCounted<MediaLog>();
+  FFmpegDemuxer demuxer(media_log);
+  class Host final : public Demuxer::Host {
+   public:
+    void SetDuration(base::TimeDelta) override {}
+    void OnBufferedTimeUpdate(base::TimeDelta, base::TimeDelta) override {}
+    void OnDemuxerError(MediaError) override {}
+  } host;
+  Status opened = Err(ErrorCode::kNotImplemented, "", {}, {});
+  bool done = false;
+  demuxer.Initialize(DataSourceDescriptor::FromUri(output), {}, &host,
+                     env.GetMainThreadTaskRunnerRef(),
+                     base::BindOnce(
+                         [](Status* out, bool* flag, Status s) {
+                           *out = std::move(s);
+                           *flag = true;
+                         },
+                         &opened, &done));
+  for (int i = 0; i < 2000 && !done; ++i) {
+    env.RunUntilIdle();
+    if (!done) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  }
+  ASSERT_TRUE(opened) << opened.error().ToString();
+  DemuxerStream* video = demuxer.GetStream(DemuxerStreamType::kVideo);
+  ASSERT_TRUE(video);
+  const auto& streams = demuxer.media_info().streams;
+  const auto video_info = std::find_if(
+      streams.begin(), streams.end(),
+      [](const auto& info) { return info.kind == StreamKind::kVideo; });
+  ASSERT_TRUE(video_info != streams.end());
+  EXPECT_EQ(video_info->codec_name, "prores")
+      << "the .mov defaults must pick the ProRes encoder";
+  DemuxerStream* audio = demuxer.GetStream(DemuxerStreamType::kAudio);
+  ASSERT_TRUE(audio) << "the prores deliverable lost its audio track";
+  EXPECT_TRUE(audio->audio_decoder_config().IsValidConfig());
+
+  std::remove(output.c_str());
+}
+
 }  // namespace xmedia::media
+
+

@@ -173,6 +173,15 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
 // the transcode loop (invariant C1) because preparation and pumping are
 // different concerns even though they share the states above.
 XMEDIA_MEDIA_EXPORT
+// Container-driven codec defaults, applied ONCE before stream activation.
+// Empty codec specs stay empty unless the container dictates a default:
+//   .gif -> video "gif", audio dropped (the container has no audio track);
+//   .mov -> video "prores_ks", audio "pcm_s16le" (the ProRes delivery
+//           convention: 4:2:2 10-bit video, uncompressed PCM audio).
+// Explicit user codecs always win. Everything else is untouched (.mp4 keeps
+// its existing defaults downstream).
+void ApplyContainerCodecDefaults(TranscodeParams* params);
+
 Status PrepareAudioStream(AVFormatContext* in_ctx, int audio_stream_idx,
                           const TranscodeParams& params,
                           FFmpegEncodeMuxer* muxer, AudioState* out);

@@ -44,9 +44,12 @@ Status CancelledStatus(const std::string& input_uri) {
 Status Transcode(const std::string& input_uri, const TranscodeParams& params,
                  TranscodeProgressCB progress_cb,
                  const TranscodeCancelToken* cancel) {
-  const auto cancelled = [cancel]() {
-    return cancel && cancel->IsCancelled();
-  };
+  // Container defaults first: .gif/.mov paths dictate codec defaults (and
+  // drop GIF's audio) before anything inspects the specs.
+  TranscodeParams effective = params;
+  ApplyContainerCodecDefaults(&effective);
+  const TranscodeParams& p = effective;
+  const auto cancelled = [cancel]() { return cancel && cancel->IsCancelled(); };
 
   // --- Open input ---
   // Allocate the context here rather than letting avformat_open_input do it,
@@ -89,12 +92,12 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
           : 0.0;
 
   // --- Seek if trim ---
-  if (params.start_time_seconds > 0.0) {
+  if (p.start_time_seconds > 0.0) {
     const int64_t seek_target =
-        static_cast<int64_t>(params.start_time_seconds * AV_TIME_BASE);
+        static_cast<int64_t>(p.start_time_seconds * AV_TIME_BASE);
     if (av_seek_frame(in_ctx.get(), -1, seek_target, AVSEEK_FLAG_BACKWARD) <
         0) {
-      LOG(WARNING) << "transcode: seek to " << params.start_time_seconds
+      LOG(WARNING) << "transcode: seek to " << p.start_time_seconds
                    << "s failed, " << "transcoding from start";
     }
   }
@@ -110,30 +113,27 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       video_stream_idx = static_cast<int>(i);
     }
   }
-
   // --- Decide which streams are active ---
   const bool want_audio =
-      !params.audio_codec.codec.empty() && audio_stream_idx >= 0;
+      !p.audio_codec.codec.empty() && audio_stream_idx >= 0;
   const bool want_video =
-      !params.video_codec.codec.empty() && video_stream_idx >= 0;
-
+      !p.video_codec.codec.empty() && video_stream_idx >= 0;
   if (!want_audio && !want_video) {
     return Err(ErrorCode::kInvalidArgument, "no streams to transcode",
                "input has no audio/video or output specs are empty",
                "check the input file and codec settings");
   }
-
   // --- Initialize output muxer ---
   FFmpegEncodeMuxer muxer;
-  if (!muxer.Open(params.output_path, params.output_format,
-                  params.muxer_options)) {
+  if (!muxer.Open(p.output_path, p.output_format,
+                  p.muxer_options)) {
     return Err(ErrorCode::kSourceOpenFailed, "cannot open output",
-               params.output_path, "check the extension is supported");
+               p.output_path, "check the extension is supported");
   }
 
   AudioState audio;
   if (want_audio) {
-    const Status st = PrepareAudioStream(in_ctx.get(), audio_stream_idx, params,
+    const Status st = PrepareAudioStream(in_ctx.get(), audio_stream_idx, p,
                                          &muxer, &audio);
     if (!st) {
       return st;
@@ -142,7 +142,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
 
   VideoState video;
   if (want_video) {
-    const Status st = PrepareVideoStream(in_ctx.get(), video_stream_idx, params,
+    const Status st = PrepareVideoStream(in_ctx.get(), video_stream_idx, p,
                                          &muxer, &video);
     if (!st) {
       return st;
@@ -184,10 +184,10 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   auto write_video = [&](const EncodedPacket& ep) {
     return emit(video.muxer_stream_index, ep, &video_seen, &video_origin);
   };
-  auto write_failed = [&params](const char* what) {
+  auto write_failed = [&p](const char* what) {
     return Err(ErrorCode::kInvalidState,
                std::string("transcode: writing ") + what + " failed",
-               params.output_path,
+               p.output_path,
                "the muxer rejected the packet; check the output container");
   };
 
@@ -196,15 +196,15 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   ff::PacketPtr pkt = ff::MakePacket();
   ff::FramePtr frame = ff::MakeFrame();
   int64_t processed_us = 0;
-  // Realtime pacing state (params.realtime); both only meaningful once
+  // Realtime pacing state (p.realtime); both only meaningful once
   // pace_anchor_set is true.
   bool paced_anchor_set = false;
   int64_t pace_anchor_us = 0;
   std::chrono::steady_clock::time_point pace_anchor_wall;
   const int64_t trim_end_us =
-      params.duration_seconds > 0.0
+      p.duration_seconds > 0.0
           ? static_cast<int64_t>(
-                (params.start_time_seconds + params.duration_seconds) *
+                (p.start_time_seconds + p.duration_seconds) *
                 AV_TIME_BASE)
           : INT64_MAX;
 
@@ -313,11 +313,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
     // that is precisely the case that needs pacing -- recording a live stream
     // as fast as the socket delivers would still be "realtime" by accident
     // today, but publishing one to a peer that cannot buffer would not be.
-    if (params.realtime && !paced_anchor_set && pkt_us >= 0) {
+    if (p.realtime && !paced_anchor_set && pkt_us >= 0) {
       pace_anchor_us = pkt_us;
       pace_anchor_wall = std::chrono::steady_clock::now();
       paced_anchor_set = true;
-    } else if (params.realtime && paced_anchor_set) {
+    } else if (p.realtime && paced_anchor_set) {
       const auto due =
           pace_anchor_wall + std::chrono::microseconds(pkt_us - pace_anchor_us);
       const auto now = std::chrono::steady_clock::now();
@@ -399,7 +399,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   // A cancel that interrupted a blocking read lands here as an ordinary
   // av_read_frame() failure -- do not mistake it for end of input.
   if (cancelled()) {
-    if (params.finalize_on_cancel) {
+    if (p.finalize_on_cancel) {
       muxer.Finish();
     }
     return CancelledStatus(input_uri);
@@ -408,7 +408,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   // --- Flush decoders and encoders ---
   if (want_audio && !audio.copy) {
     if (cancelled()) {
-      if (params.finalize_on_cancel) {
+      if (p.finalize_on_cancel) {
         muxer.Finish();
       }
       return CancelledStatus(input_uri);
@@ -452,7 +452,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
 
   if (want_video && !video.copy) {
     if (cancelled()) {
-      if (params.finalize_on_cancel) {
+      if (p.finalize_on_cancel) {
         muxer.Finish();
       }
       return CancelledStatus(input_uri);
@@ -486,7 +486,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   // --- Finish ---
   if (!muxer.Finish()) {
     return Err(ErrorCode::kInvalidState, "muxer finish failed",
-               params.output_path, {});
+               p.output_path, {});
   }
 
   // Final progress.

@@ -22,6 +22,9 @@
 # demuxer/decoder tests need and keeps the build near 3 minutes on 2 cores.
 # Add components here rather than passing --enable-everything, so build time
 # stays bounded.
+# 2026-11-04（HyperFrames 能力移植）：+gif/mov 容器与编解码、prores_ks、
+# pcm_s16le、aecho/equalizer/anlmdn/asetrate/aresample/atempo 滤镜——对应
+# GIF/ProRes 输出与音频滤镜预设集（docs/cicada-port/PROGRESS.md 登记项）。
 #
 # Optional third-party dependencies (MediaComponent-style), default OFF so the
 # default path stays fast. Everything selected is built from source into the
@@ -534,17 +537,22 @@ configure_flags() {
 --enable-network
 --enable-protocol=file,http,https,tcp,httpproxy,crypto,rtmp,rtmps
 --enable-protocol=rtmp,rtmps,rtmpt,rtmpts,udp,rtp
---enable-demuxer=mov,matroska,mpegts,flv,mp3,wav,ogg,aac,h264,hevc,avi,mpegps,hls,flv,rtsp
+--enable-demuxer=mov,matroska,mpegts,flv,mp3,wav,ogg,aac,h264,hevc,avi,mpegps,hls,flv,rtsp,gif
 --enable-parser=h264,hevc,aac,mp3,vp9,opus,mpeg4video
 --enable-decoder=h264,hevc,aac,mp3,vp9,opus,mpeg4
 --enable-decoder=srt,ass,webvtt,mov_text,subrip
 --enable-decoder=mjpeg
+--enable-decoder=gif,prores
 --enable-encoder=mjpeg
 --enable-encoder=aac
+--enable-encoder=gif,prores_ks,pcm_s16le
+--enable-decoder=pcm_s16le
 --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,extract_extradata
 --enable-muxer=null,mp4,matroska,adts,image2,flv
+--enable-muxer=gif,mov
 --enable-filter=null,volume,aformat,anull,abuffer,abuffersink,buffer,buffersink,hflip,format
 --enable-filter=zscale,tonemap,scale,settb,setpts,trim
+--enable-filter=aecho,equalizer,anlmdn,asetrate,aresample,atempo
 --enable-avfilter
 --enable-libzimg
 --enable-swresample
