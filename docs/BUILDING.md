@@ -15,6 +15,7 @@
 | **只跑 Python 工具** | 仅 Python 3 —— **不需要编译器、不需要 FFmpeg** | 见 §5 |
 | 真实媒体测试 | 系统 FFmpeg 开发包（4.4 ~ 7.x 均可，**不需要打 patch**） | `pkg-config --modversion libavformat` |
 | FFmpeg 版本锁定 | `tools/setup_ffmpeg.sh`（从源码编一个固定版本到 prefix） | — |
+| **HTTP(S) 数据源（libcurl）** | ✅ 已实现：`macos-sdl2` / `linux-sdl2` / `full` 三个 preset 已开 `XMEDIA_ENABLE_CURL=ON`，需 libcurl 开发包。**它是 CicadaPlayer 移植 T1 的全部内容**，别的 preset 不带 | `pkg-config --modversion libcurl` |
 | SDL2 后端 | ✅ 已实现（M11 的代码提前落地）：`-DXMEDIA_ENABLE_SDL2=ON`，另需 SDL2 开发包 | 见 §4 |
 | GLFW 后端 | ✅ 已实现：`-DXMEDIA_ENABLE_GLFW=ON`，另需 GLFW 3.x；默认 OFF | 见 §3.7 |
 | EGL 后端 | ✅ 已实现：`-DXMEDIA_ENABLE_EGL=ON`，**仅 Linux**（macOS 无 EGL 开发库） | 见 §3.7 |
@@ -28,7 +29,22 @@ sudo apt-get install -y build-essential cmake ninja-build python3 libgtest-dev
 # 需要真实媒体测试时再加：
 sudo apt-get install -y libavformat-dev libavcodec-dev libavutil-dev \
                         libswscale-dev libswresample-dev
+# macos-sdl2 / linux-sdl2 / full 还要 libcurl（T1 的 HTTP(S) 数据源）：
+sudo apt-get install -y libcurl4-openssl-dev
 ```
+
+> **`XMEDIA_ENABLE_CURL` 为什么不是默认 ON。** 它是 opt-in，理由和 FFmpeg 一样：
+> 只想要 avio 那套 `UrlDataSource` 的宿主不该被拖进 libcurl。但这带来一个陷阱——
+> 换名那一轮（`AVBASE_*` → `XMEDIA_*`）之后旧 build 目录里的缓存键不会自动迁移，
+> 于是**同样的树、同样不重配，curl 就静默不在构建里了**：`ctest` 从 888 掉到 665，
+> 9 条 `CurlDataSourceTest` 一起消失。
+>
+> 判断构建到底带没带它，别看 ctest 总数（665 这个数字在 no-ffmpeg 与「有 FFmpeg
+> 但无 curl」两种树下相同，很容易看错），直接查：
+>
+> ```bash
+> ctest -N | grep -c CurlDataSourceTest   # 0 = 这个构建没有 curl
+> ```
 
 ---
 
