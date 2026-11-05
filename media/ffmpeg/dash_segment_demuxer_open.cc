@@ -32,24 +32,23 @@ void DashSegmentDemuxer::OpenSegment(size_t chain_index, size_t segment_index) {
     // fetched; OnSegmentOpened's settle path serves the queued reads EOS.
     chain.cursor = segment_index;
     media_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&DashSegmentDemuxer::OnSegmentOpened,
-                                  base::Unretained(this), chain_index,
-                                  segment_index,
-                                  base::unexpected(MediaError::Of(
-                                      ErrorCode::kSourceEos, "no more segments",
-                                      "chain = " + std::to_string(chain_index) +
-                                          ", index = " +
-                                          std::to_string(segment_index),
-                                      "this is the natural end of the "
-                                      "representation"))));
+        FROM_HERE,
+        base::BindOnce(&DashSegmentDemuxer::OnSegmentOpened,
+                       base::Unretained(this), chain_index, segment_index,
+                       base::unexpected(MediaError::Of(
+                           ErrorCode::kSourceEos, "no more segments",
+                           "chain = " + std::to_string(chain_index) +
+                               ", index = " + std::to_string(segment_index),
+                           "this is the natural end of the "
+                           "representation"))));
     return;
   }
   chain.cursor = segment_index;
   worker_.task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&DashSegmentDemuxer::FetchSegmentOnWorker,
-                                base::Unretained(this), chain_index,
-                                segment_index,
-                                chain.media_urls[segment_index]));
+      FROM_HERE,
+      base::BindOnce(&DashSegmentDemuxer::FetchSegmentOnWorker,
+                     base::Unretained(this), chain_index, segment_index,
+                     chain.media_urls[segment_index]));
 }
 
 void DashSegmentDemuxer::FetchSegmentOnWorker(size_t chain_index,
@@ -120,9 +119,8 @@ void DashSegmentDemuxer::OnSegmentBytesReady(
     return;
   }
   auto inner = std::make_unique<FFmpegDemuxer>(media_log_, limits_);
-  auto memory =
-      base::MakeRefCounted<MemoryDataSource>(bytes_or_error->data(),
-                                             bytes_or_error->size());
+  auto memory = base::MakeRefCounted<MemoryDataSource>(bytes_or_error->data(),
+                                                       bytes_or_error->size());
   DemuxerOptions inner_options = options_;
   inner_options.reconnect = false;  // the segment is already fully in memory
   inner->Initialize(
@@ -175,7 +173,8 @@ void DashSegmentDemuxer::OnInnerSegmentInitialized(
 }
 
 void DashSegmentDemuxer::OnSegmentOpened(size_t chain_index,
-                                         size_t segment_index, Status status) {
+                                         size_t /*segment_index*/,
+                                         Status status) {
   Chain& chain = chains_[chain_index];
   chain.open_in_flight = false;
   if (stopped_.load()) {
@@ -195,39 +194,39 @@ void DashSegmentDemuxer::OnSegmentOpened(size_t chain_index,
 
 void DashSegmentDemuxer::OnChainSettled(size_t chain_index, Status status) {
   switch (phase_) {
-    case Phase::kInit:
-      // Every chain reports exactly once (EOS on segment 0 counts as a
-      // failed init for that chain -- there is nothing to play there).
-      FinishInit(std::move(status));
-      return;
-    case Phase::kSeek:
-      if (!status.has_value()) {
-        // A failed chain open fails the seek; answer with the actual time
-        // unknown (the pipeline treats a failed seek as terminal for the
-        // request, playback keeps whatever was playing).
-        seek_chains_pending_ = 0;
-        if (seek_cb_) {
-          std::move(seek_cb_).Run(status, base::TimeDelta());
-        }
-        phase_ = Phase::kPlaying;
-        return;
+  case Phase::kInit:
+    // Every chain reports exactly once (EOS on segment 0 counts as a
+    // failed init for that chain -- there is nothing to play there).
+    FinishInit(std::move(status));
+    return;
+  case Phase::kSeek:
+    if (!status.has_value()) {
+      // A failed chain open fails the seek; answer with the actual time
+      // unknown (the pipeline treats a failed seek as terminal for the
+      // request, playback keeps whatever was playing).
+      seek_chains_pending_ = 0;
+      if (seek_cb_) {
+        std::move(seek_cb_).Run(status, base::TimeDelta());
       }
-      RunSeekOnChain(chain_index);
+      phase_ = Phase::kPlaying;
       return;
-    case Phase::kPlaying:
-      // Re-issue everything this chain's boundary queued.
-      for (auto it = pending_reads_.begin(); it != pending_reads_.end();) {
-        if (chain_index_for_type(it->type) == chain_index) {
-          auto type = it->type;
-          auto count = it->count;
-          auto cb = std::move(it->read_cb);
-          it = pending_reads_.erase(it);
-          ReadFromStream(type, count, std::move(cb));
-          continue;
-        }
-        ++it;
+    }
+    RunSeekOnChain(chain_index);
+    return;
+  case Phase::kPlaying:
+    // Re-issue everything this chain's boundary queued.
+    for (auto it = pending_reads_.begin(); it != pending_reads_.end();) {
+      if (chain_index_for_type(it->type) == chain_index) {
+        auto type = it->type;
+        auto count = it->count;
+        auto cb = std::move(it->read_cb);
+        it = pending_reads_.erase(it);
+        ReadFromStream(type, count, std::move(cb));
+        continue;
       }
-      return;
+      ++it;
+    }
+    return;
   }
 }
 

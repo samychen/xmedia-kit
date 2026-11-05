@@ -4,9 +4,11 @@
 
 #include "media/ffmpeg/mpd_parser.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <functional>
 #include <map>
+#include <utility>
 
 #include "media/ffmpeg/hls_m3u8_parser.h"  // ResolveUrl, same URI shapes
 
@@ -269,6 +271,25 @@ base::expected<Mpd, MediaError> ParseMpd(std::string_view text,
       if (duration.has_value()) {
         mpd.media_presentation_duration = *duration;
       }
+      // Dynamic-profile timing. A live manifest has no presentation duration:
+      // the available window is derived from these instead. Absent values stay
+      // 0, and the demuxer reports that rather than inventing an epoch.
+      if (auto ast = hls::ParseIsoDateTimeMs(e.attrs["availabilitystarttime"]);
+          ast.has_value()) {
+        mpd.availability_start_time_ms = *ast;
+      }
+      if (auto pt = hls::ParseIsoDateTimeMs(e.attrs["publishtime"]);
+          pt.has_value()) {
+        mpd.publish_time_ms = *pt;
+      }
+      if (auto mup = ParseIsoDuration(e.attrs["minimumupdateperiod"]);
+          mup.has_value()) {
+        mpd.minimum_update_period_ms = mup->InMilliseconds();
+      }
+      if (auto tsb = ParseIsoDuration(e.attrs["timeshiftbufferdepth"]);
+          tsb.has_value()) {
+        mpd.time_shift_buffer_depth_ms = tsb->InMilliseconds();
+      }
       return;
     }
     if (e.name == "SegmentTemplate") {
@@ -292,24 +313,60 @@ base::expected<Mpd, MediaError> ParseMpd(std::string_view text,
                                                   : e.attrs["mimetype"];
       rep.codecs = e.attrs["codecs"];
       if (!template_media.empty() && template_duration_units > 0 &&
-          template_timescale > 0 &&
-          mpd.media_presentation_duration > base::TimeDelta()) {
+          template_timescale > 0) {
         const double seg_seconds =
             static_cast<double>(template_duration_units) /
             static_cast<double>(template_timescale);
         rep.segment_duration = base::Milliseconds(
             static_cast<int64_t>(seg_seconds * 1000.0 + 0.5));
-        const int64_t count = static_cast<int64_t>(
-            mpd.media_presentation_duration / rep.segment_duration + 0.5);
+        // Static: the presentation duration is the segment count. Dynamic: the
+        // window is what has been PUBLISHED so far -- (publishTime -
+        // availabilityStartTime) rounded down to the grid -- rather than an
+        // invented horizon. |first_number| is the oldest segment still inside
+        // timeShiftBufferDepth, or the very first one when the manifest omits
+        // it. Both are resolved here so the demuxer only deals in a plain URL
+        // list and a plain start sequence.
+        int64_t count = 0;
+        int64_t first_number = template_start_number;
+        if (mpd.media_presentation_duration > base::TimeDelta()) {
+          count = static_cast<int64_t>(
+              mpd.media_presentation_duration / rep.segment_duration + 0.5);
+        } else if (mpd.is_live) {
+          if (mpd.availability_start_time_ms <= 0 || mpd.publish_time_ms <= 0) {
+            return;  // no anchor: the demuxer reports it, nothing to expand
+          }
+          const int64_t live_ms =
+              mpd.publish_time_ms - mpd.availability_start_time_ms;
+          if (live_ms < 0) {
+            return;
+          }
+          const int64_t elapsed = static_cast<int64_t>(
+              base::Milliseconds(live_ms) / rep.segment_duration);
+          count = elapsed + 1;  // the segment being produced right now
+          if (mpd.time_shift_buffer_depth_ms > 0) {
+            const int64_t window = static_cast<int64_t>(
+                base::Milliseconds(mpd.time_shift_buffer_depth_ms) /
+                rep.segment_duration);
+            first_number =
+                template_start_number + std::max<int64_t>(0, count - window);
+            count = std::min(count, window + 1);
+          } else {
+            // No depth advertised: expand the whole published timeline. A
+            // demuxer that only ever reads forward pays nothing for it, and
+            // seek can still reach the start of the stream.
+            first_number = template_start_number;
+          }
+        } else {
+          return;  // static without a duration has no expansion rule
+        }
         if (!template_init.empty()) {
-          rep.segment_urls.push_back(
-              ResolveMpdUrl(base_url, ExpandTemplate(template_init, rep.id,
-                                                     template_start_number)));
+          rep.segment_urls.push_back(ResolveMpdUrl(
+              base_url, ExpandTemplate(template_init, rep.id, first_number)));
         }
         for (int64_t n = 0; n < count; ++n) {
-          rep.segment_urls.push_back(ResolveMpdUrl(
-              base_url, ExpandTemplate(template_media, rep.id,
-                                       template_start_number + n)));
+          rep.segment_urls.push_back(
+              ResolveMpdUrl(base_url, ExpandTemplate(template_media, rep.id,
+                                                     first_number + n)));
           rep.total_duration += rep.segment_duration;
         }
       }
@@ -324,10 +381,26 @@ base::expected<Mpd, MediaError> ParseMpd(std::string_view text,
         "check that the url serves the manifest, not an error page"));
   }
   if (mpd.representations.empty()) {
+    // Two different manifests land here, and the distinction tells the host
+    // which one it is: nothing was named at all, versus representations that
+    // exist but yielded no segments (a dynamic manifest with no timing anchor,
+    // which cannot name a segment grid).
+    const bool live_without_anchor =
+        mpd.is_live &&
+        (mpd.availability_start_time_ms <= 0 || mpd.publish_time_ms <= 0);
     return base::unexpected(MediaError::Of(
-        ErrorCode::kSourceUnsupported, "the mpd names no representation",
-        "segments = 0, representations = 0",
-        "check that the manifest is an on-demand SegmentTemplate profile"));
+        ErrorCode::kSourceUnsupported,
+        live_without_anchor ? "the live mpd carries no usable timing anchor"
+                            : "the mpd names no playable representation",
+        live_without_anchor
+            ? "dynamic manifest with no availabilityStartTime/publishTime, so "
+              "no segment grid can be located"
+            : "no Representation with SegmentTemplate media + duration",
+        live_without_anchor
+            ? "ask the server for a complete manifest; a dynamic profile must "
+              "advertise when its numbering started and when it was published"
+            : "check that the manifest is an on-demand SegmentTemplate "
+              "profile"));
   }
   return mpd;
 }

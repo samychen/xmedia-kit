@@ -7,9 +7,9 @@
 
 #include <atomic>
 #include <map>
-#include <optional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -56,11 +56,11 @@ class XMEDIA_MEDIA_EXPORT DashSegmentDemuxer final : public Demuxer {
   ~DashSegmentDemuxer() override;
 
   // ---- Demuxer ------------------------------------------------------------
-  void Initialize(const DataSourceDescriptor& source,
-                  const DemuxerOptions& options, Host* host,
-                  base::scoped_refptr<base::SequencedTaskRunner>
-                      media_task_runner,
-                  InitializeCB init_cb) override;
+  void
+  Initialize(const DataSourceDescriptor& source, const DemuxerOptions& options,
+             Host* host,
+             base::scoped_refptr<base::SequencedTaskRunner> media_task_runner,
+             InitializeCB init_cb) override;
   void StartPlayingFrom(base::TimeDelta time, SeekCB cb) override;
   void Flush(base::OnceClosure flush_cb) override;
   void Reset(base::OnceClosure reset_cb) override;
@@ -150,12 +150,24 @@ class XMEDIA_MEDIA_EXPORT DashSegmentDemuxer final : public Demuxer {
 
   // ---- open chain ---------------------------------------------------------
   void FetchMpd();
+  // The refresh path: same fetch, different consumer (never re-opens a chain).
+  void FetchMpdReload();
   void OnMpdFetched(bool ok, std::string body);
+  // Live manifests move: FetchMpd() is re-armed every |minimumUpdatePeriod|
+  // (clamped) while the source is live, and a reload EXTENDS each chain's URL
+  // list in place instead of rebuilding it. A reload never rewinds a chain --
+  // segments already played stay played, which is what keeps the media
+  // timeline monotonic across refreshes.
+  void ScheduleMpdReload();
+  void OnMpdReloaded(bool ok, std::string body);
+  // Appends the segments |fresh| has beyond what |chain| already holds. Returns
+  // how many were added.
+  size_t ExtendChain(Chain* chain, const dash::MpdRepresentation& fresh);
   // Opens |chain_index|'s media segment |index| (fetch -> concat -> inner).
   void OpenSegment(size_t chain_index, size_t segment_index);
-  void OnSegmentBytesReady(size_t chain_index, size_t segment_index,
-                           base::expected<std::vector<uint8_t>, MediaError>
-                               bytes_or_error);
+  void OnSegmentBytesReady(
+      size_t chain_index, size_t segment_index,
+      base::expected<std::vector<uint8_t>, MediaError> bytes_or_error);
   void OnInnerSegmentInitialized(std::unique_ptr<FFmpegDemuxer> inner,
                                  size_t chain_index, size_t segment_index,
                                  Status status);
@@ -177,8 +189,7 @@ class XMEDIA_MEDIA_EXPORT DashSegmentDemuxer final : public Demuxer {
   void ReadFromStream(DemuxerStreamType type, uint32_t count,
                       DemuxerStream::ReadCB read_cb);
   void OnStreamRead(DemuxerStreamType type, uint32_t count,
-                    DemuxerStream::ReadCB read_cb,
-                    DemuxerStream::Status status,
+                    DemuxerStream::ReadCB read_cb, DemuxerStream::Status status,
                     DemuxerStream::DecoderBufferVector buffers);
   void AdvanceChain(size_t chain_index);
   void SeekChainOpened(base::TimeDelta request, SeekCB cb);
@@ -195,15 +206,15 @@ class XMEDIA_MEDIA_EXPORT DashSegmentDemuxer final : public Demuxer {
   base::scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
 
   base::Thread worker_{"xmedia-dash"};
-  std::mutex lock_;                 // guards |active_fetch_|
+  std::mutex lock_;  // guards |active_fetch_|
   base::raw_ptr<DataSource> active_fetch_ = nullptr;
   std::atomic<bool> stopped_{false};
 
   dash::Mpd mpd_;
   std::string mpd_url_;
   Phase phase_ = Phase::kInit;
-  InitializeCB init_cb_;      // pending only during Phase::kInit
-  SeekCB seek_cb_;            // pending only during Phase::kSeek
+  InitializeCB init_cb_;  // pending only during Phase::kInit
+  SeekCB seek_cb_;        // pending only during Phase::kSeek
   base::TimeDelta seek_request_;
   std::optional<base::TimeDelta> seek_actual_;
   int seek_chains_pending_ = 0;
@@ -216,6 +227,14 @@ class XMEDIA_MEDIA_EXPORT DashSegmentDemuxer final : public Demuxer {
   std::vector<PendingRead> pending_reads_;
   // The init-phase completion that waits for EVERY chain to open segment 0.
   size_t chains_pending_open_ = 0;
+
+  // Live reload bookkeeping (unused for static MPDs).
+  bool reload_scheduled_ = false;
+  int reload_failures_ = 0;
+  // The representation each chain was built from, so a reload can look up the
+  // SAME representation rather than re-running "highest bandwidth" (which may
+  // have changed and would silently switch the rung).
+  std::vector<std::string> chain_rep_ids_;
 
   int32_t serial_ = 0;
   MediaInfo media_info_;

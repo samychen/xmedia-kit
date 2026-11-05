@@ -63,10 +63,20 @@ void DashSegmentDemuxer::Initialize(
 
 void DashSegmentDemuxer::FetchMpd() {
   worker_.task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&DashSegmentDemuxer::FetchUrlOnWorker,
-                                base::Unretained(this), mpd_url_,
-      base::BindOnce(&DashSegmentDemuxer::OnMpdFetched,
-                                               base::Unretained(this))));
+      FROM_HERE,
+      base::BindOnce(&DashSegmentDemuxer::FetchUrlOnWorker,
+                     base::Unretained(this), mpd_url_,
+                     base::BindOnce(&DashSegmentDemuxer::OnMpdFetched,
+                                    base::Unretained(this))));
+}
+
+void DashSegmentDemuxer::FetchMpdReload() {
+  worker_.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DashSegmentDemuxer::FetchUrlOnWorker,
+                     base::Unretained(this), mpd_url_,
+                     base::BindOnce(&DashSegmentDemuxer::OnMpdReloaded,
+                                    base::Unretained(this))));
 }
 
 void DashSegmentDemuxer::FetchUrlOnWorker(
@@ -99,21 +109,26 @@ void DashSegmentDemuxer::OnMpdFetched(bool ok, std::string body) {
     return;
   }
   mpd_ = std::move(*parsed);
-  if (mpd_.is_live) {
-    // Registered follow-up: dynamic MPDs reload their availability window;
-    // the static path below assumes a fixed segment list.
-    fail(MediaError::Of(ErrorCode::kSourceUnsupported,
-                        "dynamic (live) dash is not built yet",
-                        "url = " + mpd_url_,
-                        "the manifest reload loop is the registered "
-                        "follow-up to the dash demuxer integration; static "
-                        "mpds play"));
+  if (mpd_.is_live &&
+      (mpd_.availability_start_time_ms <= 0 || mpd_.publish_time_ms <= 0)) {
+    // A dynamic MPD is playable only once it says WHEN. Without both anchors
+    // the segment grid cannot be located, so this is a manifest defect the
+    // host can act on -- not "live is unsupported".
+    fail(MediaError::Of(
+        ErrorCode::kSourceUnsupported,
+        "the live mpd carries no usable timing anchor",
+        "url = " + mpd_url_ + "   availabilityStartTime = " +
+            std::to_string(mpd_.availability_start_time_ms) +
+            "   publishTime = " + std::to_string(mpd_.publish_time_ms),
+        "a dynamic manifest must advertise "
+        "availabilityStartTime and publishTime so the segment "
+        "grid can be located; ask the server for a complete "
+        "manifest"));
     return;
   }
   if (mpd_.representations.empty()) {
     fail(MediaError::Of(ErrorCode::kSourceUnsupported,
-                        "the mpd names no representation",
-                        "url = " + mpd_url_,
+                        "the mpd names no representation", "url = " + mpd_url_,
                         "check that SegmentTemplate carries media and "
                         "duration"));
     return;
@@ -151,8 +166,8 @@ void DashSegmentDemuxer::OnMpdFetched(bool ok, std::string body) {
     // fetched once and prepended to every media body (fMP4 needs it, TS
     // lists simply have none).
     const size_t media_count = static_cast<size_t>(
-        rep.total_duration / std::max(rep.segment_duration,
-                                      base::TimeDelta::FromMicroseconds(1)));
+        rep.total_duration /
+        std::max(rep.segment_duration, base::TimeDelta::FromMicroseconds(1)));
     chain.media_duration = rep.segment_duration;
     if (media_count < rep.segment_urls.size() && media_count > 0) {
       chain.media_urls.assign(rep.segment_urls.begin() + 1,
@@ -165,9 +180,11 @@ void DashSegmentDemuxer::OnMpdFetched(bool ok, std::string body) {
   };
   if (video != nullptr) {
     chains_.push_back(make_chain(*video));
+    chain_rep_ids_.push_back(video->id);
   }
   if (audio != nullptr) {
     chains_.push_back(make_chain(*audio));
+    chain_rep_ids_.push_back(audio->id);
   }
   if (chains_.size() == 2 &&
       chains_[0].media_urls.size() != chains_[1].media_urls.size()) {
@@ -177,10 +194,12 @@ void DashSegmentDemuxer::OnMpdFetched(bool ok, std::string body) {
     chains_.resize(1);
   }
 
-  init_chains_pending_ = chains_.size();
+  init_chains_pending_ = static_cast<int>(chains_.size());
   for (size_t i = 0; i < chains_.size(); ++i) {
     OpenSegment(i, 0);
   }
+  // A dynamic manifest is a moving window: keep it fresh while it plays.
+  ScheduleMpdReload();
 }
 
 // ---- queries
@@ -208,7 +227,11 @@ base::TimeDelta DashSegmentDemuxer::GetStartTime() const {
 }
 
 bool DashSegmentDemuxer::IsLive() const {
-  return false;  // dynamic MPDs are rejected at Initialize
+  // Dynamic profile, now that the reload path exists: the window keeps moving,
+  // so the pipeline must not treat the current tail as a permanent EOS. (This
+  // answered a hard false while dynamic MPDs were rejected at Initialize; the
+  // comment outlived the behaviour by one change, which the live e2e caught.)
+  return mpd_.is_live;
 }
 
 bool DashSegmentDemuxer::IsSeekable() const {
@@ -233,14 +256,13 @@ size_t DashSegmentDemuxer::GetBufferedPacketCount() const {
   return total;
 }
 
-DashSegmentDemuxer::Chain* DashSegmentDemuxer::chain_for_type(
-    DemuxerStreamType type) {
+DashSegmentDemuxer::Chain*
+DashSegmentDemuxer::chain_for_type(DemuxerStreamType type) {
   auto it = type_owner_.find(type);
   return it == type_owner_.end() ? nullptr : &chains_[it->second];
 }
 
-size_t DashSegmentDemuxer::chain_index_for_type(
-    DemuxerStreamType type) const {
+size_t DashSegmentDemuxer::chain_index_for_type(DemuxerStreamType type) const {
   auto it = type_owner_.find(type);
   return it == type_owner_.end() ? 0 : it->second;
 }
@@ -266,9 +288,8 @@ DashSegmentDemuxer::SegmentStream::audio_decoder_config() const {
     return empty;
   }
   auto it = chain->inner_streams.find(type_);
-  return it == chain->inner_streams.end()
-             ? empty
-             : it->second->audio_decoder_config();
+  return it == chain->inner_streams.end() ? empty
+                                          : it->second->audio_decoder_config();
 }
 
 const VideoDecoderConfig&
@@ -279,9 +300,8 @@ DashSegmentDemuxer::SegmentStream::video_decoder_config() const {
     return empty;
   }
   auto it = chain->inner_streams.find(type_);
-  return it == chain->inner_streams.end()
-             ? empty
-             : it->second->video_decoder_config();
+  return it == chain->inner_streams.end() ? empty
+                                          : it->second->video_decoder_config();
 }
 
 const TextDecoderConfig&
@@ -292,9 +312,8 @@ DashSegmentDemuxer::SegmentStream::text_decoder_config() const {
     return empty;
   }
   auto it = chain->inner_streams.find(type_);
-  return it == chain->inner_streams.end()
-             ? empty
-             : it->second->text_decoder_config();
+  return it == chain->inner_streams.end() ? empty
+                                          : it->second->text_decoder_config();
 }
 
 int32_t DashSegmentDemuxer::SegmentStream::stream_index() const {
@@ -348,9 +367,8 @@ base::TimeDelta DashSegmentDemuxer::SegmentStream::buffered_duration() const {
     return base::TimeDelta();
   }
   auto it = chain->inner_streams.find(type_);
-  return it == chain->inner_streams.end()
-             ? base::TimeDelta()
-             : it->second->buffered_duration();
+  return it == chain->inner_streams.end() ? base::TimeDelta()
+                                          : it->second->buffered_duration();
 }
 
 }  // namespace xmedia::media

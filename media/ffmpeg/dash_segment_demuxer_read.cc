@@ -50,10 +50,10 @@ void DashSegmentDemuxer::ReadFromStream(DemuxerStreamType type, uint32_t count,
     AdvanceChain(chain_index_for_type(type));
     return;
   }
-  inner_it->second->Read(
-      count,
-      base::BindOnce(&DashSegmentDemuxer::OnStreamRead, base::Unretained(this),
-                     type, count, std::move(read_cb)));
+  inner_it->second->Read(count,
+                         base::BindOnce(&DashSegmentDemuxer::OnStreamRead,
+                                        base::Unretained(this), type, count,
+                                        std::move(read_cb)));
 }
 
 void DashSegmentDemuxer::OnStreamRead(
@@ -75,6 +75,15 @@ void DashSegmentDemuxer::OnStreamRead(
     Chain& chain = chains_[chain_index];
     CloseChainInner(chain_index);
     if (chain.cursor + 1 >= chain.media_urls.size()) {
+      if (mpd_.is_live) {
+        // A live window has no natural end: the tail is "nothing published
+        // yet", not "the stream is over". Answering EOS here is what would
+        // make a live source stop at the first manifest's horizon -- the read
+        // is parked instead and re-issued when a reload extends the chain.
+        chain.ended = false;
+        pending_reads_.push_back({type, count, std::move(read_cb)});
+        return;
+      }
       chain.ended = true;
       std::move(read_cb).Run(status, std::move(buffers));
       return;
@@ -91,8 +100,8 @@ void DashSegmentDemuxer::OnStreamRead(
         // the chain's inner segments each start near their own zero (the
         // init segment was prepended), and the chain's timeline position is
         // the uniform SegmentTemplate grid.
-        chain.segment_delta = chain.TimelineFor(chain.cursor) -
-                              buffer->timestamp();
+        chain.segment_delta =
+            chain.TimelineFor(chain.cursor) - buffer->timestamp();
         chain.segment_delta_set = true;
       }
       buffer->set_timestamp(buffer->timestamp() + chain.segment_delta);
@@ -130,10 +139,10 @@ size_t DashSegmentDemuxer::SegmentIndexForTime(size_t chain_index,
   if (chain.media_duration <= base::TimeDelta()) {
     return 0;
   }
-  const int64_t index = time / chain.media_duration;
-  return static_cast<size_t>(
-      std::clamp<int64_t>(index, 0,
-                          static_cast<int64_t>(chain.media_urls.size()) - 1));
+  const int64_t index = static_cast<int64_t>(
+      time.InMicroseconds() / chain.media_duration.InMicroseconds());
+  return static_cast<size_t>(std::clamp<int64_t>(
+      index, 0, static_cast<int64_t>(chain.media_urls.size()) - 1));
 }
 
 void DashSegmentDemuxer::StartPlayingFrom(base::TimeDelta time, SeekCB cb) {
@@ -167,8 +176,7 @@ void DashSegmentDemuxer::StartPlayingFrom(base::TimeDelta time, SeekCB cb) {
 
 void DashSegmentDemuxer::RunSeekOnChain(size_t chain_index) {
   Chain& chain = chains_[chain_index];
-  const base::TimeDelta local =
-      seek_request_ - chain.TimelineFor(chain.cursor);
+  const base::TimeDelta local = seek_request_ - chain.TimelineFor(chain.cursor);
   if (chain.inner == nullptr) {
     // The chain had nothing open (past-EOF before the seek): reopening at
     // the target was the whole seek for it; the settle already ran.
@@ -182,14 +190,13 @@ void DashSegmentDemuxer::RunSeekOnChain(size_t chain_index) {
              base::TimeDelta segment_start, Status status,
              base::TimeDelta actual) {
             self->stats_.seek_count++;
-            self->OnChainSeekDone(chain_index, status,
-                                  segment_start + actual);
+            self->OnChainSeekDone(chain_index, status, segment_start + actual);
           },
           base::Unretained(this), chain_index,
           chain.TimelineFor(chain.cursor)));
 }
 
-void DashSegmentDemuxer::OnChainSeekDone(size_t chain_index, Status status,
+void DashSegmentDemuxer::OnChainSeekDone(size_t /*chain_index*/, Status status,
                                          base::TimeDelta actual) {
   if (stopped_.load()) {
     return;

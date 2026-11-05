@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/test/task_environment.h"
 #include "gtest/gtest.h"
+#include "tests/support/local_http_server.h"
 
 namespace xmedia::media {
 namespace {
@@ -87,13 +88,12 @@ class DashSegmentDemuxerTest : public ::testing::Test {
     Status result = Err(ErrorCode::kNotImplemented, "not run", {}, {});
     bool done = false;
     demuxer_->StartPlayingFrom(
-        time,
-        base::BindOnce(
-            [](Status* out, bool* flag, Status s, base::TimeDelta) {
-              *out = std::move(s);
-              *flag = true;
-            },
-            &result, &done));
+        time, base::BindOnce(
+                  [](Status* out, bool* flag, Status s, base::TimeDelta) {
+                    *out = std::move(s);
+                    *flag = true;
+                  },
+                  &result, &done));
     PumpUntil([&done] { return done; }, 4000, std::chrono::milliseconds(5));
     return result;
   }
@@ -114,7 +114,13 @@ class DashSegmentDemuxerTest : public ::testing::Test {
   // Points at Open()'s |result| while an open is in flight, so ASSERT_TRUE
   // prints the structured error instead of a bare boolean.
   Status* result_error_sink_ = nullptr;
-  base::test::TaskEnvironment task_environment_;
+  // REAL time, not the default kMockTime: the live reload is scheduled with
+  // PostDelayedTask, and a mock clock only advances when a test says so --
+  // RunUntilIdle() would then run forever without ever reaching the reload, and
+  // the extension assertion would fail for a reason that has nothing to do
+  // with the demuxer.
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::kRealTime};
   base::scoped_refptr<MediaLog> media_log_;
   RecordingHost host_;
   std::unique_ptr<DashSegmentDemuxer> demuxer_;
@@ -194,10 +200,11 @@ TEST_F(DashSegmentDemuxerTest, SeekLandsInTheTargetSegment) {
 }
 
 TEST_F(DashSegmentDemuxerTest, RejectsDynamicMpdWithAStructuredError) {
-  // A dynamic MPD cannot be served from a fixture file whose segment list
-  // is fixed; the structured refusal is the registered live-DASH follow-up
-  // boundary, asserted here so it cannot silently degrade to the FFmpeg
-  // fallback or a raw parse error.
+  // A dynamic MPD that names no timing anchor cannot be placed on a grid, so
+  // it is refused with a structured error rather than silently degrading to
+  // the FFmpeg fallback. (Since live DASH landed, the refusal is about the
+  // MISSING ANCHOR, not about "dynamic" as such -- the playable case is
+  // PlaysADynamicMpdWindowAndExtendsItOnReload below.)
   const std::string path = testing::TempDir() + "/dynamic.mpd";
   FILE* f = fopen(path.c_str(), "wb");
   ASSERT_NE(f, nullptr);
@@ -214,6 +221,119 @@ TEST_F(DashSegmentDemuxerTest, RejectsDynamicMpdWithAStructuredError) {
   std::remove(path.c_str());
   ASSERT_FALSE(result.has_value()) << result.error().ToString();
   EXPECT_EQ(result.error().code(), ErrorCode::kSourceUnsupported);
+}
+
+// The live half: a dynamic manifest whose window GROWS. Before live DASH
+// landed every dynamic MPD was refused; this pins the two properties that make
+// the reload real -- the window is located from the anchors, and a refresh
+// EXTENDS the chain instead of rebuilding it (a rebuild would renumber the
+// cursor and make the timeline jump).
+TEST_F(DashSegmentDemuxerTest, PlaysADynamicMpdWindowAndExtendsItOnReload) {
+  test::LocalHttpServer server;
+  if (!server.Start()) {
+    GTEST_SKIP() << "loopback sockets unavailable";
+  }
+  // Real TS segments so the inner FFmpegDemuxer can open them.
+  auto load = [](const char* name) {
+    std::string body;
+    FILE* f = fopen(TestFile(name).c_str(), "rb");
+    if (f == nullptr) {
+      return body;
+    }
+    char buf[8192];
+    size_t n = 0;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+      body.append(buf, n);
+    }
+    fclose(f);
+    return body;
+  };
+  const std::string seg0 = load("dash/seg0.ts");
+  const std::string seg1 = load("dash/seg1.ts");
+  ASSERT_FALSE(seg0.empty());
+  ASSERT_FALSE(seg1.empty());
+  for (const char* path : {"/seg0.ts", "/seg1.ts"}) {
+    test::LocalHttpServer::File file;
+    file.body = path[1] == 's' && path[5] == '0' ? seg0 : seg1;
+    file.content_type = "video/mp2t";
+    server.SetFile(path, file);
+  }
+
+  // Two segments published at first, one more after the reload. Both manifests
+  // keep the SAME availabilityStartTime, which is what makes them the same
+  // presentation.
+  auto manifest = [](int published) {
+    const int tail = published - 1;
+    return std::string(
+               "<MPD type=\"dynamic\" availabilityStartTime="
+               "\"2026-10-31T09:00:00Z\" publishTime=\"2026-10-31T09:00:0") +
+           std::to_string(published) +
+           "Z\" minimumUpdatePeriod=\"PT0.5S\">"
+           "<Period><AdaptationSet mimeType=\"video/mp2t\">"
+           "<SegmentTemplate media=\"seg$Number$.ts\" duration=\"1\" "
+           "timescale=\"1\" startNumber=\"0\"/>" +
+           "<Representation id=\"v0\" bandwidth=\"1000000\"/>" +
+           "</AdaptationSet></Period></MPD>" + std::string("<!-- published ") +
+           std::to_string(tail) + " -->";
+  };
+  test::LocalHttpServer::File mpd;
+  mpd.body = manifest(2);
+  server.SetFile("/live.mpd", mpd);
+
+  Status result = Err(ErrorCode::kNotImplemented, "not run", {}, {});
+  bool done = false;
+  const std::string url = server.UrlFor("/live.mpd");
+  demuxer_->Initialize(DataSourceDescriptor::FromUri(url), {}, &host_,
+                       task_environment_.GetMainThreadTaskRunnerRef(),
+                       base::BindOnce(
+                           [](Status* out, bool* flag, Status s) {
+                             *out = std::move(s);
+                             *flag = true;
+                           },
+                           &result, &done));
+  ASSERT_TRUE(
+      PumpUntil([&done] { return done; }, 4000, std::chrono::milliseconds(5)))
+      << "a dynamic MPD with anchors was never initialised";
+  ASSERT_TRUE(result.has_value()) << result.error().ToString();
+  EXPECT_TRUE(demuxer_->IsLive()) << "a dynamic profile must report live";
+
+  DemuxerStream* video = demuxer_->GetStream(DemuxerStreamType::kVideo);
+  ASSERT_NE(video, nullptr) << "the dynamic window exposed no video stream";
+
+  // Read what the first window published. A live tail PARKS the read rather
+  // than answering EOS, so this loop must count packets instead of waiting for
+  // an end that must never come.
+  const uint64_t after_init = demuxer_->GetStats().packets_demuxed;
+  for (int i = 0; i < 8; ++i) {
+    ReadResult_ r = ReadOne(video);
+    if (r.status != DemuxerStream::Status::kOk || r.buffers.empty()) {
+      break;
+    }
+    ASSERT_FALSE(r.buffers.front()->IsEndOfStream())
+        << "a live window must not report EOS at its published tail";
+  }
+  EXPECT_GT(demuxer_->GetStats().packets_demuxed, after_init)
+      << "the live window served no packets";
+
+  // THE RELOAD HALF. Publish a longer manifest, let the minimumUpdatePeriod
+  // tick (0.5 s, the clamp floor), and require that the NEW segments are
+  // actually playable: a reload that only re-parsed would leave the chain at
+  // its old tail and the read parked forever.
+  const uint64_t before = demuxer_->GetStats().packets_demuxed;
+  mpd.body = manifest(4);
+  server.SetFile("/live.mpd", mpd);
+  bool served_more = false;
+  for (int i = 0; i < 60 && !served_more; ++i) {
+    ReadResult_ r = ReadOne(video);
+    if (r.status == DemuxerStream::Status::kOk && !r.buffers.empty() &&
+        !r.buffers.front()->IsEndOfStream()) {
+      served_more = true;
+    }
+  }
+  EXPECT_TRUE(served_more) << "the manifest reload did not make the new "
+                              "segments playable (packets_demuxed "
+                           << before << " -> "
+                           << demuxer_->GetStats().packets_demuxed << ")";
 }
 
 }  // namespace

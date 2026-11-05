@@ -40,6 +40,15 @@ struct XMEDIA_MEDIA_EXPORT Mpd {
   bool is_live{false};  // dynamic profile: no fixed duration, no EOF
   base::TimeDelta media_presentation_duration;
   std::string type;  // "static" / "dynamic", verbatim
+  // Dynamic-profile timing (ignored for static manifests).
+  // AvailabilityStartTime is the wall clock the segment NUMBERING was anchored
+  // to, so a live segment's media time is (now - availability_start) rounded
+  // down to the segment grid. 0 means "the manifest did not say", which the
+  // caller reports rather than guessing an epoch.
+  int64_t availability_start_time_ms{0};
+  int64_t publish_time_ms{0};
+  int64_t minimum_update_period_ms{0};
+  int64_t time_shift_buffer_depth_ms{0};
   // The video-typed representations (audio-only MPDs list audio here too;
   // the caller picks by mime_type). Ordered as the manifest listed them.
   std::vector<MpdRepresentation> representations;

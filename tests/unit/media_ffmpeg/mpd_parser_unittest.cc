@@ -49,6 +49,65 @@ TEST(MpdParserTest, ParsesRepresentationsAndSegmentTemplates) {
   EXPECT_EQ(v720.total_duration, base::Seconds(10));
 }
 
+// A dynamic manifest: no mediaPresentationDuration, so the segment list comes
+// from (publishTime - availabilityStartTime) instead. This is what makes a live
+// DASH source playable at all -- the parser refusing it was the registered
+// follow-up.
+TEST(MpdParserTest, DynamicManifestExpandsToThePublishedWindow) {
+  const std::string live =
+      "<MPD type=\"dynamic\" availabilityStartTime=\"2026-10-31T09:00:00Z\"\n"
+      "     publishTime=\"2026-10-31T09:01:00Z\" minimumUpdatePeriod=\"PT2S\"\n"
+      "     timeShiftBufferDepth=\"PT20S\">\n"
+      "  <Period>\n"
+      "    <AdaptationSet mimeType=\"video/mp4\">\n"
+      "      <SegmentTemplate media=\"seg$Number$.m4s\" "
+      "initialization=\"init.mp4\"\n"
+      "                       duration=\"2\" timescale=\"1\" "
+      "startNumber=\"10\"/>\n"
+      "      <Representation id=\"v1\" bandwidth=\"900000\"/>\n"
+      "    </AdaptationSet>\n"
+      "  </Period>\n"
+      "</MPD>\n";
+  auto mpd = ParseMpd(live, "http://cdn/live/manifest.mpd");
+  ASSERT_TRUE(mpd.has_value()) << mpd.error().summary();
+  EXPECT_TRUE(mpd->is_live);
+  EXPECT_EQ(mpd->availability_start_time_ms, 1'793'437'200'000LL);
+  EXPECT_EQ(mpd->minimum_update_period_ms, 2000);
+  EXPECT_EQ(mpd->time_shift_buffer_depth_ms, 20'000);
+  ASSERT_EQ(mpd->representations.size(), 1u);
+  const MpdRepresentation& rep = mpd->representations[0];
+  EXPECT_EQ(rep.segment_duration, base::Seconds(2));
+  // 60 s published over 2 s segments = 30 segments, but the 20 s window keeps
+  // the last 11 (the one being produced plus 10 behind it), renumbered from
+  // what the grid says rather than from 0.
+  EXPECT_EQ(rep.segment_urls.front(), "http://cdn/live/init.mp4");
+  EXPECT_EQ(rep.segment_urls.back(),
+            "http://cdn/live/seg41.m4s");   // startNumber 10 + 30 + 1
+  EXPECT_EQ(rep.segment_urls.size(), 12u);  // init + 11 window segments
+}
+
+// A dynamic manifest missing the anchor is a manifest defect, and the parser
+// says so by expanding nothing rather than inventing an epoch.
+TEST(MpdParserTest, DynamicManifestWithoutAnAnchorExpandsNothing) {
+  const std::string live =
+      "<MPD type=\"dynamic\">\n"
+      "  <Period>\n"
+      "    <AdaptationSet mimeType=\"video/mp4\">\n"
+      "      <SegmentTemplate media=\"seg$Number$.m4s\" duration=\"2\"\n"
+      "                       timescale=\"1\" startNumber=\"1\"/>\n"
+      "      <Representation id=\"v1\" bandwidth=\"900000\"/>\n"
+      "    </AdaptationSet>\n"
+      "  </Period>\n"
+      "</MPD>\n";
+  auto mpd = ParseMpd(live, "http://cdn/live/manifest.mpd");
+  // A parse FAILURE, not an empty result: a manifest naming no locatable
+  // segment is unusable, and the error says which of the two reasons it is.
+  ASSERT_FALSE(mpd.has_value());
+  EXPECT_EQ(mpd.error().code(), ErrorCode::kSourceUnsupported);
+  EXPECT_NE(mpd.error().summary().find("timing anchor"), std::string::npos)
+      << mpd.error().summary();
+}
+
 TEST(MpdParserTest, ParsesTheTsFixtureManifest) {
   std::ifstream in(std::string(XMEDIA_TESTDATA_DIR) + "/dash/local.mpd");
   ASSERT_TRUE(in.good());
