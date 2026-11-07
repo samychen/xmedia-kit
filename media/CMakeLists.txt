@@ -214,6 +214,65 @@ if(XMEDIA_HAS_CEF)
         PRIVATE ${CEF_STANDARD_LIBS})
     add_dependencies(xmedia_cef libcef_dll_wrapper)
 
+    # Helper 子进程（MACOSX_BUNDLE）
+    ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+    add_executable(xmedia_cef_helper MACOSX_BUNDLE
+        cef/cef_helper_main.cc cef/cef_app.cpp)
+    target_compile_definitions(xmedia_cef_helper PRIVATE XMEDIA_HAS_CEF=1)
+    target_include_directories(xmedia_cef_helper PRIVATE
+        ${CMAKE_SOURCE_DIR} ${CEF_INCLUDE_PATH})
+    target_link_libraries(xmedia_cef_helper PRIVATE libcef_dll_wrapper
+        libcef_lib ${CEF_STANDARD_LIBS})
+    set_target_properties(xmedia_cef_helper PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME "xmedia-cef-helper"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.xmedia.cef-helper")
+    xmedia_configure_target(xmedia_cef_helper)
+    add_dependencies(xmedia_cef_helper libcef_dll_wrapper libcef_lib)
+    add_dependencies(xmedia_cef libcef_dll_wrapper libcef_lib)
+    xmedia_configure_target(xmedia_cef)
+  endif()
+endif()
+# GlLayerSource 的一个生产者——播放 SDK 不默认携带。门控语义对齐
+# MediaComponent：distro 缺失绝不 fail configure，降级 XMEDIA_HAS_CEF=0。
+
+if(XMEDIA_HAS_CEF)
+  message(STATUS "XMEDIA_ENABLE_CEF: CEF distro at ${XMEDIA_CEF_ROOT}")
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${XMEDIA_CEF_ROOT}/cmake")
+  set(_X_SAVE_OSX_ARCHS "${CMAKE_OSX_ARCHITECTURES}")
+  set(_X_SAVE_OSX_DEPLOY "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+  endif()
+  set(CEF_ROOT "${XMEDIA_CEF_ROOT}")
+  find_package(CEF)
+  if(NOT DEFINED CEF_LIBCEF_DLL_WRAPPER_PATH
+     OR NOT IS_DIRECTORY "${CEF_LIBCEF_DLL_WRAPPER_PATH}")
+    message(WARNING "find_package(CEF) failed; HTML layer disabled")
+    set(XMEDIA_HAS_CEF 0 CACHE INTERNAL "")
+    set(XMEDIA_ENABLE_CEF OFF CACHE BOOL "" FORCE)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+  else()
+    add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+
+    file(GLOB XMEDIA_CEF_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cpp")
+    add_library(xmedia_cef ${XMEDIA_CEF_SOURCES})
+    add_library(xmedia::cef ALIAS xmedia_cef)
+    target_include_directories(xmedia_cef PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+        ${CEF_INCLUDE_PATH})
+    target_compile_definitions(xmedia_cef PUBLIC XMEDIA_HAS_CEF=1)
+    set_source_files_properties(${XMEDIA_CEF_SOURCES} PROPERTIES
+        COMPILE_FLAGS "-std=c++20")
+    target_link_libraries(xmedia_cef
+        PUBLIC  xmedia::media libcef_dll_wrapper
+        PRIVATE ${CEF_STANDARD_LIBS})
+    add_dependencies(xmedia_cef libcef_dll_wrapper)
+
     ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
     add_executable(xmedia_cef_helper MACOSX_BUNDLE
         cef/cef_helper_main.cc cef/cef_app.cpp)
