@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/cef/cefc_rects_script.h"
+// MakeRectsScript 的定义：独立文件，避免往 cef_osr_client.cpp（861 行）
+// 里做增量手术。声明在 cef_osr_client.h（namespace xmedia::cef）。
 
-namespace xmedia::media::cefc {
+#include "media/cef/cef_osr_client.h"
+
+namespace xmedia {
+namespace cef {
 
 std::string MakeRectsScript() {
   return R"js((function(){
@@ -59,4 +63,5 @@ std::string MakeRectsScript() {
 })();)js";
 }
 
-}  // namespace xmedia::media::cefc
+}  // namespace cef
+}  // namespace xmedia

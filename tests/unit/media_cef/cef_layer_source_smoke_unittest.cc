@@ -17,6 +17,8 @@
 
 #include "media/cef/cef_layer_source.h"
 #include "media/cef/cef_runtime.h"
+#include "media/cef/cef_app.h"
+#include <cstring>
 
 #if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF
 
@@ -159,7 +161,17 @@ int RunSmoke() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+  // CEF 单二进制子进程模型：Chromium 以 --type=... 重启本二进制作为
+  // renderer/GPU 子进程——拦截后委托给 CefExecuteProcess（MC Linux
+  // 路径的先例），不再依赖独立 Helper.app bundle。
+  for (int i = 0; i < argc; ++i) {
+    if (strncmp(argv[i], "--type=", 7) == 0) {
+      CefMainArgs main_args(argc, argv);
+      CefRefPtr<xmedia::cef::MediaCefApp> app(new xmedia::cef::MediaCefApp);
+      return CefExecuteProcess(main_args, app.get(), nullptr);
+    }
+  }
   return RunSmoke();
 }
 

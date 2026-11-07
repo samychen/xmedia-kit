@@ -144,6 +144,12 @@ void MediaCefApp::OnBeforeCommandLineProcessing(
   // 配，每次启动弹"Chromium Safe Storage"密码框。use-mock-keychain 用
   // 固定密钥替代。
   command_line->AppendSwitch("use-mock-keychain");
+  // OSR software rendering: GPU subprocess on macOS outside .app bundle
+  // SIGSEGV (framework Resources unresolvable from bare executable).
+  // OnPaint still fires via the software compositor — the CefOsFrame
+  // BGRA path doesn't need GPU textures.
+  command_line->AppendSwitch("disable-gpu");
+  command_line->AppendSwitch("disable-gpu-compositing");
 }
 
 void MediaCefApp::OnScheduleMessagePumpWork(int64_t delay_ms) {

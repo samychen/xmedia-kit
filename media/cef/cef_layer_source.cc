@@ -6,7 +6,7 @@
 // 持有 CefInitialize（runtime 的同线程契约）并以看门狗频率泵；OnPaint 的
 // BGRA 帧在 pump 线程转成 kARGB VideoFrame 走 GlLayerSource::Publish——
 // 内存序 B,G,R,A 与 kARGB（AV_PIX_FMT_0RGB32）一致，无字节交换。
-// 元数据采集：OnLoadEnd 注入 cefc::MakeRectsScript()（一次性），上报经
+// 元数据采集：OnLoadEnd 注入 cef::MakeRectsScript()（一次性），上报经
 // MessageRouter 回到 HtmlBrowserListener::OnHtmlRects → ParseHtmlRectsPayload
 // → 表合并。
 
@@ -20,7 +20,7 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "media/cef/cefc_rects_script.h"
+#include "media/cef/cef_osr_client.h"
 #include "media/cef/cef_osr_client.h"
 #include "media/cef/cef_runtime.h"
 
@@ -160,7 +160,7 @@ bool CefLayerSource::Start(const Config& config) {
     }
     // 采集脚本注入（OnLoadEnd 之外的一次性保底；collector 自带幂等标志）。
     impl_raw->runtime.ExecuteJavaScript(impl_raw->browser,
-                                        cefc::MakeRectsScript());
+                                        cef::MakeRectsScript());
     impl_raw->PumpLoop();
   });
   impl_ = std::move(impl);

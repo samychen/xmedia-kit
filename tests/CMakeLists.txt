@@ -225,7 +225,11 @@ if(XMEDIA_ENABLE_FFMPEG)
     add_executable(media_cef_smoke MACOSX_BUNDLE
         ${XMEDIA_CEF_UNITTEST_SOURCES})
     target_link_libraries(media_cef_smoke PRIVATE xmedia::cef
-        GTest::gtest_main)
+        "${XMEDIA_CEF_FRAMEWORK_LIB}" GTest::gtest_main)
+    if(APPLE)
+      set_target_properties(media_cef_smoke PROPERTIES
+          BUILD_RPATH "${XMEDIA_CEF_ROOT}/Release")
+    endif()
     target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
     xmedia_configure_target(media_cef_smoke)
     add_dependencies(media_cef_smoke xmedia_cef_helper)

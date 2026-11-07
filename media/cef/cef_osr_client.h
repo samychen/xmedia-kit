@@ -49,6 +49,10 @@
 namespace xmedia {
 namespace cef {
 
+// The rects-collection JS. Hosts inject it once after first paint via
+// ExecuteJavaScript; the collector self-reports t=0 at inject.
+std::string MakeRectsScript();
+
 class CefOsClient : public CefClient,
                     public CefRenderHandler,
                     public CefLifeSpanHandler,
