@@ -14,6 +14,7 @@
 #include <cstdio>
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "media/ffmpeg/audio_convert.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
@@ -251,6 +252,14 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
                 (p.start_time_seconds + p.duration_seconds) *
                 AV_TIME_BASE)
           : INT64_MAX;
+  // 帧级 start 裁剪（分块接缝的前提）：seek 只能落到 keyframe ≤ start，
+  // 落点与 start 之间的帧要么整段进输出（接缝重叠）要么按帧丢弃。丢帧
+  // 发生在解码之后（此处），丢的是完整帧，GOP 解码不破。
+  const int64_t start_us =
+      p.start_time_seconds > 0.0
+          ? static_cast<int64_t>(p.start_time_seconds * AV_TIME_BASE)
+          : 0;
+  const bool trim_start = start_us > 0;
 
   // M8: EAGAIN from avcodec_send_packet means the decoder's OUTPUT queue is
   // full, not that the packet is bad. The old code dropped the packet in that
@@ -272,6 +281,13 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       // the buffers and not over decoded frames.
       for (auto& buf :
            FramesForEncoder(&audio, frame.get(), audio.encoder.frame_size())) {
+        // Start trim: a buffer that BEGINS before the window is dropped whole
+        // (sample-level slicing would need an AudioBuffer cut API). The cost
+        // is a gap of at most one codec frame (~21 ms at 48 kHz) at a chunk
+        // seam, against the overlap it prevents.
+        if (trim_start && buf->timestamp() < base::Microseconds(start_us)) {
+          continue;
+        }
         std::vector<EncodedPacket> out_packets;
         if (audio.encoder.Encode(std::move(buf), &out_packets)) {
           for (const auto& ep : out_packets) {
@@ -299,6 +315,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       auto vf =
           AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
                               video.decoder->pkt_timebase);
+      if (vf && trim_start &&
+          vf->timestamp() < base::Microseconds(start_us)) {
+        av_frame_unref(frame.get());
+        continue;  // before the window: decoded then dropped, GOP intact
+      }
       if (vf) {
         capture_verify_sample(*vf);
         std::vector<EncodedPacket> out_packets;
@@ -462,6 +483,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
     while (avcodec_receive_frame(audio.decoder.get(), frame.get()) >= 0) {
       auto buf = AvFrameToAudioBuffer(frame.get(), audio.in_sample_rate,
                                       audio.in_channels);
+      if (buf && trim_start &&
+          buf->timestamp() < base::Microseconds(start_us)) {
+        av_frame_unref(frame.get());
+        continue;
+      }
       if (buf) {
         std::vector<EncodedPacket> out_packets;
         if (audio.encoder.Encode(std::move(buf), &out_packets)) {
@@ -507,6 +533,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       auto vf =
           AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
                               video.decoder->pkt_timebase);
+      if (vf && trim_start &&
+          vf->timestamp() < base::Microseconds(start_us)) {
+        av_frame_unref(frame.get());
+        continue;
+      }
       if (vf) {
         capture_verify_sample(*vf);
         std::vector<EncodedPacket> out_packets;

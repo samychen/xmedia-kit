@@ -20,6 +20,7 @@
 #include "media/base/data_source_descriptor.h"
 #include "media/base/media_log.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
+#include "media/transcode/ffmpeg_chunked_job.h"
 #include "media/transcode/encode_verify.h"
 #include "media/transcode/ffmpeg_audio_encoder.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
@@ -832,6 +833,69 @@ TEST(TranscodeVerifySeekTest, ContentMismatchIsDetectedAndReported) {
   std::remove(output.c_str());
 }
 
+
+// 分块转码（HyperFrames 分块语义）：keyframe 网格切窗 → 逐窗转码 →
+// Concat 无损拼接。mjpeg 输入全是 keyframe（帧内编码），窗边界精确。
+TEST(TranscodeJobTest, ChunkedTranscodeJoinsChunksSeamlessly) {
+  const std::string input = CreateTestVideoFile("chunked");
+  const std::string output = testing::TempDir() + "chunked_out.mkv";
+
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+
+  ChunkedTranscodeParams params;
+  params.input_uri = input;
+  params.output_path = output;
+  params.transcode.audio_codec.codec = "";
+  params.transcode.video_codec.codec = "mjpeg";
+  // 输入实测 ~133ms（10 帧 33ms 网格，mkv 取整）：50ms 目标窗吸附到
+  // keyframe 网格（33/66/99ms）→ 至少三块。
+  params.chunk_seconds = 0.05;
+
+  std::atomic<int> last_progress{0};
+  const Status st = ChunkedTranscode(
+      params, [&](int pct) { last_progress.store(pct); }, nullptr);
+  ASSERT_TRUE(st) << st.error().ToString();
+  EXPECT_EQ(last_progress.load(), 100);
+
+  // 输出时长 ≈ 输入（拼接没丢时间线；允许一帧容差）。
+  const MediaInfo in_info = Probe(&env, input);
+  const MediaInfo out_info = Probe(&env, output);
+  const double in_ms = in_info.duration.InMillisecondsF();
+  const double out_ms = out_info.duration.InMillisecondsF();
+  EXPECT_NEAR(out_ms, in_ms, 40.0)
+      << "chunked output duration " << out_ms << " vs input " << in_ms;
+
+  std::remove(input.c_str());
+  std::remove(output.c_str());
+}
+
+// 帧级 start 裁剪（分块接缝的前提）：start_time 落在帧网格之间时，输出
+// 起点 = start 而不是 keyframe。时长判据：300ms 输入、150ms 起 →
+// ≈150ms；若起点提前到 133ms（前一个 33ms 帧），输出 ≈167ms。
+TEST(TranscodeJobTest, StartTimeTrimsFrameAccurately) {
+  const std::string input = CreateTestVideoFile("starttrim");
+  const std::string output = testing::TempDir() + "starttrim_out.mkv";
+
+  TranscodeParams params;
+  params.output_path = output;
+  params.audio_codec.codec = "";
+  params.video_codec.codec = "mjpeg";
+  params.start_time_seconds = 0.150;  // 帧网格 0/33/66/99/132/165...ms 之间
+  params.duration_seconds = 0.0;      // 到尾
+
+  const Status st = Transcode(input, params);
+  ASSERT_TRUE(st) << st.error().ToString();
+
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+  const MediaInfo out_info = Probe(&env, output);
+  EXPECT_NEAR(out_info.duration.InMillisecondsF(), 150.0, 40.0)
+      << "start trim must drop frames before the window, got "
+      << out_info.duration.InMillisecondsF();
+
+  std::remove(input.c_str());
+  std::remove(output.c_str());
+}
+
 }  // namespace xmedia::media
-
-
