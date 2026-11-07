@@ -42,6 +42,7 @@
 #     srt       SRT protocol (needs openssl or mbedtls; auto-adds mbedtls)
 #     libyuv    SIMD pixel conversion fast paths (optional: without it
 #               video_convert falls back to sws_scale)
+#     libvpx    VP8/VP9 encoder+decoder (adds --enable-libvpx + webm muxer)
 #
 # Caching and link mode:
 #   XMEDIA_FFMPEG_SRC_DIR  persistent scratch dir for the tarball + extracted
@@ -152,6 +153,7 @@ dep_git_url() {
     opus)     echo "https://github.com/xiph/opus.git" ;;
     librtmp)  echo "https://git.ffmpeg.org/rtmpdump.git" ;;
     mbedtls)  echo "https://github.com/Mbed-TLS/mbedtls.git" ;;
+    libvpx)   echo "https://github.com/webmproject/libvpx.git" ;;
     srt)      echo "https://github.com/Haivision/srt.git" ;;
     libyuv)   echo "https://github.com/lemenkov/libyuv.git" ;;
   esac
@@ -164,6 +166,7 @@ dep_tag() {
     opus)     echo "v1.5.2" ;;
     librtmp)  echo "" ;;  # no tags; HEAD snapshot
     mbedtls)  echo "mbedtls-3.5.0" ;;
+    libvpx)   echo "v1.15.0" ;;
     srt)      echo "v1.5.3" ;;
     libyuv)   echo "" ;;  # no release tags; HEAD snapshot
   esac
@@ -176,6 +179,7 @@ dep_commit() {
     opus)     echo "ddbe48383984d56acd9e1ab6a090c54ca6b735a6" ;;
     librtmp)  echo "138fdb258d9fc26f1843fd1b891180416c9dc575" ;;
     mbedtls)  echo "1ec69067fa1351427f904362c1221b31538c8b57" ;;
+    libvpx)   echo "5a65405dde363f5c50b568cf85bd7d6d874ce145" ;;
     srt)      echo "09f35c0f1743e23f514cb41444504a7faeacf89e" ;;
     libyuv)   echo "aa6cedb39c87910b4c28e5c71c2121fc45fd234b" ;;
   esac
@@ -184,7 +188,7 @@ dep_commit() {
 # Normalize + validate XMEDIA_FFMPEG_DEPS into dependency-safe order, with the
 # implicit requirements pulled in explicitly (a notice beats a mystery link
 # error 20 minutes in).
-SUPPORTED_DEPS=" openssl mbedtls x264 fdk-aac opus librtmp srt libyuv "
+SUPPORTED_DEPS=" openssl mbedtls x264 fdk-aac opus librtmp srt libyuv libvpx "
 REQUESTED_DEPS="$(echo "${XMEDIA_FFMPEG_DEPS:-}" | tr ',+' '  ')"
 # What the caller actually asked for, BEFORE the implicit requirements below
 # add anything. The distinction matters for FFmpeg's own TLS backend: mbedtls
@@ -322,6 +326,11 @@ build_dep() {  # <name>
            --disable-shared --enable-static --disable-doc --disable-extra-programs \
            --disable-dred --disable-osce --disable-deep-plc \
         && make -j"${JOBS}" && make install) ;;
+    libvpx)
+      (cd "${dest}" && ./configure --prefix="${PREFIX}" \
+           --disable-examples --disable-tools --disable-docs \
+           --enable-vp9-encoder --enable-vp8-encoder \
+        && make -j"${JOBS}" && make install) ;;
     librtmp)
       # Only the static library is wanted: the default target also links the
       # rtmpdump CLI, which drags in more than FFmpeg needs.
@@ -392,6 +401,7 @@ case " ${EXPLICIT_DEPS} " in
 esac
 case " ${EXPLICIT_DEPS} " in
   *" mbedtls "*) FF_EXTRA_FLAGS="${FF_EXTRA_FLAGS} --enable-version3 --enable-mbedtls --enable-protocol=tls,https" ;;
+  *" libvpx "*)  FF_EXTRA_FLAGS="${FF_EXTRA_FLAGS} --enable-libvpx --enable-encoder=libvpx_vp9,libvpx_vp8 --enable-decoder=libvpx_vp9,libvpx_vp8" ;;
 esac
 case " ${DEPS} " in
   *" x264 "*|*" fdk-aac "*) FF_EXTRA_FLAGS="${FF_EXTRA_FLAGS} --enable-muxer=mp4,matroska,adts --enable-encoder=aac" ;;
@@ -549,7 +559,7 @@ configure_flags() {
 --enable-decoder=pcm_s16le
 --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,extract_extradata
 --enable-muxer=null,mp4,matroska,adts,image2,flv
---enable-muxer=gif,mov
+--enable-muxer=gif,mov,webm
 --enable-filter=null,volume,aformat,anull,abuffer,abuffersink,buffer,buffersink,hflip,format
 --enable-filter=zscale,tonemap,scale,settb,setpts,trim
 --enable-filter=aecho,equalizer,anlmdn,asetrate,aresample,atempo

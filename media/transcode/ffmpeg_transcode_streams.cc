@@ -226,6 +226,16 @@ void ApplyContainerCodecDefaults(TranscodeParams* params) {
     }
     return;
   }
+  if (ends_with(".webm")) {
+    if (video_is_default || params->video_codec.codec == "mjpeg") {
+      params->video_codec.codec = "libvpx-vp9";
+    }
+    if (audio_is_default) {
+      // libopus 未编入钉死构建（opus 依赖未选）→ 音频腿丢弃。
+      params->audio_codec.codec.clear();
+    }
+    return;
+  }
   if (ends_with(".mov")) {
     if (video_is_default) {
       params->video_codec.codec = "prores_ks";
