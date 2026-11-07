@@ -70,6 +70,12 @@ bool AssembleRuntime(const std::string& tmp, std::string* framework_dir,
   std::remove((bundle_fw + "/Chromium Embedded Framework.framework").c_str());
   std::system(("ln -s '" + fw_src + "' '" + bundle_fw +
                "/Chromium Embedded Framework.framework'").c_str());
+  // Resources 也链接（icudtl.dat / v8_context_snapshot.bin / *.pak）——
+  // 渲染子进程启动需要这些资源文件。
+  const std::string res_src = std::string(root) + "/Resources";
+  const std::string res_link = frameworks + "/Resources";
+  std::remove(res_link.c_str());
+  std::system(("ln -s '" + res_src + "' '" + res_link + "'").c_str());
   const std::string helper_dst = bundle + "/Sparkle Helper";
   std::system(("cp \"" + std::string(helper) + "\" \"" + helper_dst +
                "\"").c_str());
