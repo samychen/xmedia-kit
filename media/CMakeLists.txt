@@ -188,6 +188,62 @@ if(XMEDIA_HAS_CEF)
   find_package(CEF)
   if(NOT DEFINED CEF_LIBCEF_DLL_WRAPPER_PATH
      OR NOT IS_DIRECTORY "${CEF_LIBCEF_DLL_WRAPPER_PATH}")
+    message(WARNING "find_package(CEF) failed; HTML layer disabled")
+    set(XMEDIA_HAS_CEF 0 CACHE INTERNAL "")
+    set(XMEDIA_ENABLE_CEF OFF CACHE BOOL "" FORCE)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+  else()
+    add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+
+    file(GLOB XMEDIA_CEF_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cpp")
+    add_library(xmedia_cef ${XMEDIA_CEF_SOURCES})
+    add_library(xmedia::cef ALIAS xmedia_cef)
+    target_include_directories(xmedia_cef PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+        ${CEF_INCLUDE_PATH})
+    target_compile_definitions(xmedia_cef PUBLIC XMEDIA_HAS_CEF=1)
+    set_source_files_properties(${XMEDIA_CEF_SOURCES} PROPERTIES
+        COMPILE_FLAGS "-std=c++20")
+    target_link_libraries(xmedia_cef
+        PUBLIC  xmedia::media libcef_dll_wrapper
+        PRIVATE ${CEF_STANDARD_LIBS})
+    add_dependencies(xmedia_cef libcef_dll_wrapper)
+
+    ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+    add_executable(xmedia_cef_helper MACOSX_BUNDLE
+        cef/cef_helper_main.cc cef/cef_app.cpp)
+    target_compile_definitions(xmedia_cef_helper PRIVATE XMEDIA_HAS_CEF=1)
+    target_include_directories(xmedia_cef_helper PRIVATE
+        ${CMAKE_SOURCE_DIR} ${CEF_INCLUDE_PATH})
+    target_link_libraries(xmedia_cef_helper PRIVATE libcef_dll_wrapper
+        libcef_lib ${CEF_STANDARD_LIBS})
+    set_target_properties(xmedia_cef_helper PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME "xmedia-cef-helper"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.xmedia.cef-helper")
+    xmedia_configure_target(xmedia_cef_helper)
+    add_dependencies(xmedia_cef_helper libcef_dll_wrapper libcef_lib)
+    add_dependencies(xmedia_cef libcef_dll_wrapper libcef_lib)
+    xmedia_configure_target(xmedia_cef)
+  endif()
+endif()
+
+if(XMEDIA_HAS_CEF)
+  message(STATUS "XMEDIA_ENABLE_CEF: CEF distro at ${XMEDIA_CEF_ROOT}")
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${XMEDIA_CEF_ROOT}/cmake")
+  set(_X_SAVE_OSX_ARCHS "${CMAKE_OSX_ARCHITECTURES}")
+  set(_X_SAVE_OSX_DEPLOY "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+  endif()
+  set(CEF_ROOT "${XMEDIA_CEF_ROOT}")
+  find_package(CEF)
+  if(NOT DEFINED CEF_LIBCEF_DLL_WRAPPER_PATH
+     OR NOT IS_DIRECTORY "${CEF_LIBCEF_DLL_WRAPPER_PATH}")
     message(WARNING "find_package(CEF) failed at ${XMEDIA_CEF_ROOT}; "
                     "HTML layer disabled")
     set(XMEDIA_HAS_CEF 0 CACHE INTERNAL "")
@@ -215,6 +271,23 @@ if(XMEDIA_HAS_CEF)
         PUBLIC  xmedia::media libcef_dll_wrapper
         PRIVATE ${CEF_STANDARD_LIBS})
     add_dependencies(xmedia_cef libcef_dll_wrapper)
+    # Helper 子进程：MACOSX_BUNDLE target（cef_helper_main.cc + cef_app.cpp
+    # 编译为独立 Helper.app——Chromium 以 --type= 重启它执行子进程角色）。
+    # macOS 子进程在加载期解析 cef_* 符号 → 必须链 framework。
+    ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+    add_executable(xmedia_cef_helper MACOSX_BUNDLE
+        cef/cef_helper_main.cc cef/cef_app.cpp)
+    target_compile_definitions(xmedia_cef_helper PRIVATE XMEDIA_HAS_CEF=1)
+    target_include_directories(xmedia_cef_helper PRIVATE
+        ${CMAKE_SOURCE_DIR} ${CEF_INCLUDE_PATH})
+    target_link_libraries(xmedia_cef_helper PRIVATE libcef_dll_wrapper
+        libcef_lib ${CEF_STANDARD_LIBS})
+    set_target_properties(xmedia_cef_helper PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME "xmedia-cef-helper"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.xmedia.cef-helper")
+    xmedia_configure_target(xmedia_cef_helper)
+    add_dependencies(xmedia_cef_helper libcef_dll_wrapper libcef_lib)
+    add_dependencies(xmedia_cef libcef_dll_wrapper libcef_lib)
     # Subprocess 入口：独立小可执行（Chromium 以 --type=... 重启它）。
     # macOS 也必须链 framework：子进程在加载期就要解析 cef_* 符号（dyld
     # 两级命名空间不做 dynamic_lookup——未解析即 crash，GPU 子进程

@@ -232,27 +232,31 @@ if(XMEDIA_ENABLE_FFMPEG)
     target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
     xmedia_configure_target(media_cef_smoke)
     add_dependencies(media_cef_smoke xmedia_cef_helper)
-    # POST_BUILD：flat layout——framework Resources/Libraries 拷到 binary
-    # 同目录（子进程按 own executable path 解析资源）。
-    set(_CEFSMOKE_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    set(_CEFSMOKE_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/media_cef_smoke.app")
+    set(_CEF_FW "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework")
+    # POST_BUILD：cefsimple 式 .app 组装
+    #   <app>/Contents/MacOS/media_cef_smoke (binary)
+    #   <app>/Contents/Frameworks/CE.framework (framework)
+    #   <app>/Contents/Frameworks/xmedia-cef-helper.app (helper bundle)
+    #   <app>/Contents/Resources/ (icudtl.dat, paks)
     add_custom_command(TARGET media_cef_smoke POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${_CEFSMOKE_APP}/Contents/Frameworks"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
-            "${_CEFSMOKE_DIR}/Chromium Embedded Framework.framework"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "${XMEDIA_CEF_ROOT}/Resources/icudtl.dat"
-            "${_CEFSMOKE_DIR}/icudtl.dat"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "${XMEDIA_CEF_ROOT}/Resources/resources.pak"
-            "${_CEFSMOKE_DIR}/resources.pak"
+            "${_CEF_FW}"
+            "${_CEFSMOKE_APP}/Contents/Frameworks/Chromium Embedded Framework.framework"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "$<TARGET_BUNDLE_CONTENT_DIR:xmedia_cef_helper>"
+            "${_CEFSMOKE_APP}/Contents/Frameworks/xmedia-cef-helper.app"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${XMEDIA_CEF_ROOT}/Resources"
-            "${_CEFSMOKE_DIR}/Resources"
-        COMMENT "Deploying CEF framework flat beside media_cef_smoke")
+            "${_CEFSMOKE_APP}/Contents/Resources"
+        COMMENT "Deploying CEF framework + helper into media_cef_smoke.app"
+        VERBATIM)
+    # 测试从 bundle 内的二进制运行（CEF macOS 路径解析要求 .app 宿主）。
     add_test(NAME cef_html_layer_smoke
-        COMMAND $<TARGET_FILE:media_cef_smoke>)
-    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120
-        ENVIRONMENT "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT}")
+        COMMAND "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke")
+    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120)
   endif()
     target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
     xmedia_configure_target(media_cef_smoke)
