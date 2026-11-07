@@ -34,6 +34,7 @@ struct FFmpegVideoEncoder::Context {
   // and sends a PAL8 frame. |rgba| is the quantizer's input; |palette| is
   // rebuilt per frame (GIF palettes are per-frame by spec).
   bool is_gif = false;
+  bool is_hdr = false;
   ff::FramePtr rgba;
   ff::GifFramePalette palette;
   ff::FramePtr pal;
@@ -160,9 +161,23 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
       break;
     }
   }
+  // HDR BT.2020/PQ（hevc_videotoolbox + P010LE）：通过 options["hdr"]="1"
+  // 启用。输入仍是 YUV420P 8-bit（解码侧输出），编码器上采样到 10-bit
+  // P010LE 并标定 BT.2020/PQ 色彩——容器标定能力，不改变像素内容。
+  const bool is_hdr = strcmp(codec->name, "hevc_videotoolbox") == 0 &&
+                      params.options.count("hdr") > 0 &&
+                      params.options.at("hdr") == "1";
+  c->is_hdr = is_hdr;
   if (is_gif) {
     c->codec->pix_fmt = AV_PIX_FMT_PAL8;
     c->dst_fmt = AV_PIX_FMT_RGBA;
+  } else if (is_hdr) {
+    c->codec->pix_fmt = AV_PIX_FMT_P010LE;
+    c->dst_fmt = AV_PIX_FMT_P010LE;
+    c->codec->color_primaries = AVCOL_PRI_BT2020;
+    c->codec->color_trc = AVCOL_TRC_SMPTE2084;
+    c->codec->colorspace = AVCOL_SPC_BT2020_NCL;
+    c->codec->color_range = AVCOL_RANGE_MPEG;
   } else if (accepts_420) {
     c->dst_fmt = full_range ? AV_PIX_FMT_YUVJ420P : AV_PIX_FMT_YUV420P;
     c->codec->pix_fmt = c->dst_fmt;
@@ -334,23 +349,30 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
     return false;
   }
   // Range/matrix flow through from the frame so colours survive the trip.
-  switch (in->color_space().matrix) {
-  case ColorMatrix::kBT709:
-    ctx_->converted->colorspace = AVCOL_SPC_BT709;
-    break;
-  case ColorMatrix::kBT2020Ncl:
+  if (ctx_->is_hdr) {
     ctx_->converted->colorspace = AVCOL_SPC_BT2020_NCL;
-    break;
-  case ColorMatrix::kSMPTE170M:
-    ctx_->converted->colorspace = AVCOL_SPC_SMPTE170M;
-    break;
-  default:
-    ctx_->converted->colorspace = AVCOL_SPC_BT470BG;
-    break;
+    ctx_->converted->color_primaries = AVCOL_PRI_BT2020;
+    ctx_->converted->color_trc = AVCOL_TRC_SMPTE2084;
+    ctx_->converted->color_range = AVCOL_RANGE_MPEG;
+  } else {
+    switch (in->color_space().matrix) {
+    case ColorMatrix::kBT709:
+      ctx_->converted->colorspace = AVCOL_SPC_BT709;
+      break;
+    case ColorMatrix::kBT2020Ncl:
+      ctx_->converted->colorspace = AVCOL_SPC_BT2020_NCL;
+      break;
+    case ColorMatrix::kSMPTE170M:
+      ctx_->converted->colorspace = AVCOL_SPC_SMPTE170M;
+      break;
+    default:
+      ctx_->converted->colorspace = AVCOL_SPC_BT470BG;
+      break;
+    }
+    ctx_->converted->color_range = in->color_space().range == ColorRange::kFull
+                                       ? AVCOL_RANGE_JPEG
+                                       : AVCOL_RANGE_MPEG;
   }
-  ctx_->converted->color_range = in->color_space().range == ColorRange::kFull
-                                     ? AVCOL_RANGE_JPEG
-                                     : AVCOL_RANGE_MPEG;
   // The frame's timestamp is microseconds (xmedia-kit VideoFrame); the
   // encoder's
   // time_base ticks are frame intervals. Rescale instead of feeding raw
