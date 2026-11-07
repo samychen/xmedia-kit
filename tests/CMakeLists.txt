@@ -233,13 +233,21 @@ if(XMEDIA_ENABLE_FFMPEG)
     target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
     xmedia_configure_target(media_cef_smoke)
     add_dependencies(media_cef_smoke xmedia_cef_helper)
-    # 环境变量（CEF distro 根 + helper 路径）经 gtest_discover_tests 的
-    # EXTRA_ENVIRONMENT 传给每个发现的用例；用生成器表达式的目标文件路径
-    # 在 discover 时求值。
-    gtest_discover_tests(media_cef_smoke
-        PROPERTIES TIMEOUT 120
-        EXTRA_ENVIRONMENT
-            "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT};XMEDIA_CEF_HELPER=$<TARGET_FILE:xmedia_cef_helper>")
+    # POST_BUILD：部署 CEF framework + Resources 进 .app bundle
+    # （CEF macOS 子进程在宿主 bundle 内解析 framework/Helper/Resources）。
+    add_custom_command(TARGET media_cef_smoke POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
+            "$<TARGET_BUNDLE_CONTENT_DIR:media_cef_smoke>/Frameworks/Chromium Embedded Framework.framework"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${XMEDIA_CEF_ROOT}/Resources"
+            "$<TARGET_BUNDLE_CONTENT_DIR:media_cef_smoke>/Resources"
+        COMMENT "Deploying CEF framework + resources into media_cef_smoke.app")
+    # 不走 gtest_discover（CEF 延迟符号在 --gtest_list_tests 探针下崩）。
+    # add_test 指向 bundle 内的二进制；跳过逻辑在 smoke 二进制内部。
+    add_test(NAME cef_html_layer_smoke
+        COMMAND media_cef_smoke)
+    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120)
   endif()
 
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API
