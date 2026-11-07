@@ -270,9 +270,8 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
   // with the previous frame skips the conversion pipeline and re-sends the
   // cached output frame at the new pts. The encoder still encodes it —
   // the saving is the conversion, not the encode itself.
-  // TODO(dedup): re-enable after SIGSEGV debug (hash computation itself
-  // crashes on the GIF path — investigate the input frame plane contract).
-  const bool is_duplicate = false;
+  const bool is_duplicate =
+      ctx_->last_input_valid && input_hash == ctx_->last_input_hash;
 
   if (is_duplicate) {
     // Re-send the cached frame with the new pts (skip conversion entirely).
