@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/transcode/frame_hash.h"
 #include "media/ffmpeg/ffmpeg_util.h"
 #include "media/ffmpeg/gif_palette.h"
 #include "media/ffmpeg/video_convert.h"
@@ -36,6 +37,15 @@ struct FFmpegVideoEncoder::Context {
   ff::FramePtr rgba;
   ff::GifFramePalette palette;
   ff::FramePtr pal;
+  // T9a static-frame dedup: the hash of the last input frame and the frames
+  // sent to the encoder since then. A hash match skips conversion (sws /
+  // libyuv / palette rebuild) and re-sends the cached output frame at the
+  // new pts — the encoder still encodes it, but skips the expensive
+  // per-frame pixel pipeline. Deterministic encoders (libx264, gif) produce
+  // byte-identical output; non-deterministic ones produce PSNR-equivalent
+  // output (same as MC's T9a finding).
+  bool last_input_valid = false;
+  int64_t dedup_skipped = 0;
 
   Context() = default;
   Context(const Context&) = delete;
@@ -256,6 +266,35 @@ bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
   if (!ctx_ || !out) {
     return false;
   }
+  // T9a dedup: hash the input planes (row-distance-normalised). A match
+  // with the previous frame skips the conversion pipeline and re-sends the
+  // cached output frame at the new pts. The encoder still encodes it —
+  // the saving is the conversion, not the encode itself.
+  // TODO(dedup): re-enable after SIGSEGV debug (hash computation itself
+  // crashes on the GIF path — investigate the input frame plane contract).
+  const bool is_duplicate = false;
+
+  if (is_duplicate) {
+    // Re-send the cached frame with the new pts (skip conversion entirely).
+    // The cached frame (ctx_->converted or ctx_->pal) still holds the
+    // previous conversion result — the pixel data is identical, only the
+    // timestamp changed.
+    ++ctx_->dedup_skipped;
+    ff::FramePtr& cached = ctx_->is_gif ? ctx_->pal : ctx_->converted;
+    if (cached) {
+      cached->pts =
+          ff::FromTimeDelta(in->timestamp(), ctx_->codec->time_base);
+      const int send = avcodec_send_frame(ctx_->codec, cached.get());
+      if (send < 0) {
+        LOG(ERROR) << "video encoder: dedup send_frame failed";
+        return false;
+      }
+      ctx_->DrainPackets(out);
+      return true;
+    }
+    // Cache miss (first frame was a dup?) — fall through to normal path.
+  }
+
   // View over the source planes, then convert into the reused target frame.
   // ff::MakeFrame CHECKs internally; there is no failure mode to report.
   ff::FramePtr src = ff::MakeFrame();
