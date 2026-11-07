@@ -31,6 +31,9 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
+#include "media/base/video_frame.h"
+
 #include "media/base/html_element_meta.h"
 #include "media/gl/gl_layer_source.h"
 #include "media/media_export.h"
@@ -73,6 +76,12 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
   // Element metadata collected from mc.html.rects so far (parse+merge on the
   // pump thread; safe read from the host after Stop, guarded while running).
   const HtmlElementMetaTable& elements() const;
+
+  // The most recent OSR frame published (null before the first OnPaint).
+  // The element-composer path uploads this same picture into the per-element
+  // scene layers; holding one reference here means the composer does not have
+  // to race the mailbox for it.
+  base::scoped_refptr<VideoFrame> last_frame() const;
 
   bool is_running() const;
 

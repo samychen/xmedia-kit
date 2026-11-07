@@ -44,6 +44,10 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
   std::atomic<bool> running{false};
   int64_t start_wall_ms = 0;
   int64_t published_frames = 0;
+  // 最近一次发布的 OSR 帧（元素拆纹理的 GlElementComposer 从这里取整层
+  // 图去各元素层上传）。pump 写、宿主读，互斥保护 scoped_refptr 本体。
+  std::mutex last_frame_mutex;
+  base::scoped_refptr<VideoFrame> last_published;
 
   // HtmlBrowserListener（CEF UI 线程）。
   void OnHtmlReady() override {}
@@ -94,6 +98,10 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
       std::lock_guard<std::mutex> scoped(frame->mutex);
       memcpy(span.data(), frame->bgra.data(), bytes);
       frame->dirty = false;
+    }
+    {
+      std::lock_guard<std::mutex> scoped(last_frame_mutex);
+      last_published = out;  // Publish 之后 out 已被搬空，先存引用
     }
     source->Publish(std::move(out));
     ++published_frames;
@@ -188,6 +196,14 @@ void CefLayerSource::Stop() {
 
 GlLayerSource* CefLayerSource::source() {
   return impl_ ? impl_->source.get() : nullptr;
+}
+
+base::scoped_refptr<VideoFrame> CefLayerSource::last_frame() const {
+  if (!impl_) {
+    return nullptr;
+  }
+  std::lock_guard<std::mutex> scoped(impl_->last_frame_mutex);
+  return impl_->last_published;
 }
 
 const HtmlElementMetaTable& CefLayerSource::elements() const {

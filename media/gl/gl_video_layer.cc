@@ -20,6 +20,31 @@
 
 namespace xmedia::media {
 
+// The RGB passthrough: one RGBA texture, straight alpha times the layer's
+// opacity. The YUV body's clamping and matrix have no equivalent here -- the
+// texels ARE the colour -- so this is the shortest fragment stage in the tree,
+// and deliberately so: an HTML overlay's pixels arrive premultiplied-or-not by
+// the page's own compositing, and any conversion here would be a second
+// guess about semantics only the producer knows.
+const char* const kRgbFragmentShaderBody = R"(
+in vec2 vTexCoord;
+out vec4 fragColor;
+uniform SAMPLER_TYPE uTexRgba;
+uniform float uOpacity;
+void main() {
+    vec4 c = texture(uTexRgba, RGBA_COORD);
+    fragColor = vec4(c.rgb, c.a * uOpacity);
+}
+)";
+
+const char* const kRgbaSampler2DDefines =
+    "#define SAMPLER_TYPE sampler2D\n"
+    "#define RGBA_COORD vTexCoord\n";
+
+const char* const kRgbaSamplerRectDefines =
+    "#define SAMPLER_TYPE sampler2DRect\n"
+    "#define RGBA_COORD (vTexCoord * uTexSize)\n";
+
 // The YUV->RGB conversion, with an opacity so a scene can fade a layer. The
 // alpha is a uniform rather than a second shader because the alternative is
 // two programs whose bodies differ by one character, which is a maintenance
@@ -66,6 +91,13 @@ const char* const kYuvSamplerRectDefines =
 bool IsPlanarYuv(VideoFormat format) {
   return format == VideoFormat::kI420 || format == VideoFormat::kYV12 ||
          format == VideoFormat::kNV12;
+}
+
+bool IsRgba8Format(VideoFormat format) {
+  // Only kARGB today: it is the layout the CEF OSR path publishes
+  // (memory order B,G,R,A == GL_BGRA bytes). kRGB24/kRGB565 need different
+  // upload geometries and are refused rather than approximated.
+  return format == VideoFormat::kARGB;
 }
 
 GlVideoLayer::GlVideoLayer(const gl::GlApi& gl) : gl_(&gl) {}
@@ -264,7 +296,52 @@ bool GlVideoLayer::ImportGpuPlanes(const VideoFrame& frame,
   return true;
 }
 
+// One RGBA texture, straight upload: kARGB's memory order (B,G,R,A per
+// texel) IS GL_BGRA, so the bytes go in as they are. The stride comment on
+// the YUV path applies unchanged -- GL_UNPACK_ROW_LENGTH counts texels of
+// the upload format, four bytes here.
+bool GlVideoLayer::UploadRgbaPlane(const VideoFrame& frame) {
+  const int w = frame.coded_size().width;
+  const int h = frame.coded_size().height;
+  if (w <= 0 || h <= 0) {
+    return false;
+  }
+  if (!EnsurePlaneTextures(GL_TEXTURE_2D)) {
+    return false;
+  }
+  if (NeedsTextureSetup(w, h, frame.format())) {
+    width_ = w;
+    height_ = h;
+    format_ = static_cast<int>(frame.format());
+    ready_ = false;
+    gl_->context().PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    planes_[0]->SetImage2D(GL_RGBA8, w, h, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+    // Planes 1/2 stay bound-but-unused: the RGB program samples unit 0 only,
+    // and reallocating them per format churn would buy nothing.
+    ApplySamplers();
+  }
+  is_rgb_ = true;
+  nv12_ = false;
+
+  const auto data = frame.visible_data(VideoFrame::kYPlane);
+  if (data.empty()) {
+    return false;
+  }
+  planes_[0]->SetUnpackRowLength(frame.stride(VideoFrame::kYPlane) / 4);
+  planes_[0]->SetSubImage2D(0, 0, w, h, GL_BGRA, GL_UNSIGNED_BYTE, data.data());
+  planes_[0]->SetUnpackRowLength(0);
+
+  // The colour uniforms are a YUV-only concept; the RGB program has no
+  // uMatrix/uOffset to set and stale member values are unread.
+  ready_ = true;
+  last_upload_path_ = UploadPath::kCpuSync;
+  return true;
+}
+
 bool GlVideoLayer::UploadCpuPlanes(const VideoFrame& frame) {
+  if (IsRgba8Format(frame.format())) {
+    return UploadRgbaPlane(frame);
+  }
   if (!IsPlanarYuv(frame.format())) {
     return false;
   }
@@ -362,6 +439,7 @@ bool GlVideoLayer::UploadCpuPlanes(const VideoFrame& frame) {
   // overlay rather than at this line.
   planes_[0]->SetUnpackRowLength(0);
 
+  is_rgb_ = false;
   SetColourUniforms(frame);
   // Same reason as the import route: the aspect is Upload()'s to record, not
   // this function's. It is also called with the readback frame, which carries
@@ -372,9 +450,11 @@ bool GlVideoLayer::UploadCpuPlanes(const VideoFrame& frame) {
 }
 
 void GlVideoLayer::Bind(gl::GlProgram& program, float opacity) const {
-  program.SetInt("uNv12", nv12_ ? 1 : 0);
-  program.SetMat3("uMatrix", matrix_.data());
-  program.SetVec3("uOffset", offset_[0], offset_[1], offset_[2]);
+  if (!is_rgb_) {
+    program.SetInt("uNv12", nv12_ ? 1 : 0);
+    program.SetMat3("uMatrix", matrix_.data());
+    program.SetVec3("uOffset", offset_[0], offset_[1], offset_[2]);
+  }
   program.SetFloat("uOpacity", opacity);
   if (texture_target() == GL_TEXTURE_RECTANGLE) {
     // The rect body addresses its samplers in texels, so it has to be told how
@@ -441,7 +521,45 @@ std::unique_ptr<gl::GlProgram> CreateLayerProgram(const gl::GlApi& gl,
   return program;
 }
 
+
+// The RGB program pair shares the vertex stage and the placement contract
+// (uRect/uRotation/uSrcRect) with the YUV pair -- only the fragment stage and
+// the sampler contract differ, which is why the sampler units are set once
+// here instead of being inherited: uTexRgba is unit 0, and the YUV units the
+// YUV program binds are simply absent here.
+std::unique_ptr<gl::GlProgram> CreateRgbLayerProgram(const gl::GlApi& gl,
+                                                     const char* sampler_defines,
+                                                     std::string* error) {
+  const std::string prologue = gl::ShaderPrologue(gl);
+  auto program = gl::GlProgram::Create(
+      gl,
+      (prologue + gl::kVertexCropDefine + gl::kVertexRotationDefine +
+       gl::kQuadVertexShaderWithRectBody)
+          .c_str(),
+      (prologue + sampler_defines + kRgbFragmentShaderBody).c_str(), error);
+  if (!program) {
+    return nullptr;
+  }
+  program->Use();
+  program->SetInt("uTexRgba", 0);
+  // Same fresh-program defaults as the YUV creator: upright and uncropped,
+  // because unset uniforms read as zeros, not as identities.
+  program->SetVec2("uRotation", 1.0f, 0.0f);
+  program->SetVec4("uSrcRect", 0.0f, 0.0f, 1.0f, 1.0f);
+  return program;
+}
+
 }  // namespace
+
+std::unique_ptr<gl::GlProgram> CreateVideoLayerRgbProgram(const gl::GlApi& gl,
+                                                          std::string* error) {
+  return CreateRgbLayerProgram(gl, kRgbaSampler2DDefines, error);
+}
+
+std::unique_ptr<gl::GlProgram> CreateVideoLayerRgbRectProgram(
+    const gl::GlApi& gl, std::string* error) {
+  return CreateRgbLayerProgram(gl, kRgbaSamplerRectDefines, error);
+}
 
 std::unique_ptr<gl::GlProgram> CreateVideoLayerProgram(const gl::GlApi& gl,
                                                        std::string* error) {

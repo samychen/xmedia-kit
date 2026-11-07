@@ -67,7 +67,23 @@ GlScene::GlScene(const gl::GlApi& gl, std::shared_ptr<gl::GlProgram> program,
                  std::shared_ptr<gl::GlProgram> rect_program)
     : gl_(&gl),
       program_(std::move(program)),
-      rect_program_(std::move(rect_program)) {}
+      rect_program_(std::move(rect_program)) {
+  // The RGB pair is NOT a constructor seam (unlike the YUV pair, which
+  // CreateWithPrograms shares with the single-video presenter): no other
+  // path has an RGB program to share, so building it here keeps the two
+  // pairs next to the same failure reporting.
+  std::string rgb_error;
+  rgb_program_ = std::shared_ptr<gl::GlProgram>(
+      CreateVideoLayerRgbProgram(gl, &rgb_error));
+  if (!rgb_program_) {
+    LOG(ERROR) << "scene: RGB layer program failed: " << rgb_error;
+  }
+  rgb_rect_program_ = std::shared_ptr<gl::GlProgram>(
+      CreateVideoLayerRgbRectProgram(gl, &rgb_error));
+  if (!rgb_rect_program_) {
+    LOG(ERROR) << "scene: RGB rect layer program failed: " << rgb_error;
+  }
+}
 
 GlScene::~GlScene() = default;
 
@@ -378,10 +394,21 @@ void GlScene::Compose(int dst_width, int dst_height) {
   gl::GlProgram* bound = nullptr;
   for (size_t index : draw_order_) {
     const Layer& layer = layers_[index];
-    gl::GlProgram* program =
-        layer.video->texture_target() == GL_TEXTURE_RECTANGLE
-            ? rect_program_.get()
-            : program_.get();
+    gl::GlProgram* program = nullptr;
+    if (layer.video && layer.video->is_rgb()) {
+      // A packed-RGBA layer samples ONE texture; the YUV program would read
+      // its planes as chroma and draw nonsense, so the pair is chosen here.
+      program = layer.video->texture_target() == GL_TEXTURE_RECTANGLE
+                    ? rgb_rect_program_.get()
+                    : rgb_program_.get();
+      if (program == nullptr) {
+        continue;  // build failed at scene construction; already logged
+      }
+    } else {
+      program = layer.video->texture_target() == GL_TEXTURE_RECTANGLE
+                    ? rect_program_.get()
+                    : program_.get();
+    }
     if (program != bound) {
       program->Use();
       bound = program;

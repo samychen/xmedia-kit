@@ -286,6 +286,13 @@ class XMEDIA_MEDIA_EXPORT GlScene {
   // compiled them.
   std::shared_ptr<gl::GlProgram> program_;
   std::shared_ptr<gl::GlProgram> rect_program_;
+  // The packed-RGBA variants (the HTML path publishes kARGB; video stays
+  // planar YUV). Created with the YUV pair so a driver that cannot compile
+  // them says so at scene build time; null after a failure and RGB layers
+  // are then skipped, because drawing one with the YUV program would sample
+  // three Y-plane textures as if they were chroma.
+  std::shared_ptr<gl::GlProgram> rgb_program_;
+  std::shared_ptr<gl::GlProgram> rgb_rect_program_;
   std::unique_ptr<gl::GlQuad> quad_;
   std::vector<Layer> layers_;
   // What an uncovered part of the composition looks like; see

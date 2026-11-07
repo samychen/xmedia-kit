@@ -54,6 +54,32 @@ XMEDIA_MEDIA_EXPORT extern const char* const kYuvSampler2DDefines;
 // coordinate implicitly does.
 XMEDIA_MEDIA_EXPORT extern const char* const kYuvSamplerRectDefines;
 
+// The RGB passthrough fragment stage, for packed RGBA-8 frames (the CEF OSR
+// path publishes kARGB: one texture, four bytes a texel, straight alpha). The
+// same macro mechanism as the YUV body -- SAMPLER_TYPE + RGBA_COORD -- and
+// the same vertex stage, so a layer's placement code does not change with its
+// colour model.
+XMEDIA_MEDIA_EXPORT extern const char* const kRgbFragmentShaderBody;
+
+// Normalised coordinates over an RGBA texture.
+XMEDIA_MEDIA_EXPORT extern const char* const kRgbaSampler2DDefines;
+
+// Rectangle textures: coordinates are texels, scaled by uTexSize (Bind sets
+// it for the rect target, same as the YUV program).
+XMEDIA_MEDIA_EXPORT extern const char* const kRgbaSamplerRectDefines;
+
+// Builds the RGB variant of the layer program: same vertex stage and uniform
+// contract as CreateVideoLayerProgram except the fragment stage samples ONE
+// RGBA texture (uTexRgba on unit 0) and has no colour matrix. Null on
+// failure, with |error| filled in.
+XMEDIA_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
+CreateVideoLayerRgbProgram(const gl::GlApi& gl, std::string* error);
+
+// Same, over kRgbaSamplerRectDefines (an imported RGBA frame would take this;
+// no route imports one today, kept for symmetry with the YUV pair).
+XMEDIA_MEDIA_EXPORT std::unique_ptr<gl::GlProgram>
+CreateVideoLayerRgbRectProgram(const gl::GlApi& gl, std::string* error);
+
 // Builds the program a GlVideoLayer is drawn with: the *rect* vertex stage,
 // so a layer can be placed anywhere in the target rather than only filling it,
 // plus kYuvFragmentShaderBody. Null on failure, with |error| filled in.
@@ -77,6 +103,11 @@ CreateVideoLayerRectProgram(const gl::GlApi& gl, std::string* error);
 // format gate cannot mean one thing where the sink decides what it accepts and
 // another where the upload happens.
 XMEDIA_MEDIA_EXPORT bool IsPlanarYuv(VideoFormat format);
+
+// The packed RGBA-8 layouts a GlVideoLayer can upload in ONE texture. A
+// format outside the two gates (planar YUV / packed RGBA) is refused by
+// Upload rather than drawn from stale textures.
+XMEDIA_MEDIA_EXPORT bool IsRgba8Format(VideoFormat format);
 
 // One video source: three plane textures plus the colour conversion that turns
 // them back into RGB.
@@ -156,6 +187,12 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   // identical, and Bind() sets them the same way either way.
   unsigned int texture_target() const;
 
+  // True when the last successful Upload() was a packed RGBA-8 frame. Chooses
+  // the fragment program (RGB passthrough vs YUV conversion) at draw time,
+  // because a scene can hold both -- the HTML path publishes kARGB while the
+  // video path stays planar YUV.
+  bool is_rgb() const { return is_rgb_; }
+
   // Points |program|'s samplers at this layer's planes and sets this layer's
   // colour uniforms, NV12 flag and opacity. |program| must come from
   // CreateVideoLayerProgram() for a GL_TEXTURE_2D layer and from
@@ -193,6 +230,10 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
 
   // The copy route: plane bytes from CPU memory into the plane textures.
   bool UploadCpuPlanes(const VideoFrame& frame);
+
+  // The packed-RGBA half of the copy route: one texture, GL_BGRA bytes (which
+  // is what kARGB's memory order IS), no colour matrix.
+  bool UploadRgbaPlane(const VideoFrame& frame);
   // A frame whose pixels are not in CPU memory: import if a backend will take
   // it, otherwise read it back and take the copy route. Split out of Upload()
   // so that "where the pixels come from" is one place asking the question.
@@ -236,6 +277,9 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   float source_aspect_{0.0f};
   int format_{0};  // VideoFormat as int; 0 = kUnknown, i.e. nothing uploaded.
   bool nv12_{false};
+  // Set by Upload(); the draw-side program choice reads it. Per layer because
+  // the scene is where the choice is made, and the scene sees many layers.
+  bool is_rgb_{false};
   UploadPath last_upload_path_{UploadPath::kNone};
   // See import_refused(). Per layer rather than per sink: the refusal is the
   // driver's answer about a surface, and each layer holds its own. Borrowed,
