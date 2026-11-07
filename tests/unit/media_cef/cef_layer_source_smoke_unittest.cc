@@ -91,6 +91,16 @@ bool AssembleRuntime(const std::string& tmp, std::string* framework_dir,
         << "<key>CFBundleIdentifier</key><string>com.xmedia.cef-helper"
            "</string>\n"
         << "</dict></plist>\n";
+  // framework Resources/Libraries 部署到 helper/browser 二进制路径旁：
+  // CEF 子进程按 own executable path 解析 icudtl.dat/paks/Libraries。
+  const std::string fw_res = fw_src + "/Resources";
+  const std::string fw_lib = fw_src + "/Libraries";
+  const std::string res_ln = "ln -sf '" + fw_res + "' '" + helper_dir + "/Resources'";
+  const std::string lib_ln = "ln -sf '" + fw_lib + "' '" + helper_dir + "/Libraries'";
+  std::system(res_ln.c_str());
+  std::system(lib_ln.c_str());
+  std::system(("ln -sf '" + fw_res + "' '" + rt + "/Resources'").c_str());
+  std::system(("ln -sf '" + fw_lib + "' '" + rt + "/Libraries'").c_str());
   *framework_dir = frameworks;
   *subprocess_path = helper_dst;
   return true;
