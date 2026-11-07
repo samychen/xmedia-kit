@@ -291,5 +291,122 @@ TEST(VideoEncoderDedupTest, IdenticalConsecutiveFramesSkipConversion) {
   }
 }
 
+
+// VP9 alpha（HyperFrames alpha_mode=1 对齐）：kARGB 输入经 BGRA→YUVA420P
+// 转换、libvpx-vp9 alpha_mode=1 编进同一条 VP9 流，解码回来必须是
+// yuva420p 且 A 面保留每帧的透明度。判别性断言在 alpha 平面：不透明帧
+// A=255、透明帧 A=0——没有 alpha 通路时 sws 的 A 面是未定义字节，解回
+// 来不会稳定为这两个值。
+TEST(VideoEncoderAlphaTest, Vp9AlphaRoundTripsThroughYuva420p) {
+  const AVCodec* enc = avcodec_find_encoder_by_name("libvpx-vp9");
+  if (enc == nullptr) {
+    GTEST_SKIP() << "libvpx-vp9 not in this FFmpeg build";
+  }
+  // 原生 vp9 解码器不读 alpha 层（FFmpeg 7.1.1 的 vp9.c 无 alpha 路径）；
+  // alpha 解码只走 libvpx-vp9 解码器（libvpxdec 从 MATROSKA_BLOCKADDITIONAL
+  // side data 取 alpha 流）。
+  const AVCodec* dec = avcodec_find_decoder_by_name("libvpx-vp9");
+  if (dec == nullptr) {
+    GTEST_SKIP() << "libvpx-vp9 decoder not in this FFmpeg build";
+  }
+
+  FFmpegVideoEncoder encoder;
+  FFmpegVideoEncoder::Params params;
+  params.codec_name = "libvpx-vp9";
+  params.width = 32;
+  params.height = 32;
+  params.fps_num = 30;
+  params.fps_den = 1;
+  params.options["alpha_mode"] = "1";
+  ASSERT_TRUE(encoder.Initialize(params));
+
+  // 两帧 kARGB：帧 0 不透明红（A=255），帧 1 全透明绿（A=0）。kARGB 的
+  // 内存序是 B,G,R,A。
+  auto make_argb = [&](uint8_t a, uint8_t r, uint8_t g, uint8_t b,
+                       int64_t ms) {
+    auto frame = VideoFrame::CreateBlackFrame(
+        VideoFormat::kARGB, Size{32, 32}, Size{32, 32}, Rational{1, 1},
+        base::Milliseconds(ms), base::Milliseconds(33), 0);
+    const auto data = frame->mutable_data(VideoFrame::kYPlane);
+    const int32_t stride = frame->stride(VideoFrame::kYPlane);
+    for (int y = 0; y < 32; ++y) {
+      for (int x = 0; x < 32; ++x) {
+        uint8_t* px =
+            data.data() + static_cast<size_t>(y) * stride + x * 4;
+        px[0] = b;
+        px[1] = g;
+        px[2] = r;
+        px[3] = a;
+      }
+    }
+    return frame;
+  };
+
+  std::vector<EncodedPacket> packets;
+  ASSERT_TRUE(encoder.Encode(make_argb(255, 255, 0, 0, 0), &packets));
+  ASSERT_TRUE(encoder.Encode(make_argb(0, 0, 255, 0, 33), &packets));
+  ASSERT_TRUE(encoder.Flush(&packets));
+  ASSERT_FALSE(packets.empty()) << "vp9 must emit packets";
+
+  // 直接解码（不进容器）：VP9 的 alpha 在码流里，容器无关。
+  AVCodecContext* dctx = avcodec_alloc_context3(dec);
+  ASSERT_NE(dctx, nullptr);
+  dctx->pkt_timebase = AVRational{1, 30};
+  ASSERT_EQ(avcodec_open2(dctx, dec, nullptr), 0);
+
+  std::vector<AVFrame*> frames;
+  for (auto& pkt : packets) {
+    // av_new_packet + memcpy，不用 av_packet_from_data：后者不拷贝，会把
+    // vector 的 new[] 内存挂上 av_buffer_default_free——release 时以
+    // av_free 释放 new[] 内存是 UB，堆损坏会在后续测试里随机 SIGABRT。
+    AVPacket* p = av_packet_alloc();
+    ASSERT_NE(p, nullptr);
+    ASSERT_EQ(av_new_packet(p, static_cast<int>(pkt.data.size())), 0);
+    memcpy(p->data, pkt.data.data(), pkt.data.size());
+    p->pts = pkt.pts;
+    p->dts = pkt.dts;
+    // VP9 alpha 不在码流字节里：FFmpeg 7.x 把 alpha 流放在
+    // AV_PKT_DATA_MATROSKA_BLOCKADDITIONAL side data 上，解码器从这里取。
+    for (const auto& sd : pkt.side_data) {
+      uint8_t* buf = av_packet_new_side_data(
+          p, static_cast<AVPacketSideDataType>(sd.type),
+          static_cast<int>(sd.bytes.size()));
+      ASSERT_NE(buf, nullptr) << "side data " << sd.type;
+      memcpy(buf, sd.bytes.data(), sd.bytes.size());
+    }
+    ASSERT_EQ(avcodec_send_packet(dctx, p), 0);
+    av_packet_free(&p);
+    AVFrame* f = av_frame_alloc();
+    while (avcodec_receive_frame(dctx, f) >= 0) {
+      frames.push_back(av_frame_clone(f));
+      av_frame_unref(f);
+    }
+    av_frame_free(&f);
+  }
+  // Encoder delay: drain with a null packet.
+  ASSERT_EQ(avcodec_send_packet(dctx, nullptr), 0);
+  AVFrame* f = av_frame_alloc();
+  while (avcodec_receive_frame(dctx, f) >= 0) {
+    frames.push_back(av_frame_clone(f));
+    av_frame_unref(f);
+  }
+  av_frame_free(&f);
+
+  ASSERT_EQ(frames.size(), 2u) << "one decoded frame per input frame";
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_EQ(frames[i]->format, AV_PIX_FMT_YUVA420P)
+        << "frame " << i << " must decode with its alpha plane";
+    ASSERT_NE(frames[i]->data[3], nullptr);
+    const int expected_alpha = (i == 0) ? 255 : 0;
+    EXPECT_NEAR(frames[i]->data[3][0], expected_alpha, 8)
+        << "frame " << i << " alpha plane corner";
+    EXPECT_NEAR(frames[i]->data[3][static_cast<size_t>(frames[i]->linesize[3]) * 16 + 16],
+                expected_alpha, 8)
+        << "frame " << i << " alpha plane centre";
+    av_frame_free(&frames[i]);
+  }
+  avcodec_free_context(&dctx);
+}
+
 }  // namespace
 }  // namespace xmedia::media

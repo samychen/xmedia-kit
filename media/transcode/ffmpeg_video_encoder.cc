@@ -35,6 +35,7 @@ struct FFmpegVideoEncoder::Context {
   // rebuilt per frame (GIF palettes are per-frame by spec).
   bool is_gif = false;
   bool is_hdr = false;
+  bool is_alpha = false;
   ff::FramePtr rgba;
   ff::GifFramePalette palette;
   ff::FramePtr pal;
@@ -151,6 +152,30 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
   //  * Anything else takes the first format its descriptor advertises that
   //    swscale can produce (prores_ks lists yuv422p10le first -- the ProRes
   //    delivery convention).
+  // VP9 alpha（HyperFrames alpha_mode=1 对齐）：libvpx 把 alpha 编进同一
+  // 条 VP9 流。开关 = options["alpha_mode"]="1"——这既是 libvpx 自己的
+  // 选项名（原样到 avcodec_open2），也是 HyperFrames 的语义；仅 libvpx-vp9
+  // 且编码器声明 yuva420p 才启用。输入必须是带 alpha 的 kARGB：I420 没有
+  // alpha 面，sws 到 YUVA420P 的 A 面是未定义字节——透明层会花屏。
+  bool is_alpha = false;
+  {
+    const auto am = params.options.find("alpha_mode");
+    if (am != params.options.end() && am->second == "1" &&
+        strcmp(codec->name, "libvpx-vp9") == 0) {
+      for (const AVPixelFormat* f = codec->pix_fmts;
+           f && *f != AV_PIX_FMT_NONE; ++f) {
+        if (*f == AV_PIX_FMT_YUVA420P) {
+          is_alpha = true;
+          break;
+        }
+      }
+      if (!is_alpha) {
+        LOG(WARNING) << "video encoder: alpha_mode=1 requested but this "
+                        "libvpx-vp9 build has no yuva420p; alpha dropped";
+      }
+    }
+  }
+  c->is_alpha = is_alpha;
   const bool is_gif = strcmp(codec->name, "gif") == 0;
   c->is_gif = is_gif;
   const bool full_range = strcmp(codec->name, "mjpeg") == 0;
@@ -179,6 +204,9 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
     c->codec->color_trc = AVCOL_TRC_SMPTE2084;
     c->codec->colorspace = AVCOL_SPC_BT2020_NCL;
     c->codec->color_range = AVCOL_RANGE_MPEG;
+  } else if (is_alpha) {
+    c->codec->pix_fmt = AV_PIX_FMT_YUVA420P;
+    c->dst_fmt = AV_PIX_FMT_YUVA420P;
   } else if (accepts_420) {
     c->dst_fmt = full_range ? AV_PIX_FMT_YUVJ420P : AV_PIX_FMT_YUV420P;
     c->codec->pix_fmt = c->dst_fmt;
@@ -213,7 +241,8 @@ bool FFmpegVideoEncoder::Initialize(const Params& params) {
 
   // The frames coming in are xmedia-kit's decode output: I420 (limited range).
   // Normalize to the encoder's input format through the shared converter.
-  c->in_fmt = ff::ToAvPixelFormat(VideoFormat::kI420);
+  c->in_fmt = c->is_alpha ? AV_PIX_FMT_BGRA
+                          : ff::ToAvPixelFormat(VideoFormat::kI420);
   if (!c->converter.Configure(params.width, params.height, c->in_fmt,
                               params.width, params.height, c->dst_fmt)) {
     LOG(ERROR) << "video encoder: conversion setup failed";
