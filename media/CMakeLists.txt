@@ -145,3 +145,111 @@ if(XMEDIA_ENABLE_CURL)
   target_compile_definitions(xmedia_curl PRIVATE XMEDIA_CURL_IMPLEMENTATION=1)
   xmedia_configure_target(xmedia_curl)
 endif()
+
+# --- CEF OSR：HTML 组合图层（HyperFrames 对齐，2026-11 移植） -------------
+# 单独 target：CEF 是重依赖（二进制 distro + wrapper 构建），且产物是
+# GlLayerSource 的一个生产者——播放 SDK 不默认携带。门控语义对齐
+# MediaComponent：distro 缺失绝不 fail configure，降级 XMEDIA_HAS_CEF=0。
+if(XMEDIA_ENABLE_CEF)
+  set(XMEDIA_CEF_ROOT "" CACHE PATH "Path to the CEF binary distro")
+  if(XMEDIA_CEF_ROOT STREQUAL "")
+    foreach(_candidate "${CMAKE_SOURCE_DIR}/../cef"
+                        "$ENV{HOME}/Develop/vspo/cef")
+      if(EXISTS "${_candidate}/include/cef_version.h")
+        set(XMEDIA_CEF_ROOT "${_candidate}")
+        break()
+      endif()
+    endforeach()
+  endif()
+  set(XMEDIA_HAS_CEF 0 CACHE INTERNAL "")
+  if(APPLE AND EXISTS "${XMEDIA_CEF_ROOT}/include/cef_version.h"
+             AND EXISTS "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework")
+    set(XMEDIA_HAS_CEF 1 CACHE INTERNAL "")
+  elseif(UNIX AND NOT APPLE AND EXISTS "${XMEDIA_CEF_ROOT}/include/cef_version.h"
+                              AND EXISTS "${XMEDIA_CEF_ROOT}/Release/libcef.so")
+    set(XMEDIA_HAS_CEF 1 CACHE INTERNAL "")
+  endif()
+  if(NOT XMEDIA_HAS_CEF)
+    message(WARNING "XMEDIA_ENABLE_CEF=ON but no usable CEF distro at "
+                    "${XMEDIA_CEF_ROOT}; HTML layer disabled")
+    set(XMEDIA_ENABLE_CEF OFF CACHE BOOL "" FORCE)
+  endif()
+endif()
+
+if(XMEDIA_HAS_CEF)
+  message(STATUS "XMEDIA_ENABLE_CEF: CEF distro at ${XMEDIA_CEF_ROOT}")
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${XMEDIA_CEF_ROOT}/cmake")
+  set(_X_SAVE_OSX_ARCHS "${CMAKE_OSX_ARCHITECTURES}")
+  set(_X_SAVE_OSX_DEPLOY "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+  endif()
+  set(CEF_ROOT "${XMEDIA_CEF_ROOT}")
+  find_package(CEF)
+  if(NOT DEFINED CEF_LIBCEF_DLL_WRAPPER_PATH
+     OR NOT IS_DIRECTORY "${CEF_LIBCEF_DLL_WRAPPER_PATH}")
+    message(WARNING "find_package(CEF) failed at ${XMEDIA_CEF_ROOT}; "
+                    "HTML layer disabled")
+    set(XMEDIA_HAS_CEF 0 CACHE INTERNAL "")
+    set(XMEDIA_ENABLE_CEF OFF CACHE BOOL "" FORCE)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+  else()
+    add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
+    set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
+
+    file(GLOB XMEDIA_CEF_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cpp")
+    add_library(xmedia_cef ${XMEDIA_CEF_SOURCES})
+    add_library(xmedia::cef ALIAS xmedia_cef)
+    target_include_directories(xmedia_cef PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+        ${CEF_INCLUDE_PATH})
+    target_compile_definitions(xmedia_cef PUBLIC XMEDIA_HAS_CEF=1)
+    # CEF 头要求 C++20；仅对 cef 源提升（其余 target 保持各自标准）。
+    set_source_files_properties(${XMEDIA_CEF_SOURCES} PROPERTIES
+        COMPILE_FLAGS "-std=c++20")
+    target_link_libraries(xmedia_cef
+        PUBLIC  xmedia::media libcef_dll_wrapper
+        PRIVATE ${CEF_STANDARD_LIBS})
+    add_dependencies(xmedia_cef libcef_dll_wrapper)
+    # Subprocess 入口：独立小可执行（Chromium 以 --type=... 重启它）。
+    # macOS 也必须链 framework：子进程在加载期就要解析 cef_* 符号（dyld
+    # 两级命名空间不做 dynamic_lookup——未解析即 crash，GPU 子进程
+    # exit 11 实测）。CEF 156 的 macOS distro 不设 CEF_LIB_RELEASE
+    # （那是 libcef.so/Linux 的变量），直接用 framework 二进制路径；
+    # BUILD_RPATH 指向 distro Release，让 helper 拷贝到任何位置都能解析
+    # （LC_RPATH 是绝对路径，随文件复制保留）。
+    if(APPLE)
+      set(XMEDIA_CEF_FRAMEWORK_LIB
+          "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework/Chromium Embedded Framework")
+      if(NOT EXISTS "${XMEDIA_CEF_FRAMEWORK_LIB}")
+        message(WARNING "CEF framework binary missing at ${XMEDIA_CEF_FRAMEWORK_LIB}")
+        set(XMEDIA_HAS_CEF 0)
+      endif()
+    else()
+      ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+      set(XMEDIA_CEF_FRAMEWORK_LIB libcef_lib)
+    endif()
+    add_executable(xmedia_cef_helper cef/cef_helper_main.cc cef/cef_app.cpp)
+    target_compile_definitions(xmedia_cef_helper PRIVATE XMEDIA_HAS_CEF=1)
+    target_include_directories(xmedia_cef_helper PRIVATE
+        ${CMAKE_SOURCE_DIR} ${CEF_INCLUDE_PATH})
+    target_link_libraries(xmedia_cef_helper PRIVATE libcef_dll_wrapper
+        "${XMEDIA_CEF_FRAMEWORK_LIB}" ${CEF_STANDARD_LIBS})
+    if(APPLE)
+      set_target_properties(xmedia_cef_helper PROPERTIES
+          BUILD_RPATH "${XMEDIA_CEF_ROOT}/Release")
+    endif()
+    add_dependencies(xmedia_cef_helper libcef_dll_wrapper)
+    if(UNIX AND NOT APPLE)
+      ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
+      target_link_libraries(xmedia_cef PUBLIC libcef_lib)
+    endif()
+    xmedia_configure_target(xmedia_cef)
+  endif()
+endif()
+
+

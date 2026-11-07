@@ -218,6 +218,25 @@ if(XMEDIA_ENABLE_FFMPEG)
   target_include_directories(media_transcode_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 
+  # ---- CEF OSR：HTML 组合层冒烟（gated：XMEDIA_HAS_CEF=0 时占位套件） ----
+  if(XMEDIA_HAS_CEF)
+    file(GLOB XMEDIA_CEF_UNITTEST_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_cef/*.cc")
+    add_executable(media_cef_smoke ${XMEDIA_CEF_UNITTEST_SOURCES})
+    target_link_libraries(media_cef_smoke PRIVATE xmedia::cef
+        GTest::gtest_main)
+    target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
+    xmedia_configure_target(media_cef_smoke)
+    add_dependencies(media_cef_smoke xmedia_cef_helper)
+    # 环境变量（CEF distro 根 + helper 路径）经 gtest_discover_tests 的
+    # EXTRA_ENVIRONMENT 传给每个发现的用例；用生成器表达式的目标文件路径
+    # 在 discover 时求值。
+    gtest_discover_tests(media_cef_smoke
+        PROPERTIES TIMEOUT 120
+        EXTRA_ENVIRONMENT
+            "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT};XMEDIA_CEF_HELPER=$<TARGET_FILE:xmedia_cef_helper>")
+  endif()
+
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API
   # surface (xmedia_player_transcode). Its own binary for the same reason as
   # media_transcode_unittests -- and because unit/player/ stays globbed into

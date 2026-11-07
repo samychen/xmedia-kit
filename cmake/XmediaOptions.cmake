@@ -11,6 +11,7 @@ option(XMEDIA_ENABLE_QT           "Build the Qt GL backend (needs Qt 6.4+)"  OFF
 option(XMEDIA_ENABLE_LINUX_NATIVE "Build the native Linux GL/X11/Wayland backend" OFF)
 option(XMEDIA_ENABLE_ANDROID      "Build the Android backend"                 OFF)
 option(XMEDIA_ENABLE_IOS          "Build the iOS backend"                     OFF)
+option(XMEDIA_ENABLE_CEF        "HTML composition layer via CEF OSR (HyperFrames-aligned; needs a CEF distro)" OFF)
 option(XMEDIA_ENABLE_CAPI         "Build the C ABI compatibility layer"       OFF)
 option(XMEDIA_BUILD_SHARED        "Build shared libraries instead of static"  OFF)
 
