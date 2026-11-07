@@ -222,7 +222,8 @@ if(XMEDIA_ENABLE_FFMPEG)
   if(XMEDIA_HAS_CEF)
     file(GLOB XMEDIA_CEF_UNITTEST_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_cef/*.cc")
-    add_executable(media_cef_smoke ${XMEDIA_CEF_UNITTEST_SOURCES})
+    add_executable(media_cef_smoke MACOSX_BUNDLE
+        ${XMEDIA_CEF_UNITTEST_SOURCES})
     target_link_libraries(media_cef_smoke PRIVATE xmedia::cef
         GTest::gtest_main)
     target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})

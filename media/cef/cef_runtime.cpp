@@ -156,6 +156,13 @@ bool CefRuntime::Init(const std::string& framework_dir,
     const std::string fw =
         framework_dir + "/Chromium Embedded Framework.framework";
     CefString(&settings.framework_dir_path) = fw;
+    // Explicit resource paths: subprocesses (GPU/renderer) resolve paks
+    // relative to the framework bundle's Resources dir. Without these,
+    // the subprocess looks for paks relative to its own binary path and
+    // crashes when the layout doesn't match the host app bundle.
+    const std::string res_dir = fw + "/Resources";
+    CefString(&settings.resources_dir_path) = res_dir;
+    CefString(&settings.locales_dir_path) = res_dir + "/locales";
 #else
     // Linux: framework_dir already IS the directory containing libcef.so
     // (flat distro layout); the field is macOS-focused, pass it through.
