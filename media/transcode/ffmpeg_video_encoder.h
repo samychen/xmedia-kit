@@ -75,6 +75,10 @@ class XMEDIA_MEDIA_EXPORT FFmpegVideoEncoder {
   // Drains the encoder delay after the last frame.
   bool Flush(std::vector<EncodedPacket>* out);
 
+  // Frames that skipped the conversion pipeline via T9a dedup (content
+  // identical to the previous frame). Diagnostic counter; 0 before Encode.
+  int64_t dedup_skipped_frames() const;
+
  private:
   struct Context;
   std::unique_ptr<Context> ctx_;

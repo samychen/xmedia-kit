@@ -19,6 +19,7 @@
 #if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF && defined(__APPLE__)
 
 #include <crt_externs.h>
+#include <dlfcn.h>
 #include <limits.h>
 #include <mach-o/dyld.h>
 #include <stdlib.h>
@@ -108,6 +109,14 @@ bool CefPlatformLoadFramework(const std::string& framework_dir) {
     const std::string lib_path =
         framework_dir +
         "/Chromium Embedded Framework.framework/Chromium Embedded Framework";
+    // cef_load_library is NOT idempotent: it returns 0 when the framework is
+    // already loaded (g_libcef_handle set), so a host that pre-loaded CEF
+    // before starting a layer would be misread as a load failure. Probe with
+    // RTLD_NOLOAD first — a non-null handle means the framework is resident.
+    void* resident = dlopen(lib_path.c_str(), RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+    if (resident != nullptr) {
+      return true;
+    }
     if (cef_load_library(lib_path.c_str())) {
       return true;
     }

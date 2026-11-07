@@ -237,7 +237,8 @@ if(XMEDIA_ENABLE_FFMPEG)
     set(_CEFSMOKE_BIN "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke")
     set(_CEFSMOKE_FW "${_CEFSMOKE_APP}/Contents/Frameworks")
     add_custom_command(TARGET media_cef_smoke POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${_CEFSMOKE_BIN}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${_CEFSMOKE_APP}/Contents/MacOS"
         COMMAND ${CMAKE_COMMAND} -E copy
             "$<TARGET_FILE:media_cef_smoke>" "${_CEFSMOKE_BIN}"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -248,106 +249,17 @@ if(XMEDIA_ENABLE_FFMPEG)
         COMMAND ${CMAKE_COMMAND} -E copy
             "$<TARGET_FILE:media_cef_smoke>"
             "${_CEFSMOKE_FW}/media_cef_smoke Helper.app/Contents/MacOS/media_cef_smoke Helper"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Resources"
-            "${_CEFSMOKE_APP}/Contents/Resources"
+        # 资源不单独拷：CEF 156 的 macOS distro 把 icudtl.dat/*.pak 放在
+        # framework 的 Resources/ 里（随 framework 目录整棵拷贝），运行时
+        # resources_dir_path 指向 framework 内部。
         COMMENT "Assembling media_cef_smoke.app with CEF framework"
         VERBATIM)
 
     # 测试从 .app 内运行（CEF macOS 子进程在 bundle 内解析路径）。
     # 不用 gtest_discover：延迟符号在 --gtest_list_tests 探针下崩。
     add_test(NAME cef_html_layer_smoke COMMAND "${_CEFSMOKE_BIN}")
-    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120)
-  endif()
-    target_compile_definitions(media_cef_smoke PRIVATE
-        XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-    target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
-    xmedia_configure_target(media_cef_smoke)
-    add_dependencies(media_cef_smoke xmedia_cef_helper)
-
-    # POST_BUILD：组装 .app bundle（cefsimple 式——框架拷贝、helper 嵌入、
-    # Resources 部署）。CEF macOS 子进程要求 .app 宿主。
-    set(_CEFSMOKE_APP "$<TARGET_BUNDLE_CONTENT_DIR:media_cef_smoke>")
-    set(_CEF_FW_DIR "${_CEFSMOKE_APP}/Frameworks")
-    add_custom_command(TARGET media_cef_smoke POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${_CEF_FW_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
-            "${_CEF_FW_DIR}/Chromium Embedded Framework.framework"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Resources"
-            "${_CEFSMOKE_APP}/Contents/Resources"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEF_FW_DIR}/media_cef_smoke Helper.app/Contents/MacOS"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "$<TARGET_FILE:media_cef_smoke>"
-            "${_CEF_FW_DIR}/media_cef_smoke Helper.app/Contents/MacOS/media_cef_smoke Helper"
-        COMMENT "Deploying CEF framework + resources into media_cef_smoke.app"
-        VERBATIM)
-
-    add_test(NAME cef_html_layer_smoke
-        COMMAND "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke")
-    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120)
-  endif()
-    target_compile_definitions(media_cef_smoke PRIVATE
-        XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-    target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
-    xmedia_configure_target(media_cef_smoke)
-    add_dependencies(media_cef_smoke xmedia_cef_helper)
-    # POST_BUILD：组装 .app bundle——CEF macOS 子进程在 bundle 内解析
-    # framework/Helper/Resources。二进制拷入 bundle + framework 部署 +
-    # Helper.app 由 xmedia_cef_helper 拷贝构建。
-    set(_CEFSMOKE_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/media_cef_smoke.app")
-    add_custom_command(TARGET media_cef_smoke POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEFSMOKE_APP}/Contents/MacOS"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEFSMOKE_APP}/Contents/Frameworks"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEFSMOKE_APP}/Contents/Resources"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "$<TARGET_FILE:media_cef_smoke>"
-            "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
-            "${_CEFSMOKE_APP}/Contents/Frameworks/Chromium Embedded Framework.framework"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "${XMEDIA_CEF_ROOT}/Resources/icudtl.dat"
-            "${_CEFSMOKE_APP}/Contents/Resources/icudtl.dat"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Resources"
-            "${_CEFSMOKE_APP}/Contents/Frameworks/Chromium Embedded Framework.framework/Resources"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "$<TARGET_FILE:xmedia_cef_helper>"
-            "${_CEFSMOKE_APP}/Contents/Frameworks/Sparkle Helper.app/Contents/MacOS/Sparkle Helper"
-        COMMENT "Assembling media_cef_smoke.app with CEF framework deployment")
-    # 子进程拦截在二进制 main() 内（--type= 检测），Helper.app 二进制即
-    # 本二进制的拷贝。ctest 直接调用 .app 内的二进制。
-    add_test(NAME cef_html_layer_smoke
-        COMMAND "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke")
     set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120
         ENVIRONMENT "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT}")
-  endif()
-    target_compile_definitions(media_cef_smoke PRIVATE
-        XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-    target_include_directories(media_cef_smoke PRIVATE ${CMAKE_SOURCE_DIR})
-    xmedia_configure_target(media_cef_smoke)
-    add_dependencies(media_cef_smoke xmedia_cef_helper)
-    # POST_BUILD：部署 CEF framework + Resources 进 .app bundle
-    # （CEF macOS 子进程在宿主 bundle 内解析 framework/Helper/Resources）。
-    add_custom_command(TARGET media_cef_smoke POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
-            "$<TARGET_BUNDLE_CONTENT_DIR:media_cef_smoke>/Frameworks/Chromium Embedded Framework.framework"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Resources"
-            "$<TARGET_BUNDLE_CONTENT_DIR:media_cef_smoke>/Resources"
-        COMMENT "Deploying CEF framework + resources into media_cef_smoke.app")
-    # 不走 gtest_discover（CEF 延迟符号在 --gtest_list_tests 探针下崩）。
-    # add_test 指向 bundle 内的二进制；跳过逻辑在 smoke 二进制内部。
-    add_test(NAME cef_html_layer_smoke
-        COMMAND media_cef_smoke)
-    set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120)
   endif()
 
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API
@@ -364,49 +276,4 @@ if(XMEDIA_ENABLE_FFMPEG)
   target_include_directories(player_ffmpeg_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 endif()
-
-# ---- fuzz targets (Phase 4.5 / G8) -----------------------------------------
-# The harness (fuzz_demuxer.cc) is shared by two drivers: the libFuzzer binary
-# (coverage-guided, for CI on Linux and long local runs -- needs a clang with
-# the libFuzzer runtime, feature-tested below) and a standalone deterministic
-# mutator driver (fixed-seed mutations over the seed corpus, no runtime
-# dependency, runs under the asan/tsan presets like any test). Corpus seeds
-# are real containers under fuzz/seeds/ and grow in-repo.
-if(XMEDIA_BUILD_FUZZ AND XMEDIA_ENABLE_FFMPEG)
-  include(CheckCXXSourceCompiles)
-  set(CMAKE_REQUIRED_FLAGS "-fsanitize=fuzzer")
-  check_cxx_source_compiles("int main(){return 0;}"
-      XMEDIA_HAVE_LIBFUZZER_RUNTIME)
-  unset(CMAKE_REQUIRED_FLAGS)
-
-  add_executable(xmedia_fuzz_demuxer fuzz/fuzz_demuxer.cc)
-  target_include_directories(xmedia_fuzz_demuxer PRIVATE
-      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-  target_link_libraries(xmedia_fuzz_demuxer PRIVATE xmedia::ffmpeg)
-  target_compile_definitions(xmedia_fuzz_demuxer PRIVATE
-      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
-  xmedia_configure_target(xmedia_fuzz_demuxer)
-
-  # The harness has no main(); the two drivers link it separately. The
-  # libFuzzer binary may be EXCLUDE_FROM_ALL (no runtime on this host), so the
-  # standalone compiles the source itself rather than sharing an object.
-  add_executable(xmedia_fuzz_demuxer_standalone
-      fuzz/fuzz_standalone_main.cc fuzz/fuzz_demuxer.cc)
-  target_include_directories(xmedia_fuzz_demuxer_standalone PRIVATE
-      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
-  target_link_libraries(xmedia_fuzz_demuxer_standalone PRIVATE
-      xmedia::ffmpeg)
-  target_compile_definitions(xmedia_fuzz_demuxer_standalone PRIVATE
-      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata"
-      XMEDIA_SEEDS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fuzz/seeds")
-  xmedia_configure_target(xmedia_fuzz_demuxer_standalone)
-
-  if(XMEDIA_HAVE_LIBFUZZER_RUNTIME)
-    target_compile_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
-    target_link_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
-  else()
-    message(STATUS "libFuzzer runtime unavailable; building the standalone "
-                   "fuzz driver only (CI Linux has the runtime)")
-    set_target_properties(xmedia_fuzz_demuxer PROPERTIES EXCLUDE_FROM_ALL ON)
-  endif()
 endif()

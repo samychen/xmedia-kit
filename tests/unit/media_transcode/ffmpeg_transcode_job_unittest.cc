@@ -20,6 +20,7 @@
 #include "media/base/data_source_descriptor.h"
 #include "media/base/media_log.h"
 #include "media/ffmpeg/ffmpeg_demuxer.h"
+#include "media/transcode/encode_verify.h"
 #include "media/transcode/ffmpeg_audio_encoder.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
@@ -743,6 +744,91 @@ TEST(TranscodeJobTest, ProResMovOutputUsesTheDeliveryDefaults) {
   ASSERT_TRUE(audio) << "the prores deliverable lost its audio track";
   EXPECT_TRUE(audio->audio_decoder_config().IsValidConfig());
 
+  std::remove(output.c_str());
+}
+
+
+// T9b verify-seek: the job must actually check its own output. Positive
+// path: a normal mjpeg re-encode stays within tolerance and the sidecar
+// JSON lands next to the output, parseable by ParseFrameVerifyRecords with
+// the verdict inside. Negative path: VerifyEncodedOutput against records
+// that describe different content must flag the frame instead of passing.
+TEST(TranscodeVerifySeekTest, RoundTripPassesAndWritesParseableSidecar) {
+  const std::string input = CreateTestVideoFile("verify");
+  const std::string output = testing::TempDir() + "verify_out.mkv";
+
+  TranscodeParams params;
+  params.output_path = output;
+  params.audio_codec.codec = "";
+  params.video_codec.codec = "mjpeg";
+  params.verify_output_frames = true;
+  params.verify_sample_count = 4;
+
+  const Status st = Transcode(input, params);
+  ASSERT_TRUE(st) << st.error().ToString();
+
+  const std::string sidecar_path = output + ".verify.json";
+  std::FILE* f = std::fopen(sidecar_path.c_str(), "rb");
+  ASSERT_NE(f, nullptr) << "verify sidecar missing at " << sidecar_path;
+  std::string json;
+  char buf[4096];
+  size_t n;
+  while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) {
+    json.append(buf, n);
+  }
+  std::fclose(f);
+
+  EXPECT_NE(std::strstr(json.c_str(), "\"verify\":{\"passed\":true"),
+            nullptr)
+      << "sidecar verdict must be pass; body: " << json;
+  int gw = 0, gh = 0;
+  double fps = 0;
+  int64_t fc = 0;
+  std::vector<dedup::FrameVerifyRecord> records;
+  ASSERT_TRUE(dedup::ParseFrameVerifyRecords(json, &gw, &gh, &fps, &fc,
+                                             &records))
+      << "sidecar must stay parseable by the frame_signature parser";
+  EXPECT_EQ(gw, dedup::kFrameVerifyGridW);
+  EXPECT_EQ(gh, dedup::kFrameVerifyGridH);
+  EXPECT_FALSE(records.empty()) << "decoded-back samples must be recorded";
+
+  std::remove(input.c_str());
+  std::remove(output.c_str());
+  std::remove(sidecar_path.c_str());
+}
+
+TEST(TranscodeVerifySeekTest, ContentMismatchIsDetectedAndReported) {
+  const std::string input = CreateTestVideoFile("verifyneg");
+  const std::string output = testing::TempDir() + "verify_neg_out.mkv";
+
+  TranscodeParams params;
+  params.output_path = output;
+  params.audio_codec.codec = "";
+  params.video_codec.codec = "mjpeg";
+  ASSERT_TRUE(Transcode(input, params));
+
+  // Records describing a flat bright picture — nothing like the (x*2+y)
+  // gradient the file actually contains. Every sample must land far above
+  // tolerance and the report must name a frame.
+  std::vector<dedup::FrameVerifyRecord> wrong;
+  for (int i = 0; i < 4; ++i) {
+    dedup::FrameVerifyRecord rec;
+    rec.frame_index = i;
+    rec.pts_ms = i * 33;
+    rec.grid.assign(dedup::kFrameVerifyGridW * dedup::kFrameVerifyGridH, 240);
+    wrong.push_back(rec);
+  }
+  dedup::EncodeVerifyParams vp;
+  vp.sample_count = 4;
+  dedup::EncodeVerifyReport report;
+  ASSERT_TRUE(dedup::VerifyEncodedOutput(output, wrong, 30.0, vp, &report))
+      << "the readback itself must run (open/seek/decode)";
+  EXPECT_FALSE(report.passed) << "mismatched content must fail the report";
+  EXPECT_GE(report.failed_frame, 0);
+  EXPECT_GT(report.worst_rms, vp.tolerance_rms)
+      << "worst_rms=" << report.worst_rms;
+
+  std::remove(input.c_str());
   std::remove(output.c_str());
 }
 

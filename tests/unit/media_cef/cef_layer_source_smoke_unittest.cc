@@ -47,13 +47,6 @@ std::unique_ptr<CefScopedLibraryLoader>& FrameworkLoader() {
   return loader;
 }
 
-bool LoadFrameworkForBrowser() {
-  if (!FrameworkLoader()) {
-    FrameworkLoader() = std::make_unique<CefScopedLibraryLoader>();
-  }
-  return FrameworkLoader()->LoadInMain();
-}
-
 bool LoadFrameworkForHelper() {
   if (!FrameworkLoader()) {
     FrameworkLoader() = std::make_unique<CefScopedLibraryLoader>();
@@ -70,8 +63,7 @@ bool DistroAvailable() {
   return std::ifstream(base + "/include/cef_version.h").good();
 }
 
-}  // namespace
-
+// RunSmoke 与框架装载助手同处匿名命名空间；main() 全局调用它。
 int RunSmoke() {
   if (!DistroAvailable()) {
     printf("SKIP: no CEF distro (XMEDIA_CEF_ROOT unset)\n");
@@ -130,13 +122,10 @@ int main(int argc, char** argv) {
 #endif
     }
   }
-  // Browser process: load framework for browser role, then run smoke.
-#if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF
-  if (!LoadFrameworkForBrowser()) {
-    fprintf(stderr, "cef smoke: browser framework load failed\n");
-    return 1;
-  }
-#endif
+  // Browser process: RunSmoke() → CefLayerSource::Start → CefRuntime::Init
+  // 自己装载 framework（cef_load_library 非幂等：这里预装载会让 Init 的
+  // 装载调用因 g_libcef_handle 已设而返回 0，被误判为失败）。只有 helper
+  // 子进程路径需要先装载（CefExecuteProcess 契约）。
   return RunSmoke();
 }
 

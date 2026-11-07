@@ -17,6 +17,18 @@ DASH 的 SegmentList/SegmentBase、多 Period、代表切换仍按 §"DASH 后�
 - [x] **T8b 直播追帧**：`media/filters/live_edge_policy.*` 已落地（config.net.live_max_latency 驱动），2026-10-31 核对补记。
 - 不移植（范围裁决，勿重开题）：Android/iOS/Flutter 平台栈、MediaCodec 原生集成、HDR10(AVFoundation)、插件机制/DCA。
 
+## HyperFrames 对齐移植（2026-11）
+
+- [x] **元素元数据层**（79ac162）：`media/base/html_element_meta.*` + `html_rects_payload`（自研 JSON 子集解析），`mc.html.rects` 协议，15 单测。
+- [x] **GIF/ProRes/VP9/HDR 输出**（2528d14/81cc486/b99061d 之前的 8b029c1）：中位切分调色板（AVPalette32 字节序单测钉死）、prores_ks yuv422p10le、libvpx/WebM、hevc_videotoolbox P010LE BT.2020/PQ。
+- [x] **CEF OSR 集成**（8b029c1）：cef_runtime/osr_client/app/layer_source/platform_{mac,linux,common}；`mc.html.ready/error/seekDone/rects` MessageRouter。
+- [x] **T9a 静态帧去重**（2026-11-07）：根因是 HashImageRows 的 stride/width 契约误用（width_bytes 传了 plane 总大小）；改用 HashBytes64 对 `visible_data(kYPlane)` 整段扁平 hash——无 stride 推算、无越界面。`dedup_skipped_frames()` 诊断计数器 + 单测（同内容连续帧 dedup=4 且 pts 网格不破、内容变化即停）。
+- [x] **T9b 验证 seek**（2026-11-07）：`media/transcode/encode_verify.{h,cc}`——转码后重开输出、按采样 pts seek 回读解码、32×18 luma grid 比对；`TranscodeParams::verify_output_frames`（默认关，sidecar `<out>.verify.json` 双向登记，失败 kVerifyFailed 带帧号）。2 单测：整管线 round-trip 通过 + 伪造签名被检出。
+- [x] **CEF OnPaint 冒烟 .app 实跑通过**（2026-11-07，撤销此前"结构性卡点"登记）：此前登记的 GPU/network 子进程 dyld 限制并非根因。真实根因三件：① POST_BUILD `make_directory` 把二进制路径建成目录（copy 目标成为文件夹）；② 测试页缺失；③ `cef_load_library` 非幂等（`g_libcef_handle` 已设时返回 0），宿主预装载后 Init 再装载被误判失败——`CefPlatformLoadFramework` 加 `RTLD_NOLOAD` 常驻探测。现在 `media_cef_smoke.app`（framework + Helper + bundle 布局）端到端 PASS：OnPaint 帧发布 + 元数据采集。元素拆纹理 GPU 渲染的前置条件已满足（quad/UV/映射纯逻辑在 79ac162 就绪）。
+- [ ] **元素拆纹理 GPU 渲染**：前置已通（OnPaint + 元数据），待把 BuildElementQuads/ElementQuadUvWindow 接进合成管线。
+- [ ] **VP9 alpha（alpha_mode=1）**：需 P010LE 像素路径（HDR 分支已就绪可复用）。
+- [ ] **分块编码 + concat**：concat_job 已有基础，接 HyperFrames 分块语义。
+
 ---
 
 ## 任务状态

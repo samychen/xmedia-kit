@@ -57,6 +57,8 @@ enum class ErrorCode : uint16_t {
   kTrackNotFound,
   kConfigInvalid,
   kEos,
+  // Transcode.
+  kVerifyFailed,
 };
 
 XMEDIA_MEDIA_EXPORT const char* GetErrorCodeName(ErrorCode code);

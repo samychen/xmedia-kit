@@ -236,5 +236,60 @@ TEST(AvFrameToVideoFrameTest, ConvertsNv12SourceToEightBitI420) {
   EXPECT_NEAR(vf->visible_data(VideoFrame::kVPlane)[0], 128, 8);
 }
 
+// T9a static-frame dedup: consecutive frames with identical content must
+// skip the conversion pipeline (counted by dedup_skipped_frames) while the
+// output timeline stays intact — a dedup'd frame is the cached conversion
+// result re-sent at the new pts, so packet pts must still advance by one
+// tick per frame. A content change must reset the skip.
+TEST(VideoEncoderDedupTest, IdenticalConsecutiveFramesSkipConversion) {
+  FFmpegVideoEncoder encoder;
+  FFmpegVideoEncoder::Params params;
+  params.codec_name = "mjpeg";
+  params.width = 16;
+  params.height = 16;
+  params.fps_num = 30;
+  params.fps_den = 1;
+  ASSERT_TRUE(encoder.Initialize(params));
+
+  std::vector<EncodedPacket> out;
+  // 5 identical frames (MakeGrayFrame is constant black) at consecutive
+  // timestamps, then one bright frame (content change).
+  for (int i = 0; i < 5; ++i) {
+    std::vector<EncodedPacket> packets;
+    ASSERT_TRUE(encoder.Encode(MakeGrayFrame(base::Microseconds(
+                                   static_cast<int64_t>(i) * kFrameIntervalUs)),
+                               &packets));
+    out.insert(out.end(), std::make_move_iterator(packets.begin()),
+               std::make_move_iterator(packets.end()));
+  }
+  EXPECT_EQ(encoder.dedup_skipped_frames(), 4)
+      << "frames 1..4 must dedup against frame 0";
+
+  auto changed = MakeGrayFrame(base::Microseconds(5 * kFrameIntervalUs));
+  auto* y = changed->visible_data(VideoFrame::kYPlane).data();
+  std::memset(const_cast<uint8_t*>(y), 0xEB,
+              changed->visible_data(VideoFrame::kYPlane).size());
+  std::vector<EncodedPacket> packets;
+  ASSERT_TRUE(encoder.Encode(std::move(changed), &packets));
+  out.insert(out.end(), std::make_move_iterator(packets.begin()),
+             std::make_move_iterator(packets.end()));
+
+  EXPECT_EQ(encoder.dedup_skipped_frames(), 4)
+      << "the content change must not dedup";
+
+  std::vector<EncodedPacket> flushed;
+  ASSERT_TRUE(encoder.Flush(&flushed));
+  out.insert(out.end(), std::make_move_iterator(flushed.begin()),
+             std::make_move_iterator(flushed.end()));
+
+  // The timeline must be untouched by dedup: one packet per frame with pts
+  // advancing one tick per frame interval (mjpeg: no delay, no B-frames).
+  ASSERT_EQ(out.size(), 6u);
+  for (size_t i = 0; i < out.size(); ++i) {
+    EXPECT_EQ(out[i].pts, static_cast<int64_t>(i))
+        << "packet " << i << " pts broke the frame grid";
+  }
+}
+
 }  // namespace
 }  // namespace xmedia::media

@@ -46,6 +46,7 @@ struct FFmpegVideoEncoder::Context {
   // byte-identical output; non-deterministic ones produce PSNR-equivalent
   // output (same as MC's T9a finding).
   bool last_input_valid = false;
+  uint64_t last_input_hash = 0;
   int64_t dedup_skipped = 0;
 
   Context() = default;
@@ -276,18 +277,34 @@ AVRational FFmpegVideoEncoder::time_base() const {
   return ctx_->codec->time_base;
 }
 
+int64_t FFmpegVideoEncoder::dedup_skipped_frames() const {
+  return ctx_ ? ctx_->dedup_skipped : 0;
+}
+
 bool FFmpegVideoEncoder::Encode(base::scoped_refptr<VideoFrame> in,
                                 std::vector<EncodedPacket>* out) {
   if (!ctx_ || !out) {
     return false;
   }
-  // T9a dedup: hash the input planes (row-distance-normalised). A match
-  // with the previous frame skips the conversion pipeline and re-sends the
-  // cached output frame at the new pts. The encoder still encodes it —
-  // the saving is the conversion, not the encode itself.
-  // TODO(dedup): re-enable after SIGSEGV debug (hash computation itself
-  // crashes on the GIF path — investigate the input frame plane contract).
-  const bool is_duplicate = false;
+  // T9a dedup: hash the input frame's plane 0 via the flat HashBytes64 over
+  // its exact allocated span — no stride/row arithmetic, so it cannot
+  // over-read (the earlier HashImageRows SIGSEGV came from stride math on a
+  // mismatched width contract). A match with the previous frame skips the
+  // conversion pipeline and re-sends the cached output frame at the new pts.
+  // The encoder still encodes it — the saving is the conversion, not the
+  // encode itself. For RGBA sources plane 0 is the whole buffer; for planar
+  // sources it is the Y plane — both are stable per-frame content keys.
+  const auto input_span = in->visible_data(VideoFrame::Plane::kYPlane);
+  // Seed is a fixed constant: identical content at a different pts must
+  // still hash equal (mixing the timestamp in would disable dedup entirely).
+  const uint64_t input_hash =
+      input_span.empty()
+          ? 0
+          : dedup::HashBytes64(input_span.data(), input_span.size(), 0x9E37);
+  const bool is_duplicate =
+      ctx_->last_input_valid && input_hash == ctx_->last_input_hash;
+  ctx_->last_input_hash = input_hash;
+  ctx_->last_input_valid = true;
 
   if (is_duplicate) {
     // Re-send the cached frame with the new pts (skip conversion entirely).

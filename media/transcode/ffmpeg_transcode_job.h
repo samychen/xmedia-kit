@@ -125,6 +125,22 @@ struct XMEDIA_MEDIA_EXPORT TranscodeParams {
   };
   AudioCodecSpec audio_codec;
   VideoCodecSpec video_codec;
+
+  // --- T9b verify-seek ---------------------------------------------------
+  // When true, the job records input-frame luma signatures during the encode
+  // and, after the muxer finalises, seeks the OUTPUT back to each sampled
+  // timestamp, decodes one frame per sample, and compares grids. A mismatch
+  // fails the job (kVerifyFailed) with the offending frame in the error, and
+  // the decoded-back samples + verdict are written to
+  // |output_path + ".verify.json"| in either outcome. Off by default: it
+  // re-opens and decodes the output, which doubles the video cost on large
+  // files.
+  bool verify_output_frames = false;
+  // Samples checked (evenly spread across the timeline); 0 = all captured
+  // frames. Default keeps the readback cost bounded.
+  int verify_sample_count = 32;
+  // RMS tolerance over the 32x18 luma grid (see dedup::EncodeVerifyParams).
+  double verify_tolerance_rms = 8.0;
 };
 
 // Progress callback: 0..100 integer. Runs on whichever thread drives the job

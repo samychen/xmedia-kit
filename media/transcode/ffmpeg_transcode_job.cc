@@ -11,10 +11,13 @@
 #include <utility>
 #include <vector>
 
+#include <cstdio>
+
 #include "base/logging.h"
 #include "media/ffmpeg/audio_convert.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/transcode/encode_verify.h"
 #include "media/transcode/ffmpeg_transcode_streams.h"
 
 namespace xmedia::media {
@@ -149,6 +152,47 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
     }
   }
 
+  // T9b verify-seek: input-side signature capture. Sampled on a stride so a
+  // long input does not compute a grid for every frame; the readback then
+  // seeks the OUTPUT to each sampled pts (see the post-Finish block).
+  dedup::EncodeVerifyParams verify_params;
+  verify_params.sample_count = p.verify_sample_count;
+  verify_params.tolerance_rms = p.verify_tolerance_rms;
+  std::vector<dedup::FrameVerifyRecord> verify_records;
+  int64_t verify_frames_seen = 0;
+  int64_t verify_stride = 1;
+  double verify_fps = 30.0;
+  const bool verify_on = p.verify_output_frames && want_video && !video.copy;
+  if (verify_on) {
+    verify_fps =
+        video.in_fps_num > 0
+            ? static_cast<double>(video.in_fps_num) / video.in_fps_den
+            : 30.0;
+    const int64_t est_total =
+        total_duration > 0.0
+            ? static_cast<int64_t>(total_duration * verify_fps)
+            : 0;
+    if (est_total > p.verify_sample_count && p.verify_sample_count > 0) {
+      verify_stride = est_total / p.verify_sample_count;
+    }
+  }
+  auto capture_verify_sample = [&](const VideoFrame& vf) {
+    ++verify_frames_seen;
+    if (!verify_on || verify_stride <= 0 ||
+        ((verify_frames_seen - 1) % verify_stride) != 0) {
+      return;
+    }
+    dedup::FrameVerifyRecord rec;
+    const auto y = vf.visible_data(VideoFrame::kYPlane);
+    if (!y.empty() &&
+        dedup::ComputeYuvLumaSignature(y.data(), vf.stride(VideoFrame::kYPlane),
+                                       vf.coded_size().width,
+                                       vf.coded_size().height, &rec)) {
+      rec.frame_index = verify_frames_seen - 1;
+      verify_records.push_back(std::move(rec));
+    }
+  };
+
   // Trim start (-ss) has to move the OUTPUT timeline to zero, not merely
   // stop writing earlier frames. Before this existed, trimming 200ms off a
   // 426ms file produced output whose reported duration looked correct
@@ -256,6 +300,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
           AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
                               video.decoder->pkt_timebase);
       if (vf) {
+        capture_verify_sample(*vf);
         std::vector<EncodedPacket> out_packets;
         if (video.encoder.Encode(std::move(vf), &out_packets)) {
           for (const auto& ep : out_packets) {
@@ -463,6 +508,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
           AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
                               video.decoder->pkt_timebase);
       if (vf) {
+        capture_verify_sample(*vf);
         std::vector<EncodedPacket> out_packets;
         if (video.encoder.Encode(std::move(vf), &out_packets)) {
           for (const auto& ep : out_packets) {
@@ -487,6 +533,39 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
   if (!muxer.Finish()) {
     return Err(ErrorCode::kInvalidState, "muxer finish failed",
                p.output_path, {});
+  }
+
+  // T9b verify-seek readback: the container is final, so it can be re-opened.
+  // The sidecar (decoded-back samples + verdict) is written on both outcomes;
+  // a content mismatch fails the job with the offending frame named.
+  if (verify_on && !verify_records.empty()) {
+    dedup::EncodeVerifyReport vreport;
+    if (!dedup::VerifyEncodedOutput(p.output_path, verify_records, verify_fps,
+                                    verify_params, &vreport)) {
+      return Err(ErrorCode::kDecodeFailed,
+                 "output verification could not run", p.output_path,
+                 "the output could not be opened or decoded for the readback");
+    }
+    const std::string sidecar_path = p.output_path + ".verify.json";
+    const std::string json = dedup::SerializeVerifySidecar(
+        verify_fps, verify_frames_seen, vreport.output_records, vreport);
+    std::FILE* f = std::fopen(sidecar_path.c_str(), "wb");
+    if (f != nullptr) {
+      std::fwrite(json.data(), 1, json.size(), f);
+      std::fclose(f);
+    } else {
+      LOG(WARNING) << "transcode: cannot write verify sidecar "
+                   << sidecar_path;
+    }
+    if (!vreport.passed) {
+      return Err(ErrorCode::kVerifyFailed, "output verification failed",
+                 "frame " + std::to_string(vreport.failed_frame) +
+                     " diverged (worst RMS " +
+                     std::to_string(vreport.worst_rms) + "); sidecar " +
+                     sidecar_path,
+                 "decode the output at that timestamp and compare against the "
+                 "input; the sidecar JSON holds the sampled grids");
+    }
   }
 
   // Final progress.

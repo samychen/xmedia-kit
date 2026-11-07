@@ -71,6 +71,8 @@ const char* GetErrorCodeName(ErrorCode code) {
     return "ConfigInvalid";
   case ErrorCode::kEos:
     return "Eos";
+  case ErrorCode::kVerifyFailed:
+    return "VerifyFailed";
   }
   return "Unknown";
 }
