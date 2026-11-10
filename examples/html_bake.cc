@@ -20,6 +20,12 @@
 // 只在 macOS 的 .app bundle 里跑（CEF 子进程契约）：CMake POST_BUILD 组装
 // <out>/<configuration>/html_bake.app，ctest/示例都从 bundle 内的二进制
 // 启动。GTK/Linux 走平铺布局，无需组装。
+//
+// 已知边界（如实登记）：
+//  * 元素出生效窗的首帧可能仍缺该元素——CEF 渲染器对 visibility 恢复的
+//    重绘惰性（隐藏方向精确：非活动元素不被采样；内容验证式重绘可缩小
+//    但不能消除）。HyperFrames 原版无此问题：其页面框架自持渲染。
+//  * 平铺光栅裁切对重叠元素透底：非重叠布局是精确前提。
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -44,6 +50,7 @@
 #include "media/gl/gl_present.h"
 #include "media/gl/gl_scene.h"
 #include "media/media_export.h"
+#include "media/transcode/ffmpeg_concat_job.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
 #include "platform/glfw/glfw_gl_context.h"
@@ -86,6 +93,10 @@ struct Args {
   std::string codec = "mjpeg";
   // vt = VirtualTime bake（确定性）；live = 墙钟（诊断用）。
   bool vt_clock = true;
+  // 分块数：时间线均分为 N 窗，每窗独立烘焙（VT 从 0 快进到窗起点——
+  // 合成确定性使任意边界成为可能，无 keyframe 对齐约束），Concat 无损
+  // 拼接。1 = 单块直通。
+  int chunks = 1;
 };
 
 Args ParseArgs(int argc, char** argv) {
@@ -115,6 +126,9 @@ Args ParseArgs(int argc, char** argv) {
       ++i;
     } else if (std::strcmp(argv[i], "--clock") == 0 && v == "live") {
       a.vt_clock = false;
+      ++i;
+    } else if (std::strcmp(argv[i], "--chunks") == 0) {
+      a.chunks = std::max(1, std::atoi(v.c_str()));
       ++i;
     }
   }
@@ -331,20 +345,65 @@ int main(int argc, char** argv) {
   const int total_frames =
       static_cast<int>(args.seconds * args.fps + 0.5);
   int64_t encoded = 0;
-  for (int f = 0; f < total_frames; ++f) {
+
+  // 单帧烘焙：fast_forward=true 时只步进不合成/编码（分块的窗前快进）。
+  // 光栅内容哈希：边界帧的重绘验证用（合成器提交状态可能落后数拍，
+  // 单靠等待新帧无法区分"新帧"与"旧内容的重合成"）。
+  uint64_t prev_raster_hash = 0;
+  auto raster_hash = [](const VideoFrame& f) {
+    const auto bytes = f.visible_data(VideoFrame::kYPlane);
+    uint64_t h = 1469598103934665603ull;
+    for (const uint8_t b : bytes) {
+      h = (h ^ b) * 1099511628211ull;
+    }
+    return h;
+  };
+  auto bake_frame = [&](int f, bool record) -> bool {
     const int64_t t_ms =
         static_cast<int64_t>(f) * 1000 / std::max(1, args.fps);
     const void* previous = layer.last_frame().get();
     if (!synthetic) {
-      // 单拍：先应用时序再步进——VT 预算切片会排空渲染进程挂起任务
-      //（含刚投递的时序 JS），预算到期才 BeginFrame，绘制必然带上本帧
-      // 可见性。
-      layer.ApplyTimeline(t_ms);
+      // t 的可见性已在上一帧录制尾预应用（帧尾预应用 + ACK），直接
+      // 步进：绘制必然携带本帧状态。
       layer.RequestVtStep();
       if (!WaitNewFrame(&layer, previous, 5000)) {
         std::fprintf(stderr, "html_bake: VT step %d timed out\n", f);
-        layer.Stop();
-        return 1;
+        return false;
+      }
+      if (record) {
+        // 边界帧（元素进/出生效窗）：内容验证式重绘。合成器提交预
+        // 应用状态可能落后数拍，"来了新帧"不等于"新帧携带新状态"
+        // ——反复无效化并等新帧，直到光栅内容与上一录制帧不同
+        //（边界必然带来该区域内容变化）或有界重试耗尽。
+        const auto entries = layer.SnapshotElements().entries();
+        const int64_t dt = 1000 / std::max(1, args.fps);
+        bool boundary = false;
+        for (const auto& e : entries) {
+          if (IsElementPresentAt(e.has_start, e.start_ms,
+                                 e.has_duration, e.duration_ms,
+                                 t_ms) !=
+              IsElementPresentAt(e.has_start, e.start_ms,
+                                 e.has_duration, e.duration_ms,
+                                 t_ms - dt)) {
+            boundary = true;
+            break;
+          }
+        }
+        if (boundary) {
+          for (int retry = 0; retry < 5; ++retry) {
+            if (raster_hash(*layer.last_frame()) != prev_raster_hash) {
+              break;
+            }
+            layer.Invalidate();
+            if (!WaitNewFrame(&layer, layer.last_frame().get(),
+                              500)) {
+              break;
+            }
+          }
+        }
+      }
+      if (!record) {
+        return true;
       }
     }
     const auto frame =
@@ -355,8 +414,7 @@ int main(int argc, char** argv) {
     composer.Sync(*scene, frame.get(), elements, t_ms);
     if (!presenter.ComposeScene(*scene)) {
       std::fprintf(stderr, "html_bake: compose failed at frame %d\n", f);
-      layer.Stop();
-      return 1;
+      return false;
     }
 
     // 读回 BGRA（GL 默认帧缓冲，底上原点——VT 内容自顶向下渲染，读回
@@ -402,33 +460,130 @@ int main(int argc, char** argv) {
     dst_ls[2] = out_frame->stride(VideoFrame::kVPlane);
     if (!converter.Convert(*src, dst.data(), dst_ls.data())) {
       std::fprintf(stderr, "html_bake: BGRA->I420 failed at frame %d\n", f);
-      layer.Stop();
-      return 1;
+      return false;
     }
     std::vector<EncodedPacket> packets;
     if (!encoder.Encode(std::move(out_frame), &packets)) {
       std::fprintf(stderr, "html_bake: encode failed at frame %d\n", f);
-      layer.Stop();
-      return 1;
+      return false;
     }
     for (const auto& pkt : packets) {
       if (!muxer.WritePacket(0, pkt)) {
         std::fprintf(stderr, "html_bake: muxer rejected packet at frame %d\n",
                      f);
-        layer.Stop();
-        return 1;
+        return false;
       }
       ++encoded;
     }
+    // 预应用下一帧的时序并等 ACK：DOM 在下一次步进前就处于目标
+    // 状态——帧 f 的绘制精确携带 visibility(t_f)，边界帧无合成
+    // 管线延迟（ExecuteJavaScript 与提交的同拍性不可依赖，提前
+    // 一帧应用把顺序钉死）。
+    const int64_t next_t =
+        static_cast<int64_t>(f + 1) * 1000 / std::max(1, args.fps);
+    prev_raster_hash = raster_hash(*frame);
+    layer.ApplyTimeline(next_t);
+    if (!layer.AwaitTimelineApplied(next_t, 2000)) {
+      std::fprintf(stderr, "html_bake: pre-apply %d ack miss\n", f);
+    }
+    return true;
+  };
+
+  // 分块烘焙：每块独立编码器/封装器（块间零依赖），窗前 VT 快进——
+  // 合成是确定性的，任意边界精确，无 keyframe 对齐约束（这是与
+  // ChunkedTranscode 对已有输入转码的本质差别）。
+  const std::string ext = [&] {
+    const auto dot = args.out.find_last_of('.');
+    return dot == std::string::npos ? ".mkv" : args.out.substr(dot);
+  }();
+  const int per = (total_frames + args.chunks - 1) / args.chunks;
+  std::vector<std::string> chunk_paths;
+  for (int c = 0; c < args.chunks; ++c) {
+    const int begin = c * per;
+    const int end = std::min(begin + per, total_frames);
+    if (begin >= end) {
+      break;
+    }
+    const bool single = args.chunks == 1;
+    const std::string chunk_out =
+        single ? args.out
+               : args.out + ".chunk" + std::to_string(c) + ext;
+    auto chunk_encoder = std::make_unique<FFmpegVideoEncoder>();
+    FFmpegVideoEncoder::Params cep = ep;
+    if (!chunk_encoder->Initialize(cep)) {
+      std::fprintf(stderr, "html_bake: chunk %d encoder init failed\n", c);
+      layer.Stop();
+      return 1;
+    }
+    auto chunk_muxer = std::make_unique<FFmpegEncodeMuxer>();
+    if (!chunk_muxer->Open(chunk_out)) {
+      std::fprintf(stderr, "html_bake: cannot open %s\n", chunk_out.c_str());
+      layer.Stop();
+      return 1;
+    }
+    FFmpegEncodeMuxer::VideoStreamParams csp = sp;
+    const AVRational ctb = chunk_encoder->time_base();
+    csp.time_base_num = ctb.num;
+    csp.time_base_den = ctb.den;
+    csp.extradata = chunk_encoder->codec_parameters()
+                        ? std::vector<uint8_t>(
+                              chunk_encoder->codec_parameters()->extradata,
+                              chunk_encoder->codec_parameters()->extradata +
+                                  chunk_encoder->codec_parameters()
+                                      ->extradata_size)
+                        : std::vector<uint8_t>();
+    if (chunk_muxer->AddVideoStream(csp) < 0) {
+      std::fprintf(stderr, "html_bake: chunk %d add stream failed\n", c);
+      layer.Stop();
+      return 1;
+    }
+
+    // 窗前快进（VT 从 0 确定性推进到窗起点），然后逐帧录制。录制前
+    // 预应用块首帧的时序并等 ACK。
+    const int64_t begin_t =
+        static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
+    layer.ApplyTimeline(begin_t);
+    if (!layer.AwaitTimelineApplied(begin_t, 2000)) {
+      std::fprintf(stderr, "html_bake: chunk %d pre-apply ack miss\n", c);
+    }
+    bool ok = true;
+    for (int f = 0; ok && f < begin; ++f) {
+      ok = bake_frame(f, /*record=*/false);
+    }
+    for (int f = begin; ok && f < end; ++f) {
+      // 块内时间戳从 0 起：Concat 按块重排基。
+      ok = bake_frame(f, /*record=*/true);
+    }
+    if (ok) {
+      std::vector<EncodedPacket> flushed;
+      chunk_encoder->Flush(&flushed);
+      for (const auto& pkt : flushed) {
+        chunk_muxer->WritePacket(0, pkt);
+        ++encoded;
+      }
+      chunk_muxer->Finish();
+      chunk_paths.push_back(chunk_out);
+    } else {
+      layer.Stop();
+      return 1;
+    }
   }
-  std::vector<EncodedPacket> flushed;
-  encoder.Flush(&flushed);
-  for (const auto& pkt : flushed) {
-    muxer.WritePacket(0, pkt);
-    ++encoded;
-  }
-  muxer.Finish();
   layer.Stop();
+
+  if (chunk_paths.size() > 1) {
+    ConcatParams cp;
+    cp.inputs = chunk_paths;
+    cp.output_path = args.out;
+    const Status cst = Concat(cp);
+    if (!cst) {
+      std::fprintf(stderr, "html_bake: concat failed: %s\n",
+                   cst.error().ToString().c_str());
+      return 1;
+    }
+    for (const auto& path : chunk_paths) {
+      std::remove(path.c_str());
+    }
+  }
 
   std::printf("html_bake: %s — %d frames, %lld packets, %dx%d @ %d fps "
               "(VT bake)\n",

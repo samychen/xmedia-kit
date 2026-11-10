@@ -15,7 +15,9 @@
 #if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF
 
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
+#include <mutex>
 #include <thread>
 #include <utility>
 
@@ -48,12 +50,23 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
   std::mutex last_frame_mutex;
   base::scoped_refptr<VideoFrame> last_published;
 
+  int64_t applied_t_ms = -1;
+
+  // 时序应用回执：渲染进程执行到的时间（单调）。
+  std::mutex applied_mutex;
+  std::condition_variable applied_cv;
+
   // HtmlBrowserListener（CEF UI 线程）。
   void OnHtmlReady() override {}
   void OnHtmlError(const std::string& message) override {
     LOG(ERROR) << "cef layer: html error: " << message;
   }
   void OnHtmlSeekDone(int64_t) override {}
+  void OnTimelineApplied(int64_t t_ms) override {
+    std::lock_guard<std::mutex> scoped(applied_mutex);
+    applied_t_ms = std::max(applied_t_ms, t_ms);
+    applied_cv.notify_all();
+  }
   void OnHtmlRects(const std::string& payload_json) override {
     HtmlRectsSnapshot snap;
     if (!ParseHtmlRectsPayload(payload_json, &snap)) {
@@ -231,6 +244,35 @@ GlLayerSource* CefLayerSource::source() {
 void CefLayerSource::RequestVtStep() {
   if (impl_ && impl_->browser) {
     impl_->runtime.RequestVtStep(impl_->browser);
+  }
+}
+
+bool CefLayerSource::AwaitTimelineApplied(int64_t t_ms,
+                                        int timeout_ms) {
+  if (impl_ == nullptr) {
+    return false;
+  }
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(timeout_ms);
+  while (true) {
+    if (!impl_->running.load()) {
+      return false;
+    }
+    // caller-thread pump 模式：CEF 任务由宿主 Pump 驱动，回执查询
+    // 才能在 Pump 内被处理；pump 线程模式由后台线程驱动。
+    if (impl_->config.pump_on_caller_thread) {
+      impl_->runtime.DoMessageLoopWork();
+    }
+    {
+      std::unique_lock<std::mutex> lock(impl_->applied_mutex);
+      if (impl_->applied_t_ms >= t_ms) {
+        return true;
+      }
+      impl_->applied_cv.wait_until(lock, deadline);
+    }
+    if (std::chrono::steady_clock::now() >= deadline) {
+      return false;
+    }
   }
 }
 

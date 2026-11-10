@@ -313,6 +313,11 @@ std::array<float, 4> GlScene::FittedRect(const Layer& layer, int dst_width,
                        layer.video->source_aspect(), dst_width, dst_height);
 }
 
+GlVideoLayer* GlScene::video_layer(LayerId id) {
+  Layer* layer = Find(id);
+  return layer ? layer->video.get() : nullptr;
+}
+
 bool GlScene::Upload(LayerId id, const VideoFrame& frame,
                      GlHwTextureImporter* importer) {
   Layer* layer = Find(id);

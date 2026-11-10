@@ -153,6 +153,13 @@ unsigned int GlVideoLayer::texture_target() const {
   return planes_[0] ? planes_[0]->target() : GL_TEXTURE_2D;
 }
 
+void GlVideoLayer::ShareTexturesFrom(const GlVideoLayer& source) {
+  // 裸指针视图：source 的 planes_ 是 unique_ptr，视图不拥有——析构各自
+  // 释放自己的，别名指针只在 source 下次 Upload（可能重建纹理对象）前
+  // 有效，调用方契约是每次 source 上传后重新 Share。
+  texture_source_ = &source;
+}
+
 bool GlVideoLayer::NeedsTextureSetup(int w, int h, VideoFormat format) const {
   return width_ != w || height_ != h || format_ != static_cast<int>(format);
 }
@@ -453,10 +460,13 @@ bool GlVideoLayer::UploadCpuPlanes(const VideoFrame& frame) {
 }
 
 void GlVideoLayer::Bind(gl::GlProgram& program, float opacity) const {
-  if (!is_rgb_) {
-    program.SetInt("uNv12", nv12_ ? 1 : 0);
-    program.SetMat3("uMatrix", matrix_.data());
-    program.SetVec3("uOffset", offset_[0], offset_[1], offset_[2]);
+  // 纹理视图：纹理与几何状态全部读 source（source 每次 Upload 后视图
+  // 被 re-Share，指针新鲜）。
+  const GlVideoLayer& tex = texture_source_ ? *texture_source_ : *this;
+  if (!tex.is_rgb_) {
+    program.SetInt("uNv12", tex.nv12_ ? 1 : 0);
+    program.SetMat3("uMatrix", tex.matrix_.data());
+    program.SetVec3("uOffset", tex.offset_[0], tex.offset_[1], tex.offset_[2]);
   }
   program.SetFloat("uOpacity", opacity);
   if (texture_target() == GL_TEXTURE_RECTANGLE) {
@@ -466,18 +476,18 @@ void GlVideoLayer::Bind(gl::GlProgram& program, float opacity) const {
     // coordinate does. Harmless to set on the 2D program (no such uniform, so
     // the call is a silent no-op), which is why it is guarded by the target
     // rather than by the program.
-    program.SetVec2("uTexSize", static_cast<float>(width_),
-                    static_cast<float>(height_));
+    program.SetVec2("uTexSize", static_cast<float>(tex.width_),
+                    static_cast<float>(tex.height_));
     // Divided as a float, not as an int: `width_ / 2` truncates on an odd
     // width and the shader then samples 0.5 texel off. Video widths are
     // almost always even so this changes nothing in practice -- it is the
     // odd frame that would have been silently wrong.
-    program.SetVec2("uChromaSize", static_cast<float>(width_) / 2.0f,
-                    static_cast<float>(height_) / 2.0f);
+    program.SetVec2("uChromaSize", static_cast<float>(tex.width_) / 2.0f,
+                    static_cast<float>(tex.height_) / 2.0f);
   }
-  planes_[0]->Bind(0);
-  planes_[1]->Bind(1);
-  planes_[2]->Bind(2);
+  tex.planes_[0]->Bind(0);
+  tex.planes_[1]->Bind(1);
+  tex.planes_[2]->Bind(2);
 }
 
 namespace {

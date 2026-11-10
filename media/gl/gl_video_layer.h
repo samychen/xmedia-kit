@@ -187,11 +187,23 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   // identical, and Bind() sets them the same way either way.
   unsigned int texture_target() const;
 
+  // ---- 纹理别名（实现内联：跟随 source 的只读状态） ----------------------
+
   // True when the last successful Upload() was a packed RGBA-8 frame. Chooses
   // the fragment program (RGB passthrough vs YUV conversion) at draw time,
   // because a scene can hold both -- the HTML path publishes kARGB while the
   // video path stays planar YUV.
-  bool is_rgb() const { return is_rgb_; }
+  bool is_rgb() const { return texture_source_ ? texture_source_->is_rgb_ : is_rgb_; }
+
+  // ---- 纹理别名（元素拆纹理的 N 元素 1 份纹理优化） ----------------------
+  //
+  // 把本层变为 |source| 纹理的视图：Bind/draw 读 source 的纹理与几何状态，
+  // 本层自己的 planes_ 保持分配但不再使用（析构各自释放，无别名泄漏）。
+  // 每次 source Upload() 后必须重新调用——source 的纹理对象可能因尺寸/
+  // 格式变化被整体重建，视图持有的裸指针只在两次 source 上传之间有效。
+  // 视图自身 Upload() 被拒绝（视图无像素所有权）。GL 线程限定。
+  void ShareTexturesFrom(const GlVideoLayer& source);
+  bool textures_shared() const { return texture_source_ != nullptr; }
 
   // Points |program|'s samplers at this layer's planes and sets this layer's
   // colour uniforms, NV12 flag and opacity. |program| must come from
@@ -207,12 +219,13 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
 
   // True once a frame has been uploaded. Bind() on a layer that has none would
   // sample uninitialised textures, so callers check this rather than assuming.
-  bool ready() const { return ready_; }
+  // 纹理视图跟随 source 的就绪态（视图从不自己 Upload）。
+  bool ready() const { return texture_source_ ? texture_source_->ready_ : ready_; }
 
   // Coded size of the last uploaded frame; zero before the first upload and
-  // after a failed one.
-  int width() const { return width_; }
-  int height() const { return height_; }
+  // after a failed one. 视图跟随 source。
+  int width() const { return texture_source_ ? texture_source_->width_ : width_; }
+  int height() const { return texture_source_ ? texture_source_->height_ : height_; }
 
   // The shape the picture is meant to be SEEN at: its natural size with the
   // container's display rotation applied (a quarter turn swaps the axes) and
@@ -223,7 +236,9 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   // the frame is the only witness to either and is released as soon as that
   // call returns. Only the RATIO is meaningful -- these are the picture's
   // proportions, not a size anything is allocated at.
-  float source_aspect() const { return source_aspect_; }
+  float source_aspect() const {
+    return texture_source_ ? texture_source_->source_aspect_ : source_aspect_;
+  }
 
  private:
   explicit GlVideoLayer(const gl::GlApi& gl);
@@ -269,6 +284,8 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
 
   const gl::GlApi* gl_;
   std::unique_ptr<gl::GlTexture> planes_[3];
+  // 纹理别名视图（ShareTexturesFrom）：非拥有；空 = 本层自己的 planes_。
+  const GlVideoLayer* texture_source_{nullptr};
 
   bool ready_{false};
   int width_{0};

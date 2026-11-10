@@ -360,6 +360,7 @@ bool CefOsClient::OnQuery(CefRefPtr<CefBrowser> /*browser*/,
   constexpr const char kReady[] = "mc.html.ready";
   constexpr const char kError[] = "mc.html.error:";
   constexpr const char kSeekDone[] = "mc.html.seekDone:";
+  constexpr const char kApplied[] = "mc.html.applied:";
   constexpr const char kRects[] = "mc.html.rects:";
 
   if (req == kReady) {
@@ -392,6 +393,14 @@ bool CefOsClient::OnQuery(CefRefPtr<CefBrowser> /*browser*/,
     }
     if (callback) {
       callback->Success("");
+    }
+    return true;
+  }
+  if (req.rfind(kApplied, 0) == 0) {
+    const int64_t t =
+        std::strtoll(req.substr(sizeof(kApplied) - 1).c_str(), nullptr, 10);
+    if (listener_) {
+      listener_->OnTimelineApplied(t);
     }
     return true;
   }

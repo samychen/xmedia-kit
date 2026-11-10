@@ -73,6 +73,14 @@ std::string MakeRectsScript() {
                    (d === null || s === null || t < s + d);
       el.style.visibility = active ? 'visible' : 'hidden';
     }
+    if (window.cefQuery) {
+      window.cefQuery({
+        request: 'mc.html.applied:' + t,
+        persistent: false,
+        onSuccess: function () {},
+        onFailure: function () {}
+      });
+    }
   };
   window.__mcReportRects = report;
   report(0);

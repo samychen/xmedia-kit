@@ -6,13 +6,14 @@
 <head>
 <meta charset="utf-8">
 <style>
-  html, body { margin: 0; width: 100%; height: 100%; background: #000; }
+  /* 页面背景走 body 的 CSS 背景（非元素）：元素拆纹理按平铺光栅裁切，
+     整页背景元素会把其它元素一起带进自己的纹理（透底）——非重叠布局
+     是裁切方案的精确前提（HyperFrames 原版按元素独立光栅化）。 */
+  html, body { margin: 0; width: 100%; height: 100%; background: #204080; }
   .box { position: absolute; }
 </style>
 </head>
 <body>
-  <div class="box" data-mc-id="bg" data-start="0" data-z="0"
-       style="left:0; top:0; width:100%; height:100%; background:#204080;"></div>
   <div class="box" data-mc-id="title" data-start="0" data-duration="5000" data-z="1"
        style="left:20px; top:40px; width:280px; height:60px;
               background:#804020; color:#fff; font:24px sans-serif;">

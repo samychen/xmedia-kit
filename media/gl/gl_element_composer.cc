@@ -43,6 +43,25 @@ int GlElementComposer::Sync(GlScene& scene, const VideoFrame* frame,
   const int tex_h = frame ? frame->coded_size().height : 0;
   const bool frame_changed = frame != nullptr && frame != last_uploaded_;
 
+  // 共享纹理：master 层唯一 Upload（不可见、不绘制），元素层 re-Share。
+  if (config_.share_textures && frame != nullptr) {
+    if (master_layer_ == GlScene::kNoLayer) {
+      master_layer_ = scene.AddVideoLayer(INT32_MIN);  // 绘制序垫底
+      if (master_layer_ != GlScene::kNoLayer) {
+        scene.SetLayerVisible(master_layer_, false);
+      }
+    }
+    if (master_layer_ != GlScene::kNoLayer &&
+        (frame_changed || scene.video_layer(master_layer_)->width() == 0) &&
+        !scene.Upload(master_layer_, *frame)) {
+      LOG(WARNING) << "element composer: master upload refused";
+    }
+  }
+  GlVideoLayer* master_video =
+      config_.share_textures && master_layer_ != GlScene::kNoLayer
+          ? scene.video_layer(master_layer_)
+          : nullptr;
+
   std::map<std::string, bool> seen;
   for (const HtmlElementQuad& quad : quads) {
     seen[quad.id] = true;
@@ -61,10 +80,21 @@ int GlElementComposer::Sync(GlScene& scene, const VideoFrame* frame,
       layers_.emplace(quad.id, id);
     }
 
-    // 上传：新层必须立即上传（即使帧没变——层是新的）；旧层在帧变化时
-    // 重传。两者互斥，一次 Upload。
-    if (frame != nullptr && (is_new || frame_changed) &&
-        !scene.Upload(id, *frame)) {
+    // 上传：共享模式下元素层是 master 的纹理视图（无自己的上传），
+    // 每次 master 上传后 re-Share 保证指针新鲜；独立模式下新层立即
+    // 上传、旧层帧变化时重传。
+    if (master_video != nullptr) {
+      GlVideoLayer* element_video = scene.video_layer(id);
+      if (element_video == nullptr) {
+        continue;
+      }
+      element_video->ShareTexturesFrom(*master_video);
+      if (!element_video->ready()) {
+        scene.SetLayerVisible(id, false);
+        continue;  // master 还没有可绘纹理
+      }
+    } else if (frame != nullptr && (is_new || frame_changed) &&
+               !scene.Upload(id, *frame)) {
       LOG(WARNING) << "element composer: upload refused for " << quad.id;
       // 失败层不能留在默认矩形（整目标）里继续画，藏掉。
       scene.SetLayerVisible(id, false);
@@ -107,6 +137,10 @@ void GlElementComposer::Reset(GlScene& scene) {
     scene.RemoveLayer(layer);
   }
   layers_.clear();
+  if (master_layer_ != GlScene::kNoLayer) {
+    scene.RemoveLayer(master_layer_);
+    master_layer_ = GlScene::kNoLayer;
+  }
   last_uploaded_ = nullptr;
 }
 

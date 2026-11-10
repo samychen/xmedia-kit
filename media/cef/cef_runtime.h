@@ -57,6 +57,8 @@ struct HtmlBrowserListener {
   virtual void OnHtmlReady() = 0;
   virtual void OnHtmlError(const std::string& message) = 0;
   virtual void OnHtmlSeekDone(int64_t t_ms) = 0;
+  // __mcApplyTimeline 的回执：渲染进程已执行该 t 的可见性应用。
+  virtual void OnTimelineApplied(int64_t t_ms) { (void)0; }
   virtual void OnHtmlRects(const std::string& payload_json) { (void)0; }
   virtual ~HtmlBrowserListener() = default;
 };

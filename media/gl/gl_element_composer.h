@@ -43,6 +43,9 @@ class XMEDIA_MEDIA_EXPORT GlElementComposer {
     float content_x = 0.f, content_y = 0.f;  // 归一化，左上原点
     float content_w = 1.f, content_h = 1.f;
     int default_z = 0;  // 未声明 data-z 的元素用（= HTML 层自己的 z）
+    // 共享纹理（默认开）：一个隐藏 master 层持有上传，元素层是其纹理
+    // 视图——N 元素 1 份纹理拷贝。关掉则每元素层独立上传（旧行为）。
+    bool share_textures = true;
   };
 
   explicit GlElementComposer(Config config);
@@ -68,6 +71,9 @@ class XMEDIA_MEDIA_EXPORT GlElementComposer {
   // 元素 id → 场景层。消失的元素隐藏层而不是移除：页面循环里同一元素
   // 反复进出生效窗，重建层的纹理分配比一次 SetLayerVisible 贵得多。
   std::map<std::string, GlScene::LayerId> layers_;
+  // 共享纹理模式的 master：唯一 Upload 的层（绘制期不可见）；元素层是
+  // 它的纹理视图，每次 master 上传后 re-Share（纹理对象可能被重建）。
+  GlScene::LayerId master_layer_{GlScene::kNoLayer};
   const VideoFrame* last_uploaded_ = nullptr;  // GL 线程内比较，不做同步
 };
 

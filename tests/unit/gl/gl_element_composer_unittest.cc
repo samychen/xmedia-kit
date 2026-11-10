@@ -211,5 +211,77 @@ TEST_F(ElementComposerTest, VanishedElementHidesItsLayer) {
       << "the vanished element leaves background";
 }
 
+
+// 共享纹理的重建弹性：master 在帧尺寸变化时整体重建纹理对象，视图的
+// 裸指针只在两次 master 上传之间有效——Sync 每次 master 上传后 re-Share。
+// 64×64 帧后换 32×32 不同内容：若 re-Share 失效，视图采到已销毁纹理
+// （黑/垃圾）或旧尺寸内容，象限判色即翻车。
+TEST_F(ElementComposerTest, MasterReallocReblessesViews) {
+  auto composer = NewComposer();
+
+  auto first = MakeQuadrantFrame();  // 64×64：tl 红 / br 蓝
+  composer->Sync(*scene_, first.get(), {Element("tl", 0, 0.f, 0.f, 32, 32)},
+                 0);
+  EXPECT_TRUE(presenter_->ComposeScene(*scene_));
+  presenter_->PresentComposed();
+  const test::Rgb red{255, 0, 0};
+  EXPECT_EQ(At(0.25f, 0.25f), red);
+
+  // 32×32 的新帧：左半白、右半黑（与首帧颜色域不相交）。
+  auto second = VideoFrame::CreateBlackFrame(
+      VideoFormat::kARGB, Size{32, 32}, Size{32, 32}, Rational{1, 1},
+      base::TimeDelta(), base::TimeDelta(), 0);
+  {
+    auto data = second->mutable_data(VideoFrame::kYPlane);
+    const int32_t stride = second->stride(VideoFrame::kYPlane);
+    for (int y = 0; y < 32; ++y) {
+      for (int x = 0; x < 32; ++x) {
+        uint8_t* p = data.data() + static_cast<size_t>(y) * stride + x * 4;
+        p[0] = p[1] = p[2] = x < 16 ? 255 : 16;
+        p[3] = 255;
+      }
+    }
+  }
+  HtmlElementMetaEntry half;
+  half.id = "half";
+  half.ordinal = 1;
+  half.x = 0;
+  half.y = 0;
+  half.w = 32;
+  half.h = 32;
+  half.visible = true;
+  composer->Sync(*scene_, second.get(), {half}, 100);
+  EXPECT_TRUE(presenter_->ComposeScene(*scene_));
+  presenter_->PresentComposed();
+
+  // 新帧的左半（画布左半）必须是白——视图采到的是重建后的 master 纹理。
+  const test::Rgb white{255, 255, 255};
+  EXPECT_EQ(At(0.25f, 0.5f), white)
+      << "view must follow the master's rebuilt textures";
+  EXPECT_LT(At(0.75f, 0.5f).r, 50) << "right half is the dark half";
+}
+
+// 关闭共享的回退路径：每元素独立上传，行为与共享版像素一致。
+TEST_F(ElementComposerTest, UnsharedFallbackMatchesPixelContract) {
+  GlElementComposer::Config config;
+  config.target_w = kRequestedSize;
+  config.target_h = kRequestedSize;
+  config.default_z = 0;
+  config.share_textures = false;
+  GlElementComposer composer(config);
+  std::vector<HtmlElementMetaEntry> entries = {
+      Element("tl", 0, 0.f, 0.f, kHalf, kHalf),
+      Element("br", 1, kHalf, kHalf, kHalf, kHalf),
+  };
+  composer.Sync(*scene_, frame_.get(), entries, 0);
+  EXPECT_TRUE(presenter_->ComposeScene(*scene_));
+  presenter_->PresentComposed();
+  const test::Rgb red{255, 0, 0};
+  const test::Rgb blue{0, 0, 255};
+  EXPECT_EQ(At(0.25f, 0.25f), red);
+  EXPECT_EQ(At(0.75f, 0.75f), blue);
+  EXPECT_LT(At(0.75f, 0.25f).r, 50);
+}
+
 }  // namespace
 }  // namespace xmedia::media

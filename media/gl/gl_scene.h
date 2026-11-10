@@ -192,6 +192,10 @@ class XMEDIA_MEDIA_EXPORT GlScene {
   // find out.
   int LayerRotation(LayerId id) const;
 
+  // 高级用法：层的 GlVideoLayer 本体（纹理别名 ShareTexturesFrom 的
+  // source 侧需要）。未知句柄返回 null。GL 线程。
+  GlVideoLayer* video_layer(LayerId id);
+
   // Uploads |frame| into a layer, creating or resizing its textures as needed.
   // False for an unknown handle, a format the shader cannot read, or a layer
   // that was already removed.
