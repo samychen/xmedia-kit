@@ -47,6 +47,8 @@ xmedia_configure_target(xmedia_media_test_support)
 # though what they exercise is core media -- splitting by subject would have
 # put them in the wrong binary.
 
+include(${CMAKE_SOURCE_DIR}/cmake/XmediaCefApp.cmake)
+
 if(XMEDIA_BUILD_TESTS)
 # ---- base ----
 file(GLOB XMEDIA_BASE_UNITTEST_SOURCES CONFIGURE_DEPENDS
@@ -231,35 +233,29 @@ if(XMEDIA_ENABLE_FFMPEG)
     xmedia_configure_target(media_cef_smoke)
     add_dependencies(media_cef_smoke xmedia_cef_helper)
 
-    # POST_BUILD：手动组装 .app bundle（不用 MACOSX_BUNDLE 属性——
-    # CMAKE_RUNTIME_OUTPUT_DIRECTORY 与 bundle 路径冲突，MacOS 目录会空）。
-    set(_CEFSMOKE_APP "$<TARGET_FILE_DIR:media_cef_smoke>/media_cef_smoke.app")
-    set(_CEFSMOKE_BIN "${_CEFSMOKE_APP}/Contents/MacOS/media_cef_smoke")
-    set(_CEFSMOKE_FW "${_CEFSMOKE_APP}/Contents/Frameworks")
-    add_custom_command(TARGET media_cef_smoke POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEFSMOKE_APP}/Contents/MacOS"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "$<TARGET_FILE:media_cef_smoke>" "${_CEFSMOKE_BIN}"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${XMEDIA_CEF_ROOT}/Release/Chromium Embedded Framework.framework"
-            "${_CEFSMOKE_FW}/Chromium Embedded Framework.framework"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${_CEFSMOKE_FW}/media_cef_smoke Helper.app/Contents/MacOS"
-        COMMAND ${CMAKE_COMMAND} -E copy
-            "$<TARGET_FILE:media_cef_smoke>"
-            "${_CEFSMOKE_FW}/media_cef_smoke Helper.app/Contents/MacOS/media_cef_smoke Helper"
-        # 资源不单独拷：CEF 156 的 macOS distro 把 icudtl.dat/*.pak 放在
-        # framework 的 Resources/ 里（随 framework 目录整棵拷贝），运行时
-        # resources_dir_path 指向 framework 内部。
-        COMMENT "Assembling media_cef_smoke.app with CEF framework"
-        VERBATIM)
+    # POST_BUILD：.app bundle 组装走共享函数（示例 html_bake 同款）。
+    xmedia_assemble_cef_app(media_cef_smoke)
+    set(_CEFSMOKE_BIN
+        "$<TARGET_FILE_DIR:media_cef_smoke>/media_cef_smoke.app/Contents/MacOS/media_cef_smoke")
 
     # 测试从 .app 内运行（CEF macOS 子进程在 bundle 内解析路径）。
     # 不用 gtest_discover：延迟符号在 --gtest_list_tests 探针下崩。
     add_test(NAME cef_html_layer_smoke COMMAND "${_CEFSMOKE_BIN}")
     set_tests_properties(cef_html_layer_smoke PROPERTIES TIMEOUT 120
         ENVIRONMENT "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT}")
+
+    # ---- html_bake：HTML → 视频离线烘焙端到端（VT bake 时钟 + 元素拆
+    # 纹理合成 + 编码封装）。目标在 examples/ 定义（同 bundle 组装）；
+    # 这里只登记测试。
+    if(TARGET html_bake)
+      add_test(NAME html_bake_smoke
+          COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/html_bake.app/Contents/MacOS/html_bake"
+              --url "file://${CMAKE_SOURCE_DIR}/tests/testdata/smoke.html"
+              --out "${CMAKE_BINARY_DIR}/html_bake_smoke_out.mkv"
+              --seconds 0.5 --fps 10)
+      set_tests_properties(html_bake_smoke PROPERTIES TIMEOUT 180
+          ENVIRONMENT "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT}")
+    endif()
   endif()
 
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API

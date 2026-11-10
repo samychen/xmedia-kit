@@ -138,6 +138,9 @@ class CefOsClient : public CefClient,
   void EnableVirtualTime(int fps);
   // Any thread: +1 credit and post TryConsumeVtCredit to TID_UI.
   void RequestVtStep();
+  // Full-view invalidation: forces the compositor to produce a frame on the
+  // next external begin frame, even without page damage (bake flow).
+  void InvalidateView();
   // CEF UI: if credit and idle/pause and load finished → setVirtualTimePolicy.
   void TryConsumeVtCredit();
 

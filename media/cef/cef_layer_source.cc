@@ -21,7 +21,6 @@
 
 #include "base/logging.h"
 #include "media/cef/cef_osr_client.h"
-#include "media/cef/cef_osr_client.h"
 #include "media/cef/cef_runtime.h"
 
 namespace xmedia::media {
@@ -61,9 +60,19 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
       LOG(ERROR) << "cef layer: rects payload parse failed";
       return;
     }
+    std::lock_guard<std::mutex> scoped(elements_mutex);
     elements.Merge(snap);
     any_report = true;
   }
+
+  // Host-side snapshot: copies under the mutex instead of exposing the live
+  // table (elements() stays for the post-Stop read).
+  HtmlElementMetaTable SnapshotElements() const {
+    std::lock_guard<std::mutex> scoped(elements_mutex);
+    return elements;
+  }
+
+  mutable std::mutex elements_mutex;
 
   void PublishFrameIfDirty() {
     int w = 0;
@@ -134,10 +143,12 @@ bool CefLayerSource::Start(const Config& config) {
           std::chrono::steady_clock::now().time_since_epoch())
           .count();
 
-  // Runtime 契约（Init/pump 同线程）由 pump 线程自己满足：Start 只负责
-  // 起线程，Init/CreateOsBrowser/Pump 全部发生在该线程上。
-  impl->running.store(true);
-  impl->pump = std::thread([impl_raw = impl.get()]() {
+  // GUI 宿主（GLFW/NSApplication 占据主线程 run loop）必须把 CEF 的
+  // Init/DoMessageLoopWork 放在主线程：CEF macOS 启动期要向主线程
+  // dispatch，pump 线程上的 Init 会与主线程 run loop 互等（实测死锁在
+  // CefInitialize 内）。pump_on_caller_thread=true 时 Start 内联全部
+  // 初始化，宿主随后每帧调用 Pump()。
+  auto bootstrap = [impl_raw = impl.get()]() -> bool {
     std::string framework_dir = impl_raw->config.framework_dir;
     std::string subprocess = impl_raw->config.subprocess_path;
     if (framework_dir.empty() || subprocess.empty()) {
@@ -154,21 +165,40 @@ bool CefLayerSource::Start(const Config& config) {
     if (!impl_raw->runtime.Init(framework_dir, subprocess)) {
       LOG(ERROR) << "cef layer: CEF runtime init failed";
       impl_raw->running.store(false);
-      return;
+      return false;
     }
     impl_raw->browser = impl_raw->runtime.CreateOsBrowser(
         impl_raw->config.url, impl_raw->config.width,
         impl_raw->config.height, impl_raw->config.transparent,
         impl_raw->config.fps, impl_raw->frame, impl_raw,
-        /*external_begin_frame=*/false);
+        /*external_begin_frame=*/impl_raw->config.bake_virtual_time);
     if (!impl_raw->browser) {
       LOG(ERROR) << "cef layer: OSR browser create failed";
       impl_raw->running.store(false);
-      return;
+      return false;
     }
     // 采集脚本注入（OnLoadEnd 之外的一次性保底；collector 自带幂等标志）。
     impl_raw->runtime.ExecuteJavaScript(impl_raw->browser,
                                         cef::MakeRectsScript());
+    return true;
+  };
+
+  if (impl->config.pump_on_caller_thread) {
+    // 先移交所有权再引导：bootstrap 捕获的是裸指针（对象此后由 impl_
+    // 持有），Stop/last_frame/SnapshotElements 都走成员。
+    impl_ = std::move(impl);
+    impl_->running.store(true);
+    bootstrap();
+    return impl_->running.load();
+  }
+
+  // Runtime 契约（Init/pump 同线程）由 pump 线程自己满足：Start 只负责
+  // 起线程，Init/CreateOsBrowser/Pump 全部发生在该线程上。
+  impl->running.store(true);
+  impl->pump = std::thread([impl_raw = impl.get(), bootstrap]() {
+    if (!bootstrap()) {
+      return;
+    }
     impl_raw->PumpLoop();
   });
   impl_ = std::move(impl);
@@ -196,6 +226,39 @@ void CefLayerSource::Stop() {
 
 GlLayerSource* CefLayerSource::source() {
   return impl_ ? impl_->source.get() : nullptr;
+}
+
+void CefLayerSource::RequestVtStep() {
+  if (impl_ && impl_->browser) {
+    impl_->runtime.RequestVtStep(impl_->browser);
+  }
+}
+
+void CefLayerSource::ApplyTimeline(int64_t t_ms) {
+  if (impl_ && impl_->browser) {
+    impl_->runtime.ExecuteJavaScript(
+        impl_->browser,
+        "window.__mcApplyTimeline && window.__mcApplyTimeline(" +
+            std::to_string(t_ms) + ");");
+  }
+}
+
+void CefLayerSource::Invalidate() {
+  if (impl_ && impl_->browser) {
+    impl_->runtime.Invalidate(impl_->browser);
+  }
+}
+
+void CefLayerSource::Pump() {
+  if (impl_ == nullptr || !impl_->running.load()) {
+    return;
+  }
+  impl_->runtime.DoMessageLoopWork();
+  impl_->PublishFrameIfDirty();
+}
+
+HtmlElementMetaTable CefLayerSource::SnapshotElements() const {
+  return impl_ ? impl_->SnapshotElements() : HtmlElementMetaTable();
 }
 
 base::scoped_refptr<VideoFrame> CefLayerSource::last_frame() const {

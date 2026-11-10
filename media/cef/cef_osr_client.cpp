@@ -690,6 +690,10 @@ void CefOsClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   }
   LOG(ERROR) << "[cef] OnLoadEnd status=" << httpStatusCode
             << " url=" << frame->GetURL().ToString() << "\n";
+  // 采集/时序脚本重注入：browser create 时的首次注入发生在 load 之前，
+  // 页面文档替换会丢掉 window 上的函数（实测前两帧 ApplyTimeline 落空）。
+  // 脚本自带幂等标志，重复注入无害。
+  frame->ExecuteJavaScript(MakeRectsScript(), frame->GetURL(), 0);
   if (vt_enabled_) {
     vt_load_finished_ = true;
     // Kick first VT step if Graphics already posted credit.
@@ -738,7 +742,14 @@ void CefOsClient::RequestVtStep() {
     return;
   }
   vt_credit_.fetch_add(1, std::memory_order_acq_rel);
-  CefPostTask(TID_UI, new VtTryTask(this));
+  const bool posted = CefPostTask(TID_UI, new VtTryTask(this));
+}
+
+void CefOsClient::InvalidateView() {
+  CefRefPtr<CefBrowser> b = browser();
+  if (b) {
+    b->GetHost()->Invalidate(PET_VIEW);
+  }
 }
 
 void CefOsClient::TryConsumeVtCredit() {
@@ -835,6 +846,11 @@ void CefOsClient::OnVirtualTimeBudgetExpired() {
     return;
   }
   vt_state_ = VtState::WaitPaint;
+  // 静态页面在 VT 步进间没有新损伤：external begin frame 只合成已损伤
+  // 内容，无损伤则 BeginFrame 不产出 OnPaint（实测第二次步进起卡死）。
+  // Invalidate 强制全视图重绘，保证每步确定出一帧——bake 的确定性靠
+  // VT 时钟而不是靠损伤来源。
+  b->GetHost()->Invalidate(PET_VIEW);
   b->GetHost()->SendExternalBeginFrame();
 }
 

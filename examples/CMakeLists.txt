@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/cmake/XmediaCefApp.cmake)
+
 # examples/ — the SDK usability bar (docs/10 §6): main.cc 行数是 API 易用性
 # 度量。headless 只需要 FFmpeg；play_sdl2 还需要 SDL2 后端。
 #
@@ -61,3 +63,16 @@ endif()
 # add_executable。需要 FFmpeg/SDL/GL 等宿主能力的 demo 仍保留在 examples/ 顶层
 # （见上方 headless / play_* 等）。
 add_subdirectory(base)
+
+# HTML → 视频离线烘焙（HyperFrames html_bake 对齐）：CEF OSR VT bake 时钟
+# → GlElementComposer 元素拆纹理 → GlScene 合成 → 读回 → 编码封装。CEF 子
+# 进程契约：macOS 上 POST_BUILD 组装 .app bundle（共享函数），ctest 从
+# bundle 内启动。
+if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
+  add_executable(html_bake html_bake.cc)
+  target_link_libraries(html_bake PRIVATE xmedia::xmedia-kit
+      xmedia::platform_glfw xmedia::cef xmedia::transcode)
+  target_include_directories(html_bake SYSTEM PRIVATE ${FFmpeg_INCLUDE_DIRS})
+  xmedia_configure_target(html_bake)
+  xmedia_assemble_cef_app(html_bake)
+endif()

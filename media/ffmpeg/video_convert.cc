@@ -248,6 +248,36 @@ bool VideoConverter::TryLibyuv(const AVFrame& src, uint8_t* const dst_data[4],
   const bool little_endian =
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
       __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
+
+  // ---- packed RGB → I420: this FFmpeg build's sws produces BROKEN chroma
+  // for every RGB→YUV pair (measured: luma exact, chroma constant-near-255
+  // for coloured input, 99 for neutral white -- the coefficients table is
+  // wrong in the pinned build). libyuv's row kernels are the RGB→YUV path
+  // instead. Byte order per the mapping note below: libyuv names packed
+  // formats by LE uint32 value, so libyuv "ARGB" is memory B,G,R,A -- which
+  // is FFmpeg BGRA (and 0RGB32 on little-endian, alpha byte ignored).
+  if ((src_format_ == AV_PIX_FMT_BGRA ||
+       (little_endian && src_format_ == AV_PIX_FMT_0RGB32)) &&
+      dst_format_ == AV_PIX_FMT_YUV420P) {
+    // RGB→YUV 的 Matrix 核吃 ArgbConstants（YuvConstants 是反向用的表）；
+    // 按帧声明的色彩空间选表，默认 BT.601（HTML/浏览器内容惯例）。
+    const libyuv::ArgbConstants* matrix = &libyuv::kArgbI601Constants;
+    switch (src.colorspace) {
+    case AVCOL_SPC_BT709:
+      matrix = &libyuv::kArgbH709Constants;
+      break;
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+      matrix = &libyuv::kArgbU2020Constants;
+      break;
+    default:
+      break;
+    }
+    return libyuv::ARGBToI420Matrix(
+               src.data[0], src.linesize[0], dst_data[0], dst_linesize[0],
+               dst_data[1], dst_linesize[1], dst_data[2], dst_linesize[2],
+               matrix, dst_w_, dst_h_) == 0;
+  }
 #else
       false;
 #endif

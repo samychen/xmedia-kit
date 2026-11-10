@@ -30,6 +30,9 @@ const char* const kRgbFragmentShaderBody = R"(
 in vec2 vTexCoord;
 out vec4 fragColor;
 uniform SAMPLER_TYPE uTexRgba;
+// rect 变体的 RGBA_COORD 宏按 texel 寻址，uTexSize 由 Bind 提供；2D 变体
+// 不用（链接器丢弃）。与 YUV 体同约定。
+uniform vec2 uTexSize;
 uniform float uOpacity;
 void main() {
     vec4 c = texture(uTexRgba, RGBA_COORD);

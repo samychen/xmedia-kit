@@ -119,6 +119,8 @@ class CefRuntime {
   void ExecuteJavaScript(BrowserHandle handle, const std::string& code);
   // Bake VirtualTime: +1 credit; CefOsClient posts ArmVt on TID_UI.
   void RequestVtStep(BrowserHandle handle);
+  // 强制全视图重绘（bake：时序 JS 应用后的确定性出帧）。
+  void Invalidate(BrowserHandle handle);
   // OSR input forwarding (coords relative to browser view, top-left origin).
   void SendMouseClick(BrowserHandle handle, int x, int y, int button,
                       bool mouse_up, uint32_t modifiers);

@@ -58,6 +58,22 @@ std::string MakeRectsScript() {
       console.warn('[mc.html] rects collect failed', e);
     }
   }
+  // Bake 时钟的应用侧：按 data-start/data-duration 切换元素可见性，使
+  // 页面光栅只含当前生效元素——覆盖整页的背景元素若不隐藏后续元素，
+  // 其纹理会把未生效元素一起带进合成（实测 bg 整页元素 → chip 在
+  // start 前透出）。visibility 而非 display：保留布局，rect 元数据稳定。
+  window.__mcApplyTimeline = function(tMs) {
+    var t = Math.max(0, Number(tMs) || 0);
+    var els = document.querySelectorAll(SEL);
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var s = num(el.getAttribute('data-start'));
+      var d = num(el.getAttribute('data-duration'));
+      var active = (s === null || t >= s) &&
+                   (d === null || s === null || t < s + d);
+      el.style.visibility = active ? 'visible' : 'hidden';
+    }
+  };
   window.__mcReportRects = report;
   report(0);
 })();)js";

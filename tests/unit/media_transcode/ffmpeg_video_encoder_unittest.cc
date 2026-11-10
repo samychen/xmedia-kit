@@ -9,6 +9,7 @@
 // asserted here against values no wrong unit can satisfy.
 
 #include "media/transcode/ffmpeg_video_encoder.h"
+#include "media/ffmpeg/video_convert.h"
 #include "media/transcode/ffmpeg_transcode_streams.h"
 
 #include <cstring>
@@ -406,6 +407,102 @@ TEST(VideoEncoderAlphaTest, Vp9AlphaRoundTripsThroughYuva420p) {
     av_frame_free(&frames[i]);
   }
   avcodec_free_context(&dctx);
+}
+
+
+// 隔离：VideoConverter 的 BGRA→I420 腿（html_bake 的读回转换）。纯色
+// #204080 的期望值由 Rec.601 有限档给出——Y≈77 U≈165 V≈107；若色度平掉
+// 成 U=V=240（品红），转换腿就是色度损坏的源头。
+TEST(VideoConverterBgraTest, SolidBgraConvertsToSaneYuv) {
+  const AVCodec* c = avcodec_find_encoder_by_name("mjpeg");
+  if (c == nullptr) {
+    GTEST_SKIP() << "no mjpeg";
+  }
+  const int w = 8;
+  const int h = 8;
+  ff::VideoConverter conv;
+  ASSERT_TRUE(conv.Configure(w, h, AV_PIX_FMT_BGRA, w, h, AV_PIX_FMT_YUV420P));
+  std::vector<uint8_t> bgra(static_cast<size_t>(w) * h * 4);
+  for (int i = 0; i < w * h; ++i) {
+    bgra[i * 4 + 0] = 128;  // B
+    bgra[i * 4 + 1] = 64;   // G
+    bgra[i * 4 + 2] = 32;   // R
+    bgra[i * 4 + 3] = 255;  // A
+  }
+  std::vector<uint8_t> y(w * h), u(w * h / 4), v(w * h / 4);
+  uint8_t* dst[4] = {y.data(), u.data(), v.data(), nullptr};
+  int ls[4] = {w, w / 2, w / 2, 0};
+  AVFrame src{};
+  src.width = w;
+  src.height = h;
+  src.format = AV_PIX_FMT_BGRA;
+  src.data[0] = bgra.data();
+  src.linesize[0] = w * 4;
+  ASSERT_TRUE(conv.Convert(src, dst, ls));
+  EXPECT_NEAR(y[0], 77, 8) << "luma of #204080";
+  EXPECT_NEAR(u[0], 165, 10) << "blue-side chroma";
+  EXPECT_NEAR(v[0], 107, 10) << "red-side chroma";
+
+  // 对照组：裸 sws 同配置同输入——若裸 sws 正常而 wrapper 异常，问题在
+  // wrapper；若两者同样丢色度，问题在 sws 的这个格式对/调用形状。
+  std::vector<uint8_t> y2(w * h), u2(w * h / 4), v2(w * h / 4);
+  uint8_t* dst2[4] = {y2.data(), u2.data(), v2.data(), nullptr};
+  int ls2[4] = {w, w / 2, w / 2, 0};
+  SwsContext* raw = sws_getContext(w, h, AV_PIX_FMT_BGRA, w, h,
+                                   AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr,
+                                   nullptr, nullptr);
+  ASSERT_NE(raw, nullptr);
+  const int got = sws_scale(raw, src.data, src.linesize, 0, h, dst2, ls2);
+  sws_freeContext(raw);
+  EXPECT_EQ(got, h);
+
+  // 变体矩阵：不同尺寸/颜色/输入格式，找 sws RGB→YUV 的失效模式。
+  struct Variant {
+    int w, h;
+    uint8_t b, g, r;
+    AVPixelFormat fmt;
+    const char* name;
+  };
+  const Variant variants[] = {
+      {64, 64, 128, 64, 32, AV_PIX_FMT_BGRA, "64x64 BGRA #204080"},
+      {64, 64, 255, 255, 255, AV_PIX_FMT_BGRA, "64x64 BGRA white"},
+      {64, 64, 128, 64, 32, AV_PIX_FMT_RGBA, "64x64 RGBA #208064(字节序别扭)"},
+      {64, 64, 32, 64, 128, AV_PIX_FMT_RGB24, "64x64 RGB24"},
+  };
+  for (const Variant& v : variants) {
+    std::vector<uint8_t> in;
+    const int bpp = v.fmt == AV_PIX_FMT_RGB24 ? 3 : 4;
+    in.resize(static_cast<size_t>(v.w) * v.h * bpp);
+    for (int i = 0; i < v.w * v.h; ++i) {
+      if (v.fmt == AV_PIX_FMT_RGB24) {
+        in[i * 3 + 0] = v.r;
+        in[i * 3 + 1] = v.g;
+        in[i * 3 + 2] = v.b;
+      } else {
+        in[i * 4 + 0] = v.b;
+        in[i * 4 + 1] = v.g;
+        in[i * 4 + 2] = v.r;
+        in[i * 4 + 3] = 255;
+      }
+    }
+    std::vector<uint8_t> vy(v.w * v.h), vu(v.w * v.h / 4), vv(v.w * v.h / 4);
+    uint8_t* vd[4] = {vy.data(), vu.data(), vv.data(), nullptr};
+    int vls[4] = {v.w, v.w / 2, v.w / 2, 0};
+    AVFrame vs{};
+    vs.width = v.w;
+    vs.height = v.h;
+    vs.format = v.fmt;
+    vs.data[0] = in.data();
+    vs.linesize[0] = v.w * bpp;
+    SwsContext* rx = sws_getContext(v.w, v.h, v.fmt, v.w, v.h,
+                                    AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr,
+                                    nullptr, nullptr);
+    ASSERT_NE(rx, nullptr);
+    const int rg = sws_scale(rx, vs.data, vs.linesize, 0, v.h, vd, vls);
+    sws_freeContext(rx);
+    printf("variant %-28s got=%d Y=%3d U=%3d V=%3d\n", v.name, rg, vy[0],
+           vu[0], vv[0]);
+  }
 }
 
 }  // namespace

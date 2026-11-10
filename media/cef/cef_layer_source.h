@@ -56,6 +56,16 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
     // distro layout itself (see cef_runtime CefBundlePaths / Init).
     std::string framework_dir;
     std::string subprocess_path;
+    // Bake 时钟（HyperFrames html_bake 对齐）：VirtualTime 驱动——CEF 的
+    // external_begin_frame + DevTools setVirtualTimePolicy，每
+    // RequestVtStep() 前进一帧间隔，OnPaint 内容确定性推进。bake 输出的
+    // 文档时刻 t = 帧序号 * (1000/fps)，与墙钟无关。
+    bool bake_virtual_time = false;
+    // GUI 宿主模式：CEF 的 Init/pump 留在调用线程（CEF macOS 启动期要向
+    // 主线程 dispatch，pump 线程上的 Init 会与主线程 run loop 互等死锁）。
+    // true 时宿主每帧调用 Pump() 驱动 CEF；false（默认）= facade 自带
+    // pump 线程。
+    bool pump_on_caller_thread = false;
   };
 
   CefLayerSource();
@@ -77,6 +87,11 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
   // pump thread; safe read from the host after Stop, guarded while running).
   const HtmlElementMetaTable& elements() const;
 
+  // Thread-safe copy of the element table while running (the pump merges
+  // into it; a bare elements() read would race). Prefer this over elements()
+  // whenever the layer has not been stopped.
+  HtmlElementMetaTable SnapshotElements() const;
+
   // The most recent OSR frame published (null before the first OnPaint).
   // The element-composer path uploads this same picture into the per-element
   // scene layers; holding one reference here means the composer does not have
@@ -84,6 +99,21 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
   base::scoped_refptr<VideoFrame> last_frame() const;
 
   bool is_running() const;
+
+  // Bake 时钟步进：+1 VT credit，下一帧 OnPaint 以确定性时刻渲染。
+  // 仅 bake_virtual_time=true 的层有意义；每个输出帧调用一次。
+  void RequestVtStep();
+
+  // caller-thread pump 模式的 CEF 驱动：处理 UI 任务 + 发布脏帧。宿主在
+  // 等新帧的循环里反复调用（Pump + 检查 last_frame 变化）。
+  void Pump();
+
+  // Bake 时序应用：按 data-start/data-duration 切换页面元素可见性，使
+  // 光栅只含 t 时刻生效的元素（每输出帧、RequestVtStep 之前调用）。
+  void ApplyTimeline(int64_t t_ms);
+
+  // 强制全视图重绘（bake：时序应用后的确定性出帧）。
+  void Invalidate();
 
  private:
   struct Impl;

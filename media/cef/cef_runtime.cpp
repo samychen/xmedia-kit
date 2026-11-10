@@ -342,6 +342,17 @@ void CefRuntime::RequestVtStep(BrowserHandle handle) {
 #endif
 }
 
+void CefRuntime::Invalidate(BrowserHandle handle) {
+#if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF
+  if (!handle || !handle->client) {
+    return;
+  }
+  handle->client->InvalidateView();
+#else
+  (void)handle;
+#endif
+}
+
 void CefRuntime::CloseBrowser(BrowserHandle handle) {
 #if defined(XMEDIA_HAS_CEF) && XMEDIA_HAS_CEF
   if (!handle || !handle->client) {
