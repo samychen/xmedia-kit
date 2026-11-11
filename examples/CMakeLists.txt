@@ -71,7 +71,8 @@ add_subdirectory(base)
 if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
   add_executable(html_bake html_bake.cc)
   target_link_libraries(html_bake PRIVATE xmedia::xmedia-kit
-      xmedia::platform_glfw xmedia::cef xmedia::transcode)
+      xmedia::platform_glfw xmedia::cef xmedia::transcode
+      $<$<BOOL:${XMEDIA_HAS_LOTTIE}>:xmedia::lottie>)
   target_include_directories(html_bake SYSTEM PRIVATE ${FFmpeg_INCLUDE_DIRS})
   xmedia_configure_target(html_bake)
   xmedia_assemble_cef_app(html_bake)

@@ -115,6 +115,14 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
   // 强制全视图重绘（bake：时序应用后的确定性出帧）。
   void Invalidate();
 
+  // ---- TickBakeClock（MC 对齐）：统一时钟分发 ----------------------------
+  // 每个 compose tick 调一次；按配置分派：
+  //   bake_virtual_time=true → 一个 VT credit（忽略 PTS 追赶，VT 自驱）
+  //   否则 → seek 时钟：t_ms = media_pts_ms；同 t 去重、seek 在飞去重、
+  //   seek_unsupported 短路（回退 live 绘制）——MC TickBakeClock 门控
+  //   语义对齐。live（两者皆非）= no-op。
+  void TickBakeClock(int64_t media_pts_ms);
+
   // 等渲染进程执行完 t 的可见性应用（mc.html.applied 回执）。bake 的
   // 确定性前提：步进前确认 DOM 已是 t 的状态。超时返回 false。
   bool AwaitTimelineApplied(int64_t t_ms, int timeout_ms = 2000);

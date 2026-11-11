@@ -68,13 +68,26 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
   std::condition_variable seek_cv;
   int64_t seek_done_t_ms = -1;
   bool seek_unsupported_ = false;
+  int64_t last_seek_t_ms_ = -1;
+  bool seek_in_flight_ = false;
 
   // HtmlBrowserListener（CEF UI 线程）。
   void OnHtmlReady() override {}
   void OnHtmlError(const std::string& message) override {
     LOG(ERROR) << "cef layer: html error: " << message;
+    if (message == "no_seek") {
+      std::lock_guard<std::mutex> scoped(seek_mutex);
+      seek_unsupported_ = true;
+      seek_in_flight_ = false;
+      seek_cv.notify_all();
+    }
   }
-  void OnHtmlSeekDone(int64_t) override {}
+  void OnHtmlSeekDone(int64_t t_ms) override {
+    std::lock_guard<std::mutex> scoped(seek_mutex);
+    seek_done_t_ms = std::max(seek_done_t_ms, t_ms);
+    seek_in_flight_ = false;
+    seek_cv.notify_all();
+  }
   void OnTimelineApplied(int64_t t_ms) override {
     std::lock_guard<std::mutex> scoped(applied_mutex);
     applied_t_ms = std::max(applied_t_ms, t_ms);
@@ -365,6 +378,30 @@ void CefLayerSource::ApplyTimeline(int64_t t_ms) {
             "window.cefQuery({request:'mc.html.error:no_apply',"
             "persistent:false,onSuccess:function(){},onFailure:function(){}}));");
   }
+}
+
+void CefLayerSource::TickBakeClock(int64_t media_pts_ms) {
+  if (impl_ == nullptr || !impl_->running.load()) {
+    return;
+  }
+  if (impl_->config.bake_virtual_time) {
+    // VT：一个 credit/compose tick；PTS 追赶无意义（VT 自驱确定性）。
+    impl_->runtime.RequestVtStep(impl_->browser);
+    return;
+  }
+  if (!impl_->seek_unsupported_) {
+    // seek 时钟门控（MC 对齐）：同 t 去重 + seek 在飞去重 + 未支持短路。
+    if (media_pts_ms < 0 || media_pts_ms == impl_->last_seek_t_ms_ ||
+        impl_->seek_in_flight_) {
+      return;
+    }
+    impl_->last_seek_t_ms_ = media_pts_ms;
+    impl_->seek_in_flight_ = true;
+    impl_->runtime.ExecuteJavaScript(impl_->browser,
+                                     cef::MakeSeekScript(media_pts_ms));
+    return;
+  }
+  // live（seek 不支持 + 非 VT）：墙钟绘制，时钟干预 no-op。
 }
 
 void CefLayerSource::Invalidate() {

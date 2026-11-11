@@ -254,3 +254,36 @@ if(XMEDIA_HAS_CEF)
     xmedia_configure_target(xmedia_cef)
   endif()
 endif()
+
+# --- Lottie（rlottie 静态库门控，对齐 CEF 降级模式） ------------------------
+# tools/setup_rlottie.sh 产出 librlottie.a + rlottie/*.h；找不到时
+# XMEDIA_ENABLE_LOTTIE 降级 OFF，lottie 消费方编译为空壳。
+if(XMEDIA_ENABLE_LOTTIE)
+  find_path(XMEDIA_LOTTIE_INCLUDE_DIR rlottie/rlottie.h
+      HINTS ${CMAKE_SOURCE_DIR}/tools/build/include)
+  find_library(XMEDIA_LOTTIE_LIBRARY rlottie
+      HINTS ${CMAKE_SOURCE_DIR}/tools/build/lib)
+  if(XMEDIA_LOTTIE_INCLUDE_DIR AND XMEDIA_LOTTIE_LIBRARY)
+    set(XMEDIA_HAS_LOTTIE 1 CACHE INTERNAL "")
+    message(STATUS "XMEDIA_ENABLE_LOTTIE: rlottie at ${XMEDIA_LOTTIE_LIBRARY}")
+  else()
+    set(XMEDIA_HAS_LOTTIE 0 CACHE INTERNAL "")
+    set(XMEDIA_ENABLE_LOTTIE OFF CACHE BOOL "" FORCE)
+    message(WARNING "XMEDIA_ENABLE_LOTTIE=ON but librlottie not found; "
+                    "run tools/setup_rlottie.sh — lottie layer disabled")
+  endif()
+endif()
+
+if(XMEDIA_HAS_LOTTIE)
+  file(GLOB XMEDIA_LOTTIE_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/lottie/*.cc")
+  add_library(xmedia_lottie STATIC ${XMEDIA_LOTTIE_SOURCES})
+  add_library(xmedia::lottie ALIAS xmedia_lottie)
+  target_include_directories(xmedia_lottie PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+      ${XMEDIA_LOTTIE_INCLUDE_DIR})
+  target_compile_definitions(xmedia_lottie PUBLIC XMEDIA_HAS_LOTTIE=1)
+  target_link_libraries(xmedia_lottie PUBLIC xmedia::media
+      ${XMEDIA_LOTTIE_LIBRARY})
+  xmedia_configure_target(xmedia_lottie)
+endif()

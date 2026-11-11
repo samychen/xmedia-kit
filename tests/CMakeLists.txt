@@ -258,6 +258,15 @@ if(XMEDIA_ENABLE_FFMPEG)
     endif()
   endif()
 
+  # ---- lottie：时钟映射单测（渲染路径经 html_bake_smoke 覆盖）。
+  if(XMEDIA_HAS_LOTTIE)
+    file(GLOB XMEDIA_LOTTIE_UNITTEST_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/unit/media_lottie/*.cc")
+    xmedia_add_unittest(lottie_unittests
+        SOURCES ${XMEDIA_LOTTIE_UNITTEST_SOURCES}
+        DEPS xmedia::lottie xmedia::base_test_support)
+  endif()
+
   # ---- player + FFmpeg: the opt-in transcode entry on the Player API
   # surface (xmedia_player_transcode). Its own binary for the same reason as
   # media_transcode_unittests -- and because unit/player/ stays globbed into

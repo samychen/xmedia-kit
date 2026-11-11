@@ -42,6 +42,11 @@
 #include "media/base/video_frame.h"
 #include "media/cef/cef_app.h"
 #include "media/cef/cef_layer_source.h"
+
+#if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
+#include "media/lottie/lottie_animation.h"
+#include "media/lottie/lottie_clock.h"
+#endif
 #include "media/cef/cef_runtime.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
@@ -100,6 +105,11 @@ struct Args {
   int chunks = 1;
   // 页面数据注入（window.update 契约）：首帧后注入一次。
   std::string data_json;
+  // Lottie 叠加层：路径 + 绘制 z（默认垫在 HTML 元素之下）。
+  std::string lottie_path;
+  int lottie_z = -1;
+  double lottie_speed = 1.0;
+  int lottie_loop = 1;
 };
 
 Args ParseArgs(int argc, char** argv) {
@@ -135,6 +145,18 @@ Args ParseArgs(int argc, char** argv) {
       ++i;
     } else if (std::strcmp(argv[i], "--data") == 0 && !v.empty()) {
       a.data_json = v;
+      ++i;
+    } else if (std::strcmp(argv[i], "--lottie") == 0 && !v.empty()) {
+      a.lottie_path = v;
+      ++i;
+    } else if (std::strcmp(argv[i], "--lottie-z") == 0) {
+      a.lottie_z = std::atoi(v.c_str());
+      ++i;
+    } else if (std::strcmp(argv[i], "--lottie-speed") == 0) {
+      a.lottie_speed = std::atof(v.c_str());
+      ++i;
+    } else if (std::strcmp(argv[i], "--lottie-loop") == 0) {
+      a.lottie_loop = std::atoi(v.c_str());
       ++i;
     }
   }
@@ -334,6 +356,29 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Lottie 叠加层（XMEDIA_HAS_LOTTIE）：独立场景层，z 垫在 HTML 元素下。
+#if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
+  std::unique_ptr<lottie::LottieAnimation> lottie_anim;
+  GlScene::LayerId lottie_layer = GlScene::kNoLayer;
+  if (!args.lottie_path.empty()) {
+    lottie::LottieSourceParams lp;
+    lp.path = args.lottie_path;
+    lp.speed = args.lottie_speed;
+    lp.loop = args.lottie_loop != 0;
+    lottie_anim = lottie::LottieAnimation::Open(lp, std::max(drawable_w, drawable_h));
+    if (lottie_anim) {
+      lottie_layer = scene->AddVideoLayer(args.lottie_z);
+      // Lottie 铺满内容矩形（与元素拆纹理同一内容映射）。
+      scene->SetLayerRect(lottie_layer, 0.f, 0.f, 1.f, 1.f);
+      std::fprintf(stderr, "html_bake: lottie %s — %d frames @ %.2f fps, "
+                           "surface %dx%d\n",
+                   args.lottie_path.c_str(), lottie_anim->total_frame(),
+                   lottie_anim->src_fps(), lottie_anim->surface_width(),
+                   lottie_anim->surface_height());
+    }
+  }
+#endif
+
   // 时序预热：采集脚本经 OnLoadEnd 重注入，但 ExecuteJavaScript 的渲染
   // 进程落地相对 VT 步进有 ~2 帧热身期（实测前两帧时序不生效）。先丢两
   // 轮 t=0 的步进，DOM 可见性机制稳定后再开录。
@@ -376,29 +421,23 @@ int main(int argc, char** argv) {
         static_cast<int64_t>(f) * 1000 / std::max(1, args.fps);
     const void* previous = layer.last_frame().get();
     if (!synthetic) {
+      // 统一时钟分发（TickBakeClock）：VT = credit/帧；seek = 同 t 去重
+      // + 在飞门控的 window.seek；live = no-op。
+      layer.TickBakeClock(t_ms);
       if (args.clock == "seek") {
-        // Seek 时钟（MC 默认）：window.seek(t) 页面契约驱动，页面
-        // 自持时间线。无 window.seek 的页面（no_seek 回执）回退到
-        // 预应用时序（live 绘制 + ApplyTimeline ACK 门）。
-        layer.SeekDocument(t_ms);
+        // seekDone 门（页面契约回执）；no_seek 页面回退预应用时序。
         if (!layer.AwaitSeekDone(t_ms, 2000)) {
           if (layer.seek_unsupported()) {
-            // 页面无 window.seek：回退预应用时序（live 绘制 + ACK 门）。
             layer.ApplyTimeline(t_ms);
             if (!layer.AwaitTimelineApplied(t_ms, 2000)) {
               std::fprintf(stderr, "html_bake: fallback ack %d miss\n",
                            f);
             }
           } else {
-            // seekDone 超时：对齐 MC 的 deadline 语义——放行并带病继续
-            //（页面可能迟迟不回报；不放弃整场烘焙）。
+            // seekDone 超时：对齐 MC deadline 语义——带病继续。
             std::fprintf(stderr, "html_bake: seek %d done not in 2s\n", f);
           }
         }
-      } else if (args.clock == "virtual_time") {
-        // t 的可见性已在上一帧录制尾预应用（帧尾预应用 + ACK），
-        // 直接步进：绘制必然携带本帧状态。
-        layer.RequestVtStep();
       }
       // seek/live：页面只在内容变化时出帧（无变化 = 最后一次 paint 就
       // 是本帧内容）——短等待新 paint 以提高新鲜度，超时用当前帧，不
@@ -453,6 +492,14 @@ int main(int argc, char** argv) {
                               ? synthetic_entries
                               : layer.SnapshotElements().entries();
     composer.Sync(*scene, frame.get(), elements, t_ms);
+#if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
+    if (lottie_anim && lottie_layer != GlScene::kNoLayer) {
+      auto lf = lottie_anim->RenderAtMs(t_ms);
+      if (lf) {
+        scene->Upload(lottie_layer, *lf);
+      }
+    }
+#endif
     if (!presenter.ComposeScene(*scene)) {
       std::fprintf(stderr, "html_bake: compose failed at frame %d\n", f);
       return false;
