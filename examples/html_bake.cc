@@ -91,12 +91,15 @@ struct Args {
   int width = 320;
   int height = 240;
   std::string codec = "mjpeg";
-  // vt = VirtualTime bake（确定性）；live = 墙钟（诊断用）。
-  bool vt_clock = true;
+  // bake 时钟（MC html_bake_clock 对齐）：virtual_time = VT 步进；
+  // seek = 页面 window.seek(t_ms) 契约（MC 默认）；live = 墙钟。
+  std::string clock = "virtual_time";
   // 分块数：时间线均分为 N 窗，每窗独立烘焙（VT 从 0 快进到窗起点——
   // 合成确定性使任意边界成为可能，无 keyframe 对齐约束），Concat 无损
   // 拼接。1 = 单块直通。
   int chunks = 1;
+  // 页面数据注入（window.update 契约）：首帧后注入一次。
+  std::string data_json;
 };
 
 Args ParseArgs(int argc, char** argv) {
@@ -124,11 +127,14 @@ Args ParseArgs(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--codec") == 0 && !v.empty()) {
       a.codec = v;
       ++i;
-    } else if (std::strcmp(argv[i], "--clock") == 0 && v == "live") {
-      a.vt_clock = false;
+    } else if (std::strcmp(argv[i], "--clock") == 0 && !v.empty()) {
+      a.clock = v;  // virtual_time | seek | live
       ++i;
     } else if (std::strcmp(argv[i], "--chunks") == 0) {
       a.chunks = std::max(1, std::atoi(v.c_str()));
+      ++i;
+    } else if (std::strcmp(argv[i], "--data") == 0 && !v.empty()) {
+      a.data_json = v;
       ++i;
     }
   }
@@ -265,7 +271,7 @@ int main(int argc, char** argv) {
   config.height = args.height;
   config.fps = args.fps;
   config.url = args.url;
-  config.bake_virtual_time = args.vt_clock;
+  config.bake_virtual_time = args.clock == "virtual_time";
   // GLFW 占据主线程 run loop：CEF 的 Init/pump 必须同在主线程（见
   // pump_on_caller_thread 的注释——pump 线程模式实测死锁在 CefInitialize）。
   config.pump_on_caller_thread = true;
@@ -321,6 +327,13 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  if (!args.data_json.empty()) {
+    if (!layer.SetHtmlData(args.data_json)) {
+      std::fprintf(stderr, "html_bake: --data rejected (invalid JSON)\n");
+      return 1;
+    }
+  }
+
   // 时序预热：采集脚本经 OnLoadEnd 重注入，但 ExecuteJavaScript 的渲染
   // 进程落地相对 VT 步进有 ~2 帧热身期（实测前两帧时序不生效）。先丢两
   // 轮 t=0 的步进，DOM 可见性机制稳定后再开录。
@@ -363,14 +376,42 @@ int main(int argc, char** argv) {
         static_cast<int64_t>(f) * 1000 / std::max(1, args.fps);
     const void* previous = layer.last_frame().get();
     if (!synthetic) {
-      // t 的可见性已在上一帧录制尾预应用（帧尾预应用 + ACK），直接
-      // 步进：绘制必然携带本帧状态。
-      layer.RequestVtStep();
-      if (!WaitNewFrame(&layer, previous, 5000)) {
-        std::fprintf(stderr, "html_bake: VT step %d timed out\n", f);
-        return false;
+      if (args.clock == "seek") {
+        // Seek 时钟（MC 默认）：window.seek(t) 页面契约驱动，页面
+        // 自持时间线。无 window.seek 的页面（no_seek 回执）回退到
+        // 预应用时序（live 绘制 + ApplyTimeline ACK 门）。
+        layer.SeekDocument(t_ms);
+        if (!layer.AwaitSeekDone(t_ms, 2000)) {
+          if (layer.seek_unsupported()) {
+            // 页面无 window.seek：回退预应用时序（live 绘制 + ACK 门）。
+            layer.ApplyTimeline(t_ms);
+            if (!layer.AwaitTimelineApplied(t_ms, 2000)) {
+              std::fprintf(stderr, "html_bake: fallback ack %d miss\n",
+                           f);
+            }
+          } else {
+            // seekDone 超时：对齐 MC 的 deadline 语义——放行并带病继续
+            //（页面可能迟迟不回报；不放弃整场烘焙）。
+            std::fprintf(stderr, "html_bake: seek %d done not in 2s\n", f);
+          }
+        }
+      } else if (args.clock == "virtual_time") {
+        // t 的可见性已在上一帧录制尾预应用（帧尾预应用 + ACK），
+        // 直接步进：绘制必然携带本帧状态。
+        layer.RequestVtStep();
       }
-      if (record) {
+      // seek/live：页面只在内容变化时出帧（无变化 = 最后一次 paint 就
+      // 是本帧内容）——短等待新 paint 以提高新鲜度，超时用当前帧，不
+      // 致命。VT 模式每步强制重绘，长等待 + 致命。
+      if (args.clock == "virtual_time") {
+        if (!WaitNewFrame(&layer, previous, 5000)) {
+          std::fprintf(stderr, "html_bake: paint %d timed out\n", f);
+          return false;
+        }
+      } else {
+        WaitNewFrame(&layer, previous, 300);
+      }
+      if (record && args.clock == "virtual_time") {
         // 边界帧（元素进/出生效窗）：内容验证式重绘。合成器提交预
         // 应用状态可能落后数拍，"来了新帧"不等于"新帧携带新状态"
         // ——反复无效化并等新帧，直到光栅内容与上一录制帧不同
@@ -482,9 +523,12 @@ int main(int argc, char** argv) {
     const int64_t next_t =
         static_cast<int64_t>(f + 1) * 1000 / std::max(1, args.fps);
     prev_raster_hash = raster_hash(*frame);
-    layer.ApplyTimeline(next_t);
-    if (!layer.AwaitTimelineApplied(next_t, 2000)) {
-      std::fprintf(stderr, "html_bake: pre-apply %d ack miss\n", f);
+    if (args.clock == "virtual_time") {
+      layer.ApplyTimeline(next_t);
+      if (!layer.AwaitTimelineApplied(next_t, 2000)) {
+        std::fprintf(stderr, "html_bake: pre-apply %d ack miss\n",
+                     f);
+      }
     }
     return true;
   };
@@ -540,11 +584,15 @@ int main(int argc, char** argv) {
 
     // 窗前快进（VT 从 0 确定性推进到窗起点），然后逐帧录制。录制前
     // 预应用块首帧的时序并等 ACK。
-    const int64_t begin_t =
-        static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
-    layer.ApplyTimeline(begin_t);
-    if (!layer.AwaitTimelineApplied(begin_t, 2000)) {
-      std::fprintf(stderr, "html_bake: chunk %d pre-apply ack miss\n", c);
+    if (args.clock == "virtual_time") {
+      const int64_t begin_t =
+          static_cast<int64_t>(begin) * 1000 /
+          std::max(1, args.fps);
+      layer.ApplyTimeline(begin_t);
+      if (!layer.AwaitTimelineApplied(begin_t, 2000)) {
+        std::fprintf(stderr,
+                     "html_bake: chunk %d pre-apply ack miss\n", c);
+      }
     }
     bool ok = true;
     for (int f = 0; ok && f < begin; ++f) {
@@ -569,6 +617,33 @@ int main(int argc, char** argv) {
     }
   }
   layer.Stop();
+
+  // 元数据导出（MC render_demo 对齐）：<out>.html_elements.json——
+  // 元素级时序/矩形元数据，供合成工具与调试消费。
+  {
+    HtmlElementMetaDoc doc;
+    doc.html_url = args.url;
+    doc.mode = "bake";
+    doc.bake_clock = args.clock;
+    doc.view_width = drawable_w;
+    doc.view_height = drawable_h;
+    const auto table = layer.SnapshotElements();
+    doc.report.collect_requested = true;
+    doc.report.any_report = table.last_t_ms() >= 0;
+    doc.report.entries = table.entries();
+    doc.report.last_report_t_ms = table.last_t_ms();
+    const std::string meta = BuildElementsMetaJson(doc);
+    const std::string meta_path = HtmlElementsMetaJsonPath(args.out);
+    std::FILE* mf = std::fopen(meta_path.c_str(), "wb");
+    if (mf != nullptr) {
+      std::fwrite(meta.data(), 1, meta.size(), mf);
+      std::fclose(mf);
+      std::printf("html_bake: metadata %s\n", meta_path.c_str());
+    } else {
+      std::fprintf(stderr, "html_bake: cannot write %s\n",
+                   meta_path.c_str());
+    }
+  }
 
   if (chunk_paths.size() > 1) {
     ConcatParams cp;

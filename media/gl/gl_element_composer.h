@@ -29,6 +29,7 @@
 #include "media/base/html_element_meta.h"
 #include "media/base/video_frame.h"
 #include "media/gl/gl_scene.h"
+#include "media/gl/layer_keyframes.h"
 #include "media/media_export.h"
 
 namespace xmedia::media {
@@ -46,6 +47,10 @@ class XMEDIA_MEDIA_EXPORT GlElementComposer {
     // 共享纹理（默认开）：一个隐藏 master 层持有上传，元素层是其纹理
     // 视图——N 元素 1 份纹理拷贝。关掉则每元素层独立上传（旧行为）。
     bool share_textures = true;
+    // 整层逐属性动画（MC LayerPropertyAnimation 对齐）：opacity 应用到
+    // 各元素层；x/y/scale 应用到内容矩形（整页变换语义）。rotation 在
+    // 元素拆纹理下与整层语义不等价，不移植（见 layer_keyframes.h）。
+    xmedia::gl::LayerPropertyAnimation animation;
   };
 
   explicit GlElementComposer(Config config);

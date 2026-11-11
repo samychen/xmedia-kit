@@ -53,6 +53,13 @@ namespace cef {
 // ExecuteJavaScript; the collector self-reports t=0 at inject.
 std::string MakeRectsScript();
 
+// Bake seek 时钟脚本（window.seek 契约 + no_seek 回退上报）。
+std::string MakeSeekScript(int64_t t_ms);
+
+// 页面数据注入脚本（window.update 契约）+ 注入前校验门。
+std::string MakeUpdateScript(const std::string& json_utf8);
+bool ValidateHtmlDataJson(const std::string& json_utf8);
+
 class CefOsClient : public CefClient,
                     public CefRenderHandler,
                     public CefLifeSpanHandler,

@@ -22,6 +22,8 @@
 #include <utility>
 
 #include "base/logging.h"
+#include <cstdio>
+
 #include "media/cef/cef_osr_client.h"
 #include "media/cef/cef_runtime.h"
 
@@ -55,6 +57,17 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
   // 时序应用回执：渲染进程执行到的时间（单调）。
   std::mutex applied_mutex;
   std::condition_variable applied_cv;
+
+  // 页面数据注入：SetHtmlData 暂存，首次出帧后注入一次。
+  std::mutex data_mutex;
+  std::string pending_data_json;
+  bool data_injected = false;
+
+  // seek 时钟：seekDone 到达时间（单调）+ 页面无 window.seek 标记。
+  std::mutex seek_mutex;
+  std::condition_variable seek_cv;
+  int64_t seek_done_t_ms = -1;
+  bool seek_unsupported_ = false;
 
   // HtmlBrowserListener（CEF UI 线程）。
   void OnHtmlReady() override {}
@@ -127,6 +140,19 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
     }
     source->Publish(std::move(out));
     ++published_frames;
+    // 数据注入时机（MC FlushPendingDataIfReady 对齐）：首次出帧后一次。
+    std::string data;
+    {
+      std::lock_guard<std::mutex> scoped(data_mutex);
+      if (!data_injected && published_frames >= 1 &&
+          !pending_data_json.empty()) {
+        data = pending_data_json;
+        data_injected = true;
+      }
+    }
+    if (!data.empty() && browser) {
+      runtime.ExecuteJavaScript(browser, cef::MakeUpdateScript(data));
+    }
   }
 
   void PumpLoop() {
@@ -254,25 +280,79 @@ bool CefLayerSource::AwaitTimelineApplied(int64_t t_ms,
   }
   const auto deadline = std::chrono::steady_clock::now() +
                         std::chrono::milliseconds(timeout_ms);
+  // 自旋而非 CV 等待：caller-thread 模式下回执需要本线程 Pump 才能被
+  // 处理，wait_until 阻塞会把处理者卡死在等待里（实测每次 await 都
+  // 耗满超时后才能在下一次 Pump 中看到回执）。
   while (true) {
     if (!impl_->running.load()) {
       return false;
     }
-    // caller-thread pump 模式：CEF 任务由宿主 Pump 驱动，回执查询
-    // 才能在 Pump 内被处理；pump 线程模式由后台线程驱动。
     if (impl_->config.pump_on_caller_thread) {
       impl_->runtime.DoMessageLoopWork();
     }
     {
-      std::unique_lock<std::mutex> lock(impl_->applied_mutex);
+      std::lock_guard<std::mutex> lock(impl_->applied_mutex);
       if (impl_->applied_t_ms >= t_ms) {
         return true;
       }
-      impl_->applied_cv.wait_until(lock, deadline);
     }
     if (std::chrono::steady_clock::now() >= deadline) {
       return false;
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+}
+
+bool CefLayerSource::SetHtmlData(std::string json_utf8) {
+  if (!cef::ValidateHtmlDataJson(json_utf8)) {
+    return false;
+  }
+  if (impl_ == nullptr) {
+    return false;
+  }
+  std::lock_guard<std::mutex> scoped(impl_->data_mutex);
+  impl_->pending_data_json = std::move(json_utf8);
+  impl_->data_injected = false;
+  return true;
+}
+
+bool CefLayerSource::seek_unsupported() const {
+  return impl_ && impl_->seek_unsupported_;
+}
+
+void CefLayerSource::SeekDocument(int64_t t_ms) {
+  if (impl_ && impl_->browser) {
+    impl_->runtime.ExecuteJavaScript(impl_->browser,
+                                     cef::MakeSeekScript(t_ms));
+  }
+}
+
+bool CefLayerSource::AwaitSeekDone(int64_t t_ms, int timeout_ms) {
+  if (impl_ == nullptr) {
+    return false;
+  }
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(timeout_ms);
+  while (true) {
+    if (!impl_->running.load()) {
+      return false;
+    }
+    if (impl_->config.pump_on_caller_thread) {
+      impl_->runtime.DoMessageLoopWork();
+    }
+    {
+      std::lock_guard<std::mutex> scoped(impl_->seek_mutex);
+      if (impl_->seek_unsupported_) {
+        return false;
+      }
+      if (impl_->seek_done_t_ms >= t_ms) {
+        return true;
+      }
+    }
+    if (std::chrono::steady_clock::now() >= deadline) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 }
 
@@ -280,8 +360,10 @@ void CefLayerSource::ApplyTimeline(int64_t t_ms) {
   if (impl_ && impl_->browser) {
     impl_->runtime.ExecuteJavaScript(
         impl_->browser,
-        "window.__mcApplyTimeline && window.__mcApplyTimeline(" +
-            std::to_string(t_ms) + ");");
+        "window.__mcApplyTimeline ? window.__mcApplyTimeline(" +
+            std::to_string(t_ms) + ") : (window.cefQuery && "
+            "window.cefQuery({request:'mc.html.error:no_apply',"
+            "persistent:false,onSuccess:function(){},onFailure:function(){}}));");
   }
 }
 

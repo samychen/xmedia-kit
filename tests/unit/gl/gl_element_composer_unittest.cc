@@ -8,6 +8,7 @@
 // "没拆整层糊上去"给不出区别）。
 
 #include "media/gl/gl_element_composer.h"
+#include "media/gl/layer_keyframes.h"
 
 #include <memory>
 #include <string>
@@ -281,6 +282,38 @@ TEST_F(ElementComposerTest, UnsharedFallbackMatchesPixelContract) {
   EXPECT_EQ(At(0.25f, 0.25f), red);
   EXPECT_EQ(At(0.75f, 0.75f), blue);
   EXPECT_LT(At(0.75f, 0.25f).r, 50);
+}
+
+
+// 整层透明度关键帧（MC LayerPropertyAnimation 对齐）：opacity 0→1 的
+// 前半段元素不可见（透明层叠在背景上），后半段逐渐可见——像素判据。
+TEST_F(ElementComposerTest, OpacityKeyframeFadesElementIn) {
+  GlElementComposer::Config config;
+  config.target_w = kRequestedSize;
+  config.target_h = kRequestedSize;
+  config.default_z = 0;
+  config.animation.opacity = {
+      {0, 0.f, xmedia::gl::EaseType::Linear, {0.25f, 0.1f, 0.25f, 1.f}},
+      {200, 1.f, xmedia::gl::EaseType::Linear, {0.25f, 0.1f, 0.25f, 1.f}},
+  };
+  GlElementComposer composer(config);
+  std::vector<HtmlElementMetaEntry> entries = {
+      Element("tl", 0, 0.f, 0.f, kHalf, kHalf),
+  };
+  const auto step = [&](int64_t t) {
+    composer.Sync(*scene_, frame_.get(), entries, t);
+    EXPECT_TRUE(presenter_->ComposeScene(*scene_));
+    presenter_->PresentComposed();
+  };
+  step(0);
+  EXPECT_LT(At(0.25f, 0.25f).r, 50) << "opacity 0: element invisible";
+  step(100);
+  const int mid = At(0.25f, 0.25f).r;
+  step(200);
+  const test::Rgb red{255, 0, 0};
+  EXPECT_EQ(At(0.25f, 0.25f), red) << "opacity 1: fully visible";
+  EXPECT_GT(mid, 50) << "opacity 0.5: partially blended";
+  EXPECT_LT(mid, red.r) << "opacity 0.5: not yet fully red";
 }
 
 }  // namespace

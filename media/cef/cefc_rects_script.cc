@@ -10,6 +10,99 @@
 namespace xmedia {
 namespace cef {
 
+// 页面数据注入（MC MakeUpdateScript 对齐）：window.update(d) 契约
+//（caspar.update 兜底），页面经回调消费 data JSON。
+std::string MakeUpdateScript(const std::string& json_utf8) {
+  return std::string(
+             "(function(){\n"
+             "  var d = ") +
+         json_utf8 +
+         ";\n"
+         "  try {\n"
+         "    if (typeof window.update === 'function') {\n"
+         "      window.update(d);\n"
+         "      return;\n"
+         "    }\n"
+         "    console.warn('[bake] window.update missing');\n"
+         "  } catch (e) {\n"
+         "    console.warn('[bake] data inject failed', e);\n"
+         "  }\n"
+         "})();\n";
+}
+
+// 注入前校验（安全门）：拒绝非 JSON / 非对象数组根——原始拼接进
+// ExecuteJavaScript 等于脚本注入。无 jsoncpp，用最小状态机：根必须是
+// { 或 [，字符串/转义感知的括号配平 + 结尾无垃圾。非完整 JSON 解析器，
+// 语义错误交给页面侧 window.update 自然失败。
+bool ValidateHtmlDataJson(const std::string& json_utf8) {
+  size_t i = 0;
+  while (i < json_utf8.size() &&
+         (json_utf8[i] == ' ' || json_utf8[i] == '\t' ||
+          json_utf8[i] == '\r' || json_utf8[i] == '\n')) {
+    ++i;
+  }
+  if (i >= json_utf8.size() ||
+      (json_utf8[i] != '{' && json_utf8[i] != '[')) {
+    return false;
+  }
+  int depth = 0;
+  bool in_string = false;
+  bool escaped = false;
+  bool closed = false;
+  for (; i < json_utf8.size(); ++i) {
+    const char c = json_utf8[i];
+    if (in_string) {
+      if (escaped) {
+        escaped = false;
+      } else if (c == '\\') {
+        escaped = true;
+      } else if (c == '"') {
+        in_string = false;
+      }
+      continue;
+    }
+    if (c == '"') {
+      in_string = true;
+    } else if (c == '{' || c == '[') {
+      ++depth;
+    } else if (c == '}' || c == ']') {
+      --depth;
+      if (depth == 0) {
+        closed = true;
+      } else if (depth < 0) {
+        return false;
+      }
+    }
+  }
+  return closed && !in_string;
+}
+
+// Bake seek 时钟（对齐 MC HtmlLayerProducer）：页面实现 window.seek(t_ms)
+// 时调用之并让采集脚本在新 t 重报 rects；页面未实现时一次性上报
+// mc.html.error:no_seek，bake 侧据此回退 live 墙钟绘制。
+std::string MakeSeekScript(int64_t t_ms) {
+  return std::string(
+             "(function(t){\n"
+             "  if (typeof window.seek === 'function') {\n"
+             "    window.seek(t);\n"
+             "    if (typeof window.__mcReportRects === 'function') {\n"
+             "      try { window.__mcReportRects(t); } catch (e) {}\n"
+             "    }\n"
+             "    return;\n"
+             "  }\n"
+             "  if (!window.__mcBakeSeekWarned) {\n"
+             "    window.__mcBakeSeekWarned = true;\n"
+             "    console.warn('[bake] window.seek missing');\n"
+             "    if (window.cefQuery) {\n"
+             "      window.cefQuery({request:'mc.html.error:no_seek',"
+             "persistent:false,onSuccess:function(){},"
+             "onFailure:function(){}});\n"
+             "    }\n"
+             "  }\n"
+             "})(") +
+         std::to_string(t_ms) + ");\n";
+}
+
 std::string MakeRectsScript() {
   return R"js((function(){
   if (window.__mcRectsCollector) { return; }

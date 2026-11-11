@@ -30,14 +30,38 @@ int GlElementComposer::Sync(GlScene& scene, const VideoFrame* frame,
                      return a.ordinal < b.ordinal;
                    });
 
-  // 内容矩形的 GL 像素（MapElementRectToCanvas 的输入，y 向上、y 为底边）。
   const float tx = static_cast<float>(config_.target_w);
   const float ty = static_cast<float>(config_.target_h);
-  const int cx = static_cast<int>(config_.content_x * tx);
+
+  // 整层动画求值（本帧 t）：x/y 绝对替换内容矩形归一化原点，scale 绕
+  // 内容中心缩放——全部元素共享同一变换（整页变换语义）。
+  xmedia::gl::AnimatedLayerValues anim;
+  xmedia::gl::EvaluateLayerAnimation(config_.animation, t_ms, &anim);
+  float content_x = config_.content_x;
+  float content_y = config_.content_y;
+  float content_w = config_.content_w;
+  float content_h = config_.content_h;
+  if (anim.has_x) {
+    content_x = anim.x;
+  }
+  if (anim.has_y) {
+    content_y = anim.y;
+  }
+  if (anim.has_scale && anim.scale > 0.f) {
+    const float cx_c = content_x + content_w / 2.f;
+    const float cy_c = content_y + content_h / 2.f;
+    content_w *= anim.scale;
+    content_h *= anim.scale;
+    content_x = cx_c - content_w / 2.f;
+    content_y = cy_c - content_h / 2.f;
+  }
+
+  // 内容矩形的 GL 像素（MapElementRectToCanvas 的输入，y 向上、y 为底边）。
+  const int cx = static_cast<int>(content_x * tx);
   const int cy_gl =
-      static_cast<int>((1.f - config_.content_y - config_.content_h) * ty);
-  const int cw = static_cast<int>(config_.content_w * tx);
-  const int ch = static_cast<int>(config_.content_h * ty);
+      static_cast<int>((1.f - content_y - content_h) * ty);
+  const int cw = static_cast<int>(content_w * tx);
+  const int ch = static_cast<int>(content_h * ty);
 
   const int tex_w = frame ? frame->coded_size().width : 0;
   const int tex_h = frame ? frame->coded_size().height : 0;
@@ -116,6 +140,9 @@ int GlElementComposer::Sync(GlScene& scene, const VideoFrame* frame,
     }
     scene.SetLayerRect(id, rx / tx, 1.f - (ry + rh) / ty, rw / tx, rh / ty);
     scene.SetLayerZ(id, quad.z);
+    scene.SetLayerOpacity(id, anim.has_opacity
+                                  ? std::clamp(anim.opacity, 0.f, 1.f)
+                                  : 1.f);
     scene.SetLayerVisible(id, true);
   }
 

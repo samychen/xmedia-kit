@@ -119,6 +119,19 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
   // 确定性前提：步进前确认 DOM 已是 t 的状态。超时返回 false。
   bool AwaitTimelineApplied(int64_t t_ms, int timeout_ms = 2000);
 
+  // ---- Seek bake 时钟（html_bake_clock=seek，MC 对齐） -------------------
+  // 页面契约 window.seek(t_ms)：页面自持时间线时由它驱动精确渲染；页面
+  // 未实现时（mc.html.error:no_seek 回执）seek_unsupported() 置位，bake
+  // 回退 live 墙钟/预应用时序。
+  // 页面数据注入（MC SetHtmlData 对齐）：校验通过后暂存，首次出帧后
+  // 以 window.update(d) 契约注入一次。校验失败（非 JSON/根非对象数组）
+  // 返回 false——原始拼接进 ExecuteJavaScript 等于脚本注入。
+  bool SetHtmlData(std::string json_utf8);
+
+  void SeekDocument(int64_t t_ms);
+  bool AwaitSeekDone(int64_t t_ms, int timeout_ms = 2000);
+  bool seek_unsupported() const;
+
   // 等渲染进程执行完 t 的可见性应用（mc.html.applied 回执）。bake 的
   // 确定性前提：步进前确认 DOM 已是 t 的状态。超时返回 false。
 

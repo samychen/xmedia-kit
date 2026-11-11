@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html,body{margin:0;width:100%;height:100%;background:#204080;}
+</style></head>
+<body>
+  <div id="databox" data-mc-id="databox" data-start="0" data-z="1" style="position:absolute;left:40px;top:40px;width:200px;height:60px;background:#000;"></div>
+  <script>
+    window.update = function (d) {
+      var box = document.getElementById('databox');
+      // data.color 到达即点亮盒子（注入成功可视判据）
+      if (box && d && d.color) { box.style.background = d.color; }
+    };
+  </script>
+</body></html>

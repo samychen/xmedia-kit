@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Seek bake 时钟测试页：页面实现 window.seek(t_ms) 契约（MC 对齐）——
+     bake 每帧调用它，页面自己精确切时间线（同步执行，无 ACK 竞争）。 -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: #204080; }
+  .box { position: absolute; }
+</style>
+</head>
+<body>
+  <div class="box" data-mc-id="title" data-start="0" data-duration="5000" data-z="1"
+       style="left:20px; top:40px; width:280px; height:60px;
+              background:#804020; color:#fff; font:24px sans-serif;">
+    seek clock smoke
+  </div>
+  <div class="box" id="chip" data-mc-id="chip" data-start="500" data-duration="3000" data-z="2"
+       style="left:60px; top:140px; width:200px; height:50px; background:#208040;"></div>
+  <script>
+    window.seek = function (t) {
+      var chip = document.getElementById('chip');
+      if (chip) {
+        chip.style.visibility = (t >= 500 && t < 3500) ? 'visible' : 'hidden';
+      }
+      // 页面契约：seek 完成后回报 mc.html.seekDone:<t>（bake 侧据此放行）。
+      if (window.cefQuery) {
+        window.cefQuery({
+          request: 'mc.html.seekDone:' + Math.floor(t),
+          persistent: false,
+          onSuccess: function () {},
+          onFailure: function () {}
+        });
+      }
+    };
+  </script>
+</body>
+</html>
