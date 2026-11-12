@@ -69,6 +69,12 @@ struct HtmlElementRect {
   double fade_out = 0;            // data-fade-out（秒，clip 终点线性淡出）
   bool has_has_audio = false;
   bool has_audio = false;         // data-has-audio="true"（保留视频自带音轨）
+  bool has_composition_src = false;
+  std::string composition_src;    // data-composition-src（嵌套合成源）
+  bool has_composition_variables = false;
+  std::string composition_variables;  // data-composition-variables（声明 JSON）
+  bool has_variable_values = false;
+  std::string variable_values;    // data-variable-values（实例值 JSON）
   int ordinal = 0;  // 快照内的文档序（querySelectorAll 顺序）
 };
 
@@ -131,6 +137,12 @@ struct HtmlElementMetaEntry {
   double fade_out = 0;
   bool has_has_audio = false;
   bool has_audio = false;
+  bool has_composition_src = false;
+  std::string composition_src;
+  bool has_composition_variables = false;
+  std::string composition_variables;
+  bool has_variable_values = false;
+  std::string variable_values;
   int64_t last_t_ms = 0;                     // 最近矩形采集时钟
   int64_t first_t_ms = -1;                   // 首次采集时钟（-1 = 从未上报）
   int samples = 0;                           // 收到的快照数

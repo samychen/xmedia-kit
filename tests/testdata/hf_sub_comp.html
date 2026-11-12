@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html data-composition-variables='[
+  {"id":"title","type":"string","label":"Title","default":"Hello"}
+]'>
+<head><meta charset="utf-8"><style>
+  html,body{margin:0;width:100%;height:100%;background:#204080;}
+  .sub-box{position:absolute;left:40px;top:40px;width:200px;height:80px;
+           background:#ff0000;color:#fff;font:28px sans-serif;}
+</style></head>
+<body>
+  <div data-composition-id="sub-comp" data-width="320" data-height="240"
+       class="clip" data-start="0" data-duration="2">
+    <div class="sub-box"></div>
+    <h1 class="sub-title" style="position:absolute;left:40px;top:140px;
+        color:#fff;font:24px sans-serif;"></h1>
+    <script>
+      const v = window.__hyperframes?.getVariables?.() ??
+                window.__hfVariables ?? {title:"Hello"};
+      document.querySelector(".sub-title").textContent = v.title;
+    </script>
+  </div>
+</body></html>

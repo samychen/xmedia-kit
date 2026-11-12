@@ -183,6 +183,12 @@ std::string MakeRectsScript() {
         if (pr !== null) { o.playback_rate = pr; }
         var lsrc = el.getAttribute('data-lottie-src');
         if (lsrc) { o.lottie_src = lsrc; }
+        var csrc = el.getAttribute('data-composition-src');
+        if (csrc) { o.composition_src = csrc; }
+        var cvars = el.getAttribute('data-composition-variables');
+        if (cvars) { o.composition_variables = cvars; }
+        var cvals = el.getAttribute('data-variable-values');
+        if (cvals) { o.variable_values = cvals; }
         var cid = el.getAttribute('data-composition-id');
         if (cid) { o.composition_id = cid; }
         // 音频/媒体链路（data-attributes.md Media 段）。

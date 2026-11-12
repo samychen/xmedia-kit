@@ -192,6 +192,12 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   bool has_composition_id = false;
   std::string composition_id;
   bool has_src = false;
+  bool has_composition_src = false;
+  std::string composition_src;
+  bool has_composition_variables = false;
+  std::string composition_variables;
+  bool has_variable_values = false;
+  std::string variable_values;
   std::string src;
   bool is_media = false;
   bool has_volume = false;
@@ -343,7 +349,9 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
         has_has_audio = true;
         has_audio = v;
       }
-    } else if (key == "lottie_src" || key == "composition_id") {
+    } else if (key == "lottie_src" || key == "composition_id" ||
+               key == "composition_src" || key == "composition_variables" ||
+               key == "variable_values") {
       std::string sink;
       if (!c.ReadString(&sink)) {
         return false;
@@ -351,9 +359,18 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       if (key == "lottie_src") {
         has_lottie_src = true;
         lottie_src = std::move(sink);
-      } else {
+      } else if (key == "composition_id") {
         has_composition_id = true;
         composition_id = std::move(sink);
+      } else if (key == "composition_src") {
+        has_composition_src = true;
+        composition_src = std::move(sink);
+      } else if (key == "composition_variables") {
+        has_composition_variables = true;
+        composition_variables = std::move(sink);
+      } else {
+        has_variable_values = true;
+        variable_values = std::move(sink);
       }
     } else {
       // 未知键：跳过值（字符串/数字/bool/数组/对象都吞掉）。
@@ -451,6 +468,12 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   out->has_composition_id = has_composition_id;
   out->composition_id = std::move(composition_id);
   out->has_src = has_src;
+  out->has_composition_src = has_composition_src;
+  out->composition_src = std::move(composition_src);
+  out->has_composition_variables = has_composition_variables;
+  out->composition_variables = std::move(composition_variables);
+  out->has_variable_values = has_variable_values;
+  out->variable_values = std::move(variable_values);
   out->src = std::move(src);
   out->is_media = is_media;
   out->has_volume = has_volume;

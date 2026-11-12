@@ -77,6 +77,18 @@ void HtmlElementMetaTable::Merge(const HtmlRectsSnapshot& snap) {
       entry->has_composition_id = true;
       entry->composition_id = el.composition_id;
     }
+    if (el.has_composition_src && !entry->has_composition_src) {
+      entry->has_composition_src = true;
+      entry->composition_src = el.composition_src;
+    }
+    if (el.has_composition_variables && !entry->has_composition_variables) {
+      entry->has_composition_variables = true;
+      entry->composition_variables = el.composition_variables;
+    }
+    if (el.has_variable_values && !entry->has_variable_values) {
+      entry->has_variable_values = true;
+      entry->variable_values = el.variable_values;
+    }
     if (el.has_src && !entry->has_src) {
       entry->has_src = true;
       entry->src = el.src;
