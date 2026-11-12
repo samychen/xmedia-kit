@@ -213,6 +213,8 @@ bool CefLayerSource::Start(const Config& config) {
         }
       }
     }
+    impl_raw->runtime.SetHfRuntimeEnabled(
+        impl_raw->config.hyperframes_runtime);
     if (!impl_raw->runtime.Init(framework_dir, subprocess)) {
       LOG(ERROR) << "cef layer: CEF runtime init failed";
       impl_raw->running.store(false);

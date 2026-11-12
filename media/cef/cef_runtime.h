@@ -120,6 +120,10 @@ class CefRuntime {
   void LoadUrl(BrowserHandle handle, const std::string& url);
   void ExecuteJavaScript(BrowserHandle handle, const std::string& code);
   // Bake VirtualTime: +1 credit; CefOsClient posts ArmVt on TID_UI.
+  // HyperFrames runtime 注入门控：仅 HF 契约页需要（注入 runtime 会
+  // 接管 .clip 可见性，非 HF 页的元数据采集会失效）。
+  void SetHfRuntimeEnabled(bool enabled) { hf_runtime_enabled_ = enabled; }
+  bool IsHfRuntimeEnabled() const { return hf_runtime_enabled_; }
   void RequestVtStep(BrowserHandle handle);
   // 强制全视图重绘（bake：时序 JS 应用后的确定性出帧）。
   void Invalidate(BrowserHandle handle);
@@ -143,6 +147,7 @@ class CefRuntime {
   CefRuntime& operator=(const CefRuntime&) = delete;
 
   bool available_ = false;
+  bool hf_runtime_enabled_ = false;
   bool library_loaded_ = false;
 };
 

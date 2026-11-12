@@ -60,6 +60,10 @@ class XMEDIA_MEDIA_EXPORT CefLayerSource {
     // external_begin_frame + DevTools setVirtualTimePolicy，每
     // RequestVtStep() 前进一帧间隔，OnPaint 内容确定性推进。bake 输出的
     // 文档时刻 t = 帧序号 * (1000/fps)，与墙钟无关。
+    // HyperFrames 原版 runtime 注入（OnContextCreated 页面脚本前）。
+    // 仅 HF 契约页需要：runtime 接管 .clip 可见性，非 HF 页元数据采集
+    // 会失效。默认关闭。
+    bool hyperframes_runtime = false;
     bool bake_virtual_time = false;
     // GUI 宿主模式：CEF 的 Init/pump 留在调用线程（CEF macOS 启动期要向
     // 主线程 dispatch，pump 线程上的 Init 会与主线程 run loop 互等死锁）。

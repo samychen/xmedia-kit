@@ -175,11 +175,13 @@ void MediaCefApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
   if (renderer_router_) {
     renderer_router_->OnContextCreated(browser, frame, context);
   }
-  // HyperFrames 原版契约：runtime 必须先于页面脚本执行（它接线 data-*
-  // 声明与 GSAP 时间线）。OnContextCreated 在 V8 上下文创建时触发——
-  // 页面脚本尚未运行，此处注入即 evaluateOnNewDocument 等价物。仅主
-  // frame；子 frame 由页内逻辑自理。
-  if (frame && frame->IsMain()) {
+  // HyperFrames 原版契约：runtime 先于页面脚本执行（它接线 data-*
+  // 声明与 GSAP 时间线）。门控：仅 HF 契约页注入（runtime 接管 .clip
+  // 可见性，非 HF 页的元数据采集会失效——smoke 页实测）。开关由浏览器
+  // 进程 OnBeforeCommandLineProcessing 传播到渲染子进程命令行。
+  auto global_cmd = CefCommandLine::GetGlobalCommandLine();
+  if (global_cmd->HasSwitch("xmedia-hf-runtime") &&
+      frame && frame->IsMain()) {
     frame->ExecuteJavaScript(kHyperframesRuntime, frame->GetURL(), 0);
   }
 }
