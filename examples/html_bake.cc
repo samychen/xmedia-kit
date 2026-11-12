@@ -383,12 +383,23 @@ int main(int argc, char** argv) {
   // 进程落地相对 VT 步进有 ~2 帧热身期（实测前两帧时序不生效）。先丢两
   // 轮 t=0 的步进，DOM 可见性机制稳定后再开录。
   for (int prime = 0; prime < 2; ++prime) {
-    layer.ApplyTimeline(0);
-    layer.RequestVtStep();
-    if (!WaitNewFrame(&layer, layer.last_frame().get(), 5000)) {
-      std::fprintf(stderr, "html_bake: warmup %d timed out\n", prime);
-      layer.Stop();
-      return 1;
+    if (args.clock == "virtual_time") {
+      layer.ApplyTimeline(0);
+      layer.RequestVtStep();
+      if (!WaitNewFrame(&layer, layer.last_frame().get(), 5000)) {
+        std::fprintf(stderr, "html_bake: warmup %d timed out\n", prime);
+        layer.Stop();
+        return 1;
+      }
+    } else {
+      // seek/live：热身只需 JS 落地 + 一帧（内容不变时无 paint = 正常，
+      // 短等待非致命——VT 步进不存在，不能等 5 秒）。
+      layer.ApplyTimeline(0);
+      layer.TickBakeClock(0);
+      if (args.clock == "seek") {
+        layer.AwaitSeekDone(0, 2000);
+      }
+      WaitNewFrame(&layer, layer.last_frame().get(), 300);
     }
   }
 

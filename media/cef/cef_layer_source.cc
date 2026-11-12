@@ -22,7 +22,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include <cstdio>
 
 #include "media/cef/cef_osr_client.h"
 #include "media/cef/cef_runtime.h"

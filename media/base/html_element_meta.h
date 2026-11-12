@@ -42,6 +42,22 @@ struct HtmlElementRect {
   int64_t duration_ms = 0;
   bool has_z = false;
   int z = 0;
+  // HyperFrames 原版词汇（2026-11 契约对齐）：仅采集/导出，合成语义按
+  // 需接入（页内 runtime 已驱动媒体同步/可见性）。
+  bool has_end = false;
+  int64_t end_ms = 0;         // data-end（显式派生终点）
+  bool has_track_index = false;
+  int track_index = 0;        // data-track-index（legacy: data-layer）
+  bool has_media_start = false;
+  int64_t media_start_ms = 0; // data-media-start（媒体元素源内偏移）
+  bool has_playback_start = false;
+  int64_t playback_start_ms = 0;  // data-playback-start
+  bool has_playback_rate = false;
+  double playback_rate = 1.0;     // data-playback-rate
+  bool has_lottie_src = false;
+  std::string lottie_src;         // data-lottie-src
+  bool has_composition_id = false;
+  std::string composition_id;     // data-composition-id（合成根）
   int ordinal = 0;  // 快照内的文档序（querySelectorAll 顺序）
 };
 
@@ -77,6 +93,21 @@ struct HtmlElementMetaEntry {
   int z = 0;
   bool visible = false;
   float x = 0.f, y = 0.f, w = 0.f, h = 0.f;  // 最近一次矩形（视图像素）
+  // HyperFrames 原版词汇（同 HtmlElementRect，粘滞语义同 has_z）。
+  bool has_end = false;
+  int64_t end_ms = 0;
+  bool has_track_index = false;
+  int track_index = 0;
+  bool has_media_start = false;
+  int64_t media_start_ms = 0;
+  bool has_playback_start = false;
+  int64_t playback_start_ms = 0;
+  bool has_playback_rate = false;
+  double playback_rate = 1.0;
+  bool has_lottie_src = false;
+  std::string lottie_src;
+  bool has_composition_id = false;
+  std::string composition_id;
   int64_t last_t_ms = 0;                     // 最近矩形采集时钟
   int64_t first_t_ms = -1;                   // 首次采集时钟（-1 = 从未上报）
   int samples = 0;                           // 收到的快照数

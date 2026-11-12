@@ -83,6 +83,41 @@ bool ValidateHtmlDataJson(const std::string& json_utf8) {
 std::string MakeSeekScript(int64_t t_ms) {
   return std::string(
              "(function(t){\n"
+             "  if (window.__timelines || window.__hf) {\n"
+             "    var tt = t / 1000;\n"
+             "    if (window.__hf && typeof window.__hf.seek === 'function') {\n"
+             "      try { window.__hf.seek(tt); } catch (e) {}\n"
+             "    }\n"
+             "    try {\n"
+             "      Object.values(window.__timelines || {}).forEach("
+             "function (tl) {\n"
+             "        try {\n"
+             "          if (typeof tl.pause === 'function') { tl.pause(); }\n"
+             "          if (typeof tl.totalTime === 'function') {\n"
+             "            tl.totalTime(tt + 1e-3, true);\n"
+             "          } else if (typeof tl.seek === 'function') {\n"
+             "            tl.seek(tt);\n"
+             "          }\n"
+             "        } catch (e) {}\n"
+             "      });\n"
+             "    } catch (e) {}\n"
+             "    if (typeof window.__mcReportRects === 'function') {\n"
+             "      try { window.__mcReportRects(t); } catch (e) {}\n"
+             "    }\n"
+             "    if (window.cefQuery) {\n"
+             "      var done = function () {\n"
+             "        window.cefQuery({request:'mc.html.seekDone:' + t,"
+             "persistent:false,onSuccess:function(){},"
+             "onFailure:function(){}});\n"
+             "      };\n"
+             "      if (typeof window.__hfWaitForSeekCompletion ==="
+             " 'function') {\n"
+             "        Promise.resolve("
+             "window.__hfWaitForSeekCompletion()).then(done, done);\n"
+             "      } else { done(); }\n"
+             "    }\n"
+             "    return;\n"
+             "  }\n"
              "  if (typeof window.seek === 'function') {\n"
              "    window.seek(t);\n"
              "    if (typeof window.__mcReportRects === 'function') {\n"
@@ -134,6 +169,22 @@ std::string MakeRectsScript() {
         if (d !== null) { o.duration = Math.max(0, Math.round(d)); }
         var z = num(el.getAttribute('data-z'));
         if (z !== null) { o.z = Math.round(z); }
+        // HyperFrames 原版词汇（data-layer = data-track-index 旧名）。
+        var end = num(el.getAttribute('data-end'));
+        if (end !== null) { o.end = Math.max(0, Math.round(end)); }
+        var track = num(el.getAttribute('data-track-index'));
+        if (track === null) { track = num(el.getAttribute('data-layer')); }
+        if (track !== null) { o.track_index = Math.round(track); }
+        var ms = num(el.getAttribute('data-media-start'));
+        if (ms !== null) { o.media_start = Math.max(0, Math.round(ms)); }
+        var ps = num(el.getAttribute('data-playback-start'));
+        if (ps !== null) { o.playback_start = Math.max(0, Math.round(ps)); }
+        var pr = num(el.getAttribute('data-playback-rate'));
+        if (pr !== null) { o.playback_rate = pr; }
+        var lsrc = el.getAttribute('data-lottie-src');
+        if (lsrc) { o.lottie_src = lsrc; }
+        var cid = el.getAttribute('data-composition-id');
+        if (cid) { o.composition_id = cid; }
         o.visible = (r.width > 0 && r.height > 0);
         out.push(o);
       }

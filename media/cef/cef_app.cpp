@@ -156,6 +156,13 @@ void MediaCefApp::OnScheduleMessagePumpWork(int64_t delay_ms) {
   CefArmExternalMessagePump(delay_ms);
 }
 
+// HyperFrames 原版页内 runtime（vendor：assets/hyperframes/runtime.iife.js，
+// Apache 2.0）：GSAP 时间线接线 + hf.seek 确定性驱动。编译期内嵌——渲染进程
+// OnContextCreated 时在页面脚本前注入（evaluateOnNewDocument 等价物）。
+const char kHyperframesRuntime[] =
+#include "media/cef/hyperframes_runtime.inc"
+    ;
+
 void MediaCefApp::OnWebKitInitialized() {
   // Renderer-side router: injects window.cefQuery / cefQueryCancel.
   CefMessageRouterConfig config;
@@ -167,6 +174,13 @@ void MediaCefApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                    CefRefPtr<CefV8Context> context) {
   if (renderer_router_) {
     renderer_router_->OnContextCreated(browser, frame, context);
+  }
+  // HyperFrames 原版契约：runtime 必须先于页面脚本执行（它接线 data-*
+  // 声明与 GSAP 时间线）。OnContextCreated 在 V8 上下文创建时触发——
+  // 页面脚本尚未运行，此处注入即 evaluateOnNewDocument 等价物。仅主
+  // frame；子 frame 由页内逻辑自理。
+  if (frame && frame->IsMain()) {
+    frame->ExecuteJavaScript(kHyperframesRuntime, frame->GetURL(), 0);
   }
 }
 

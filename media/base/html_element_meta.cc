@@ -49,6 +49,35 @@ void HtmlElementMetaTable::Merge(const HtmlRectsSnapshot& snap) {
       entry->z = el.z;
     }
     // 矩形 / 可见性取最新快照。
+    if (el.has_end && !entry->has_end) {
+      entry->has_end = true;
+      entry->end_ms = el.end_ms;
+    }
+    if (el.has_track_index && !entry->has_track_index) {
+      entry->has_track_index = true;
+      entry->track_index = el.track_index;
+    }
+    if (el.has_media_start && !entry->has_media_start) {
+      entry->has_media_start = true;
+      entry->media_start_ms = el.media_start_ms;
+    }
+    if (el.has_playback_start && !entry->has_playback_start) {
+      entry->has_playback_start = true;
+      entry->playback_start_ms = el.playback_start_ms;
+    }
+    if (el.has_playback_rate && !entry->has_playback_rate) {
+      entry->has_playback_rate = true;
+      entry->playback_rate = el.playback_rate;
+    }
+    if (el.has_lottie_src && !entry->has_lottie_src) {
+      entry->has_lottie_src = true;
+      entry->lottie_src = el.lottie_src;
+    }
+    if (el.has_composition_id && !entry->has_composition_id) {
+      entry->has_composition_id = true;
+      entry->composition_id = el.composition_id;
+    }
+    // 矩形 / 可见性取最新快照。
     entry->visible = el.visible;
     entry->x = el.x;
     entry->y = el.y;

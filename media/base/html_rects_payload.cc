@@ -177,6 +177,20 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   }
   float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
   bool has_x = false, has_y = false, has_w = false, has_h = false;
+  bool has_end = false;
+  int64_t end_ms = 0;
+  bool has_track_index = false;
+  int track_index = 0;
+  bool has_media_start = false;
+  int64_t media_start_ms = 0;
+  bool has_playback_start = false;
+  int64_t playback_start_ms = 0;
+  bool has_playback_rate = false;
+  double playback_rate = 1.0;
+  bool has_lottie_src = false;
+  std::string lottie_src;
+  bool has_composition_id = false;
+  std::string composition_id;
   bool id_read = false, tag_read = false, visible_read = false;
   bool has_start = false, has_duration = false, has_z = false;
   int64_t start_ms = 0, duration_ms = 0;
@@ -230,7 +244,9 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       else if (key == "y") { y = static_cast<float>(v); has_y = true; }
       else if (key == "w") { w = static_cast<float>(v); has_w = true; }
       else { h = static_cast<float>(v); has_h = true; }
-    } else if (key == "start" || key == "duration" || key == "z") {
+    } else if (key == "start" || key == "duration" || key == "z" ||
+               key == "end" || key == "track_index" ||
+               key == "media_start" || key == "playback_start") {
       int64_t v = 0;
       if (!ReadIntField(c, &v)) {
         return false;
@@ -241,9 +257,37 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       } else if (key == "duration") {
         has_duration = true;
         duration_ms = std::max<int64_t>(0, v);
+      } else if (key == "end") {
+        has_end = true;
+        end_ms = std::max<int64_t>(0, v);
+      } else if (key == "track_index") {
+        has_track_index = true;
+        track_index = static_cast<int>(v);
+      } else if (key == "media_start") {
+        has_media_start = true;
+        media_start_ms = std::max<int64_t>(0, v);
       } else {
-        has_z = true;
-        z = static_cast<int>(v);
+        has_playback_start = true;
+        playback_start_ms = std::max<int64_t>(0, v);
+      }
+    } else if (key == "playback_rate") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      has_playback_rate = true;
+      playback_rate = num;
+    } else if (key == "lottie_src" || key == "composition_id") {
+      std::string sink;
+      if (!c.ReadString(&sink)) {
+        return false;
+      }
+      if (key == "lottie_src") {
+        has_lottie_src = true;
+        lottie_src = std::move(sink);
+      } else {
+        has_composition_id = true;
+        composition_id = std::move(sink);
       }
     } else {
       // 未知键：跳过值（字符串/数字/bool/数组/对象都吞掉）。
@@ -326,6 +370,20 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   out->duration_ms = duration_ms;
   out->has_z = has_z;
   out->z = z;
+  out->has_end = has_end;
+  out->end_ms = end_ms;
+  out->has_track_index = has_track_index;
+  out->track_index = track_index;
+  out->has_media_start = has_media_start;
+  out->media_start_ms = media_start_ms;
+  out->has_playback_start = has_playback_start;
+  out->playback_start_ms = playback_start_ms;
+  out->has_playback_rate = has_playback_rate;
+  out->playback_rate = playback_rate;
+  out->has_lottie_src = has_lottie_src;
+  out->lottie_src = std::move(lottie_src);
+  out->has_composition_id = has_composition_id;
+  out->composition_id = std::move(composition_id);
   return true;
 }
 
