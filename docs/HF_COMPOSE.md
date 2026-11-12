@@ -44,6 +44,25 @@ python3 tools/hf_validate.py my_video.html
   --clock seek --hf-seconds
 ```
 
+### 旁白驱动 + 竖屏（AI-auto-generate-video 模式）
+
+TTS 产物逐场景挂 `narration`，时长自动拟合；`format: "9:16"` 一键竖屏：
+
+```json
+{
+  "composition": {"id": "shorts", "format": "9:16", "fps": 30},
+  "scenes": [
+    {"type": "title", "text": "三分钟看懂", "narration": "narr_01.mp3"},
+    {"type": "stats", "value": "88%", "description": "确定性渲染通过率",
+     "narration": "narr_02.mp3", "padding": 0.8},
+    {"type": "outro", "text": "关注更多", "duration": 2}
+  ]
+}
+```
+
+场景时长 = ffprobe(旁白) + padding；烘焙尺寸与 format 对应（9:16 → 1080×1920，
+html_bake 传 `--width 1080 --height 1920`）。
+
 ## Spec Schema
 
 ### composition（合成参数）
@@ -52,6 +71,7 @@ python3 tools/hf_validate.py my_video.html
 |---|---|---|---|
 | id | string | `"main"` | 合成 ID（__timelines 注册键）|
 | width / height | int | 1920 / 1080 | 画布尺寸（像素）|
+| format | string | — | 画幅快捷预设：`16:9` / `9:16` / `1:1` / `4:5`，设置后覆盖 width/height |
 | fps | int | 30 | 帧率 |
 
 ### background（全局背景）
@@ -64,14 +84,29 @@ python3 tools/hf_validate.py my_video.html
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| type | string | `"text"` | 场景类型：`title` / `text` / `outro` |
+| type | string | `"text"` | 场景类型：`title` / `text` / `outro` / `quote` / `list` / `stats` / `comparison` |
 | text | string | `""` | 主文本 |
 | subtitle | string | `""` | 副文本（仅 title 类型）|
-| duration | float | 3 | 秒制时长 |
+| duration | float | 3 | 秒制时长（有 narration 时被拟合值覆盖，见下）|
+| narration | string | — | 旁白音频路径（相对 spec 目录或绝对路径）；设置后场景时长 = ffprobe 音频时长 + padding |
+| padding | float | 0.5 | narration 拟合时的尾部留白秒数 |
 | bg | string | `"#000000"` | 场景背景色 |
 | text_color | string | `"#ffffff"` | 文字颜色 |
 | animation | string | `"fade_in"` | 入场动画（见下表）|
-| content[] | array | `[]` | 列表项（仅 text 类型，每项 `{text}`）|
+| content[] | array | `[]` | 子项（text/list 类型，每项 `{text}`）|
+
+各场景类型的专有字段：
+
+| 类型 | 专有字段 |
+|---|---|
+| title | `subtitle` |
+| text | `content[]` |
+| quote | `quote`（缺省用 `text`）、`author` |
+| list | `items[]`（字符串数组，或用 `content[]`）|
+| stats | `value`（大数字）、`description` |
+| comparison | `left` / `right`（列标题）、`left_items[]` / `right_items[]` |
+
+旁白驱动时长拟合：`narration` 优先于 `duration`——场景 clip 窗口与 GSAP 入场游标**同源拟合**，逐场景对齐旁白长度（AI-auto-generate-video 模式）。
 
 ### animation（入场动画预设）
 

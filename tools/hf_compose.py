@@ -162,11 +162,12 @@ def gen_scene_html(scene, start_sec, idx):
 
 
 def gen_timeline_js(scenes):
-    """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。"""
+    """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
+    游标与 clip 窗口同源——同样走旁白拟合时长。"""
     lines = []
     cursor = 0.0
     for idx, scene in enumerate(scenes):
-        dur = float(scene.get("duration", 3))
+        dur = _fit_scene_duration(scene, 3.0)
         anim = scene.get("animation", DEFAULT_ANIMATION)
         if anim not in ANIMATIONS:
             anim = DEFAULT_ANIMATION
@@ -322,7 +323,7 @@ def main():
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)
-        total = sum(float(s.get("duration", 3)) for s in spec.get("scenes", []))
+        total = sum(_fit_scene_duration(s, 3.0) for s in spec.get("scenes", []))
         print(f"hf_compose: {args.output} — {len(spec.get('scenes', []))} scenes, "
               f"{total:.1f}s total")
     else:
