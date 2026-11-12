@@ -105,6 +105,10 @@ struct Args {
   int chunks = 1;
   // 页面数据注入（window.update 契约）：首帧后注入一次。
   std::string data_json;
+  // HyperFrames 原版单位：data-start/duration/end 为秒（blank 模板
+  // data-duration="10" = 10s 实证）。开启后采集元数据 ×1000 归一到
+  // xmedia 内部毫秒语义。
+  bool hf_seconds = false;
   // Lottie 叠加层：路径 + 绘制 z（默认垫在 HTML 元素之下）。
   std::string lottie_path;
   int lottie_z = -1;
@@ -157,6 +161,9 @@ Args ParseArgs(int argc, char** argv) {
       ++i;
     } else if (std::strcmp(argv[i], "--lottie-loop") == 0) {
       a.lottie_loop = std::atoi(v.c_str());
+      ++i;
+    } else if (std::strcmp(argv[i], "--hf-seconds") == 0) {
+      a.hf_seconds = true;
       ++i;
     }
   }
@@ -499,9 +506,19 @@ int main(int argc, char** argv) {
     }
     const auto frame =
         synthetic ? synthetic : layer.last_frame();
-    const auto elements = synthetic
-                              ? synthetic_entries
-                              : layer.SnapshotElements().entries();
+    auto elements = synthetic
+                        ? synthetic_entries
+                        : layer.SnapshotElements().entries();
+    if (args.hf_seconds) {
+      // HF 秒制 → 内部毫秒（start/duration/end 三字段）。
+      for (auto& e : elements) {
+        e.start_ms *= 1000;
+        e.duration_ms *= 1000;
+        if (e.has_end) {
+          e.end_ms *= 1000;
+        }
+      }
+    }
     composer.Sync(*scene, frame.get(), elements, t_ms);
 #if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
     if (lottie_anim && lottie_layer != GlScene::kNoLayer) {
