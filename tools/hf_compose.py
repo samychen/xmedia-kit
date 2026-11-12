@@ -45,7 +45,44 @@ ANIMATIONS = {
 }
 
 DEFAULT_ANIMATION = "fade_in"
-SUPPORTED_TYPES = ("title", "text", "outro")
+SUPPORTED_TYPES = ("title", "text", "outro",
+                   "quote", "list", "stats", "comparison")
+
+# 9:16 竖屏快捷预设（AI-auto-generate-video 对齐）。
+FORMAT_PRESETS = {
+    "16:9":  (1920, 1080),
+    "9:16":  (1080, 1920),
+    "1:1":   (1080, 1080),
+    "4:5":   (1080, 1350),
+}
+
+
+def _probe_audio_duration(path):
+    """ffprobe 音频文件时长（秒）。路径相对于 spec 目录。"""
+    import subprocess
+    full = os.path.join(_spec_dir, path) if not os.path.isabs(path) else path
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", full], capture_output=True, text=True,
+            timeout=10)
+        if result.returncode == 0:
+            return float(result.stdout.strip())
+    except (ValueError, subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return None
+
+
+def _fit_scene_duration(scene, fallback=3.0):
+    """旁白驱动时长拟合：narration 音频时长 + padding（AI-auto-generate-
+    video 对齐）。无 narration 时用 duration 字段或 fallback。"""
+    narration = scene.get("narration")
+    if narration:
+        dur = _probe_audio_duration(narration)
+        if dur is not None:
+            padding = float(scene.get("padding", 0.5))
+            return dur + padding
+    return float(scene.get("duration", fallback))
 
 
 def esc(s):
@@ -61,7 +98,7 @@ def gen_scene_html(scene, start_sec, idx):
         raise ValueError(f"scene[{idx}] 未知类型 '{typ}'（支持: {SUPPORTED_TYPES}）")
     text = esc(scene.get("text", ""))
     subtitle = esc(scene.get("subtitle", ""))
-    dur = float(scene.get("duration", 3))
+    dur = _fit_scene_duration(scene, 3.0)
     bg = esc(scene.get("bg", "#000000"))
     color = esc(scene.get("text_color", "#ffffff"))
     content = scene.get("content", [])
@@ -77,6 +114,41 @@ def gen_scene_html(scene, start_sec, idx):
         for c in content:
             cc = esc(c.get("text", ""))
             inner += f'<p class="scene-item">{cc}</p>'
+    elif typ == "quote":
+        quote = esc(scene.get("quote", text))
+        author = esc(scene.get("author", ""))
+        inner = f'<blockquote class="scene-quote">&ldquo;{quote}&rdquo;</blockquote>'
+        if author:
+            inner += f'<p class="scene-quote-author">&mdash; {author}</p>'
+    elif typ == "list":
+        items = content if content else [{"text": t} for t in scene.get("items", [])]
+        inner = f'<h2 class="scene-heading">{text}</h2>'
+        inner += '<ul class="scene-list">'
+        for c in items:
+            cc = esc(c.get("text", "") if isinstance(c, dict) else str(c))
+            inner += f'<li class="scene-list-item">{cc}</li>'
+        inner += '</ul>'
+    elif typ == "stats":
+        stat_value = esc(scene.get("value", ""))
+        stat_desc = esc(scene.get("description", ""))
+        inner = f'<div class="scene-stat-value">{stat_value}</div>'
+        if stat_desc:
+            inner += f'<p class="scene-stat-desc">{stat_desc}</p>'
+    elif typ == "comparison":
+        left_col = esc(scene.get("left", ""))
+        right_col = esc(scene.get("right", ""))
+        left_items = scene.get("left_items", [])
+        right_items = scene.get("right_items", [])
+        inner = f'<h2 class="scene-heading">{text}</h2>'
+        inner += '<div class="scene-comparison">'
+        inner += f'<div class="comp-col"><h3>{left_col}</h3><ul>'
+        for c in left_items:
+            inner += f'<li>{esc(c)}</li>'
+        inner += '</ul></div>'
+        inner += f'<div class="comp-col"><h3>{right_col}</h3><ul>'
+        for c in right_items:
+            inner += f'<li>{esc(c)}</li>'
+        inner += '</ul></div></div>'
     else:  # outro
         inner = f'<h1 class="scene-title">{text}</h1>'
 
@@ -124,8 +196,12 @@ def compose(spec):
     """spec dict → HyperFrames 契约 HTML 字符串。确定性：同输入同输出。"""
     comp = spec.get("composition", {})
     comp_id = comp.get("id", "main")
-    width = int(comp.get("width", 1920))
-    height = int(comp.get("height", 1080))
+    fmt = comp.get("format")
+    if fmt and fmt in FORMAT_PRESETS:
+        width, height = FORMAT_PRESETS[fmt]
+    else:
+        width = int(comp.get("width", 1920))
+        height = int(comp.get("height", 1080))
     fps = int(comp.get("fps", 30))
     bg = esc(spec.get("background", "#000000"))
     scenes = spec.get("scenes", [])
@@ -193,6 +269,20 @@ def compose(spec):
   .scene-subtitle {{ font-size: 36px; opacity: 0.8; margin-top: 16px; }}
   .scene-body {{ font-size: 42px; line-height: 1.6; }}
   .scene-item {{ font-size: 28px; opacity: 0.85; margin-top: 12px; }}
+  .scene-quote {{ font-size: 48px; font-style: italic; line-height: 1.4;
+                  max-width: 80%; }}
+  .scene-quote-author {{ font-size: 24px; opacity: 0.7; margin-top: 20px; }}
+  .scene-heading {{ font-size: 48px; font-weight: 600; margin-bottom: 24px; }}
+  .scene-list {{ list-style: none; text-align: left; }}
+  .scene-list-item {{ font-size: 30px; margin: 16px 0; padding-left: 24px;
+                      border-left: 3px solid currentColor; }}
+  .scene-stat-value {{ font-size: 120px; font-weight: 800; }}
+  .scene-stat-desc {{ font-size: 28px; opacity: 0.8; margin-top: 12px; }}
+  .scene-comparison {{ display: flex; gap: 48px; }}
+  .comp-col {{ flex: 1; text-align: left; }}
+  .comp-col h3 {{ font-size: 32px; font-weight: 600; margin-bottom: 16px;
+                  border-bottom: 2px solid currentColor; padding-bottom: 8px; }}
+  .comp-col li {{ font-size: 26px; margin: 12px 0; }}
 {style_block}
 </style>
 </head>
