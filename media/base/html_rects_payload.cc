@@ -283,6 +283,9 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       } else if (key == "media_start") {
         has_media_start = true;
         media_start_ms = std::max<int64_t>(0, v);
+      } else if (key == "z") {
+        has_z = true;
+        z = static_cast<int>(v);
       } else {
         has_playback_start = true;
         playback_start_ms = std::max<int64_t>(0, v);
