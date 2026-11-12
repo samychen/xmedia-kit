@@ -58,6 +58,17 @@ struct HtmlElementRect {
   std::string lottie_src;         // data-lottie-src
   bool has_composition_id = false;
   std::string composition_id;     // data-composition-id（合成根）
+  bool has_src = false;
+  std::string src;                // src/data-src（音频或媒体文件）
+  bool is_media = false;          // audio/video 标签
+  bool has_volume = false;
+  double volume = 1.0;            // data-volume（1 = 0dB，0 = 静音，>1 增益）
+  bool has_fade_in = false;
+  double fade_in = 0;             // data-fade-in（秒，clip 起点线性淡入）
+  bool has_fade_out = false;
+  double fade_out = 0;            // data-fade-out（秒，clip 终点线性淡出）
+  bool has_has_audio = false;
+  bool has_audio = false;         // data-has-audio="true"（保留视频自带音轨）
   int ordinal = 0;  // 快照内的文档序（querySelectorAll 顺序）
 };
 
@@ -108,6 +119,18 @@ struct HtmlElementMetaEntry {
   std::string lottie_src;
   bool has_composition_id = false;
   std::string composition_id;
+  // 音频/媒体链路（同 HtmlElementRect，粘滞语义）。
+  bool has_src = false;
+  std::string src;
+  bool is_media = false;
+  bool has_volume = false;
+  double volume = 1.0;
+  bool has_fade_in = false;
+  double fade_in = 0;
+  bool has_fade_out = false;
+  double fade_out = 0;
+  bool has_has_audio = false;
+  bool has_audio = false;
   int64_t last_t_ms = 0;                     // 最近矩形采集时钟
   int64_t first_t_ms = -1;                   // 首次采集时钟（-1 = 从未上报）
   int samples = 0;                           // 收到的快照数

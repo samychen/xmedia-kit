@@ -185,6 +185,21 @@ std::string MakeRectsScript() {
         if (lsrc) { o.lottie_src = lsrc; }
         var cid = el.getAttribute('data-composition-id');
         if (cid) { o.composition_id = cid; }
+        // 音频/媒体链路（data-attributes.md Media 段）。
+        var src = el.getAttribute('src') || el.getAttribute('data-src');
+        if (src) { o.src = src; }
+        var tag = (el.tagName || '').toLowerCase();
+        if (tag === 'audio' || tag === 'video') {
+          o.is_media = true;
+        }
+        var vol = num(el.getAttribute('data-volume'));
+        if (vol !== null) { o.volume = vol; }
+        var fin = num(el.getAttribute('data-fade-in'));
+        if (fin !== null) { o.fade_in = Math.max(0, fin); }
+        var fout = num(el.getAttribute('data-fade-out'));
+        if (fout !== null) { o.fade_out = Math.max(0, fout); }
+        var ha = el.getAttribute('data-has-audio');
+        if (ha !== null) { o.has_audio = (ha === 'true'); }
         o.visible = (r.width > 0 && r.height > 0);
         out.push(o);
       }

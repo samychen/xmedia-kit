@@ -57,6 +57,8 @@
 #include "media/media_export.h"
 #include "media/transcode/ffmpeg_concat_job.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
+#include "media/transcode/audio_mixdown.h"
+#include "media/transcode/ffmpeg_audio_encoder.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
 #include "platform/glfw/glfw_gl_context.h"
 #include "include/cef_app.h"
@@ -262,29 +264,6 @@ int main(int argc, char** argv) {
                  args.codec.c_str());
     return 1;
   }
-  FFmpegEncodeMuxer muxer;
-  if (!muxer.Open(args.out)) {
-    std::fprintf(stderr, "html_bake: cannot open output %s\n",
-                 args.out.c_str());
-    return 1;
-  }
-  FFmpegEncodeMuxer::VideoStreamParams sp;
-  sp.codec_name = args.codec;
-  sp.width = drawable_w;
-  sp.height = drawable_h;
-  const AVRational tb = encoder.time_base();
-  sp.time_base_num = tb.num;
-  sp.time_base_den = tb.den;
-  sp.extradata = encoder.codec_parameters()
-                     ? std::vector<uint8_t>(
-                           encoder.codec_parameters()->extradata,
-                           encoder.codec_parameters()->extradata +
-                               encoder.codec_parameters()->extradata_size)
-                     : std::vector<uint8_t>();
-  if (muxer.AddVideoStream(sp) < 0) {
-    std::fprintf(stderr, "html_bake: add video stream failed\n");
-    return 1;
-  }
   // BGRA 读回 → I420 编码输入：一次性配好，全帧复用。
   ff::VideoConverter converter;
   if (!converter.Configure(drawable_w, drawable_h, AV_PIX_FMT_BGRA,
@@ -423,6 +402,12 @@ int main(int argc, char** argv) {
   int64_t encoded = 0;
 
   // 单帧烘焙：fast_forward=true 时只步进不合成/编码（分块的窗前快进）。
+  // 活动封装器指针：bake_frame 写视频包的目标。分块循环每块设置一次
+  //（chunk_muxer.get()）；此前 bake_frame 直写顶层 muxer 而 chunk_muxer
+  // 再 Open 同路径截断——双封装器同路径是潜伏损坏（历史能跑属顺序巧合）。
+  FFmpegEncodeMuxer* active_muxer = nullptr;
+  FFmpegVideoEncoder* active_encoder = nullptr;
+
   // 光栅内容哈希：边界帧的重绘验证用（合成器提交状态可能落后数拍，
   // 单靠等待新帧无法区分"新帧"与"旧内容的重合成"）。
   uint64_t prev_raster_hash = 0;
@@ -579,12 +564,16 @@ int main(int argc, char** argv) {
       return false;
     }
     std::vector<EncodedPacket> packets;
-    if (!encoder.Encode(std::move(out_frame), &packets)) {
+    if (!active_encoder->Encode(std::move(out_frame), &packets)) {
       std::fprintf(stderr, "html_bake: encode failed at frame %d\n", f);
       return false;
     }
     for (const auto& pkt : packets) {
-      if (!muxer.WritePacket(0, pkt)) {
+      if (active_muxer == nullptr) {
+        std::fprintf(stderr, "html_bake: no active muxer at frame %d\n", f);
+        return false;
+      }
+      if (!active_muxer->WritePacket(0, pkt)) {
         std::fprintf(stderr, "html_bake: muxer rejected packet at frame %d\n",
                      f);
         return false;
@@ -635,12 +624,17 @@ int main(int argc, char** argv) {
       return 1;
     }
     auto chunk_muxer = std::make_unique<FFmpegEncodeMuxer>();
+    active_muxer = chunk_muxer.get();
+    active_encoder = chunk_encoder.get();
     if (!chunk_muxer->Open(chunk_out)) {
       std::fprintf(stderr, "html_bake: cannot open %s\n", chunk_out.c_str());
       layer.Stop();
       return 1;
     }
-    FFmpegEncodeMuxer::VideoStreamParams csp = sp;
+    FFmpegEncodeMuxer::VideoStreamParams csp;
+    csp.codec_name = args.codec;
+    csp.width = drawable_w;
+    csp.height = drawable_h;
     const AVRational ctb = chunk_encoder->time_base();
     csp.time_base_num = ctb.num;
     csp.time_base_den = ctb.den;
@@ -655,6 +649,23 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "html_bake: chunk %d add stream failed\n", c);
       layer.Stop();
       return 1;
+    }
+    // 音频流（HyperFrames audio 契约）：音频/媒体元素的确定性混音轨。
+    int audio_stream = -1;
+    FFmpegAudioEncoder aac_encoder;
+    if (!synthetic) {
+      FFmpegAudioEncoder::Params ap;
+      ap.codec_name = "aac";
+      ap.sample_rate = 48000;
+      ap.channels = 2;
+      ap.bit_rate = 192000;
+      if (aac_encoder.Initialize(ap)) {
+        FFmpegEncodeMuxer::AudioStreamParams asp;
+        asp.sample_rate = 48000;
+        asp.channels = 2;
+        asp.extradata = aac_encoder.extradata();
+        audio_stream = chunk_muxer->AddAudioStream(asp);
+      }
     }
 
     // 窗前快进（VT 从 0 确定性推进到窗起点），然后逐帧录制。录制前
@@ -677,6 +688,61 @@ int main(int argc, char** argv) {
       // 块内时间戳从 0 起：Concat 按块重排基。
       ok = bake_frame(f, /*record=*/true);
     }
+    // 音频混音（确定性文件级：解码 → media-start 修剪 → volume/淡入出 →
+    // 按 data-start 叠加），块窗口 [begin,end)。AAC 编码进块音频流。
+    if (audio_stream >= 0) {
+      std::vector<xmedia::media::transcode::AudioMixClip> mix_clips;
+      const auto entries = layer.SnapshotElements().entries();
+      const std::string page_dir =
+          args.url.rfind("file://", 0) == 0
+              ? args.url.substr(7, args.url.find_last_of('/') - 7)
+              : std::string();
+      for (const auto& e : entries) {
+        if (!e.is_media || !e.has_src) {
+          continue;
+        }
+        xmedia::media::transcode::AudioMixClip clip;
+        clip.src = e.src.rfind("file://", 0) == 0
+                       ? e.src.substr(7)
+                       : (e.src.rfind("/", 0) == 0
+                              ? e.src
+                              : page_dir + "/" + e.src);
+        const int64_t chunk_begin_ms =
+            static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
+        clip.start_ms = std::max<int64_t>(0, e.start_ms - chunk_begin_ms);
+        clip.duration_ms = e.duration_ms;
+        clip.media_start_ms = e.media_start_ms;
+        clip.volume = e.has_volume ? e.volume : 1.0;
+        clip.fade_in = e.fade_in;
+        clip.fade_out = e.fade_out;
+        mix_clips.push_back(std::move(clip));
+      }
+      const int64_t window_ms =
+          static_cast<int64_t>(end - begin) * 1000 / std::max(1, args.fps);
+      if (!mix_clips.empty()) {
+        xmedia::media::transcode::AudioMixResult mix;
+        if (MixAudioClips(mix_clips, window_ms, &mix) && mix.sample_count > 0) {
+          auto audio_buffers = AudioMixToBuffers(mix, 1024);
+          for (auto& buf : audio_buffers) {
+            std::vector<EncodedPacket> audio_pkts;
+            if (aac_encoder.Encode(std::move(buf), &audio_pkts)) {
+              for (const auto& pkt : audio_pkts) {
+                if (chunk_muxer->WritePacket(audio_stream, pkt)) {
+                  ++encoded;
+                }
+              }
+            }
+          }
+          std::vector<EncodedPacket> aflushed;
+          aac_encoder.Flush(&aflushed);
+          for (const auto& pkt : aflushed) {
+            if (chunk_muxer->WritePacket(audio_stream, pkt)) {
+              ++encoded;
+            }
+          }
+        }
+      }
+    }
     if (ok) {
       std::vector<EncodedPacket> flushed;
       chunk_encoder->Flush(&flushed);
@@ -686,6 +752,8 @@ int main(int argc, char** argv) {
       }
       chunk_muxer->Finish();
       chunk_paths.push_back(chunk_out);
+      active_muxer = nullptr;
+      active_encoder = nullptr;
     } else {
       layer.Stop();
       return 1;

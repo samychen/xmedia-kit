@@ -191,6 +191,17 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   std::string lottie_src;
   bool has_composition_id = false;
   std::string composition_id;
+  bool has_src = false;
+  std::string src;
+  bool is_media = false;
+  bool has_volume = false;
+  double volume = 1.0;
+  bool has_fade_in = false;
+  double fade_in = 0;
+  bool has_fade_out = false;
+  double fade_out = 0;
+  bool has_has_audio = false;
+  bool has_audio = false;
   bool id_read = false, tag_read = false, visible_read = false;
   bool has_start = false, has_duration = false, has_z = false;
   int64_t start_ms = 0, duration_ms = 0;
@@ -277,6 +288,61 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       }
       has_playback_rate = true;
       playback_rate = num;
+    } else if (key == "src") {
+      std::string sink;
+      if (!c.ReadString(&sink)) {
+        return false;
+      }
+      has_src = true;
+      src = std::move(sink);
+    } else if (key == "is_media") {
+      c.SkipWs();
+      if (c.Peek('t') || c.Peek('f')) {
+        const bool v = !c.Peek('f');
+        const bool ok = v ? c.Eat('t') && c.Eat('r') && c.Eat('u') &&
+                                c.Eat('e')
+                          : c.Eat('f') && c.Eat('a') && c.Eat('l') &&
+                                c.Eat('s') && c.Eat('e');
+        if (!ok) {
+          return false;
+        }
+        is_media = v;
+      }
+    } else if (key == "volume") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      has_volume = true;
+      volume = num;
+    } else if (key == "fade_in") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      has_fade_in = true;
+      fade_in = num;
+    } else if (key == "fade_out") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      has_fade_out = true;
+      fade_out = num;
+    } else if (key == "has_audio") {
+      c.SkipWs();
+      if (c.Peek('t') || c.Peek('f')) {
+        const bool v = !c.Peek('f');
+        const bool ok = v ? c.Eat('t') && c.Eat('r') && c.Eat('u') &&
+                                c.Eat('e')
+                          : c.Eat('f') && c.Eat('a') && c.Eat('l') &&
+                                c.Eat('s') && c.Eat('e');
+        if (!ok) {
+          return false;
+        }
+        has_has_audio = true;
+        has_audio = v;
+      }
     } else if (key == "lottie_src" || key == "composition_id") {
       std::string sink;
       if (!c.ReadString(&sink)) {
@@ -384,6 +450,17 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   out->lottie_src = std::move(lottie_src);
   out->has_composition_id = has_composition_id;
   out->composition_id = std::move(composition_id);
+  out->has_src = has_src;
+  out->src = std::move(src);
+  out->is_media = is_media;
+  out->has_volume = has_volume;
+  out->volume = volume;
+  out->has_fade_in = has_fade_in;
+  out->fade_in = fade_in;
+  out->has_fade_out = has_fade_out;
+  out->fade_out = fade_out;
+  out->has_has_audio = has_has_audio;
+  out->has_audio = has_audio;
   return true;
 }
 
