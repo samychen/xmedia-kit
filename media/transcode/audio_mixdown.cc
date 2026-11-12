@@ -30,6 +30,32 @@ namespace {
 constexpr int kOutRate = 48000;
 constexpr int kOutChannels = 2;
 
+// swr 输出追加到立体声缓冲：按需扩容、截回实际转换数。src_data 为
+// nullptr 时冲刷 swr 内部缓冲（冲刷路径，无需输入帧）。
+void AppendSwrOutput(SwrContext* swr, int requested,
+                     const uint8_t* const* src_data,
+                     std::vector<float>& left, std::vector<float>& right) {
+  if (requested <= 0) {
+    return;
+  }
+  const size_t prev_l = left.size();
+  const size_t prev_r = right.size();
+  left.resize(prev_l + static_cast<size_t>(requested));
+  right.resize(prev_r + static_cast<size_t>(requested));
+  uint8_t* dst[2] = {reinterpret_cast<uint8_t*>(left.data() + prev_l),
+                     reinterpret_cast<uint8_t*>(right.data() + prev_r)};
+  const int converted = swr_convert(swr, dst, requested, src_data, requested);
+  if (converted < 0) {
+    LOG(WARNING) << "audio mixdown: swr_convert failed";
+    left.resize(prev_l);
+    right.resize(prev_r);
+    return;
+  }
+  // swr 可能少转（缓冲），截回实际样本数。
+  left.resize(prev_l + static_cast<size_t>(converted));
+  right.resize(prev_r + static_cast<size_t>(converted));
+}
+
 // 单文件解码 + swr 归一 → FLTP 48k 立体声样本序列。
 bool DecodeToStereo48k(const std::string& path,
                        std::vector<float>* left, std::vector<float>* right) {
@@ -93,23 +119,9 @@ bool DecodeToStereo48k(const std::string& path,
           av_frame_unref(frame.get());
           continue;
         }
-        std::vector<uint8_t*> dst(2);
-        const size_t prev_l = left->size();
-        const size_t prev_r = right->size();
-        left->resize(prev_l + static_cast<size_t>(out_frames));
-        right->resize(prev_r + static_cast<size_t>(out_frames));
-        dst[0] = reinterpret_cast<uint8_t*>(left->data() + prev_l);
-        dst[1] = reinterpret_cast<uint8_t*>(right->data() + prev_r);
-        const int converted = swr_convert(
-            swr.get(), reinterpret_cast<uint8_t**>(dst.data()), out_frames,
-            const_cast<const uint8_t**>(frame->data), frame->nb_samples);
-        if (converted < 0) {
-          LOG(WARNING) << "audio mixdown: swr_convert failed";
-        } else {
-          // swr 可能少转（缓冲），截回实际样本数。
-          left->resize(prev_l + static_cast<size_t>(converted));
-          right->resize(prev_r + static_cast<size_t>(converted));
-        }
+        AppendSwrOutput(swr.get(), frame->nb_samples,
+                        const_cast<const uint8_t**>(frame->data), *left,
+                        *right);
       }
     }
     av_packet_unref(pkt.get());
@@ -117,35 +129,12 @@ bool DecodeToStereo48k(const std::string& path,
   // 冲刷解码器 + swr 尾部。
   avcodec_send_packet(dec_ctx.get(), nullptr);
   while (avcodec_receive_frame(dec_ctx.get(), frame.get()) >= 0) {
-    const int out_frames = swr_get_out_samples(swr.get(), frame->nb_samples);
-    if (out_frames <= 0) {
-      continue;
-    }
-    const size_t prev_l = left->size();
-    const size_t prev_r = right->size();
-    left->resize(prev_l + static_cast<size_t>(out_frames));
-    right->resize(prev_r + static_cast<size_t>(out_frames));
-    uint8_t* dst[2] = {
-        reinterpret_cast<uint8_t*>(left->data() + prev_l),
-        reinterpret_cast<uint8_t*>(right->data() + prev_r)};
-    const int converted =
-        swr_convert(swr.get(), dst, out_frames,
-                    const_cast<const uint8_t**>(frame->data), frame->nb_samples);
-    if (converted >= 0) {
-      left->resize(prev_l + static_cast<size_t>(converted));
-      right->resize(prev_r + static_cast<size_t>(converted));
-    }
+    AppendSwrOutput(swr.get(), frame->nb_samples,
+                    const_cast<const uint8_t**>(frame->data), *left, *right);
   }
-  const int flushed = swr_convert(swr.get(), nullptr, 0, nullptr, 0);
+  const int flushed = swr_get_out_samples(swr.get(), 0);
   if (flushed > 0) {
-    const size_t prev_l = left->size();
-    const size_t prev_r = right->size();
-    left->resize(prev_l + static_cast<size_t>(flushed));
-    right->resize(prev_r + static_cast<size_t>(flushed));
-    uint8_t* dst[2] = {reinterpret_cast<uint8_t*>(left->data() + prev_l),
-                       reinterpret_cast<uint8_t*>(right->data() + prev_r)};
-    uint8_t* dstp[2] = {dst[0], dst[1]};
-    swr_convert(swr.get(), dstp, flushed, nullptr, 0);
+    AppendSwrOutput(swr.get(), flushed, nullptr, *left, *right);
   }
   return !left->empty();
 }
