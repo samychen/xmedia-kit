@@ -7,8 +7,8 @@
 
 > **CicadaPlayer 能力移植（2026-10）**：自研 curl 网络源、边播边缓存、
 > HLS 播放列表 demuxer（含 AES-128/ABR/live reload）、DRM 密钥抽象、外挂字幕、
-> 画面控制、DASH（静态 + live 重载窗口）已全部落地，状态与判据见
-> [`docs/cicada-port/PROGRESS.md`](docs/cicada-port/PROGRESS.md)。
+> 画面控制、DASH（静态 + live 重载窗口）已全部落地（实施记录见
+> `git log --all -- docs/cicada-port/PROGRESS.md`）。
 > **项目沿革**：现按升级计划演进为三平台、硬解、网络流完备的企业播放器基座。
 
 > **当前状态：M0–M11 ✅ · Phase 0/1/3/4 与转码 E1–E5 已铺设 · 审查报告
