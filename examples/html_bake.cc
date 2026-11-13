@@ -107,10 +107,6 @@ struct Args {
   int chunks = 1;
   // 页面数据注入（window.update 契约）：首帧后注入一次。
   std::string data_json;
-  // HyperFrames 原版单位：data-start/duration/end 为秒（blank 模板
-  // data-duration="10" = 10s 实证）。开启后采集元数据 ×1000 归一到
-  // xmedia 内部毫秒语义。
-  bool hf_seconds = false;
   // Lottie 叠加层：路径 + 绘制 z（默认垫在 HTML 元素之下）。
   std::string lottie_path;
   int lottie_z = -1;
@@ -164,9 +160,6 @@ Args ParseArgs(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--lottie-loop") == 0) {
       a.lottie_loop = std::atoi(v.c_str());
       ++i;
-    } else if (std::strcmp(argv[i], "--hf-seconds") == 0) {
-      a.hf_seconds = true;
-      ++i;
     }
   }
   return a;
@@ -215,12 +208,18 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // --- GL：隐藏窗口（离屏合成 + 读回），drawable 尺寸为准（HiDPI）。
+  // --- GL：隐藏窗口（离屏合成 + 读回），画布 = --width/--height（与
+  // OSR raster 1:1）。Retina 下 framebuffer 默认 2×，会让 presenter 实际
+  // 渲染面与 composer/encoder 的 drawable 语义分叉（ReadPixels 裁切），
+  // 且输出分辨率随显示器变化——强制 1× framebuffer 保证确定性。
   if (glfwInit() != GLFW_TRUE) {
     std::fprintf(stderr, "html_bake: glfwInit failed\n");
     return 1;
   }
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+#ifdef __APPLE__
+  glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+#endif
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -247,9 +246,14 @@ int main(int argc, char** argv) {
                  gl_error.c_str());
     return 1;
   }
+  // 画布 = --width/--height（OSR raster 1:1 DIP↔像素，同尺寸）。不用
+  // glfwGetFramebufferSize：Retina 下 framebuffer 2× 会让 target≠tex，
+  // 元素层进非 1:1 映射路径出错，且输出分辨率随显示器变化，破坏确定性。
   int drawable_w = args.width;
   int drawable_h = args.height;
-  glfwGetFramebufferSize(window, &drawable_w, &drawable_h);
+  // presenter 画布必须显式设置：否则回退 GetDrawableSize（Retina = 2×），
+  // scene 按 2× 拉伸而 ReadPixels 按 drawable 裁切 → 四分之一画面。
+  presenter.SetCanvasSize(drawable_w, drawable_h);
 
   // --- 编码器 + 封装（bundle 外的产物路径直接写）。
   FFmpegVideoEncoder encoder;
@@ -442,9 +446,13 @@ int main(int argc, char** argv) {
           }
         }
       }
-      // seek/live：页面只在内容变化时出帧（无变化 = 最后一次 paint 就
-      // 是本帧内容）——短等待新 paint 以提高新鲜度，超时用当前帧，不
-      // 致命。VT 模式每步强制重绘，长等待 + 致命。
+      // seek/live：seek 已改样式，但 OSR paint 由外部 BeginFrame 驱动，
+      // 样式变化不自发出帧——显式失效一帧，让下一次 paint 携带 seek 后
+      // 的内容（VT 已由 RequestVtStep 每步驱动，无需）。短等待新 paint
+      // 提高新鲜度，超时用当前帧，不致命。
+      if (args.clock != "virtual_time") {
+        layer.Invalidate();
+      }
       if (args.clock == "virtual_time") {
         if (!WaitNewFrame(&layer, previous, 5000)) {
           std::fprintf(stderr, "html_bake: paint %d timed out\n", f);
@@ -494,16 +502,6 @@ int main(int argc, char** argv) {
     auto elements = synthetic
                         ? synthetic_entries
                         : layer.SnapshotElements().entries();
-    if (args.hf_seconds) {
-      // HF 秒制 → 内部毫秒（start/duration/end 三字段）。
-      for (auto& e : elements) {
-        e.start_ms *= 1000;
-        e.duration_ms *= 1000;
-        if (e.has_end) {
-          e.end_ms *= 1000;
-        }
-      }
-    }
     composer.Sync(*scene, frame.get(), elements, t_ms);
 #if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
     if (lottie_anim && lottie_layer != GlScene::kNoLayer) {
@@ -709,9 +707,15 @@ int main(int argc, char** argv) {
                               : page_dir + "/" + e.src);
         const int64_t chunk_begin_ms =
             static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
+        // 跨块延续：前块已播的 [start, chunk_begin) 段不再重播——
+        // media-start 推进等量偏移，时长同步裁剪（-1 = 播到文件尾保持语义）。
+        const int64_t skip_ms =
+            std::max<int64_t>(0, chunk_begin_ms - e.start_ms);
         clip.start_ms = std::max<int64_t>(0, e.start_ms - chunk_begin_ms);
-        clip.duration_ms = e.duration_ms;
-        clip.media_start_ms = e.media_start_ms;
+        clip.duration_ms = e.duration_ms < 0
+                               ? e.duration_ms
+                               : e.duration_ms - skip_ms;
+        clip.media_start_ms = e.media_start_ms + skip_ms;
         clip.volume = e.has_volume ? e.volume : 1.0;
         clip.fade_in = e.fade_in;
         clip.fade_out = e.fade_out;

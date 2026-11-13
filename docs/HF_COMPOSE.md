@@ -41,27 +41,53 @@ python3 tools/hf_validate.py my_video.html
   --out my_video.mp4 \
   --seconds 9 --fps 30 \
   --width 1920 --height 1080 \
-  --clock seek --hf-seconds
+  --clock seek
 ```
 
 ### 旁白驱动 + 竖屏（AI-auto-generate-video 模式）
 
-TTS 产物逐场景挂 `narration`，时长自动拟合；`format: "9:16"` 一键竖屏：
+`hf_tts.py` 逐场景生成旁白并回填 `narration`，`hf_compose` 拟合时长并把
+旁白发成 `<audio>` 元素进确定性混音；`format: "9:16"` 一键竖屏：
+
+```bash
+# 1. TTS 生成旁白（voice/scene-N.wav + 回填 narration → demo.narrated.json）
+python3 tools/hf_tts.py demo.json
+
+# 2. 拟合时长 + 生成契约 HTML
+python3 tools/hf_compose.py demo.narrated.json -o demo.html
+
+# 3. 验证 + 烘焙（9:16 → --width 1080 --height 1920）
+python3 tools/hf_validate.py demo.html
+./build/bin/html_bake.app/Contents/MacOS/html_bake \
+  --url "file://$(pwd)/demo.html" --out demo.mp4 \
+  --seconds 7.3 --fps 30 --width 1080 --height 1920 --clock seek
+```
+
+spec 侧也可以手写 `narration` 路径跳过 TTS（时长照样拟合）。场景时长 =
+ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音，BGM
+（默认 0.6 音量）衬在旁白之下。
+
+### TTS provider（hf_tts.py）
+
+| provider | 说明 | 依赖 |
+|---|---|---|
+| `say` | macOS 离线 TTS（`--data-format=LEI16@22050` 出 WAV）| 系统自带，零依赖 |
+| `http` | 本地 TTS 服务：`POST {text, voice, rate}` → audio 字节（OmniVoice 式，对齐 AI-auto-generate-video 的本地服务架构）| 自备服务 |
 
 ```json
-{
-  "composition": {"id": "shorts", "format": "9:16", "fps": 30},
-  "scenes": [
-    {"type": "title", "text": "三分钟看懂", "narration": "narr_01.mp3"},
-    {"type": "stats", "value": "88%", "description": "确定性渲染通过率",
-     "narration": "narr_02.mp3", "padding": 0.8},
-    {"type": "outro", "text": "关注更多", "duration": 2}
-  ]
+"tts": {
+  "provider": "say",
+  "voice": "Tingting",
+  "rate": 200,
+  "endpoint": "http://127.0.0.1:8123/tts",
+  "out_dir": "voice"
 }
 ```
 
-场景时长 = ffprobe(旁白) + padding；烘焙尺寸与 format 对应（9:16 → 1080×1920，
-html_bake 传 `--width 1080 --height 1920`）。
+CLI `--provider/--voice/--rate/--endpoint/--out-dir` 覆盖 spec；环境变量
+`TTS_PROVIDER` / `TTS_ENDPOINT`（兼容 `OMNIVOICE_ENDPOINT）兜底。幂等：
+产物已存在且 ffprobe 可探测则跳过，重复执行安全；无 `text` 或已有
+`narration` 的场景跳过（保留既有旁白）。默认输出 `<stem>.narrated.json`。
 
 ## Spec Schema
 
@@ -90,6 +116,7 @@ html_bake 传 `--width 1080 --height 1920`）。
 | duration | float | 3 | 秒制时长（有 narration 时被拟合值覆盖，见下）|
 | narration | string | — | 旁白音频路径（相对 spec 目录或绝对路径）；设置后场景时长 = ffprobe 音频时长 + padding |
 | padding | float | 0.5 | narration 拟合时的尾部留白秒数 |
+| narration_volume | float | 1.0 | 旁白混音音量（BGM 默认 0.6 衬在旁白之下）|
 | bg | string | `"#000000"` | 场景背景色 |
 | text_color | string | `"#ffffff"` | 文字颜色 |
 | animation | string | `"fade_in"` | 入场动画（见下表）|
@@ -134,9 +161,9 @@ AI agent（Claude / Cursor / Codex 等）的使用方式与 brag 一致——age
 
 ```
 User: "做一个 10 秒的产品宣传片，深色背景，3 个场景"
-Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_compose.py
-       → python3 tools/hf_validate.py（0 errors 才继续）
-       → html_bake 渲染 → 返回 MP4 路径
+Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_tts.py（旁白）
+       → python3 tools/hf_compose.py → python3 tools/hf_validate.py
+       （0 errors 才继续）→ html_bake 渲染 → 返回 MP4 路径
 ```
 
 生成器保证契约合规：data-\* 秒制 + `__timelines` 注册 + GSAP 4 参数形 + 内联 GSAP（离线确定性，不依赖 CDN）。`hf_validate.py` 是 agent 的自查工具——0 errors 才交给 html_bake。
@@ -166,5 +193,7 @@ Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_compose.py
 ## 已知边界
 
 - `.clip` 生命周期：注入 runtime 接管 `.clip` 元素显隐（其揭示协议需官方管线握手）。无 `.clip` 标记的数据驱动页不受影响——**hf_compose.py 生成的 HTML 不使用 `.clip` 标记**（场景可见性由 data-start/duration + GSAP opacity 驱动）✓
-- `--hf-seconds`：HF 的 data-duration 单位是秒；html_bake 内部是毫秒。烘焙 HF 契约页时传 `--hf-seconds` 做单位归一。
-- 音频轨：当前 MC 的渲染器级音频接线待接；html_bake 的音频链路已验证（tone440.wav 端到端 ✓）。
+- 时间单位：HF 页 `data-start/duration` 是秒，采集端自动归一到毫秒（根元素 `data-time-unit="s"` 声明，`__timelines` 注册表检测兜底）；消费端（合成/混音/元数据）统一毫秒，无需 CLI 单位开关。
+- 音频轨：旁白 `<audio>` + BGM 进 html_bake 确定性混音（解码 → 修剪/增益/斜坡 → data-start 叠加，AudioConverter 统一重采样）✓。
+- 分块音频：`--chunks N>1` 时音频按块独立 AAC 编码再拼接，块边界存在 ±1 AAC 帧（≈21ms）的相移——内容经段级比对一致；采样级精确请用 `--chunks 1`。
+- 烘焙画布：`--width/--height` 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。

@@ -143,7 +143,19 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
     }
     {
       std::lock_guard<std::mutex> scoped(frame->mutex);
-      memcpy(span.data(), frame->bgra.data(), bytes);
+      // OnPaint 缓冲是 w*4 密排；VideoFrame 平面行 64 字节对齐（宽非 16
+      // 倍数如 1080/540 时 stride > w*4）。逐行拷贝，否则行漂移 = 对角
+      // 剪切（1920/3840 宽恰好对齐掩盖了此 bug）。
+      const size_t src_stride = static_cast<size_t>(w) * 4;
+      const size_t dst_stride = static_cast<size_t>(out->stride(VideoFrame::kYPlane));
+      if (dst_stride == src_stride) {
+        memcpy(span.data(), frame->bgra.data(), bytes);
+      } else {
+        for (int row = 0; row < h; ++row) {
+          memcpy(span.data() + row * dst_stride,
+                 frame->bgra.data() + row * src_stride, src_stride);
+        }
+      }
       frame->dirty = false;
     }
     {

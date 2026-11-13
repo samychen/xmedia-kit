@@ -101,6 +101,12 @@ std::string MakeSeekScript(int64_t t_ms) {
              "        } catch (e) {}\n"
              "      });\n"
              "    } catch (e) {}\n"
+             "    // CSS 可见性同步：注册表 totalTime 只推 GSAP 状态，不触碰\n"
+             "    // 内联 visibility——warmup 时 __mcApplyTimeline(0) 给未生效\n"
+             "    // 元素打的 hidden 若不逐帧解除，元素 opacity 到 1 也不渲染。\n"
+             "    if (typeof window.__mcApplyTimeline === 'function') {\n"
+             "      try { window.__mcApplyTimeline(t); } catch (e) {}\n"
+             "    }\n"
              "    if (typeof window.__mcReportRects === 'function') {\n"
              "      try { window.__mcReportRects(t); } catch (e) {}\n"
              "    }\n"
@@ -148,6 +154,20 @@ std::string MakeRectsScript() {
     var n = Number(v);
     return isFinite(n) ? n : null;
   }
+  // 时间属性单位归一：HF 契约页的 data-start/duration 等是秒；旧契约页
+  // 已是毫秒。判定优先级：根元素 data-time-unit="s"（页面显式声明，
+  // DOM 确定性——注入竞态下注册表可能尚未填充）→ __timelines 注册表
+  // 存在（手写 HF 页兜底）→ 毫秒。采集端统一出毫秒，消费端不再各自换算。
+  function hfScale() {
+    try {
+      var root = document.querySelector('[data-composition-id]');
+      if (root && root.getAttribute('data-time-unit') === 's') {
+        return 1000;
+      }
+      return (window.__timelines &&
+              Object.keys(window.__timelines).length) ? 1000 : 1;
+    } catch (e) { return 1; }
+  }
   function report(tMs) {
     try {
       var els = document.querySelectorAll(SEL);
@@ -163,22 +183,23 @@ std::string MakeRectsScript() {
           w: Math.round(r.width * 100) / 100,
           h: Math.round(r.height * 100) / 100
         };
+        var TS = hfScale();
         var s = num(el.getAttribute('data-start'));
-        if (s !== null) { o.start = Math.max(0, Math.round(s)); }
+        if (s !== null) { o.start = Math.max(0, Math.round(s * TS)); }
         var d = num(el.getAttribute('data-duration'));
-        if (d !== null) { o.duration = Math.max(0, Math.round(d)); }
+        if (d !== null) { o.duration = Math.max(0, Math.round(d * TS)); }
         var z = num(el.getAttribute('data-z'));
         if (z !== null) { o.z = Math.round(z); }
         // HyperFrames 原版词汇（data-layer = data-track-index 旧名）。
         var end = num(el.getAttribute('data-end'));
-        if (end !== null) { o.end = Math.max(0, Math.round(end)); }
+        if (end !== null) { o.end = Math.max(0, Math.round(end * TS)); }
         var track = num(el.getAttribute('data-track-index'));
         if (track === null) { track = num(el.getAttribute('data-layer')); }
         if (track !== null) { o.track_index = Math.round(track); }
         var ms = num(el.getAttribute('data-media-start'));
-        if (ms !== null) { o.media_start = Math.max(0, Math.round(ms)); }
+        if (ms !== null) { o.media_start = Math.max(0, Math.round(ms * TS)); }
         var ps = num(el.getAttribute('data-playback-start'));
-        if (ps !== null) { o.playback_start = Math.max(0, Math.round(ps)); }
+        if (ps !== null) { o.playback_start = Math.max(0, Math.round(ps * TS)); }
         var pr = num(el.getAttribute('data-playback-rate'));
         if (pr !== null) { o.playback_rate = pr; }
         var lsrc = el.getAttribute('data-lottie-src');
@@ -229,11 +250,14 @@ std::string MakeRectsScript() {
   // start 前透出）。visibility 而非 display：保留布局，rect 元数据稳定。
   window.__mcApplyTimeline = function(tMs) {
     var t = Math.max(0, Number(tMs) || 0);
+    var TS = hfScale();
     var els = document.querySelectorAll(SEL);
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       var s = num(el.getAttribute('data-start'));
+      if (s !== null) { s *= TS; }
       var d = num(el.getAttribute('data-duration'));
+      if (d !== null) { d *= TS; }
       var active = (s === null || t >= s) &&
                    (d === null || s === null || t < s + d);
       el.style.visibility = active ? 'visible' : 'hidden';

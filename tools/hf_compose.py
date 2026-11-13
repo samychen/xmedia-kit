@@ -211,8 +211,10 @@ def compose(spec):
 
     # 生成场景 clip div
     scene_html_parts = []
+    scene_starts = []
     start = 0.0
     for idx, scene in enumerate(scenes):
+        scene_starts.append(start)
         html, dur = gen_scene_html(scene, start, idx)
         scene_html_parts.append(html)
         start += dur
@@ -229,13 +231,31 @@ def compose(spec):
         vol = float(audio.get("volume", 0.6))
         audio_tag = f'  <audio src="{src}" data-volume="{vol}" data-start="0" data-duration="{total_duration}"></audio>\n'
 
-    # 场景样式
+    # 逐场景旁白 → audio 元素（进 html_bake 确定性混音；时长 = 旁白实长，
+    # 起点对齐场景 clip 窗口；BGM 默认 0.6 音量衬在旁白之下）。
+    narr_audio = []
+    for idx, scene in enumerate(scenes):
+        narration = scene.get("narration")
+        if not narration:
+            continue
+        ndur = _probe_audio_duration(narration)
+        if ndur is None:
+            print(f"hf_compose: 旁白无法探测时长，跳过混音轨 scene-{idx}: "
+                  f"{narration}", file=sys.stderr)
+            continue
+        vol = float(scene.get("narration_volume", 1.0))
+        narr_audio.append(f'  <audio src="{esc(narration)}" data-volume="{vol}"'
+                          f' data-start="{scene_starts[idx]}"'
+                          f' data-duration="{ndur}"></audio>\n')
+
+    # 场景样式（id 选择器：场景 div 的 class 是 scene-{type} 模板类，
+    # 逐场景样式必须挂在 #scene-{idx} 上才命中）
     scene_styles = []
     for idx, scene in enumerate(scenes):
         bg = esc(scene.get("bg", "#000000"))
         color = esc(scene.get("text_color", "#ffffff"))
         scene_styles.append(
-            f'  .scene-{idx} {{ background: {bg}; color: {color}; }}')
+            f'  #scene-{idx} {{ background: {bg}; color: {color}; }}')
 
     style_block = "\n".join(scene_styles)
 
@@ -290,10 +310,10 @@ def compose(spec):
 <body>
   <div id="root" data-composition-id="{comp_id}" data-start="0"
        data-duration="{total_duration}" data-width="{width}"
-       data-height="{height}">
+       data-height="{height}" data-time-unit="s">
 {chr(10).join(scene_html_parts)}
   </div>
-{audio_tag}  <script>{_gsap_src}</script>
+{audio_tag}{''.join(narr_audio)}  <script>{_gsap_src}</script>
   <script>
     window.__timelines = window.__timelines || {{}};
     const tl = gsap.timeline({{ paused: true }});
