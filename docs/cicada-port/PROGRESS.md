@@ -5,7 +5,8 @@
 > `git log --all -- docs/cicada-port/PLAN.md` 找回；本表自足记录剩余与完成。
 
 **当前整体状态**：T1–T9 完成（2026-10-29）+ T8 三条延伸收口（UTC/追帧/DASH 静态，2026-10-31）
-+ DASH 动态侧（live 重载窗口，2026-10-31）。CicadaPlayer 移植范围内**无未开题项**；
++ DASH 动态侧（live 重载窗口，2026-10-31）+ HyperFrames 对齐与 AI 视频生成管线全部完成
+（2026-11-14，功能速查见下节）。CicadaPlayer 移植范围内**无未开题项**；
 DASH 的 SegmentList/SegmentBase、多 Period、代表切换仍按 §"DASH 后续"登记。
 
 ## 剩余移植工作（PLAN §0 裁决为"部分"或"后置"的部分）
@@ -17,27 +18,43 @@ DASH 的 SegmentList/SegmentBase、多 Period、代表切换仍按 §"DASH 后�
 - [x] **T8b 直播追帧**：`media/filters/live_edge_policy.*` 已落地（config.net.live_max_latency 驱动），2026-10-31 核对补记。
 - 不移植（范围裁决，勿重开题）：Android/iOS/Flutter 平台栈、MediaCodec 原生集成、HDR10(AVFoundation)、插件机制/DCA。
 
-## HyperFrames 对齐移植（2026-11）
+## AI 能力功能速查（HyperFrames 对齐 + AI 视频生成管线，2026-11 全部完成）
 
-- [x] **元素元数据层**（79ac162）：`media/base/html_element_meta.*` + `html_rects_payload`（自研 JSON 子集解析），`mc.html.rects` 协议，15 单测。
-- [x] **GIF/ProRes/VP9/HDR 输出**（2528d14/81cc486/b99061d 之前的 8b029c1）：中位切分调色板（AVPalette32 字节序单测钉死）、prores_ks yuv422p10le、libvpx/WebM、hevc_videotoolbox P010LE BT.2020/PQ。
-- [x] **CEF OSR 集成**（8b029c1）：cef_runtime/osr_client/app/layer_source/platform_{mac,linux,common}；`mc.html.ready/error/seekDone/rects` MessageRouter。
-- [x] **音频滤镜预设层**（此前会话已落，2026-11-07 补登记）：`player/audio_filter_presets.{h,cc}`——合成 SDK AudioFilterType_e 五类预设（降音量/均衡器/回声/降噪/变声）翻成 FFmpeg graph 字符串（aecho/equalizer/anlmdn/asetrate+aresample+atempo，替代 MC 的 sox 后端），参数越界钳制；`tests/unit/player/audio_filter_presets_unittest.cc` 逐预设经 FFmpegAudioFilter 实跑（graph 解析即契约）。
-- [x] **T9a 静态帧去重**（2026-11-07）：根因是 HashImageRows 的 stride/width 契约误用（width_bytes 传了 plane 总大小）；改用 HashBytes64 对 `visible_data(kYPlane)` 整段扁平 hash——无 stride 推算、无越界面。`dedup_skipped_frames()` 诊断计数器 + 单测（同内容连续帧 dedup=4 且 pts 网格不破、内容变化即停）。
-- [x] **T9b 验证 seek**（2026-11-07）：`media/transcode/encode_verify.{h,cc}`——转码后重开输出、按采样 pts seek 回读解码、32×18 luma grid 比对；`TranscodeParams::verify_output_frames`（默认关，sidecar `<out>.verify.json` 双向登记，失败 kVerifyFailed 带帧号）。2 单测：整管线 round-trip 通过 + 伪造签名被检出。
-- [x] **CEF OnPaint 冒烟 .app 实跑通过**（2026-11-07，撤销此前"结构性卡点"登记）：此前登记的 GPU/network 子进程 dyld 限制并非根因。真实根因三件：① POST_BUILD `make_directory` 把二进制路径建成目录（copy 目标成为文件夹）；② 测试页缺失；③ `cef_load_library` 非幂等（`g_libcef_handle` 已设时返回 0），宿主预装载后 Init 再装载被误判失败——`CefPlatformLoadFramework` 加 `RTLD_NOLOAD` 常驻探测。现在 `media_cef_smoke.app`（framework + Helper + bundle 布局）端到端 PASS：OnPaint 帧发布 + 元数据采集。元素拆纹理 GPU 渲染的前置条件已满足（quad/UV/映射纯逻辑在 79ac162 就绪）。
-- [x] **元素拆纹理 GPU 渲染**（2026-11-07）：前置打通 + 模块落地。① `GlVideoLayer` 加 packed-RGBA 上传路径（kARGB 单纹理 GL_BGRA 直传 + RGB passthrough shader 双变体 + `is_rgb()`），此前只收 planar YUV、CEF 的 kARGB 帧会被 Upload 拒绝——这是此前"元素拆纹理"真正的隐性前置；② `GlScene` 构建时一并创建 RGB 程序对（构建期暴露编译失败），draw 按 `is_rgb()` 选程序；③ `media/gl/gl_element_composer.{h,cc}`：BuildElementQuads (z, ordinal) 稳定排序 → 每生效元素一个场景层（同帧上传、SetLayerSourceRect 采 UV 窗、SetLayerRect 定位、SetLayerZ 用 data-z，与其它场景层同 z 序交错）；消失元素隐藏层不复建；帧指针不变不重传。与 CEF 解耦（输入 = 任意 VideoFrame + 元数据表）；`CefLayerSource::last_frame()` 供宿主取整层图。像素验收 4 条：双元素各落其位（未被元素覆盖的象限必须是背景——防"整层糊上去"退化）、生效窗外缺席、消失隐藏、z 管线成立（z 序像素不可判如实登记：同一内容映射下重叠 quad 必采同 texel）。GL 套件 74/74。登记后续：共享纹理 + 多 quad 绘制优化（当前 N 元素 = N 份纹理拷贝）。
-- [x] **VP9 alpha（2026-11-07）**：`FFmpegVideoEncoder` alpha 分支——`options["alpha_mode"]="1"` + libvpx-vp9 且编码器声明 yuva420p 才启用（I420 输入没有 alpha 面，sws 到 YUVA420P 的 A 面是未定义字节）。`in_fmt=AV_PIX_FMT_BGRA`（kARGB 字节序 B,G,R,A；`ToAvPixelFormat(kARGB)` 的 0RGB32 在 LE 下把第 4 字节当忽略位，不能用于 alpha）→ sws → YUVA420P → avcodec_open2 时 `pix_fmt==YUVA420P` 自动激活 FFmpeg 7.x 的 `is_alpha`（不需要 alpha_mode 私有选项——7.1.1 的 libvpxenc 已改成按 pix_fmt 激活）。**alpha 不在码流字节里**：FFmpeg 7.x 放在 `AV_PKT_DATA_MATROSKA_BLOCKADDITIONAL` side data 上（DrainPackets 已透传），解码只有 libvpx-vp9 解码器读它（原生 vp9.c 无 alpha 路径）。回读单测：不透明红 A=255 / 全透明绿 A=0 → 解回 YUVA420P 且 A 面按帧保真。顺带修一个堆损坏：测试用 `av_packet_from_data` 会把 vector 的 new[] 内存挂上 `av_buffer_default_free`（av_free 释放 new[] = UB），表现为后续测试随机 SIGABRT——改 av_new_packet+memcpy，三连跑全绿。
-- [x] **分块编码 + concat（2026-11-07）**：`media/transcode/ffmpeg_chunked_job.{h,cc}`——`ChunkedTranscode`：keyframe 网格探查（目标块时长吸附到 ≤ 目标的最近 keyframe）→ 逐窗 `Transcode`（编码器每块关键帧冷启，块间零依赖，可并行/可续跑的基础）→ `Concat` 拷贝路径无损拼接 → 块文件清理（失败/取消也清理）。前置：`Transcode` 补**帧级 start 裁剪**（视频帧/音频缓冲在窗口起点前的解码后丢弃——seek 只能落 keyframe ≤ start，不裁则块接缝重叠；帧级丢弃不破 GOP；音频整帧丢弃 → 接缝至多 ~21ms 空隙，keyframe 网格下的最优解）。与 HyperFrames bake 分块的差别如实登记：那边每块全新渲染可任意边界，这边对已有输入转码，精确边界只有 keyframe。2 单测：多块拼接时长保真 + start 裁剪帧精度。
-- [x] **html_bake 离线烘焙管线（2026-11-11，412ca1a）**：`examples/html_bake.cc`——`GlElementComposer` 的生产消费方落地。CEF OSR（VirtualTime bake 时钟，文档时刻 = 帧序号 × 帧间隔，确定性）→ 每帧 `ApplyTimeline`（页面按 data-start/duration 自切可见性，渲染进程 ACK 回执 `mc.html.applied` 后才步进）→ 元素拆纹理合成 → GlScene → 读回（行序翻转）→ libyuv BGRA→I420 → 编码封装 → `--chunks N` 分块（每块独立编码器冷启 + VT 从 0 快进到窗起点——合成确定性使**任意边界**精确，无 keyframe 约束）→ Concat 拼接 → 块清理。配套基建：`CefLayerSource` caller-thread pump 模式（GUI 宿主的 CEF macOS 主线程约束——pump 线程 Init 与主线程 run loop 互等死锁实测）、`cmake/XmediaCefApp.cmake` 共享 .app 组装、OnLoadEnd 重注入采集/时序脚本、VT 步进 Invalidate（静态页无损伤时 external begin frame 不出帧）。**修出一个真 sws 缺陷**：本构建 FFmpeg 的 sws RGB→YUV 色度计算损坏（luma 全对、色度恒 255/99，4 格式 × 2 尺寸矩阵实测）——VideoConverter 加 libyuv `ARGBToI420Matrix` 快速路径（按帧色彩空间选 ArgbConstants）。ctest `html_bake_smoke` 通过；像素验证位置/颜色/时序全对。已知边界（如实登记）：① 元素出生效窗首帧可能缺元素（CEF 渲染器对 visibility 恢复的重绘惰性，内容验证式重绘可缩小不可消除；HyperFrames 原版页面框架自持渲染故无此问题）；② 平铺光栅裁切对重叠元素透底（非重叠布局是精确前提）。
-- [x] **共享纹理优化（2026-11-11）**：`GlVideoLayer::ShareTexturesFrom` 纹理别名视图——Bind/texture_target/ready/width/height/source_aspect/is_rgb 全量代理 source（任何代理漏项都以黑屏呈现，is_rgb 漏代理实测全黑）；视图不拥有 source 纹理（各自 planes_ 独立分配、析构无别名泄漏）；source 每次 Upload 后必须 re-Share（纹理对象可能整体重建，有重建弹性像素测试）。`GlElementComposer` 改 master+views：一个隐藏 master 层唯一 Upload，N 元素层为视图——**N 元素 1 份纹理拷贝**。`Config.share_textures` 可关（回退路径有像素一致性测试）。GL 76/76（含 2 条新测试）。
-- [x] **Seek bake 时钟 + 数据注入 + 逐属性关键帧 + 元数据导出接线（2026-11-11）**：对照 MC 源码审计后补齐的四项差距。① **Seek 时钟**（MC `html_bake_clock` 的**默认值**）：`window.seek(t_ms)` 页面契约（页面自发 `mc.html.seekDone` 回执，bake 放行；页面无 seek 时 `mc.html.error:no_seek` → 回退预应用时序）——页面自持时间线时**帧级精确**（seek_smoke.html 实测 chip 恰在 t=500 帧出现），`--clock seek` 接入 html_bake；② **页面数据注入**：`SetHtmlData`（ValidateHtmlDataJson 安全门——无 jsoncpp 的最小 JSON 状态机，拒绝非对象/数组根防脚本注入）→ 首次出帧后经 `window.update(d)` 契约注入（data_smoke.html 实测 databox 按 data 变色）；③ **逐属性关键帧**：`media/gl/layer_keyframes.{h,cc}`——EaseType（CSS 具名 + 自定义 cubic-bezier，WebKit UnitBezier 数学：Newton-Raphson + 二分兜底）+ `EvaluatePropertyKeyframes`（区间外钳制/区间内按区段首 ease 插值）+ GlElementComposer 整层动画（opacity→元素层、x/y/scale→内容矩形；rotation 与元素拆纹理语义不等价，如实登记不移植）；7 单测（端点钳制/对称中点/缓动方向/整层求值）+ 不透明度淡入像素测试。④ **元数据导出接线**：html_bake 产出 `<out>.html_elements.json`（BuildElementsMetaJson 的真实调用方，MC render_demo 对齐）。**顺带修掉一个真缺陷**：AwaitTimelineApplied 在 caller-thread 模式用 CV wait_until 阻塞——回执需要同线程 Pump 处理，自阻塞成每次 2 秒死等（改自旋后 4 ack miss → 0，烘焙全程 4s→快速）。
-- [x] **TickBakeClock + Lottie 元素（2026-11-11，审计 #5/#6）**：① **TickBakeClock 统一时钟分发**（MC 对齐）：VT = credit/帧；seek = 同 t 去重 + seek 在飞门控的 window.seek；seek 不支持 = live no-op——html_bake 的时钟分支收敛进 facade（补齐一桩旧账：Impl 的 OnHtmlSeekDone/no_seek 处理器在早前脚本断言中断时从未落盘，seek 验证靠 2 秒超时兜底暗耗每帧 2 秒，补上后真 ACK 生效）。② **Lottie 元素**：`tools/setup_rlottie.sh`（rlottie 0.2 静态库最小化构建，MC 离线源码可重建）+ CMake `XMEDIA_ENABLE_LOTTIE` 门控（缺库降级 OFF，对齐 CEF 模式）+ `media/lottie/lottie_clock.{h,cc}`（帧号映射：floor(t/1000*fps*speed)、loop 回绕/非 loop 钳制、表面尺寸钳制；8 单测）+ `media/lottie/lottie_animation.{h,cc}`（rlottie::Animation 封装：renderSync 纯函数式 CPU 光栅化 → premultiplied BGRA → un-premultiply → kARGB 直通 RGB 上传路径）+ html_bake `--lottie <path>`（叠加层 z 垫在 HTML 元素下，bake 时钟驱动帧号）。端到端像素验证：fade_box.json 淡入 10%→50%→90% 逐帧精确。
-- [x] **HyperFrames 原版契约对齐（2026-11-12，对照 heygen-com/hyperframes npm v0.9.33）**：审计发现 MC 支线的 `window.seek`/`mc.html.*` 是自造协议，原版真实契约为「页面注册 paused GSAP 时间线进 `window.__timelines` + 驱动方遍历注册表 `pause + totalTime(秒+1e-3)`」。落地：① 原版 runtime vendor（`assets/hyperframes/runtime.iife.js` 653KB + `media/cef/hyperframes_runtime.inc` 内嵌）；② **页面脚本前注入**：`MediaCefApp::OnContextCreated` 主 frame 注入（V8 上下文创建时页面脚本未运行，evaluateOnNewDocument 等价）；③ **驱动**：MakeSeekScript 优先 `__hf.seek(秒)`（官方管线薄包装，前向兼容）→ 注册表迭代 `pause + totalTime`（权威契约，motionShot 模块对齐）→ window.seek（MC 契约）→ no_seek；完成回执经 `__hfWaitForSeekCompletion` 桥接为 seekDone；④ **采集器词汇扩展至原版全集**：data-end/track-index(+layer legacy)/media-start/playback-start/playback-rate/lottie-src/composition-id（采集 + 解析 + 粘滞 merge + 字段）。验证：hf_gsap_smoke.html（原版模板结构：composition-id 根 + clip + `__timelines["main"]` 注册 + 内联 GSAP）——**box 按 GSAP 时间线逐帧位移（0→600ms 位置精确）+ 两次烘焙 11MB 像素逐字节一致（确定性 ✓）**。新增认知：file:// 页面的 file:// 子资源（script src）在 CEF OSR 整页黑（已有 `allow-file-access-from-files` 开关实测无效），离线测试页用内联脚本绕开；HF data-duration 单位是**秒**（blank 模板 `data-duration="10"` = 10s 实证），与 MC 毫秒制不同。已知边界：页内 runtime 会接管合成（seek 后 body 背景转黑、加速 canvas 自绘）——真实 HF 页面按 skill 契约自带脚手架，最小测试页缺脚手架的背景差异如实登记。七套件 874 + ctest ×2 全绿。
-- [x] **MC 回移完成（2026-11-12，MC 74d43b32d）**：同款契约对齐落地 MC（framework/render/）：runtime .inc 内嵌 + OnContextCreated 注入、MakeSeekScript 驱动链（__hf.seek → 注册表迭代 → window.seek → no_seek）、采集器词汇全集（collector + jsoncpp 解析 + 粘滞 merge）、单测 +2（词汇解析 + 粘滞语义）89/89 全过。E2E bake 验证受限于本 shell 环境 MC html-bake 启动竞态（IOSurface err=10007、pristine stash 实测同样失败——环境问题非回移问题，MCP html_bake_submit 管线可作替代验证路径）；契约等价性由 xmedia-kit 887ec02 同源移植的端到端确定性验证背书。
-- [x] **原版模板单位适配 + .clip 生命周期边界实证（2026-11-13，707d29c）**：`html_bake --hf-seconds`（HF data-start/duration/end 为秒制，blank 模板 `data-duration="10"` = 10s 实证——采集元数据 ×1000 归一毫秒）。**剩余集成边界（如实登记）**：注入 runtime 会接管 `.clip` 元素显隐（blank 模板 Title 隐藏；无 .clip 页面渲染/驱动正常，数据驱动的自定义 clip 结构亦正常）——runtime 的 clip 揭示协议需官方管线握手，注册表 totalTime 仅驱动 GSAP 状态；完整 `.clip` 生命周期支持 = 后续研究 runtime 揭示协议（或以无 .clip 的数据驱动页为 xmedia 烘焙的目标页型）。
-- [x] **音频链路 + 嵌套合成 + 变量系统（2026-11-13，460aaa4/e814b80）**：对照官方离线文档九篇（npm 包 dist/docs/）逐篇核对后落地。① **音频链路**（data-attributes.md Media 段）：data-volume/fade-in/fade-out/has-audio/src 采集（解析器 + 粘滞 merge）+ `audio_mixdown.{h,cc}` 确定性文件级混音（libav 解码 → swr 归一 48k FLTP 立体声 → media-start 修剪 → volume/淡入出斜坡 → 按 data-start 叠加）→ AAC 192k → 块音频流；验证 tone440.wav @ data-volume=0.8：音轨 439Hz≈440、RMS=6762 精确匹配增益语义。顺带修掉潜伏的双封装器同路径 bug。② **嵌套合成**（compositions.md）：data-composition-src 挂载由注入 runtime 页内完成（xmedia 零 C++ 工作），采集词汇补齐；hf_nested_smoke.html 实测子合成挂载渲染 ✓。③ **变量系统**：data-variable-values 实例覆盖 → "NestedOK" ✓（声明/实例/覆盖三层合并由 runtime 页内 getVariables 完成）；CLI --variables 覆盖待接（runtime 读取 `__hfVariables` 全局，注入点已明确）。④ 采集器补 data-composition-src/variables/variable-values。
-- [x] **TTS 旁白生成 + 烘焙渲染管线修复（2026-11-14）**：① `tools/hf_tts.py`——管线第 2 步（参考项目同样外包本地 TTS 服务）：provider 抽象（macOS `say` 离线零依赖 + OmniVoice 式 HTTP `POST {text,voice,rate}`），逐场景幂等产出 `voice/scene-N.wav|mp3` 并回填 `narration` → `<stem>.narrated.json`；② hf_compose 补 narration 发射为 `<audio>` 元素（此前只驱动时长、声音进不了混音）+ `narration_volume` + 逐场景样式改 `#scene-{idx}` id 选择器（旧 `.scene-N` 类选择器永不命中 → 黑字透明背景）+ 根元素 `data-time-unit="s"` 显式声明时间单位；③ 烘焙渲染管线四连修——(a) **行跨距错位**：PublishFrameIfDirty 密排 memcpy 写入 64 字节对齐 VideoFrame（1080/540 宽每行漂移 32B → 对角剪切条纹；1920/3840 宽恰好对齐掩盖了此 bug），改逐行拷贝；(b) **seek 时钟无重绘**：external BeginFrame 驱动下样式变化不自发出帧，seek/live 分支补 Invalidate；(c) **HF 分支缺可见性同步**：注册表 totalTime 只推 GSAP，warmup 打的 `visibility:hidden` 永不解除（scene-1 opacity 到 1 也不渲染），HF 分支补调 `__mcApplyTimeline(t)`；(d) **presenter 画布分叉**：SetCanvasSize 缺失回退 GetDrawableSize（Retina 2×）→ scene 拉伸 + ReadPixels 裁四分之一，显式设 canvas=CLI 尺寸（输出分辨率不再随显示器 DPI 变化）；④ 采集端 HF 时间属性（start/duration/end/media_start/playback_start）统一秒→毫秒归一（data-time-unit 声明优先、注册表检测兜底——修复注入竞态下注册表未填充时 Math.round 秒制截断 + meta 粘性钉死），`--hf-seconds` CLI 随之移除；html_bake 分块音频补跨块 media-start 偏移（前块已播段不重播）。**验证**：say 中文 TTS → compose → validate 0 errors → 分块烘焙端到端（双场景视觉切换 + 配色逐像素核对、旁白 5.489s 完整无截断 RMS 实测、语音级响度 -21.5dB、同构建 4/4 稳定毫秒 meta、分块/单块音频内容一致）；ctest 1026/1026 全过（含 cef_html_layer_smoke + html_bake_smoke）。已知边界：分块 AAC 边界 ±1 帧（≈21ms）相移，采样级精确用 `--chunks 1`。
+> 逐条实施记录随完成删除，细节见 [HF_COMPOSE.md](../HF_COMPOSE.md)（spec schema / agent 集成 /
+> 已知边界）、提交历史 `git log --oneline 79ac162..30fbf2d` 与下方「完成记录」。
+
+### 管线总览（spec → MP4，同 spec 两次生成逐字节一致）
+
+```bash
+python3 tools/hf_tts.py demo.json                                  # 1. TTS 旁白（可选）
+python3 tools/hf_compose.py demo.narrated.json -o demo.html        # 2. spec → 契约 HTML
+python3 tools/hf_validate.py demo.html                             # 3. 契约校验（0 errors 才继续）
+./build/bin/html_bake.app/Contents/MacOS/html_bake \
+  --url "file://$(pwd)/demo.html" --out demo.mp4 \
+  --seconds 7.3 --fps 30 --width 1080 --height 1920 --clock seek   # 4. 烘焙
+```
+
+### 功能 → 命令
+
+| 功能 | 命令 / spec 字段 |
+|---|---|
+| 场景模板（7 类） | `hf_compose`，spec `scenes[].type`：`title`/`text`/`outro`/`quote`/`list`/`stats`/`comparison` |
+| 入场动画（6 种） | `scenes[].animation`：`fade_in`/`fade_in_up`/`fade_in_down`/`slide_in_left`/`slide_in_right`/`scale_in` |
+| 画幅预设 | `composition.format`：`16:9` / `9:16` / `1:1` / `4:5`（覆盖 width/height） |
+| TTS 旁白 | `hf_tts.py <spec.json> [-o narrated.json] [--provider say\|http] [--voice NAME] [--rate N] [--endpoint URL] [--out-dir DIR]`；spec `tts` 段；环境变量 `TTS_PROVIDER`/`TTS_ENDPOINT`（兼容 `OMNIVOICE_ENDPOINT`）；幂等（产物可探测即跳过） |
+| 旁白驱动时长拟合 | `scenes[].narration` + `padding`（场景时长 = ffprobe 实长 + padding，GSAP 游标与 clip 窗口同源）；旁白进混音：`scenes[].narration_volume` |
+| BGM | spec `audio: {src, volume, fade_in, fade_out}`（默认 0.6 音量衬在旁白之下） |
+| 分块烘焙（逐场景幂等重渲） | `html_bake --chunks N`（每块独立编码器冷启 + Concat 无损拼接） |
+| 烘焙时钟 | `--clock seek`（页面契约，帧级精确，默认推荐）/ `virtual_time`（VT 步进）/ `live`（墙钟） |
+| 编码器 / 封装 | `--codec mjpeg`（默认，基础构建）/ `libx264`（x264 依赖层开启时）；输出封装按扩展名 `mp4`/`gif`/`webm`/`mov` |
+| Lottie 叠加 | `html_bake --lottie <path> [--lottie-z N] [--lottie-speed S] [--lottie-loop N]`（z 垫在 HTML 元素之下，bake 时钟驱动） |
+| 页面数据注入 | `html_bake --data '<json>'`（`window.update(d)` 契约，首帧后注入一次） |
+| 嵌套合成 + 变量 | spec `content` 手写 `data-composition-src` / `data-variable-values`（注入 runtime 页内挂载，子合成经 `__hyperframes.getVariables()` 消费） |
+| 元数据导出 | 自动产出 `<out>.html_elements.json`（元素时序/矩形，毫秒域；调试与合成工具消费） |
+| 契约自查 | `hf_validate.py <html> [--json]`（composition 根/duration/clip/__timelines/GSAP/file:// 子资源告警——agent 无人值守的前置门） |
+| HyperFrames 契约 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一 |
+| 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
+
 - [ ] **.clip 生命周期（剩余唯一集成边界）**：注入 runtime 会接管 `.clip` 元素显隐（其 `__hf.seek` 驱动的是 runtime 构建期捕获的 capturedTimeline；注册表直驱移动 GSAP 状态但不触发 runtime 的 clip 揭示）——blank 模板/mb 页实测 Title/box 在数帧后隐藏。完整支持需逆向 runtime 的 build/capture 握手（`__hf.buildReady`/clipWindow 一族）并实现等价注入。无 .clip 标记的数据驱动页（当前已验证的页型）不受影响。
 
 ---
