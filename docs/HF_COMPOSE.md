@@ -67,6 +67,27 @@ spec 侧也可以手写 `narration` 路径跳过 TTS（时长照样拟合）。�
 ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音，BGM
 （默认 0.6 音量）衬在旁白之下。
 
+## 功能速查（功能 → 命令）
+
+| 功能 | 命令 / spec 字段 |
+|---|---|
+| 场景模板（7 类） | `hf_compose`，spec `scenes[].type`：`title`/`text`/`outro`/`quote`/`list`/`stats`/`comparison` |
+| 入场动画（6 种） | `scenes[].animation`：`fade_in`/`fade_in_up`/`fade_in_down`/`slide_in_left`/`slide_in_right`/`scale_in` |
+| 画幅预设 | `composition.format`：`16:9` / `9:16` / `1:1` / `4:5`（覆盖 width/height） |
+| TTS 旁白 | `hf_tts.py <spec.json> [-o narrated.json] [--provider say\|http] [--voice NAME] [--rate N] [--endpoint URL] [--out-dir DIR]`；spec `tts` 段；环境变量 `TTS_PROVIDER`/`TTS_ENDPOINT`（兼容 `OMNIVOICE_ENDPOINT`）；幂等（产物可探测即跳过） |
+| 旁白驱动时长拟合 | `scenes[].narration` + `padding`（场景时长 = ffprobe 实长 + padding，GSAP 游标与 clip 窗口同源）；旁白音量 `scenes[].narration_volume` |
+| BGM | spec `audio: {src, volume, fade_in, fade_out}`（默认 0.6 音量衬在旁白之下） |
+| 分块烘焙（逐场景幂等重渲） | `html_bake --chunks N`（每块独立编码器冷启 + Concat 无损拼接） |
+| 烘焙时钟 | `--clock seek`（页面契约，帧级精确，默认推荐）/ `virtual_time`（VT 步进）/ `live`（墙钟） |
+| 编码器 / 封装 | `--codec mjpeg`（默认，基础构建）/ `libx264`（x264 依赖层开启时）；输出封装按扩展名 `mp4`/`gif`/`webm`/`mov` |
+| Lottie 叠加 | `html_bake --lottie <path> [--lottie-z N] [--lottie-speed S] [--lottie-loop N]`（z 垫在 HTML 元素之下，bake 时钟驱动） |
+| 页面数据注入 | `html_bake --data '<json>'`（`window.update(d)` 契约，首帧后注入一次） |
+| 嵌套合成 + 变量 | spec `content` 手写 `data-composition-src` / `data-variable-values`（注入 runtime 页内挂载，子合成经 `__hyperframes.getVariables()` 消费） |
+| 元数据导出 | 自动产出 `<out>.html_elements.json`（元素时序/矩形，毫秒域；调试与合成工具消费） |
+| 契约自查 | `hf_validate.py <html> [--json]`（composition 根/duration/clip/__timelines/GSAP/file:// 子资源告警——agent 无人值守的前置门） |
+| HyperFrames 契约 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一 |
+| 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
+
 ### TTS provider（hf_tts.py）
 
 | provider | 说明 | 依赖 |
