@@ -1,4 +1,4 @@
-# HyperFrames AI 视频生成管线
+# xmedia-kit AI 视频生成管线
 
 Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 MP4。
 三步管线，同 spec 两次生成逐字节一致（确定性）。
@@ -85,7 +85,7 @@ ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音�
 | 嵌套合成 + 变量 | spec `content` 手写 `data-composition-src` / `data-variable-values`（注入 runtime 页内挂载，子合成经 `__hyperframes.getVariables()` 消费） |
 | 元数据导出 | 自动产出 `<out>.html_elements.json`（元素时序/矩形，毫秒域；调试与合成工具消费） |
 | 契约自查 | `hf_validate.py <html> [--json]`（composition 根/duration/clip/__timelines/GSAP/file:// 子资源告警——agent 无人值守的前置门） |
-| HyperFrames 契约 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一 |
+| 原版契约兼容 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一（契约对齐 heygen-com/hyperframes） |
 | 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
 
 ### TTS provider（hf_tts.py）
@@ -202,7 +202,7 @@ Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_tts.py（旁�
 
 ## 嵌套合成与变量（进阶）
 
-生成的 HTML 支持 HyperFrames 原版嵌套/变量——在 spec 的 `content` 里手写 `data-composition-src` 即可嵌套子合成：
+生成的 HTML 兼容原版（heygen-com/hyperframes）嵌套/变量语义——在 spec 的 `content` 里手写 `data-composition-src` 即可嵌套子合成：
 
 ```json
 {"type": "text", "text": "", "duration": 5,

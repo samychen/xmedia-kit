@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# HyperFrames 契约 HTML 验证器：lint 生成/手写的合成 HTML 是否满足渲染契约。
+# xmedia-kit 契约 HTML 验证器（协议兼容 heygen-com/hyperframes 原版契约）：
+# lint 生成/手写的合成 HTML 是否满足渲染契约。
 #
 # 用法：hf_validate.py <composition.html> [--json]
 #
@@ -80,7 +81,7 @@ def validate(html):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="HyperFrames 契约 HTML 验证器")
+    parser = argparse.ArgumentParser(description="xmedia-kit 契约 HTML 验证器")
     parser.add_argument("html", help="合成 HTML 文件路径")
     parser.add_argument("--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()

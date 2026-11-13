@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# HyperFrames 契约 HTML 生成器（brag 式 AI 能力的 agent 面向层）。
+# xmedia-kit AI 视频生成管线：spec → 契约 HTML（brag 式 agent 面向层，
+# 协议兼容 heygen-com/hyperframes 原版契约）。
 #
 # 用法：hf_compose.py <spec.json> [-o output.html]
 #
@@ -21,7 +22,7 @@
 #   "audio": {"src": "bgm.mp3", "volume": 0.6, "fade_in": 1, "fade_out": 2}
 # }
 #
-# 产出：HyperFrames 原版契约 HTML——
+# 产出：契约 HTML（兼容 HyperFrames 原版协议）——
 #   data-composition-id 根 + clip data-start/duration(秒) + data-track-index
 #   + paused GSAP 时间线注册 window.__timelines + 内联 GSAP（离线确定性）。
 # 同 spec 两次生成逐字节一致（确定性）。
@@ -194,7 +195,7 @@ def _load_gsap():
 
 
 def compose(spec):
-    """spec dict → HyperFrames 契约 HTML 字符串。确定性：同输入同输出。"""
+    """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。确定性：同输入同输出。"""
     comp = spec.get("composition", {})
     comp_id = comp.get("id", "main")
     fmt = comp.get("format")
@@ -328,7 +329,7 @@ def compose(spec):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="HyperFrames 契约 HTML 生成器")
+    parser = argparse.ArgumentParser(description="xmedia-kit 契约 HTML 生成器")
     parser.add_argument("spec", help="spec JSON 文件路径")
     parser.add_argument("-o", "--output", default=None, help="输出 HTML 路径（默认 stdout）")
     args = parser.parse_args()
