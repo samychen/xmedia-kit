@@ -196,10 +196,22 @@ def gen_scene_html(scene, start_sec, idx):
     else:  # outro
         inner = f'<h1 class="scene-title">{text}</h1>'
 
+    # 视频背景元素（场景级 video 字段）：铺满场景层，文本浮在其上；
+    # data-start/duration 供烘焙侧逐帧对位（video.currentTime 同步）与
+    # 音频混音（视频音轨按场景窗口叠加）。
+    video = scene.get("video")
+    video_tag = ""
+    if video:
+        vsrc = esc(video if isinstance(video, str) else
+                   str(video.get("src", "")))
+        video_tag = (f'  <video class="scene-video" src="{vsrc}"'
+                     f' data-start="{start_sec}" data-duration="{dur}"'
+                     f' muted playsinline preload="auto"></video>\n')
+
     html = f'''  <div id="{scene_id}" class="clip scene scene-{typ}"
        data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
        data-bg="{bg}">
-{inner}
+{video_tag}{inner}
   </div>
 '''
     return html, dur
@@ -385,13 +397,19 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     provenance += " -->"
 
     # 场景样式（id 选择器：场景 div 的 class 是 scene-{type} 模板类，
-    # 逐场景样式必须挂在 #scene-{idx} 上才命中）
+    # 逐场景样式必须挂在 #scene-{idx} 上才命中）。视频场景：背景透明
+    # （画面由烘焙侧原生视频层供给，光栅只承载文字），video 元素本身
+    # visibility:hidden 不进光栅——CEF OSR 的 <video> 合成不随 seek
+    # 重绘（实测冻结），像素走 FFmpeg 原生解码。
+    has_video = any(scene.get("video") for scene in scenes)
+    body_bg = "transparent" if has_video else "var(--ground)"
     scene_styles = []
     for idx, scene in enumerate(scenes):
         bg = esc(scene.get("bg", "#000000"))
         color = esc(scene.get("text_color", "#ffffff"))
+        bg_style = "transparent" if scene.get("video") else bg
         scene_styles.append(
-            f'  #scene-{idx} {{ background: {bg}; color: {color}; }}')
+            f'  #scene-{idx} {{ background: {bg_style}; color: {color}; }}')
 
     style_block = "\n".join(scene_styles)
 
@@ -410,7 +428,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   html, body {{
     width: {width}px; height: {height}px;
-    overflow: hidden; background: var(--ground);
+    overflow: hidden; background: {body_bg};
   }}
   #root {{
     width: 100%; height: 100%;
@@ -422,6 +440,13 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
+  }}
+  .scene-video {{
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; visibility: hidden;
+  }}
+  .scene > :not(.scene-video) {{
+    position: relative; z-index: 1;
   }}
   .scene-title {{ font-size: 72px; font-weight: 700; }}
   .scene-subtitle {{ font-size: 36px; opacity: 0.8; margin-top: 16px; }}

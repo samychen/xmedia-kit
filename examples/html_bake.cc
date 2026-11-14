@@ -58,6 +58,7 @@ extern "C" {
 #include <libavutil/hash.h>
 }
 #include "media/ffmpeg/compat.h"
+#include "video_element_source.h"  // 视频元素原生解码（T2 视频素材元素）
 #include "media/ffmpeg/video_convert.h"
 #include "media/gl/gl_element_composer.h"
 #include "media/gl/gl_present.h"
@@ -230,6 +231,28 @@ int main(int argc, char** argv) {
                          "[--codec name]\n");
     return 1;
   }
+  // 契约页文本：视频场景探测 + 产物来源锚点（html sha256）共用。
+  std::string html_text;
+  {
+    std::string html_path = args.url;
+    if (html_path.rfind("file://", 0) == 0) {
+      html_path = html_path.substr(7);
+    }
+    std::FILE* hf = std::fopen(html_path.c_str(), "rb");
+    if (hf != nullptr) {
+      char buf[65536];
+      size_t n;
+      while ((n = std::fread(buf, 1, sizeof(buf), hf)) > 0) {
+        html_text.append(buf, n);
+      }
+      std::fclose(hf);
+    }
+  }
+  // 视频场景（页面含 scene-video）→ OSR 透明背景：光栅 alpha 承载，
+  // 视频像素走原生解码层（CEF OSR 不合成 <video> 到 OnPaint——实测
+  // 加载后冻结）。
+  const bool has_video_scene = html_text.find("scene-video") !=
+                               std::string::npos;
 
   // --- GL：隐藏窗口（离屏合成 + 读回），画布 = --width/--height（与
   // OSR raster 1:1）。Retina 下 framebuffer 默认 2×，会让 presenter 实际
@@ -307,6 +330,7 @@ int main(int argc, char** argv) {
   config.fps = args.fps;
   config.url = args.url;
   config.bake_virtual_time = args.clock == "virtual_time";
+  config.transparent = has_video_scene;
   // GLFW 占据主线程 run loop：CEF 的 Init/pump 必须同在主线程（见
   // pump_on_caller_thread 的注释——pump 线程模式实测死锁在 CefInitialize）。
   config.pump_on_caller_thread = true;
@@ -473,6 +497,72 @@ int main(int argc, char** argv) {
     }
   }
 
+  // 视频元素原生层：<video> 的像素由 FFmpeg 解码直供（CEF OSR 不合成
+  // video 到光栅——实测冻结），层垫在元素光栅之下（z=-1）、场景背景
+  // 透明让视频透出，文字浮于其上。
+  struct VideoElementLayer {
+    examples::VideoElementSource src;
+    GlScene::LayerId layer = GlScene::kNoLayer;
+    double start_ms = 0;
+    double dur_ms = -1;
+  };
+  std::vector<VideoElementLayer> video_layers;
+  if (!synthetic && has_video_scene) {
+    const auto entries = layer.SnapshotElements().entries();
+    const std::string page_dir_v =
+        args.url.rfind("file://", 0) == 0
+            ? args.url.substr(7, args.url.find_last_of('/') - 7)
+            : std::string();
+    for (const auto& e : entries) {
+      if (!e.is_media || !e.has_src) {
+        continue;
+      }
+      const std::string vext = [&] {
+        const auto dot = e.src.find_last_of('.');
+        return dot == std::string::npos ? std::string()
+                                        : e.src.substr(dot);
+      }();
+      static const char* kVideoExts[] = {".mp4", ".webm", ".mov", ".mkv",
+                                         ".m4v"};
+      bool is_video_ext = false;
+      for (const char* ve : kVideoExts) {
+        if (vext == ve) {
+          is_video_ext = true;
+          break;
+        }
+      }
+      if (!is_video_ext) {
+        continue;
+      }
+      std::string vpath = e.src.rfind("file://", 0) == 0
+                              ? e.src.substr(7)
+                              : (e.src.rfind("/", 0) == 0
+                                     ? e.src
+                                     : page_dir_v + "/" + e.src);
+      VideoElementLayer vl;
+      if (!vl.src.Open(vpath)) {
+        std::fprintf(stderr, "html_bake: 视频元素打开失败 %s\n",
+                     vpath.c_str());
+        continue;
+      }
+      vl.start_ms = static_cast<double>(e.start_ms);
+      vl.dur_ms = static_cast<double>(e.duration_ms);
+      vl.layer = scene->AddVideoLayer(e.has_z ? e.z : -1);
+      if (vl.layer != GlScene::kNoLayer) {
+        scene->SetLayerRect(vl.layer, e.x / static_cast<float>(args.width),
+                            e.y / static_cast<float>(args.height),
+                            e.w / static_cast<float>(args.width),
+                            e.h / static_cast<float>(args.height));
+        scene->SetLayerVisible(vl.layer, false);
+        video_layers.push_back(std::move(vl));
+      }
+    }
+    if (!video_layers.empty()) {
+      std::fprintf(stderr, "html_bake: 视频元素原生层 %zu 个\n",
+                   video_layers.size());
+    }
+  }
+
   // 产物来源锚点（provenance）：MP4 容器 metadata 记录工具名 + HTML
   // sha256。HTML 头部内嵌 hf_compose 生成器注释与 spec 摘要——
   // MP4 → HTML → spec 可逐级验源（ffprobe -show_format 可见 comment）。
@@ -619,6 +709,37 @@ int main(int argc, char** argv) {
                         ? synthetic_entries
                         : layer.SnapshotElements().entries();
     composer.Sync(*scene, frame.get(), elements, t_ms);
+    // 视频元素原生层：FFmpeg 解码当前时刻帧 → kARGB 上传（行拷贝进
+    // 64 字节对齐平面）；窗外隐藏。
+    for (auto& vl : video_layers) {
+      const double local = (t_ms - vl.start_ms) / 1000.0;
+      const bool active =
+          local >= 0 && (vl.dur_ms < 0 || local * 1000 < vl.dur_ms);
+      if (!active) {
+        scene->SetLayerVisible(vl.layer, false);
+        continue;
+      }
+      if (vl.src.FrameAt(local)) {
+        auto vf = VideoFrame::CreateBlackFrame(
+            VideoFormat::kARGB, Size{vl.src.width(), vl.src.height()},
+            Size{vl.src.width(), vl.src.height()}, Rational{1, 1},
+            xmedia::base::Milliseconds(0),
+            xmedia::base::Milliseconds(33), 0);
+        const size_t sstride = static_cast<size_t>(vl.src.width()) * 4;
+        auto span = vf->mutable_data(VideoFrame::kYPlane);
+        const auto& bgra = vl.src.bgra();
+        for (int ry = 0; ry < vl.src.height(); ++ry) {
+          std::memcpy(span.data() + static_cast<size_t>(ry) *
+                                        vf->stride(VideoFrame::kYPlane),
+                      bgra.data() + static_cast<size_t>(ry) * sstride,
+                      sstride);
+        }
+        scene->Upload(vl.layer, *vf);
+        scene->SetLayerVisible(vl.layer, true);
+      } else {
+        scene->SetLayerVisible(vl.layer, false);
+      }
+    }
 #if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
     if (lottie_anim && lottie_layer != GlScene::kNoLayer) {
       auto lf = lottie_anim->RenderAtMs(t_ms);

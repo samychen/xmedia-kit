@@ -69,7 +69,7 @@ add_subdirectory(base)
 # CEF 子进程契约：macOS 上 POST_BUILD 组装 .app bundle（共享函数），ctest 从
 # bundle 内启动。
 if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
-  add_executable(html_bake html_bake.cc)
+  add_executable(html_bake html_bake.cc video_element_source.cc)
   target_link_libraries(html_bake PRIVATE xmedia::xmedia-kit
       xmedia::platform_glfw xmedia::cef xmedia::transcode
       $<$<BOOL:${XMEDIA_HAS_LOTTIE}>:xmedia::lottie>)
