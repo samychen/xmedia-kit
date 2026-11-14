@@ -276,6 +276,14 @@ if(XMEDIA_ENABLE_FFMPEG)
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_studio_smoke.py")
     set_tests_properties(hf_studio_smoke PROPERTIES TIMEOUT 120)
 
+    # ---- hf_video_scene：视频素材元素全链冒烟（FFmpeg 原生解码合成 +
+    # 帧推进 + 帧精度，RUN_SERIAL 串行——CEF 烘焙重负载）。
+    add_test(NAME hf_video_scene_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/hf_video_scene_smoke.py")
+    set_tests_properties(hf_video_scene_smoke PROPERTIES TIMEOUT 300
+        RUN_SERIAL true)
+
     # ---- xmedia CLI：doctor + init + render 一条命令全链冒烟。
     add_test(NAME xmedia_cli_smoke
         COMMAND ${XMEDIA_PYTHON3}

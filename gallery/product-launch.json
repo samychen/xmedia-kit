@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "composition": {"id": "launch", "width": 1920, "height": 1080, "fps": 30},
+  "background": "#0a0a1a",
+  "transitions": {"type": "fade", "duration": 0.5},
+  "scenes": [
+    {"type": "title", "text": "xmedia-kit 发布",
+     "subtitle": "确定性 AI 视频生成管线", "bg": "#1a1a2e",
+     "animation": "fade_in_up", "transition": "wipe"},
+    {"type": "lower-third", "title": "张三", "subtitle": "首席渲染官",
+     "duration": 3, "transition": "wipe"},
+    {"type": "stats", "value": "1029", "description": "回归测试全部通过",
+     "bg": "#16213e", "animation": "scale_in"},
+    {"type": "outro", "text": "xmedia-kit · BSD 授权", "duration": 2,
+     "bg": "#0f3460"}
+  ]
+}

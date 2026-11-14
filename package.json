@@ -1,0 +1,25 @@
+{
+  "name": "xmedia-kit",
+  "version": "1.0.0",
+  "description": "xmedia-kit AI 视频生成管线——spec JSON 确定性出 MP4（TTS 旁白/场景模板/多轨时间轴/来源验源）。npx xmedia-kit render <spec.json>",
+  "bin": {
+    "xmedia": "bin/xmedia.js"
+  },
+  "files": [
+    "bin/",
+    "tools/",
+    "templates/",
+    "assets/sfx/",
+    "gallery/",
+    "docs/HF_COMPOSE.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samychen/xmedia-kit.git"
+  },
+  "keywords": ["video", "ai", "tts", "chromium", "html-to-video"]
+}

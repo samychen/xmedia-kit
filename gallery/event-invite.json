@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "composition": {"id": "invite", "format": "9:16", "fps": 30},
+  "background": "#0a0a1a",
+  "transitions": {"type": "wipe", "duration": 0.4},
+  "scenes": [
+    {"type": "title", "text": "你被邀请了", "subtitle": "周六 · 线下见",
+     "bg": "#0f3460", "animation": "fade_in_up"},
+    {"type": "quote", "quote": "最好的呈现，是确定性",
+     "author": "xmedia-kit", "duration": 3, "bg": "#1a1a2e"},
+    {"type": "text", "text": "报名方式见评论区", "duration": 2,
+     "bg": "#16213e", "animation": "fade_in_down"}
+  ],
+  "audio": {"src": "bgm.mp3", "volume": 0.5}
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "composition": {"id": "cards", "format": "9:16", "fps": 30},
+  "background": "#0a0a1a",
+  "scenes": [
+    {"type": "title", "text": "三分钟看懂确定性渲染", "bg": "#1a1a2e",
+     "animation": "fade_in_up"},
+    {"type": "list", "text": "三个要点", "duration": 4, "bg": "#16213e",
+     "items": ["同 spec 逐字节一致", "来源三重锚点", "TTS 旁白驱动时长"],
+     "animation": "slide_in_left", "transition": "slide-left"},
+    {"type": "stats", "value": "0", "description": "计费——BSD 授权随便用",
+     "bg": "#0f3460", "animation": "scale_in"},
+    {"type": "outro", "text": "关注更多", "duration": 2, "bg": "#1a1a2e"}
+  ],
+  "captions": {"enabled": true}
+}
