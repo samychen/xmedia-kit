@@ -29,6 +29,7 @@
 
 import json
 import os
+import re
 import sys
 import argparse
 import hashlib
@@ -57,6 +58,47 @@ FORMAT_PRESETS = {
     "1:1":   (1080, 1080),
     "4:5":   (1080, 1350),
 }
+
+# SFX 三级选择（AI-auto-generate-video 第 5 步对齐：场景覆盖 → 语义
+# 关键词 → 类型默认）。素材 = assets/sfx/ 的 ffmpeg 合成音效（零授权）。
+SFX_KEYWORDS = [
+    ("突发|重磅|breaking|launch|发布", "whoosh"),
+    ("成功|通过|达成|通关|冠军|success", "success"),
+    ("完成|提示|叮|签到|ding", "ding"),
+    ("点击|按钮|pop|切换", "pop"),
+    ("转场|过渡|换幕|transition", "transition"),
+]
+SFX_TYPE_DEFAULT = {"title": "whoosh", "text": "pop", "outro": "ding",
+                    "quote": None, "list": "pop", "stats": "success",
+                    "comparison": "transition"}
+
+
+def _pick_sfx(scene):
+    """三级 SFX 选择：scene.sfx 覆盖 → 文本关键词匹配 → 类型默认。
+    返回音效名（不含扩展名）或 None（不配）。"""
+    custom = (scene.get("sfx") or "").strip()
+    if custom:
+        return custom
+    haystack = " ".join(str(v) for v in
+                        (scene.get("text"), scene.get("value"),
+                         scene.get("description"), scene.get("quote")) if v)
+    for pattern, sfx in SFX_KEYWORDS:
+        if re.search(pattern, haystack, re.IGNORECASE):
+            return sfx
+    return SFX_TYPE_DEFAULT.get(scene.get("type", "text"))
+
+
+def _resolve_sfx_dir(sfx_dir, spec_dir):
+    """SFX 目录解析：用户自定义相对 spec 目录；内置 assets/sfx 相对仓库
+    根（tools/ 的上级）。"""
+    candidates = [os.path.join(spec_dir, sfx_dir),
+                  os.path.join(os.path.dirname(os.path.dirname(
+                      os.path.abspath(__file__))), sfx_dir)]
+    seen = []
+    for c in candidates:
+        if c not in seen and os.path.isdir(c):
+            seen.append(c)
+    return seen
 
 
 def _probe_audio_duration(path):
@@ -195,7 +237,7 @@ def _load_gsap():
     return "/* gsap not found */"
 
 
-def compose(spec, spec_sha=None):
+def compose(spec, spec_sha=None, no_sfx=False):
     """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。
     确定性：同输入同输出。spec_sha 为来源锚点（canonical JSON 的
     sha256），写进 HTML 头部生成器注释供产物验源。"""
@@ -251,6 +293,42 @@ def compose(spec, spec_sha=None):
         narr_audio.append(f'  <audio src="{esc(narration)}" data-volume="{vol}"'
                           f' data-start="{scene_starts[idx]}"'
                           f' data-duration="{ndur}"></audio>\n')
+
+    # SFX 音效（三级选择，随场景起点叠加进混音）：场景 sfx 覆盖 →
+    # 文本关键词 → 类型默认；--no-sfx 或 sfx.enabled=false 关闭；素材
+    # 目录解析 spec 目录优先、内置 assets/sfx 兜底，文件缺失跳过并提示。
+    sfx_audio = []
+    sfx_cfg = spec.get("sfx", {})
+    if not no_sfx and sfx_cfg.get("enabled", True):
+        sfx_dirs = _resolve_sfx_dir(str(sfx_cfg.get("dir", "assets/sfx")),
+                                    _spec_dir)
+        sfx_vol = float(sfx_cfg.get("volume", 0.4))
+        missing = set()
+        for idx, scene in enumerate(scenes):
+            name = _pick_sfx(scene)
+            if not name:
+                continue
+            hit = next((os.path.join(d, name + ".wav") for d in sfx_dirs
+                        if os.path.isfile(os.path.join(d, name + ".wav"))),
+                       None)
+            if hit is None:
+                missing.add(name)
+                continue
+            rel = os.path.relpath(hit, _spec_dir)
+            if rel.startswith(".."):
+                # 跨挂载点/跨目录的 relpath 会生成深 ".." 链——ffprobe 与
+                # html_bake 的页面相对解析都不可靠，改绝对路径。
+                rel = hit
+            sdur = _probe_audio_duration(rel)
+            if sdur is None:
+                continue
+            sfx_audio.append(
+                f'  <audio src="{esc(rel)}" data-volume="{sfx_vol}"'
+                f' data-start="{scene_starts[idx]}"'
+                f' data-duration="{sdur}"></audio>\n')
+        if missing:
+            print(f"hf_compose: SFX 素材缺失（跳过）：{sorted(missing)} —— "
+                  f"生成见 assets/sfx/README.md", file=sys.stderr)
 
     # 产物来源锚点：HTML 头部生成器注释（spec sha256 由 main 传入；
     # html_bake 再把 HTML sha256 写进 MP4 容器 metadata——MP4 → HTML →
@@ -326,7 +404,7 @@ def compose(spec, spec_sha=None):
        data-height="{height}" data-time-unit="s">
 {chr(10).join(scene_html_parts)}
   </div>
-{audio_tag}{''.join(narr_audio)}  <script>{_gsap_src}</script>
+{audio_tag}{''.join(narr_audio)}{''.join(sfx_audio)}  <script>{_gsap_src}</script>
   <script>
     window.__timelines = window.__timelines || {{}};
     const tl = gsap.timeline({{ paused: true }});
@@ -344,6 +422,8 @@ def main():
     parser = argparse.ArgumentParser(description="xmedia-kit 契约 HTML 生成器")
     parser.add_argument("spec", help="spec JSON 文件路径")
     parser.add_argument("-o", "--output", default=None, help="输出 HTML 路径（默认 stdout）")
+    parser.add_argument("--no-sfx", action="store_true",
+                        help="关闭 SFX 音效（默认按场景类型/关键词自动配置）")
     args = parser.parse_args()
 
     try:
@@ -366,7 +446,7 @@ def main():
     spec_sha = hashlib.sha256(
         json.dumps(spec, sort_keys=True, ensure_ascii=False).encode(
             "utf-8")).hexdigest()
-    html = compose(spec, spec_sha=spec_sha)
+    html = compose(spec, spec_sha=spec_sha, no_sfx=args.no_sfx)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)

@@ -107,6 +107,7 @@ BGM（默认 0.6 音量）衬在旁白之下。
 | 契约自查 | `hf_validate.py <html> [--json]`（composition 根/duration/clip/__timelines/GSAP/file:// 子资源告警——agent 无人值守的前置门） |
 | 原版契约兼容 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一（契约对齐 heygen-com/hyperframes） |
 | 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
+| SFX 音效 | 三级选择（场景 `sfx` 覆盖 → 文本关键词 → 类型默认）随场景起点叠加，默认音量 0.4；素材 = `assets/sfx/` 五个 ffmpeg 合成音效（whoosh/pop/ding/success/transition，零授权，生成命令见该目录 README）；关闭：`--no-sfx` 或 spec `"sfx": {"enabled": false}`；自定义目录 `sfx.dir`、音量 `sfx.volume` |
 
 ### TTS provider（hf_tts.py）
 

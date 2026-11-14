@@ -98,7 +98,9 @@ def main():
         html = open(html_path, encoding="utf-8").read()
         assert html.startswith("<!DOCTYPE html>\n"
                                "<!-- xmedia-kit hf_compose"), "生成器注释缺失"
-        assert html.count("<audio") == 3, "旁白 <audio> 数量不符"
+        # 3 旁白 + 3 SFX（SFX 目录解析兜底到仓库 assets/sfx；类型默认
+        # whoosh/success/ding）
+        assert html.count("<audio") == 6, f"SFX+旁白 <audio> 数量不符"
         assert 'data-time-unit="s"' in html, "秒制声明缺失"
         assert html.count("tl.fromTo") == 3, "GSAP 入场数量不符"
 

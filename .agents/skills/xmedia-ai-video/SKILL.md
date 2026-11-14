@@ -90,8 +90,9 @@ grep generator demo.html_elements.json         # 工具指纹
 - TTS 可朗读文本 = `text` 优先、类型聚合兜底；想口播版与屏上文字不同
   （旁白补画面而非读字），手写 `narration` 音频路径跳过自动提取
 - BGM/SFX：引擎支持任意音频文件多轨叠加（`audio` 段 + 逐场景 narration
-  按 data-start 混音）——**素材库未捆绑**：BGM 用用户提供的文件，缺失
-  会明确提示且输出无音轨；SFX 可作为短音频元素按 data-start 定位叠加
+  按 data-start 混音）。SFX 内置合成素材（assets/sfx/，三级自动选择：
+  场景 sfx 覆盖 → 关键词 → 类型默认，`--no-sfx` 关闭）；BGM 用用户
+  提供的文件，缺失会明确提示且输出无音轨
 - 旁白时长驱动场景时长（拟合 + padding）——写旁白文案时按节奏预算
 
 ## 常见坑
