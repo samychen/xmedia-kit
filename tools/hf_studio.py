@@ -100,23 +100,26 @@ def build_chrome(total_s, scenes):
     return f'''{MARK_BEGIN}
 <style>
   #__mc-studio-chrome {{
-    position: fixed; left: 0; right: 0; bottom: 0; height: 52px;
-    background: rgba(12, 12, 20, 0.92); color: #e8e8f0;
-    display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    height: 44px; padding: 0 14px; border-radius: 22px;
+    background: rgba(10, 10, 16, 0.82); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.14); color: #e8e8f0;
+    display: flex; align-items: center; gap: 10px;
     font: 13px/1 -apple-system, "Helvetica Neue", sans-serif;
     z-index: 2147483647; user-select: none;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
   }}
   #__mc-studio-chrome button {{
-    background: #2a2a3c; color: #e8e8f0; border: 0; border-radius: 6px;
-    padding: 6px 12px; cursor: pointer; font: inherit;
+    background: rgba(255, 255, 255, 0.08); color: #e8e8f0; border: 0;
+    border-radius: 14px; padding: 6px 11px; cursor: pointer; font: inherit;
   }}
-  #__mc-studio-chrome button:hover {{ background: #3a3a52; }}
-  #__mc-studio-bar {{ flex: 1; accent-color: #6c8cff; }}
-  #__mc-studio-scenes {{ display: flex; gap: 6px; max-width: 46%;
+  #__mc-studio-chrome button:hover {{ background: rgba(255, 255, 255, 0.16); }}
+  #__mc-studio-bar {{ width: 240px; accent-color: #8ba0ff; }}
+  #__mc-studio-scenes {{ display: flex; gap: 5px; max-width: 42vw;
     overflow-x: auto; }}
   #__mc-studio-scenes button {{ padding: 5px 9px; font-size: 12px;
     white-space: nowrap; }}
-  #__mc-studio-time {{ min-width: 96px; text-align: right;
+  #__mc-studio-time {{ min-width: 92px; text-align: right;
     font-variant-numeric: tabular-nums; }}
 </style>
 <div id="__mc-studio-chrome">
@@ -246,83 +249,122 @@ STUDIO_UI = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <title>xmedia Studio</title>
 <style>
-  :root { --bg: #12121a; --panel: #1a1a26; --line: #2a2a3c;
-          --ink: #e8e8f0; --dim: #8a8aa0; --acc: #6c8cff; --ok: #4cc38a;
-          --err: #ff6c6c; }
+  :root {
+    --bg: #0b0b11; --panel: #15151d; --panel2: #1a1a24; --line: #26263a;
+    --ink: #e9e9f0; --dim: #9494a8; --acc: #6d8bff; --acc2: #8b6dff;
+    --ok: #3ecf8e; --err: #ff5c6c; --warn: #e8b64c;
+  }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
          font: 14px/1.45 -apple-system, "Helvetica Neue", sans-serif;
-         height: 100vh; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 14px; height: 48px;
-           padding: 0 16px; border-bottom: 1px solid var(--line);
-           background: var(--panel); }
-  header b { letter-spacing: 0.4px; }
-  header .file { color: var(--dim); font-size: 12px; }
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 12px; height: 46px;
+           padding: 0 14px; border-bottom: 1px solid var(--line);
+           background: var(--panel); flex: none; }
+  .logo { width: 24px; height: 24px; border-radius: 7px;
+          background: linear-gradient(135deg, var(--acc), var(--acc2)); }
+  header b { font-size: 13px; letter-spacing: 0.3px; }
+  header .file { color: var(--dim); font-size: 12px; background: var(--panel2);
+                 padding: 4px 10px; border-radius: 6px; }
   header .sp { flex: 1; }
-  header button { background: #2a2a3c; color: var(--ink); border: 0;
-                  border-radius: 6px; padding: 7px 14px; cursor: pointer; }
-  header button:hover { background: #3a3a52; }
-  header button.acc { background: var(--acc); color: #0d1122; font-weight: 600; }
-  header button:disabled { opacity: 0.45; cursor: default; }
-  main { flex: 1; display: grid; grid-template-columns: 440px 1fr;
+  header button { background: var(--panel2); color: var(--ink); border: 1px
+                  solid var(--line); border-radius: 7px; padding: 7px 13px;
+                  cursor: pointer; font: inherit; font-size: 13px; }
+  header button:hover { border-color: var(--acc); }
+  header button.acc { background: linear-gradient(135deg, var(--acc),
+                       var(--acc2)); border: 0; color: #0d1122;
+                       font-weight: 600; }
+  header button:disabled { opacity: 0.4; cursor: default; }
+  main { flex: 1; display: grid; grid-template-columns: 420px 1fr;
          min-height: 0; }
   #left { border-right: 1px solid var(--line); display: flex;
-          flex-direction: column; min-height: 0; }
-  #spec { flex: 1; width: 100%; background: var(--panel); color: var(--ink);
-          border: 0; outline: 0; resize: none; padding: 12px 14px;
-          font: 12px/1.5 ui-monospace, Menlo, monospace; }
-  #right { display: flex; flex-direction: column; min-height: 0; }
+          flex-direction: column; min-height: 0; background: var(--panel); }
+  .panel-h { height: 34px; display: flex; align-items: center; gap: 8px;
+             padding: 0 14px; border-bottom: 1px solid var(--line);
+             font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
+             text-transform: uppercase; flex: none; }
+  #spec { flex: 1; width: 100%; background: transparent; color: var(--ink);
+          border: 0; outline: 0; resize: none; padding: 10px 14px;
+          font: 12px/1.6 ui-monospace, Menlo, monospace; }
+  #right { display: flex; flex-direction: column; min-height: 0;
+           background: var(--bg); }
   #pvwrap { flex: 1; display: flex; align-items: center;
-            justify-content: center; background:
-            repeating-conic-gradient(#16161f 0 25%, #101018 0 50%) 0 0/24px 24px;
-            min-height: 0; }
-  #pvframe { background: #000; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
-             border: 1px solid var(--line); }
+            justify-content: center; min-height: 0; padding: 18px;
+            background: repeating-conic-gradient(#12121a 0 25%,
+                         #0e0e14 0 50%) 0 0/22px 22px; }
+  #pvframe { position: relative; background: #000; border-radius: 12px;
+             border: 1px solid var(--line); overflow: hidden;
+             box-shadow: 0 10px 44px rgba(0, 0, 0, 0.55); }
   #pvframe iframe { width: 100%; height: 100%; border: 0; display: block; }
-  #bottom { border-top: 1px solid var(--line); height: 232px;
+  #scene-badge { position: absolute; top: 10px; left: 10px; font-size: 11px;
+                 color: var(--dim); background: rgba(10, 10, 16, 0.7);
+                 padding: 4px 9px; border-radius: 6px; z-index: 2147483000; }
+  #findings { flex: none; max-height: 96px; overflow: auto; padding: 8px 14px;
+              border-top: 1px solid var(--line); background: var(--panel); }
+  #findings:empty { display: none; }
+  #findings .f { font-size: 12px; padding: 1px 0; }
+  #findings .f.err { color: var(--err); }
+  #findings .f.warn { color: var(--warn); }
+  #findings .f.info { color: var(--dim); }
+  #bottom { border-top: 1px solid var(--line); height: 248px; flex: none;
             display: flex; flex-direction: column; background: var(--panel); }
-  #tl-head { display: flex; align-items: center; gap: 10px;
-             padding: 7px 14px 0; font-size: 11px; color: var(--dim); }
+  #tl-head { display: flex; align-items: center; gap: 10px; height: 32px;
+             padding: 0 14px; flex: none; }
+  #tl-head .cap { font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
+                  text-transform: uppercase; }
+  #tlabel { font-variant-numeric: tabular-nums; color: var(--ink);
+            background: var(--panel2); padding: 3px 9px; border-radius: 6px; }
+  #tl-head .hint { color: var(--dim); }
   #timeline { position: relative; flex: 1; overflow: hidden;
-              padding: 4px 14px 6px; }
-  .tl-row { display: flex; height: 27px; margin-bottom: 3px; }
+              padding: 0 14px 8px; cursor: crosshair; }
+  .tl-ruler { position: relative; height: 16px; margin-left: 58px;
+              font-size: 10px; color: var(--dim); }
+  .tl-ruler .tick { position: absolute; top: 0; height: 100%;
+                    border-left: 1px solid #2e2e42; padding-left: 3px; }
+  .tl-row { display: flex; height: 30px; margin-top: 3px; }
   .tl-label { width: 58px; flex: none; font-size: 11px; color: var(--dim);
               display: flex; align-items: center; }
-  .tl-lane { flex: 1; position: relative; background: #191924;
-             border-radius: 4px; }
-  .tl-blk { position: absolute; top: 2px; bottom: 2px; border-radius: 4px;
-            background: #2d3653; border: 1px solid #3d4770; cursor:
-            pointer; overflow: hidden; font-size: 11px; color: var(--dim);
-            padding: 3px 6px; white-space: nowrap; }
-  .tl-blk:hover { border-color: var(--acc); color: var(--ink); }
-  .tl-blk.sel { border-color: var(--acc); color: var(--ink);
-                background: #35406b; }
-  .tl-blk.locked { opacity: 0.8; cursor: default; }
+  .tl-lane { flex: 1; position: relative; background: #12121a;
+             border-radius: 5px; }
+  .tl-blk { position: absolute; top: 3px; bottom: 3px; border-radius: 5px;
+            cursor: pointer; overflow: hidden; font-size: 11px;
+            padding: 4px 7px; white-space: nowrap; color: var(--ink); }
+  .tl-blk.scene { background: linear-gradient(180deg, #2b3560, #232b4c);
+                  border: 1px solid #46528c; }
+  .tl-blk.narration { background: linear-gradient(180deg, #3a2d5c, #2e244a);
+                      border: 1px solid #64468f; }
+  .tl-blk.sfx { background: linear-gradient(180deg, #24443a, #1c362f);
+                border: 1px solid #3f7a64; }
+  .tl-blk.bgm { background: linear-gradient(180deg, #4c3f24, #3a3020);
+                border: 1px solid #8f7a46; }
+  .tl-blk:hover { filter: brightness(1.25); }
+  .tl-blk.sel { border-color: var(--acc);
+                box-shadow: 0 0 0 1px var(--acc) inset; }
+  .tl-blk.locked { cursor: default; }
+  .tl-blk .dur { color: var(--dim); margin-left: 6px;
+                 font-variant-numeric: tabular-nums; }
   .tl-blk .trim { position: absolute; right: 0; top: 0; bottom: 0;
                   width: 9px; cursor: ew-resize;
-                  background: rgba(108, 140, 255, 0.3); }
-  .tl-blk .mv { position: absolute; top: 0; bottom: 0; width: 16px;
-                cursor: pointer; color: var(--acc); font-size: 12px;
+                  background: rgba(255, 255, 255, 0.12); }
+  .tl-blk .trim:hover { background: rgba(108, 139, 255, 0.55); }
+  .tl-blk .mv { position: absolute; top: 0; bottom: 0; width: 15px;
+                cursor: pointer; color: var(--ink); font-size: 12px;
                 display: flex; align-items: center; justify-content: center;
-                background: rgba(12, 12, 20, 0.5); }
+                background: rgba(11, 11, 17, 0.72); }
   .tl-blk .mv.left { left: 0; }
   .tl-blk .mv.right { right: 9px; }
-  .tl-lane.audio-narration .tl-blk { background: #3a2d53;
-                                     border-color: #5d4770; }
-  .tl-lane.audio-sfx .tl-blk { background: #2d5347; border-color: #47705d; }
-  .tl-lane.audio-bgm .tl-blk { background: #53472d; border-color: #705d47; }
-  .ph { position: absolute; top: 0; bottom: 0; width: 2px;
-        background: #ff5c7a; z-index: 5; pointer-events: none; }
-  #log { flex: 1; overflow: auto; padding: 8px 12px; font: 11px/1.6
+  #playhead { position: absolute; top: 0; bottom: 0; width: 0;
+              pointer-events: none; z-index: 9; }
+  #playhead::before { content: ""; position: absolute; top: 0; bottom: 0;
+                      left: -1px; width: 2px; background: #ff5c7a; }
+  #playhead::after { content: ""; position: absolute; top: -1px; left: -6px;
+                     border: 6px solid transparent; border-top: 7px solid
+                     #ff5c7a; }
+  #log { flex: 1; overflow: auto; padding: 6px 14px; font: 11px/1.55
          ui-monospace, Menlo, monospace; color: var(--dim);
          border-top: 1px solid var(--line); white-space: pre-wrap; }
   #log .err { color: var(--err); }
   #log .ok { color: var(--ok); }
-  #findings { max-height: 110px; overflow: auto; border-top: 1px solid
-              var(--line); padding: 6px 14px; font-size: 12px; }
-  #findings .err { color: var(--err); }
-  #findings .warn { color: #e0b050; }
-  .row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
   .spin { display: inline-block; width: 12px; height: 12px;
           border: 2px solid var(--dim); border-top-color: var(--acc);
           border-radius: 50%; animation: sp 0.8s linear infinite; }
@@ -331,37 +373,50 @@ STUDIO_UI = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
+  <div class="logo"></div>
   <b>xmedia Studio</b>
   <span class="file" id="fileinfo"></span>
   <span class="sp"></span>
-  <button id="btn-tts" title="对 spec 全场景生成旁白">生成旁白</button>
+  <button id="btn-tts" title="对 spec 全场景生成旁白（say/HTTP）">生成旁白</button>
   <button id="btn-recompose" class="acc" title="Ctrl/Cmd+Enter">重组合成</button>
   <button id="btn-bake">烘焙 MP4</button>
-  <span id="job" style="min-width:60px;font-size:12px;color:var(--dim)"></span>
+  <span id="job" style="min-width:70px;font-size:12px;color:var(--dim)"></span>
 </header>
 <main>
   <div id="left">
-    <div class="row"><span style="color:var(--dim)">spec JSON（Ctrl/Cmd+Enter 重组）</span>
-      <span class="sp" style="flex:1"></span>
-      <label style="font-size:12px;color:var(--dim)"><input type="checkbox" id="sfx"> SFX</label></div>
+    <div class="panel-h">SPEC JSON
+      <span style="flex:1"></span>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;
+                    text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="sfx" checked> SFX</label>
+      <span style="text-transform:none;letter-spacing:0">Ctrl/Cmd+Enter 重组</span>
+    </div>
     <textarea id="spec" spellcheck="false"></textarea>
   </div>
   <div id="right">
-    <div id="pvwrap"><div id="pvframe"><iframe id="pv"></iframe></div></div>
+    <div id="pvwrap">
+      <div id="pvframe">
+        <iframe id="pv"></iframe>
+        <div id="scene-badge"></div>
+      </div>
+    </div>
     <div id="findings"></div>
   </div>
 </main>
 <div id="bottom">
   <div id="tl-head">
+    <span class="cap">时间轴</span>
     <span id="tlabel">0.0s</span>
-    <span>多轨时间轴 — 场景块：点选后 ‹ › 排序、拖右缘裁剪（旁白场景锁定时长）；
-          音频块点击跳转</span>
+    <span class="hint">场景块：点选 ‹ › 排序 · 拖右缘裁剪（旁白锁定）·
+      标尺点击/拖动定位 · 空格播放</span>
   </div>
   <div id="timeline"></div>
   <div id="log"></div>
 </div>
 <script>
-var state = { spec: null, duration: 0, scenes: [], width: 1080, height: 1920 };
+var state = { spec: null, duration: 0, scenes: [], audios: [],
+              width: 1080, height: 1920 };
+var selIdx = -1;
 var $ = function (id) { return document.getElementById(id); };
 function log(msg, cls) {
   var el = document.createElement("div");
@@ -380,20 +435,39 @@ function api(path, body) {
       });
     });
 }
-var selIdx = -1;
+function activeScene(t) {
+  for (var i = 0; i < state.scenes.length; i++) {
+    var s = state.scenes[i];
+    if (t >= s.start && t < s.start + s.dur) return s;
+  }
+  return null;
+}
 function renderTimeline() {
   var tl = $("timeline"); tl.innerHTML = "";
   var total = Math.max(state.duration, 0.1);
+  var ruler = document.createElement("div"); ruler.className = "tl-ruler";
+  var step = total > 24 ? 5 : total > 12 ? 2 : 1;
+  for (var s = 0; s <= total; s += step) {
+    var tk = document.createElement("div"); tk.className = "tick";
+    tk.style.left = (s / total * 100) + "%";
+    tk.textContent = s + "s";
+    ruler.appendChild(tk);
+  }
+  tl.appendChild(ruler);
+  var phWrap = document.createElement("div");
+  phWrap.style.position = "relative";
+  var ph = document.createElement("div"); ph.id = "playhead";
+  phWrap.appendChild(ph);
   [["场景", "scene"], ["旁白", "narration"], ["SFX", "sfx"],
    ["音乐", "bgm"]].forEach(function (ld) {
     var row = document.createElement("div"); row.className = "tl-row";
+    phWrap.appendChild(row);
     var lab = document.createElement("div"); lab.className = "tl-label";
     lab.textContent = ld[0];
     var lane = document.createElement("div");
-    lane.className = "tl-lane audio-" + ld[1];
-    var ph = document.createElement("div"); ph.className = "ph";
-    lane.appendChild(ph);
-    row.appendChild(lab); row.appendChild(lane); tl.appendChild(row);
+    lane.className = "tl-lane " + ld[1];
+    lane.dataset.kind = ld[1];
+    row.appendChild(lab); row.appendChild(lane);
     if (ld[1] === "scene") {
       state.scenes.forEach(function (s, idx) {
         var locked = !!(state.spec.scenes[idx] &&
@@ -402,8 +476,9 @@ function renderTimeline() {
         b.className = "tl-blk" + (locked ? " locked" : "") +
                       (idx === selIdx ? " sel" : "");
         b.style.left = (s.start / total * 100) + "%";
-        b.style.width = Math.max(2, s.dur / total * 100) + "%";
-        b.textContent = s.label;
+        b.style.width = Math.max(1.5, s.dur / total * 100) + "%";
+        b.innerHTML = s.label +
+            '<span class="dur">' + s.dur.toFixed(1) + "s</span>";
         b.title = locked ? "旁白锁定：时长随旁白拟合"
                          : "点选：‹ › 排序；拖右缘裁剪时长";
         b.onclick = function (ev) {
@@ -418,9 +493,10 @@ function renderTimeline() {
             e.stopPropagation();
             var px0 = e.clientX, d0 = s.dur;
             function mv(e2) {
-              var d = d0 + (e2.clientX - px0) / lane.clientWidth * total;
-              b.style.width = Math.max(2, d / total * 100) + "%";
-              b._newDur = Math.max(0.3, d);
+              var d = d0 + (e2.clientX - px0) / (lane.clientWidth) * total;
+              d = Math.max(0.3, Math.min(d, total - s.start));
+              b.style.width = Math.max(1.5, d / total * 100) + "%";
+              b._newDur = d;
             }
             function up() {
               document.removeEventListener("mousemove", mv);
@@ -451,18 +527,19 @@ function renderTimeline() {
           var b = document.createElement("div");
           b.className = "tl-blk locked";
           b.style.left = (a.start / total * 100) + "%";
-          b.style.width = Math.max(2,
+          b.style.width = Math.max(1.5,
               Math.min(a.dur || total, total) / total * 100) + "%";
-          b.textContent = a.src.split("/").pop() + " · " + a.vol.toFixed(1);
+          var nm = a.src.split("/").pop();
+          b.innerHTML = nm + '<span class="dur">v' + a.vol.toFixed(1) +
+                        "</span>";
           b.title = a.src;
-          b.onclick = function () {
-            $("pv").contentWindow.postMessage(
-                { mcStudioSeek: a.start + 0.01 }, "*");
-          };
+          b.onclick = function () { seekTo(a.start + 0.01); };
           lane.appendChild(b);
         });
     }
   });
+  $("timeline").appendChild(phWrap);
+  updatePlayhead(lastTime, total);
 }
 function trimCommit(idx, newDur) {
   state.spec.scenes[idx].duration = Math.round(newDur * 100) / 100;
@@ -480,44 +557,76 @@ function reorder(idx, dir) {
   log("场景 " + idx + " " + (dir < 0 ? "前移" : "后移") + "，重组合成…");
   recompose();
 }
+function seekTo(sec) {
+  $("pv").contentWindow.postMessage({ mcStudioSeek: sec }, "*");
+}
+var lastTime = 0;
+function updatePlayhead(t, total) {
+  lastTime = t;
+  var pct = (total > 0 ? Math.min(t, total) / total : 0) * 100 + "%";
+  var ph = $("playhead"); if (ph) ph.style.left = "calc(58px + " + pct +
+      " * (100% - 58px))";
+  $("tlabel").textContent = t.toFixed(1) + "s / " + total.toFixed(1) + "s";
+  var badge = $("scene-badge");
+  var sc = activeScene(t);
+  if (badge) badge.textContent = sc ? sc.label : "—";
+}
 window.addEventListener("message", function (ev) {
   var d = ev.data || {};
   if (typeof d.mcStudioTime === "number") {
-    var total = d.total || state.duration;
-    var pct = (total > 0 ? d.mcStudioTime / total : 0) * 100 + "%";
-    document.querySelectorAll("#timeline .ph").forEach(function (p) {
-      p.style.left = pct;
-    });
-    $("tlabel").textContent = d.mcStudioTime.toFixed(1) + "s / " +
-                              total.toFixed(1) + "s";
+    updatePlayhead(d.mcStudioTime, d.total || state.duration);
   }
 });
-function fitPreview() {
-  var wrap = $("pvwrap"), fr = $("pvframe");
-  var aw = state.width / state.height;
-  var maxW = wrap.clientWidth - 24, maxH = wrap.clientHeight - 24;
-  var w = Math.min(maxW, maxH * aw), h = w / aw;
-  fr.style.width = w + "px"; fr.style.height = h + "px";
-  $("pv").style.width = w + "px"; $("pv").style.height = h + "px";
-}
+// 标尺点击/拖动定位（跨四轨的统一 scrub）
+(function () {
+  var scrub = function (ev) {
+    var tl = $("timeline");
+    var rect = tl.getBoundingClientRect();
+    var laneX = ev.clientX - rect.left - 58;
+    var laneW = rect.width - 58 - 14;
+    if (laneW <= 0 || laneX < 0) { return; }
+    var total = Math.max(state.duration, 0.1);
+    seekTo(Math.max(0, Math.min(total, laneX / laneW * total)));
+  };
+  $("timeline").addEventListener("mousedown", function (ev) {
+    if (ev.target.closest(".tl-blk")) { return; }
+    scrub(ev);
+    function mv(e2) { scrub(e2); }
+    function up() {
+      document.removeEventListener("mousemove", mv);
+      document.removeEventListener("mouseup", up);
+    }
+    document.addEventListener("mousemove", mv);
+    document.addEventListener("mouseup", up);
+  });
+})();
 function renderFindings(f) {
   var el = $("findings"); el.innerHTML = "";
   (f || []).forEach(function (x) {
     var d = document.createElement("div");
-    if (x.level === "error") d.className = "err";
-    if (x.level === "warning") d.className = "warn";
+    d.className = "f " + x.level;
     d.textContent = "[" + x.level + "] " + x.message;
     el.appendChild(d);
   });
+}
+function fitPreview() {
+  var wrap = $("pvwrap"), fr = $("pvframe");
+  var aw = state.width / state.height;
+  var maxW = Math.max(160, wrap.clientWidth - 40);
+  var maxH = Math.max(160, wrap.clientHeight - 40);
+  var w = Math.min(maxW, maxH * aw);
+  fr.style.width = w + "px";
+  fr.style.height = (w / aw) + "px";
+  $("pv").style.width = "100%";
+  $("pv").style.height = "100%";
 }
 function refresh(keepScroll) {
   return api("/api/state").then(function (s) {
     state = s;
     if (!keepScroll) $("spec").value = JSON.stringify(s.spec, null, 2);
     $("sfx").checked = !(s.spec.sfx && s.spec.sfx.enabled === false);
-    $("fileinfo").textContent = s.spec_path || "(未绑定 spec 文件)";
-    renderTimeline(); fitPreview();
-    renderFindings(s.findings);
+    $("fileinfo").textContent = (s.spec_path || "未绑定 spec").split("/").pop();
+    fitPreview(); renderTimeline(); renderFindings(s.findings);
     $("pv").src = "/preview?t=" + Date.now();
   });
 }
@@ -529,9 +638,11 @@ function recompose() {
   api("/api/recompose", { spec: spec, no_sfx: !$("sfx").checked })
     .then(function (r) {
       return refresh(true).then(function () {
-        log((r.ok ? "重组成功 " : "重组完成（含校验错误）") + r.duration.toFixed(1)
-            + "s / " + r.scenes.length + " 场景 / sha " + r.sha, r.ok ? "ok" : "err");
-        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，烘焙会被拒绝", "err");
+        log((r.ok ? "重组成功 " : "重组完成（含校验错误）") +
+            r.duration.toFixed(1) + "s / " + r.scenes.length + " 场景 / sha " +
+            r.sha, r.ok ? "ok" : "err");
+        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，烘焙会被拒绝",
+                       "err");
       });
     })
     .catch(function (e) { log("重组失败：" + e.message, "err"); });
@@ -561,8 +672,9 @@ $("btn-tts").onclick = function () {
 $("btn-bake").onclick = function () {
   $("btn-bake").disabled = true;
   $("job").innerHTML = '<span class="spin"></span> 烘焙中';
-  log("烘焙开始（参数由 spec 自动推导：" + state.width + "×" + state.height
-      + " / " + state.duration.toFixed(1) + "s）");
+  log("烘焙开始（参数由 spec 自动推导：" + state.width + "×" + state.height +
+      " / " + state.duration.toFixed(1) + "s / " +
+      (state.spec.composition || {}).fps + "fps）");
   api("/api/bake", {}).then(function (r) { return pollJob(r.job); })
     .then(function (j) {
       $("btn-bake").disabled = false; $("job").textContent = "";
@@ -588,11 +700,22 @@ function pollJob(id) {
   });
 }
 window.addEventListener("resize", fitPreview);
-refresh().catch(function (e) { log("状态加载失败：" + e.message, "err"); });
+window.addEventListener("message", function (ev) {
+  var d = ev.data || {};
+  if (typeof d.mcStudioTime === "number") {
+    updatePlayhead(d.mcStudioTime, d.total || state.duration);
+  }
+});
+refresh().then(function () {
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () { fitPreview(); }).observe($("pvwrap"));
+  }
+}).catch(function (e) { log("状态加载失败：" + e.message, "err"); });
 </script>
 </body>
 </html>
 """
+
 
 
 class StudioServer:
