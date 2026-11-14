@@ -86,8 +86,13 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
-    with open(args.html, "r", encoding="utf-8") as f:
-        html = f.read()
+    try:
+        with open(args.html, "r", encoding="utf-8") as f:
+            html = f.read()
+    except FileNotFoundError:
+        print(f"hf_validate: HTML 不存在：{args.html}\n"
+              "  先跑 hf_compose.py 生成契约 HTML", file=sys.stderr)
+        sys.exit(1)
 
     findings, errors, warnings, infos = validate(html)
 

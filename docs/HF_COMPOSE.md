@@ -60,12 +60,31 @@ python3 tools/hf_compose.py demo.narrated.json -o demo.html
 python3 tools/hf_validate.py demo.html
 ./build/bin/html_bake.app/Contents/MacOS/html_bake \
   --url "file://$(pwd)/demo.html" --out demo.mp4 \
-  --seconds 7.3 --fps 30 --width 1080 --height 1920 --clock seek
+  --seconds <总时长> --fps 30 --width 1080 --height 1920 --clock seek
 ```
 
-spec 侧也可以手写 `narration` 路径跳过 TTS（时长照样拟合）。场景时长 =
-ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音，BGM
-（默认 0.6 音量）衬在旁白之下。
+可直接复制的 `demo.json`（旁白文本即场景文本，TTS 只认 `text`）：
+
+```json
+{
+  "composition": {"id": "demo", "format": "9:16", "fps": 30},
+  "background": "#0a0a1a",
+  "tts": {"provider": "say", "voice": "Tingting", "rate": 200},
+  "scenes": [
+    {"type": "title", "text": "欢迎使用 xmedia-kit",
+     "subtitle": "AI 视频生成管线", "bg": "#1a1a2e",
+     "animation": "fade_in_up"},
+    {"type": "stats", "value": "1026", "description": "回归测试全部通过",
+     "bg": "#16213e", "animation": "scale_in"},
+    {"type": "outro", "text": "谢谢观看", "duration": 2, "bg": "#0f3460"}
+  ]
+}
+```
+
+`--seconds` 取 `hf_compose` 打印的总时长（旁白拟合后可能 ≠ 手写 duration
+之和）。spec 侧也可以手写 `narration` 路径跳过 TTS（时长照样拟合）。场景
+时长 = ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音，
+BGM（默认 0.6 音量）衬在旁白之下。
 
 ## 功能速查（功能 → 命令）
 

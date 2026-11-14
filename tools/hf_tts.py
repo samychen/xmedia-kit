@@ -10,7 +10,9 @@
 #
 # 行为：
 #   - 逐场景生成旁白 voice/scene-<i>.<ext>（幂等：已存在且可探测则跳过）
-#   - 无 text 或已有 narration 的场景跳过（保留既有 narration）
+#   - 可朗读文本 = text 优先，缺失时按类型聚合专有字段（stats 取
+#     value/description，quote 取 quote/author，list 取 items，
+#     comparison 取列标题）；已有 narration 的场景跳过（保留既有旁白）
 #   - 填 scene.narration → 输出 narrated spec（交 hf_compose 拟合时长）
 #
 # spec 的 tts 段（CLI 参数覆盖 spec）：
@@ -73,6 +75,29 @@ def tts_one(provider, text, out_path, voice, rate, endpoint):
         raise RuntimeError(f"TTS 产物无法探测时长：{out_path}")
 
 
+def tts_text(scene):
+    """场景的可朗读文本：text 优先；缺失时按类型聚合专有字段
+    （stats 取 value/description，quote 取 quote/author，list 取
+    items，comparison 取列标题）——专有类型不因无 text 而漏旁白。"""
+    text = (scene.get("text") or "").strip()
+    if text:
+        return text
+    typ = scene.get("type", "text")
+    parts = []
+    if typ == "stats":
+        parts = [scene.get("value"), scene.get("description")]
+    elif typ == "quote":
+        parts = [scene.get("quote") or scene.get("text"), scene.get("author")]
+    elif typ == "list":
+        items = scene.get("items") or [c.get("text", "")
+                                       for c in scene.get("content", [])]
+        parts = [str(i) for i in items if str(i).strip()]
+    elif typ == "comparison":
+        parts = [scene.get("text"), scene.get("left"), scene.get("right")]
+    parts = [str(p).strip() for p in parts if p and str(p).strip()]
+    return "。".join(parts)
+
+
 def main():
     parser = argparse.ArgumentParser(description="HyperFrames 旁白 TTS 生成器")
     parser.add_argument("spec", help="spec JSON 文件路径")
@@ -87,8 +112,18 @@ def main():
 
     spec_path = os.path.abspath(args.spec)
     spec_dir = os.path.dirname(spec_path) or "."
-    with open(spec_path, "r", encoding="utf-8") as f:
-        spec = json.load(f)
+    try:
+        with open(spec_path, "r", encoding="utf-8") as f:
+            spec = json.load(f)
+    except FileNotFoundError:
+        print(f"hf_tts: spec 不存在：{spec_path}\n"
+              "  先写 spec JSON（schema 见 docs/HF_COMPOSE.md），"
+              "例如：{\"composition\": {...}, \"scenes\": [{\"type\": "
+              "\"title\", \"text\": \"...\"}, ...]}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"hf_tts: spec 不是合法 JSON：{e}", file=sys.stderr)
+        sys.exit(1)
 
     tts = spec.get("tts", {})
     provider = (args.provider or os.environ.get("TTS_PROVIDER")
@@ -108,7 +143,7 @@ def main():
     ext = "wav" if provider == "say" else "mp3"
     generated = skipped = kept = 0
     for idx, scene in enumerate(scenes):
-        text = (scene.get("text") or "").strip()
+        text = tts_text(scene)
         if not text:
             continue
         if scene.get("narration"):

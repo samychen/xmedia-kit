@@ -334,8 +334,17 @@ def main():
     parser.add_argument("-o", "--output", default=None, help="输出 HTML 路径（默认 stdout）")
     args = parser.parse_args()
 
-    with open(args.spec, "r", encoding="utf-8") as f:
-        spec = json.load(f)
+    try:
+        with open(args.spec, "r", encoding="utf-8") as f:
+            spec = json.load(f)
+    except FileNotFoundError:
+        print(f"hf_compose: spec 不存在：{os.path.abspath(args.spec)}\n"
+              "  先写 spec JSON（schema 见 docs/HF_COMPOSE.md），或先跑 "
+              "hf_tts.py 生成旁白版 spec", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"hf_compose: spec 不是合法 JSON：{e}", file=sys.stderr)
+        sys.exit(1)
 
     global _spec_dir, _gsap_src
     _spec_dir = os.path.dirname(os.path.abspath(args.spec)) or "."
