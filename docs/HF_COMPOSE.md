@@ -215,6 +215,34 @@ Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_tts.py（旁�
 
 生成器保证契约合规：data-\* 秒制 + `__timelines` 注册 + GSAP 4 参数形 + 内联 GSAP（离线确定性，不依赖 CDN）。`hf_validate.py` 是 agent 的自查工具——0 errors 才交给 html_bake。
 
+## Agent 调用协议与来源验证
+
+**调用协议**（agent 按序执行，缺一步不算完成）：
+
+1. 读本文档 schema → 填 spec JSON（`demo.json` 示例见上）
+2. `python3 tools/hf_tts.py spec.json`（旁白，可选）
+3. `python3 tools/hf_compose.py spec.narrated.json -o out.html`
+4. `python3 tools/hf_validate.py out.html`——**0 errors 是硬门**
+5. `html_bake --url ./out.html --out out.mp4 --seconds <总时长> --fps 30 --width W --height H --clock seek`
+6. 交付产物三件套：`out.mp4` + `out.html` + `out.html_elements.json`
+
+**约定**：agent 不手写 HTML 冒充管线产物——手写页（进阶场景）也必须过
+`hf_validate`，且没有生成器注释（来源不可证，见下）。
+
+**来源验证**（查产物、不采信 agent 口头声明）——三重锚点逐级可验：
+
+| 锚点 | 位置 | 验证命令 |
+|---|---|---|
+| spec 哈希 | `out.html` 头部生成器注释 | `head -2 out.html` |
+| HTML 哈希 | `out.mp4` 容器 metadata comment | `ffprobe -show_format out.mp4 \| grep comment` |
+| 工具指纹 | `out.html_elements.json` generator 字段 | `grep generator out.html_elements.json` |
+
+链路：MP4 metadata（`xmedia-kit html_bake | html sha256:…`）→ HTML 头部
+（`xmedia-kit hf_compose | scenes=N | spec sha256:…`，spec 哈希 =
+canonical JSON 的 sha256）→ spec 源文件。产物任一锚点缺失 = 不是本管线
+生成（注意：`--chunks N>1` 的拼接产物不保留 MP4 metadata——用 HTML 注释
+与 sidecar 锚点验证）。
+
 ## 与 brag 的对应
 
 | brag | xmedia-kit |

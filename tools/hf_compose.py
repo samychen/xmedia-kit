@@ -31,6 +31,7 @@ import json
 import os
 import sys
 import argparse
+import hashlib
 
 _spec_dir = '.'
 _gsap_src = ''
@@ -194,8 +195,10 @@ def _load_gsap():
     return "/* gsap not found */"
 
 
-def compose(spec):
-    """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。确定性：同输入同输出。"""
+def compose(spec, spec_sha=None):
+    """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。
+    确定性：同输入同输出。spec_sha 为来源锚点（canonical JSON 的
+    sha256），写进 HTML 头部生成器注释供产物验源。"""
     comp = spec.get("composition", {})
     comp_id = comp.get("id", "main")
     fmt = comp.get("format")
@@ -249,6 +252,14 @@ def compose(spec):
                           f' data-start="{scene_starts[idx]}"'
                           f' data-duration="{ndur}"></audio>\n')
 
+    # 产物来源锚点：HTML 头部生成器注释（spec sha256 由 main 传入；
+    # html_bake 再把 HTML sha256 写进 MP4 容器 metadata——MP4 → HTML →
+    # spec 逐级验源）。
+    provenance = f"<!-- xmedia-kit hf_compose | scenes={len(scenes)}"
+    if spec_sha:
+        provenance += f" | spec sha256:{spec_sha}"
+    provenance += " -->"
+
     # 场景样式（id 选择器：场景 div 的 class 是 scene-{type} 模板类，
     # 逐场景样式必须挂在 #scene-{idx} 上才命中）
     scene_styles = []
@@ -261,6 +272,7 @@ def compose(spec):
     style_block = "\n".join(scene_styles)
 
     html = f'''<!DOCTYPE html>
+{provenance}
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -349,7 +361,12 @@ def main():
     global _spec_dir, _gsap_src
     _spec_dir = os.path.dirname(os.path.abspath(args.spec)) or "."
     _gsap_src = _load_gsap()
-    html = compose(spec)
+    # 来源锚点：canonical JSON（键排序、非 ASCII 原文）的 sha256——
+    # 与文件格式化方式无关，同语义 spec 同哈希。
+    spec_sha = hashlib.sha256(
+        json.dumps(spec, sort_keys=True, ensure_ascii=False).encode(
+            "utf-8")).hexdigest()
+    html = compose(spec, spec_sha=spec_sha)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)

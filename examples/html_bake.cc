@@ -51,6 +51,11 @@
 #endif
 #include "media/cef/cef_runtime.h"
 #include "media/ffmpeg/av_includes.h"
+// 产物来源锚点：HTML sha256（FFmpeg 7 由 av_hash.h 更名）。此构建的
+// hash.h 无 C++ 守卫，手工包 extern "C"。
+extern "C" {
+#include <libavutil/hash.h>
+}
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/video_convert.h"
 #include "media/gl/gl_element_composer.h"
@@ -455,6 +460,47 @@ int main(int argc, char** argv) {
     }
   }
 
+  // 产物来源锚点（provenance）：MP4 容器 metadata 记录工具名 + HTML
+  // sha256。HTML 头部内嵌 hf_compose 生成器注释与 spec 摘要——
+  // MP4 → HTML → spec 可逐级验源（ffprobe -show_format 可见 comment）。
+  std::string provenance = "xmedia-kit html_bake";
+  {
+    std::string html_path = args.url;
+    if (html_path.rfind("file://", 0) == 0) {
+      html_path = html_path.substr(7);
+    }
+    if (!html_path.empty() && html_path[0] == '/') {
+      std::FILE* hf = std::fopen(html_path.c_str(), "rb");
+      if (hf != nullptr) {
+        std::string content;
+        char buf[65536];
+        size_t n;
+        while ((n = std::fread(buf, 1, sizeof(buf), hf)) > 0) {
+          content.append(buf, n);
+        }
+        std::fclose(hf);
+        AVHashContext* hash = nullptr;
+        if (av_hash_alloc(&hash, "SHA256") >= 0) {
+          av_hash_init(hash);
+          av_hash_update(hash,
+                         reinterpret_cast<const uint8_t*>(content.data()),
+                         content.size());
+          const int digest_size = av_hash_get_size(hash);
+          uint8_t digest[AV_HASH_MAX_SIZE];
+          av_hash_final(hash, digest);
+          char hex[AV_HASH_MAX_SIZE * 2 + 1] = {0};
+          for (int b = 0; b < digest_size; ++b) {
+            std::snprintf(hex + b * 2, 3, "%02x", digest[b]);
+          }
+          provenance += " | html sha256:" + std::string(hex);
+          av_hash_freep(&hash);
+        }
+      }
+    }
+  }
+  const std::vector<std::pair<std::string, std::string>> muxer_options = {
+      {"meta:comment", provenance}};
+
   const int total_frames =
       static_cast<int>(args.seconds * args.fps + 0.5);
   int64_t encoded = 0;
@@ -678,7 +724,7 @@ int main(int argc, char** argv) {
     auto chunk_muxer = std::make_unique<FFmpegEncodeMuxer>();
     active_muxer = chunk_muxer.get();
     active_encoder = chunk_encoder.get();
-    if (!chunk_muxer->Open(chunk_out)) {
+    if (!chunk_muxer->Open(chunk_out, "", muxer_options)) {
       std::fprintf(stderr, "html_bake: cannot open %s\n", chunk_out.c_str());
       layer.Stop();
       return 1;

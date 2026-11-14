@@ -76,7 +76,13 @@ bool FFmpegEncodeMuxer::Open(
   ctx_ = std::make_unique<Context>();
   ctx_->fmt = fmt;
   // G5: stash the header options so WriteHeader can apply them.
+  // "meta:" 前缀的条目走容器 metadata（mp4 udta，ffprobe -show_format
+  // 可见）——产物来源锚点用，不是 muxer/编码选项。
   for (const auto& [key, value] : options) {
+    if (key.rfind("meta:", 0) == 0) {
+      av_dict_set(&fmt->metadata, key.c_str() + 5, value.c_str(), 0);
+      continue;
+    }
     av_dict_set(&ctx_->header_options, key.c_str(), value.c_str(), 0);
   }
   return true;
