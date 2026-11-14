@@ -40,7 +40,7 @@ import urllib.request
 
 # 复用 hf_compose 的 ffprobe 时长探测（不重复实现）。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from hf_compose import _probe_audio_duration
+from hf_compose import _probe_audio_duration, tts_text
 
 
 def say_tts(text, out_path, voice, rate):
@@ -76,29 +76,6 @@ def tts_one(provider, text, out_path, voice, rate, endpoint):
         http_tts(text, out_path, voice, rate, endpoint)
     if _probe_audio_duration(out_path) is None:
         raise RuntimeError(f"TTS 产物无法探测时长：{out_path}")
-
-
-def tts_text(scene):
-    """场景的可朗读文本：text 优先；缺失时按类型聚合专有字段
-    （stats 取 value/description，quote 取 quote/author，list 取
-    items，comparison 取列标题）——专有类型不因无 text 而漏旁白。"""
-    text = (scene.get("text") or "").strip()
-    if text:
-        return text
-    typ = scene.get("type", "text")
-    parts = []
-    if typ == "stats":
-        parts = [scene.get("value"), scene.get("description")]
-    elif typ == "quote":
-        parts = [scene.get("quote") or scene.get("text"), scene.get("author")]
-    elif typ == "list":
-        items = scene.get("items") or [c.get("text", "")
-                                       for c in scene.get("content", [])]
-        parts = [str(i) for i in items if str(i).strip()]
-    elif typ == "comparison":
-        parts = [scene.get("text"), scene.get("left"), scene.get("right")]
-    parts = [str(p).strip() for p in parts if p and str(p).strip()]
-    return "。".join(parts)
 
 
 def main():

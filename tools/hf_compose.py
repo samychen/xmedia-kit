@@ -135,7 +135,30 @@ def esc(s):
              .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def gen_scene_html(scene, start_sec, idx):
+def tts_text(scene):
+    """场景的可朗读/字幕文本：text 优先；缺失时按类型聚合专有字段
+    （stats 取 value/description，quote 取 quote/author，list 取
+    items，comparison 取列标题）——TTS 与字幕共用同一文本源。"""
+    text = (scene.get("text") or "").strip()
+    if text:
+        return text
+    typ = scene.get("type", "text")
+    parts = []
+    if typ == "stats":
+        parts = [scene.get("value"), scene.get("description")]
+    elif typ == "quote":
+        parts = [scene.get("quote") or scene.get("text"), scene.get("author")]
+    elif typ == "list":
+        items = scene.get("items") or [c.get("text", "")
+                                       for c in scene.get("content", [])]
+        parts = [str(i) for i in items if str(i).strip()]
+    elif typ == "comparison":
+        parts = [scene.get("text"), scene.get("left"), scene.get("right")]
+    parts = [str(p).strip() for p in parts if p and str(p).strip()]
+    return "。".join(parts)
+
+
+def gen_scene_html(scene, start_sec, idx, caption=None):
     """单场景 → clip div HTML 片段。"""
     typ = scene.get("type", "text")
     if typ not in SUPPORTED_TYPES:
@@ -207,12 +230,18 @@ def gen_scene_html(scene, start_sec, idx):
         video_tag = (f'  <video class="scene-video" src="{vsrc}"'
                      f' data-start="{start_sec}" data-duration="{dur}"'
                      f' muted playsinline preload="auto"></video>\n')
+    # 字幕轨（T3）：场景旁白文本渲染为底部字幕条——TTS 与字幕同源，
+    # 有 narration 才有字幕（captions.enabled=false 全局关闭）。
+    caption_html = ""
+    if caption:
+        caption_html = (f'  <div class="scene-caption">'
+                        f'{esc(caption)}</div>\n')
 
     html = f'''  <div id="{scene_id}" class="clip scene scene-{typ}"
        data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
        data-bg="{bg}">
 {video_tag}{inner}
-  </div>
+{caption_html}  </div>
 '''
     return html, dur
 
@@ -299,6 +328,10 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     # 出场（GSAP 交叉动画），总时长随重叠收缩。
     trans_cfg = spec.get("transitions", {})
     trans_dur = float(trans_cfg.get("duration", 0.5))
+    # 字幕轨（T3）：captions.enabled 默认开——有 narration 的场景渲染
+    # 底部字幕条（TTS 与字幕同源文本）。
+    cap_cfg = spec.get("captions", {})
+    captions_on = cap_cfg.get("enabled", True)
     trans_default = str(trans_cfg.get("type", "fade") or "none")
     scene_html_parts = []
     scene_starts = []
@@ -315,7 +348,12 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
             start -= (trans_dur if ttype != "none" else 0.0)
         scene_starts.append(start)
         starts.append(start)
-        html, dur = gen_scene_html(scene, start, idx)
+        caption = None
+        if captions_on and scene.get("narration"):
+            cap_text = tts_text(scene)
+            if cap_text:
+                caption = cap_text
+        html, dur = gen_scene_html(scene, start, idx, caption=caption)
         scene_html_parts.append(html)
         durs.append(dur)
         trans.append(ttype)
@@ -447,6 +485,13 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
   }}
   .scene > :not(.scene-video) {{
     position: relative; z-index: 1;
+  }}
+  .scene > .scene-caption {{
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 6%; max-width: 84%; z-index: 2;
+    background: rgba(0, 0, 0, 0.45); color: #ffffff;
+    font-size: 30px; line-height: 1.4; padding: 10px 22px;
+    border-radius: 10px; text-align: center;
   }}
   .scene-title {{ font-size: 72px; font-weight: 700; }}
   .scene-subtitle {{ font-size: 36px; opacity: 0.8; margin-top: 16px; }}
