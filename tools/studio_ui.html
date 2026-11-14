@@ -66,7 +66,8 @@
                           margin-top: 8px; }
   #inspector label { font-size: 12px; color: var(--dim); display: flex;
                      flex-direction: column; gap: 4px; }
-  #inspector input, #inspector select { background: var(--panel2);
+  #inspector input, #inspector select, #inspector textarea {
+      background: var(--panel2);
       color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
       padding: 5px 8px; font: inherit; }
   #inspector .row { display: flex; align-items: center; gap: 12px;
@@ -175,6 +176,7 @@
     <div id="findings"></div>
     <div id="inspector" style="display:none">
       <div class="cap">SCENE INSPECTOR — <span id="insp-title"></span></div>
+      <div id="insp-fields"></div>
       <div class="insp-grid">
         <label>时长(秒)<input id="insp-dur" type="number" step="0.1" min="0.3"></label>
         <label>背景<input id="insp-bg" type="color"></label>
@@ -190,6 +192,7 @@
       </div>
       <div class="row">
         <button id="insp-apply">应用到场景</button>
+        <button id="insp-del" style="background:var(--err);color:#fff">删除场景</button>
         <span id="insp-lock" class="locknote"></span>
       </div>
     </div>
@@ -234,6 +237,36 @@ function activeScene(t) {
   }
   return null;
 }
+var TECH_KEYS = { narration: 1, narration_volume: 1, duration: 1, bg: 1,
+                  text_color: 1, animation: 1, transition: 1, video: 1,
+                  type: 1, sfx: 1 };
+var FIELD_DEFS = {
+  title: [["标题", "text"], ["副标题", "subtitle"]],
+  text: [["主文本", "text"], ["子项（每行一条）", "content"]],
+  quote: [["引文", "quote"], ["署名", "author"]],
+  list: [["标题", "text"], ["条目（每行一条）", "items"]],
+  stats: [["数值", "value"], ["说明", "description"]],
+  comparison: [["左列标题", "left"], ["右列标题", "right"]],
+  outro: [["文本", "text"]],
+};
+var curFields = [];
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function sceneFields(sc) {
+  // 自定义模板场景：暴露场景中的字符串字段（排除技术键）——模板
+  // slots 在场景里就是同名字段，天然可编辑
+  var def = FIELD_DEFS[sc.type];
+  if (def) { return def; }
+  var fields = [];
+  for (var k in sc) {
+    if (!TECH_KEYS[k] && typeof sc[k] === "string" && sc[k]) {
+      fields.push([k, k]);
+    }
+  }
+  return fields;
+}
 function renderInspector() {
   var el = $("inspector");
   var sc = (selIdx >= 0 && state.spec.scenes[selIdx])
@@ -257,6 +290,26 @@ function renderInspector() {
     $("insp-color").value = sc.text_color;
   }
   $("insp-anim").value = sc.animation || "fade_in";
+  // 类型感知字段（动态构建）：内置类型走 FIELD_DEFS，自定义模板场景
+  // 暴露其字符串字段（模板 slots 在场景里就是同名字段）。
+  var fields = sceneFields(sc);
+  curFields = fields.map(function (f) { return f[1]; });
+  $("insp-fields").innerHTML = fields.map(function (f) {
+    var val = f[1] === "content"
+        ? (sc[f[1]] || []).map(function (c) { return c.text || ""; })
+            .join("\n")
+        : (typeof sc[f[1]] === "string" ? sc[f[1]]
+           : Array.isArray(sc[f[1]]) ? sc[f[1]].join("\n") : (sc[f[1]] || ""));
+    var dis = (f[1] === "text" && locked) ? " disabled" : "";
+    if (f[2] === "textarea") {
+      return '<label>' + escHtml(f[0]) +
+             '<textarea id="insp-f-' + f[1] + '" rows="3"' + dis + '>' +
+             escHtml(val) + '</textarea></label>';
+    }
+    return '<label>' + escHtml(f[0]) +
+           '<input id="insp-f-' + f[1] + '" value="' + escHtml(val) + '"' +
+           dis + '></label>';
+  }).join("");
 }
 function applyInspector() {
   if (selIdx < 0 || !state.spec.scenes[selIdx]) { return; }
@@ -265,11 +318,31 @@ function applyInspector() {
   sc.bg = $("insp-bg").value;
   sc.text_color = $("insp-color").value;
   sc.animation = $("insp-anim").value;
+  curFields.forEach(function (f) {
+    var raw = $("insp-f-" + f[1]).value;
+    if (f[1] === "content") {
+      sc.content = raw.split("\n").filter(function (l) { return l.trim(); })
+                      .map(function (l) { return { text: l.trim() }; });
+    } else if (f[1] === "items") {
+      sc.items = raw.split("\n").filter(function (l) { return l.trim(); });
+    } else {
+      sc[f[1]] = raw.trim();
+    }
+  });
   $("spec").value = JSON.stringify(state.spec, null, 2);
   log("inspector 应用到 scene-" + selIdx + "，重组合成…");
   recompose();
 }
 $("insp-apply").onclick = applyInspector;
+$("insp-del").onclick = function () {
+  if (selIdx < 0) { return; }
+  state.spec.scenes.splice(selIdx, 1);
+  selIdx = -1;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  renderTimeline(); renderInspector();
+  log("场景已删除，重组合成…");
+  recompose();
+};
 function renderTimeline() {
   var tl = $("timeline"); tl.innerHTML = "";
   var total = Math.max(state.duration, 0.1);
