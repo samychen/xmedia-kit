@@ -83,6 +83,12 @@ bool ValidateHtmlDataJson(const std::string& json_utf8) {
 std::string MakeSeekScript(int64_t t_ms) {
   return std::string(
              "(function(t){\n"
+             "  // 页面未加载完（采集脚本 OnLoadEnd 注入，故以它的在位标记为\n"
+             "  // 就绪信号）：静默跳过，后续 seek 重试。大页面（内联 GSAP 等\n"
+             "  // 大脚本解析久）的首个 seek 会早于脚本执行——误判 no_seek 会\n"
+             "  // 被 bake 侧粘性短路，GSAP 从此永不推进（实测：可见性切换、\n"
+             "  // 画面停在初始 DOM 状态）。\n"
+             "  if (!window.__mcRectsCollector) { return; }\n"
              "  if (window.__timelines || window.__hf) {\n"
              "    var tt = t / 1000;\n"
              "    if (window.__hf && typeof window.__hf.seek === 'function') {\n"
