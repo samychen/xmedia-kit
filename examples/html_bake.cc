@@ -865,23 +865,34 @@ int main(int argc, char** argv) {
   }
   layer.Stop();
 
-  // 冻结守卫：页面声明 ≥2 个时序元素，整段录制却只有 1 种光栅内容 =
-  // 静默冻结（启动竞态/时钟失效家族，输出纯色蓝屏）——先写元数据
-  // 留诊断，再响亮失败，不交坏产物。
+  // 冻结守卫：烘焙窗口内有场景窗边界（元素进/出），整段录制却只有 1 种
+  // 光栅内容 = 静默冻结（启动竞态/时钟失效家族，输出纯色蓝屏）——先写
+  // 元数据留诊断，再响亮失败，不交坏产物。窗口内无边界（短烘焙/纯静态
+  // 页）单光栅是合法结果，不触发。
   {
     const auto table = layer.SnapshotElements();
+    const int64_t total_ms =
+        static_cast<int64_t>(total_frames) * 1000 / std::max(1, args.fps);
+    bool boundary_expected = false;
     int timed_windows = 0;
     for (const auto& e : table.entries()) {
-      if (e.has_start && e.has_duration && e.duration_ms > 500 &&
-          e.tag != "audio") {
-        ++timed_windows;
+      if (!e.has_start || !e.has_duration || e.duration_ms > 500 ||
+          e.tag == "audio") {
+        continue;
+      }
+      ++timed_windows;
+      const int64_t enter = e.start_ms;
+      const int64_t exit = e.start_ms + e.duration_ms;
+      if ((enter > 0 && enter < total_ms) ||
+          (exit > 0 && exit < total_ms)) {
+        boundary_expected = true;
       }
     }
-    if (timed_windows >= 2 && seen_rasters.size() <= 1) {
+    if (timed_windows >= 2 && boundary_expected && seen_rasters.size() <= 1) {
       std::fprintf(stderr,
-                   "html_bake: FROZEN OUTPUT — %d timed scene windows but "
-                   "only %zu distinct raster(s); refusing to deliver. "
-                   "(meta: %s)\n",
+                   "html_bake: FROZEN OUTPUT — %d timed scene windows with "
+                   "in-window boundaries but only %zu distinct raster(s); "
+                   "refusing to deliver. (meta: %s)\n",
                    timed_windows, seen_rasters.size(),
                    HtmlElementsMetaJsonPath(args.out).c_str());
       return 1;

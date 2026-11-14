@@ -62,6 +62,29 @@ def parse_scenes(html):
     return scenes
 
 
+def parse_audio_tracks(html):
+    """页面 <audio> 元素 → 音轨清单 [{src, start, dur, vol, kind}]（秒）。
+    kind：narration（voice/ 旁白）/ sfx（assets/sfx）/ bgm（其余）。"""
+    tracks = []
+    for m in re.finditer(r'<audio\b([^>]*)>', html, re.S):
+        attrs = m.group(1)
+        src = re.search(r'src="([^"]+)"', attrs)
+        start = re.search(r'data-start="([\d.]+)"', attrs)
+        dur = re.search(r'data-duration="([\d.]+)"', attrs)
+        vol = re.search(r'data-volume="([\d.]+)"', attrs)
+        if not (src and start):
+            continue
+        s = src.group(1)
+        kind = ("sfx" if "assets/sfx" in s else
+                "narration" if ("voice/" in s or "narr" in
+                                os.path.basename(s)) else "bgm")
+        tracks.append({"src": s, "start": float(start.group(1)),
+                       "dur": float(dur.group(1)) if dur else 0.0,
+                       "vol": float(vol.group(1)) if vol else 1.0,
+                       "kind": kind})
+    return tracks
+
+
 def parse_total(html, scenes):
     """总时长（秒）：合成根 data-duration 优先，回退场景窗最大 end。"""
     m = re.search(r'data-composition-id[^>]*data-duration="([\d.]+)"',
@@ -134,6 +157,11 @@ def build_chrome(total_s, scenes):
     }}
     bar.value = TOTAL > 0 ? Math.round(sec / TOTAL * 1000) : 0;
     label.textContent = sec.toFixed(1) + " / " + TOTAL.toFixed(1) + "s";
+    // Studio 服务模式：把播放时间回报给父页（多轨时间轴播放头联动）。
+    if (window.parent !== window) {{
+      try {{ window.parent.postMessage({{ mcStudioTime: sec, total: TOTAL }},
+        "*"); }} catch (e) {{}}
+    }}
   }}
   function frame(now) {{
     if (!playing) {{ return; }}
@@ -251,15 +279,40 @@ STUDIO_UI = r"""<!DOCTYPE html>
   #pvframe { background: #000; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
              border: 1px solid var(--line); }
   #pvframe iframe { width: 100%; height: 100%; border: 0; display: block; }
-  #bottom { border-top: 1px solid var(--line); height: 190px;
+  #bottom { border-top: 1px solid var(--line); height: 232px;
             display: flex; flex-direction: column; background: var(--panel); }
-  #timeline { height: 64px; display: flex; align-items: stretch; gap: 2px;
-              padding: 10px 12px 4px; }
-  #timeline .blk { position: relative; border-radius: 4px; background:
-                   #2d3653; border: 1px solid #3d4770; cursor: pointer;
-                   overflow: hidden; font-size: 11px; color: var(--dim);
-                   padding: 4px 6px; white-space: nowrap; }
-  #timeline .blk:hover { border-color: var(--acc); color: var(--ink); }
+  #tl-head { display: flex; align-items: center; gap: 10px;
+             padding: 7px 14px 0; font-size: 11px; color: var(--dim); }
+  #timeline { position: relative; flex: 1; overflow: hidden;
+              padding: 4px 14px 6px; }
+  .tl-row { display: flex; height: 27px; margin-bottom: 3px; }
+  .tl-label { width: 58px; flex: none; font-size: 11px; color: var(--dim);
+              display: flex; align-items: center; }
+  .tl-lane { flex: 1; position: relative; background: #191924;
+             border-radius: 4px; }
+  .tl-blk { position: absolute; top: 2px; bottom: 2px; border-radius: 4px;
+            background: #2d3653; border: 1px solid #3d4770; cursor:
+            pointer; overflow: hidden; font-size: 11px; color: var(--dim);
+            padding: 3px 6px; white-space: nowrap; }
+  .tl-blk:hover { border-color: var(--acc); color: var(--ink); }
+  .tl-blk.sel { border-color: var(--acc); color: var(--ink);
+                background: #35406b; }
+  .tl-blk.locked { opacity: 0.8; cursor: default; }
+  .tl-blk .trim { position: absolute; right: 0; top: 0; bottom: 0;
+                  width: 9px; cursor: ew-resize;
+                  background: rgba(108, 140, 255, 0.3); }
+  .tl-blk .mv { position: absolute; top: 0; bottom: 0; width: 16px;
+                cursor: pointer; color: var(--acc); font-size: 12px;
+                display: flex; align-items: center; justify-content: center;
+                background: rgba(12, 12, 20, 0.5); }
+  .tl-blk .mv.left { left: 0; }
+  .tl-blk .mv.right { right: 9px; }
+  .tl-lane.audio-narration .tl-blk { background: #3a2d53;
+                                     border-color: #5d4770; }
+  .tl-lane.audio-sfx .tl-blk { background: #2d5347; border-color: #47705d; }
+  .tl-lane.audio-bgm .tl-blk { background: #53472d; border-color: #705d47; }
+  .ph { position: absolute; top: 0; bottom: 0; width: 2px;
+        background: #ff5c7a; z-index: 5; pointer-events: none; }
   #log { flex: 1; overflow: auto; padding: 8px 12px; font: 11px/1.6
          ui-monospace, Menlo, monospace; color: var(--dim);
          border-top: 1px solid var(--line); white-space: pre-wrap; }
@@ -299,6 +352,11 @@ STUDIO_UI = r"""<!DOCTYPE html>
   </div>
 </main>
 <div id="bottom">
+  <div id="tl-head">
+    <span id="tlabel">0.0s</span>
+    <span>多轨时间轴 — 场景块：点选后 ‹ › 排序、拖右缘裁剪（旁白场景锁定时长）；
+          音频块点击跳转</span>
+  </div>
   <div id="timeline"></div>
   <div id="log"></div>
 </div>
@@ -322,19 +380,118 @@ function api(path, body) {
       });
     });
 }
+var selIdx = -1;
 function renderTimeline() {
   var tl = $("timeline"); tl.innerHTML = "";
-  state.scenes.forEach(function (s) {
-    var d = document.createElement("div");
-    d.className = "blk";
-    d.style.flex = Math.max(0.6, s.dur);
-    d.textContent = s.label + " " + s.start.toFixed(1) + "s";
-    d.onclick = function () {
-      $("pv").contentWindow.postMessage({ mcStudioSeek: s.start + 0.01 }, "*");
-    };
-    tl.appendChild(d);
+  var total = Math.max(state.duration, 0.1);
+  [["场景", "scene"], ["旁白", "narration"], ["SFX", "sfx"],
+   ["音乐", "bgm"]].forEach(function (ld) {
+    var row = document.createElement("div"); row.className = "tl-row";
+    var lab = document.createElement("div"); lab.className = "tl-label";
+    lab.textContent = ld[0];
+    var lane = document.createElement("div");
+    lane.className = "tl-lane audio-" + ld[1];
+    var ph = document.createElement("div"); ph.className = "ph";
+    lane.appendChild(ph);
+    row.appendChild(lab); row.appendChild(lane); tl.appendChild(row);
+    if (ld[1] === "scene") {
+      state.scenes.forEach(function (s, idx) {
+        var locked = !!(state.spec.scenes[idx] &&
+                        state.spec.scenes[idx].narration);
+        var b = document.createElement("div");
+        b.className = "tl-blk" + (locked ? " locked" : "") +
+                      (idx === selIdx ? " sel" : "");
+        b.style.left = (s.start / total * 100) + "%";
+        b.style.width = Math.max(2, s.dur / total * 100) + "%";
+        b.textContent = s.label;
+        b.title = locked ? "旁白锁定：时长随旁白拟合"
+                         : "点选：‹ › 排序；拖右缘裁剪时长";
+        b.onclick = function (ev) {
+          if (ev.target.className.indexOf("trim") >= 0 ||
+              ev.target.className.indexOf("mv") >= 0) { return; }
+          selIdx = (selIdx === idx) ? -1 : idx;
+          renderTimeline();
+        };
+        if (!locked) {
+          var trim = document.createElement("div"); trim.className = "trim";
+          trim.onmousedown = function (e) {
+            e.stopPropagation();
+            var px0 = e.clientX, d0 = s.dur;
+            function mv(e2) {
+              var d = d0 + (e2.clientX - px0) / lane.clientWidth * total;
+              b.style.width = Math.max(2, d / total * 100) + "%";
+              b._newDur = Math.max(0.3, d);
+            }
+            function up() {
+              document.removeEventListener("mousemove", mv);
+              document.removeEventListener("mouseup", up);
+              if (b._newDur && Math.abs(b._newDur - d0) > 0.05) {
+                trimCommit(idx, b._newDur);
+              }
+            }
+            document.addEventListener("mousemove", mv);
+            document.addEventListener("mouseup", up);
+          };
+          b.appendChild(trim);
+        }
+        if (idx === selIdx && !locked) {
+          var mvL = document.createElement("div"); mvL.className = "mv left";
+          mvL.textContent = "‹"; mvL.title = "前移一位";
+          mvL.onclick = function (e) { e.stopPropagation(); reorder(idx, -1); };
+          var mvR = document.createElement("div"); mvR.className = "mv right";
+          mvR.textContent = "›"; mvR.title = "后移一位";
+          mvR.onclick = function (e) { e.stopPropagation(); reorder(idx, 1); };
+          b.appendChild(mvL); b.appendChild(mvR);
+        }
+        lane.appendChild(b);
+      });
+    } else {
+      state.audios.filter(function (a) { return a.kind === ld[1]; })
+        .forEach(function (a) {
+          var b = document.createElement("div");
+          b.className = "tl-blk locked";
+          b.style.left = (a.start / total * 100) + "%";
+          b.style.width = Math.max(2,
+              Math.min(a.dur || total, total) / total * 100) + "%";
+          b.textContent = a.src.split("/").pop() + " · " + a.vol.toFixed(1);
+          b.title = a.src;
+          b.onclick = function () {
+            $("pv").contentWindow.postMessage(
+                { mcStudioSeek: a.start + 0.01 }, "*");
+          };
+          lane.appendChild(b);
+        });
+    }
   });
 }
+function trimCommit(idx, newDur) {
+  state.spec.scenes[idx].duration = Math.round(newDur * 100) / 100;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  log("裁剪 scene-" + idx + " → " + state.spec.scenes[idx].duration +
+      "s，重组合成…");
+  recompose();
+}
+function reorder(idx, dir) {
+  var arr = state.spec.scenes, j = idx + dir;
+  if (j < 0 || j >= arr.length) { return; }
+  var t = arr[idx]; arr[idx] = arr[j]; arr[j] = t;
+  selIdx = j;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  log("场景 " + idx + " " + (dir < 0 ? "前移" : "后移") + "，重组合成…");
+  recompose();
+}
+window.addEventListener("message", function (ev) {
+  var d = ev.data || {};
+  if (typeof d.mcStudioTime === "number") {
+    var total = d.total || state.duration;
+    var pct = (total > 0 ? d.mcStudioTime / total : 0) * 100 + "%";
+    document.querySelectorAll("#timeline .ph").forEach(function (p) {
+      p.style.left = pct;
+    });
+    $("tlabel").textContent = d.mcStudioTime.toFixed(1) + "s / " +
+                              total.toFixed(1) + "s";
+  }
+});
 function fitPreview() {
   var wrap = $("pvwrap"), fr = $("pvframe");
   var aw = state.width / state.height;
@@ -570,11 +727,13 @@ def make_handler(server_ref):
                 import hf_validate
                 findings, errors, _, _ = hf_validate.validate(srv.current_html)
                 scenes = parse_scenes(srv.current_html)
+                audios = parse_audio_tracks(srv.current_html)
                 total = parse_total(srv.current_html, scenes)
                 w, h = srv._dims(srv.current_spec or {})
                 self._json({"spec": srv.current_spec,
                             "spec_path": srv.spec_path,
                             "duration": total, "scenes": scenes,
+                            "audios": audios,
                             "width": w, "height": h,
                             "errors": errors,
                             "findings": [{"level": lv, "message": msg}

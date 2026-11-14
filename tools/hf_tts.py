@@ -32,6 +32,7 @@
 import hashlib
 import json
 import os
+import re
 import sys
 import argparse
 import subprocess
@@ -152,15 +153,23 @@ def main():
         text = tts_text(scene)
         if not text:
             continue
-        if scene.get("narration"):
-            kept += 1
-            continue
         # 文件名带文本短哈希：词变了自动重生成；跨 spec 的同目录不串音
         # （同一 voice/ 下两个 spec 的 scene-N 不再按序号误复用）。
         text_hash = hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
         out_path = os.path.join(abs_out_dir,
                                 f"scene-{idx}-{text_hash}.{ext}")
         rel = f"{out_dir}/{os.path.basename(out_path)}"
+        narration = scene.get("narration")
+        # 保留判定：用户自备旁白（非本工具命名 scene-N-<hash>）一律保留；
+        # 本工具命名但哈希不匹配 = 词已变 → 重生成。
+        stale = False
+        if narration:
+            m2 = re.match(rf"scene-{idx}-([0-9a-f]{{8}})\.",
+                          os.path.basename(narration))
+            stale = bool(m2 and m2.group(1) != text_hash)
+        if narration and not stale:
+            kept += 1
+            continue
         if os.path.isfile(out_path) and _probe_audio_duration(out_path) is not None:
             scene["narration"] = rel  # 幂等：已生成则直接挂路径
             skipped += 1
