@@ -67,9 +67,11 @@ def main():
         narrated = json.load(open(out_spec, encoding="utf-8"))
         assert all(s.get("narration") for s in narrated["scenes"])
         voice_files = sorted(os.listdir(os.path.join(tmp, "voice")))
-        # http provider 产 mp3（say 才是 wav）——扩展名随 provider
-        assert voice_files == ["scene-0.mp3", "scene-1.mp3", "scene-2.mp3"], \
-            voice_files
+        # http provider 产 mp3（say 才是 wav）；文件名带文本短哈希——
+        # 词变自动重生成，跨 spec 同目录不串音
+        assert len(voice_files) == 3 and all(
+            v.startswith(f"scene-{i}-") and v.endswith(".mp3")
+            for i, v in enumerate(voice_files)), voice_files
 
         # 幂等复跑：narrated spec 全场景已有 narration → 零生成、全保留
         proc2 = run_tool([os.path.join(TOOLS, "hf_tts.py"), out_spec,

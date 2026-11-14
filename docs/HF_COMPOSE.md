@@ -50,7 +50,8 @@ python3 tools/hf_validate.py my_video.html
 旁白发成 `<audio>` 元素进确定性混音；`format: "9:16"` 一键竖屏：
 
 ```bash
-# 1. TTS 生成旁白（voice/scene-N.wav + 回填 narration → demo.narrated.json）
+# 1. TTS 生成旁白（voice/scene-N-<文本哈希>.wav + 回填 narration →
+#    demo.narrated.json；词变自动重生成，跨 spec 同目录不串音）
 python3 tools/hf_tts.py demo.json
 
 # 2. 拟合时长 + 生成契约 HTML
