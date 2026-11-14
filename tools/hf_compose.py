@@ -600,7 +600,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
 <body>
   <div id="root" data-composition-id="{comp_id}" data-start="0"
        data-duration="{total_duration}" data-width="{width}"
-       data-height="{height}" data-time-unit="s">
+       data-height="{height}" data-time-unit="s" data-fps="{fps}">
 {chr(10).join(scene_html_parts)}
   </div>
 {audio_tag}{''.join(narr_audio)}{''.join(sfx_audio)}  <script>{_gsap_src}</script>

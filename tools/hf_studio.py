@@ -138,6 +138,12 @@ def build_chrome(total_s, scenes):
   window.__mcStudio = true;
   var TOTAL = {total_s};
   var SCENES = {scenes_json};
+  var FPS = (function () {{
+    var root = document.querySelector('[data-composition-id]');
+    var f = root ? parseFloat(root.getAttribute('data-fps')) : NaN;
+    return isFinite(f) && f > 0 ? f : 30;
+  }})();
+  var TOTAL_FR = Math.round(TOTAL * FPS);
   var playing = false, t = 0, raf = 0, last = 0;
   var bar = document.getElementById("__mc-studio-bar");
   var btn = document.getElementById("__mc-studio-play");
@@ -171,10 +177,12 @@ def build_chrome(total_s, scenes):
       }}
     }} catch (e) {{}}
     bar.value = TOTAL > 0 ? Math.round(sec / TOTAL * 1000) : 0;
-    label.textContent = sec.toFixed(1) + " / " + TOTAL.toFixed(1) + "s";
+    label.textContent = sec.toFixed(1) + "s · 帧 " +
+      Math.min(TOTAL_FR, Math.round(sec * FPS)) + "/" + TOTAL_FR;
     // Studio 服务模式：把播放时间回报给父页（多轨时间轴播放头联动）。
     if (window.parent !== window) {{
-      try {{ window.parent.postMessage({{ mcStudioTime: sec, total: TOTAL }},
+      try {{ window.parent.postMessage({{ mcStudioTime: sec, total: TOTAL,
+        frame: Math.round(sec * FPS), frames: TOTAL_FR }},
         "*"); }} catch (e) {{}}
     }}
   }}
@@ -226,10 +234,13 @@ def build_chrome(total_s, scenes):
   document.addEventListener("keydown", function (ev) {{
     if (ev.code === "Space" && ev.target === document.body) {{
       ev.preventDefault(); playing ? pause() : play();
-    }} else if (ev.code === "ArrowLeft") {{
-      pause(); t = Math.max(0, t - 1); drive(t);
-    }} else if (ev.code === "ArrowRight") {{
-      pause(); t = Math.min(TOTAL, t + 1); drive(t);
+    }} else if (ev.code === "ArrowLeft" || ev.code === "ArrowRight") {{
+      // 帧步进：±1 帧（Shift = ±10 帧）——Remotion 式逐帧编辑。
+      ev.preventDefault(); pause();
+      var step = (ev.code === "ArrowRight" ? 1 : -1) /
+                 FPS * (ev.shiftKey ? 10 : 1);
+      t = Math.max(0, Math.min(TOTAL, t + step));
+      drive(t);
     }}
   }});
   drive(0);
@@ -315,6 +326,23 @@ STUDIO_UI = r"""<!DOCTYPE html>
               border-top: 1px solid var(--line); background: var(--panel); }
   #findings:empty { display: none; }
   #findings .f { font-size: 12px; padding: 1px 0; }
+  #inspector { border-top: 1px solid var(--line); background: var(--panel);
+               padding: 10px 14px; flex: none; }
+  #inspector .cap { font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
+                    text-transform: uppercase; }
+  #inspector .insp-grid { display: flex; gap: 14px; flex-wrap: wrap;
+                          margin-top: 8px; }
+  #inspector label { font-size: 12px; color: var(--dim); display: flex;
+                     flex-direction: column; gap: 4px; }
+  #inspector input, #inspector select { background: var(--panel2);
+      color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+      padding: 5px 8px; font: inherit; }
+  #inspector .row { display: flex; align-items: center; gap: 12px;
+                    margin-top: 10px; }
+  #inspector button { background: var(--acc); color: #0d1122; border: 0;
+                      border-radius: 6px; padding: 6px 14px; cursor:
+                      pointer; font-weight: 600; }
+  #inspector .locknote { font-size: 12px; color: var(--warn); }
   #findings .f.err { color: var(--err); }
   #findings .f.warn { color: var(--warn); }
   #findings .f.info { color: var(--dim); }
@@ -413,6 +441,26 @@ STUDIO_UI = r"""<!DOCTYPE html>
       </div>
     </div>
     <div id="findings"></div>
+    <div id="inspector" style="display:none">
+      <div class="cap">SCENE INSPECTOR — <span id="insp-title"></span></div>
+      <div class="insp-grid">
+        <label>时长(秒)<input id="insp-dur" type="number" step="0.1" min="0.3"></label>
+        <label>背景<input id="insp-bg" type="color"></label>
+        <label>文字色<input id="insp-color" type="color"></label>
+        <label>动画<select id="insp-anim">
+          <option value="fade_in">fade_in</option>
+          <option value="fade_in_up">fade_in_up</option>
+          <option value="fade_in_down">fade_in_down</option>
+          <option value="slide_in_left">slide_in_left</option>
+          <option value="slide_in_right">slide_in_right</option>
+          <option value="scale_in">scale_in</option>
+        </select></label>
+      </div>
+      <div class="row">
+        <button id="insp-apply">应用到场景</button>
+        <span id="insp-lock" class="locknote"></span>
+      </div>
+    </div>
   </div>
 </main>
 <div id="bottom">
@@ -454,6 +502,42 @@ function activeScene(t) {
   }
   return null;
 }
+function renderInspector() {
+  var el = $("inspector");
+  var sc = (selIdx >= 0 && state.spec.scenes[selIdx])
+               ? state.spec.scenes[selIdx] : null;
+  if (!sc) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  var locked = !!sc.narration;
+  $("insp-title").textContent = "scene-" + selIdx + " (" + sc.type + ")";
+  // 时长显示 = 生效值（旁白场景 = 拟合后的 meta 窗口；普通场景 = spec
+  // 字段）；锁定场景禁止编辑。
+  var metaDur = (state.scenes && state.scenes[selIdx] &&
+                 state.scenes[selIdx].dur) || 0;
+  $("insp-dur").value = (locked ? metaDur : (sc.duration || metaDur))
+      .toFixed(1);
+  $("insp-dur").disabled = locked;
+  $("insp-lock").textContent = locked ? "时长随旁白拟合（锁定）" : "";
+  if (/^#[0-9a-fA-F]{6}$/.test(sc.bg || "")) {
+    $("insp-bg").value = sc.bg;
+  }
+  if (/^#[0-9a-fA-F]{6}$/.test(sc.text_color || "")) {
+    $("insp-color").value = sc.text_color;
+  }
+  $("insp-anim").value = sc.animation || "fade_in";
+}
+function applyInspector() {
+  if (selIdx < 0 || !state.spec.scenes[selIdx]) { return; }
+  var sc = state.spec.scenes[selIdx];
+  sc.duration = Math.max(0.3, parseFloat($("insp-dur").value) || sc.duration);
+  sc.bg = $("insp-bg").value;
+  sc.text_color = $("insp-color").value;
+  sc.animation = $("insp-anim").value;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  log("inspector 应用到 scene-" + selIdx + "，重组合成…");
+  recompose();
+}
+$("insp-apply").onclick = applyInspector;
 function renderTimeline() {
   var tl = $("timeline"); tl.innerHTML = "";
   var total = Math.max(state.duration, 0.1);
@@ -498,6 +582,7 @@ function renderTimeline() {
               ev.target.className.indexOf("mv") >= 0) { return; }
           selIdx = (selIdx === idx) ? -1 : idx;
           renderTimeline();
+          renderInspector();
         };
         if (!locked) {
           var trim = document.createElement("div"); trim.className = "trim";
@@ -578,7 +663,10 @@ function updatePlayhead(t, total) {
   var pct = (total > 0 ? Math.min(t, total) / total : 0) * 100 + "%";
   var ph = $("playhead"); if (ph) ph.style.left = "calc(58px + " + pct +
       " * (100% - 58px))";
-  $("tlabel").textContent = t.toFixed(1) + "s / " + total.toFixed(1) + "s";
+  var fps = (state.spec.composition || {}).fps || 30;
+  $("tlabel").textContent = t.toFixed(1) + "s · 帧 " +
+      Math.min(Math.round(t * fps), Math.round(total * fps)) + "/" +
+      Math.round(total * fps);
   var badge = $("scene-badge");
   var sc = activeScene(t);
   if (badge) badge.textContent = sc ? sc.label : "—";
