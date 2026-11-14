@@ -121,6 +121,8 @@ def build_chrome(total_s, scenes):
     white-space: nowrap; }}
   #__mc-studio-time {{ min-width: 92px; text-align: right;
     font-variant-numeric: tabular-nums; }}
+  [data-start] {{ cursor: pointer; }}
+  .mc-studio-sel {{ outline: 3px solid #ff5c7a; outline-offset: -3px; }}
 </style>
 <div id="__mc-studio-chrome">
   <button id="__mc-studio-play">▶</button>
@@ -230,7 +232,39 @@ def build_chrome(total_s, scenes):
     if (typeof d.mcStudioSeek === "number") {{
       pause(); t = Math.max(0, Math.min(TOTAL, d.mcStudioSeek)); drive(t);
     }}
+    if (typeof d.mcStudioHighlight === "number") {{
+      var sc = SCENES[d.mcStudioHighlight];
+      var el = sc ? document.getElementById(sc.id) : null;
+      if (el) {{
+        el.classList.add("mc-studio-sel");
+        if (lastSel && lastSel !== el) {{
+          lastSel.classList.remove("mc-studio-sel");
+        }}
+        lastSel = el;
+      }}
+    }}
   }});
+  var lastSel = null;
+  // 预览点选联动：点击场景元素 → 高亮 + 上报父页选中（Remotion 式
+  // "预览里点 → 编辑器选中"闭环）。
+  document.addEventListener("click", function (ev) {{
+    var el = ev.target.closest("[data-start]");
+    if (!el || el.tagName === "AUDIO") {{ return; }}
+    var idx = -1;
+    for (var i = 0; i < SCENES.length; i++) {{
+      if (SCENES[i].id === el.id) {{ idx = i; break; }}
+    }}
+    if (idx < 0) {{ return; }}
+    el.classList.add("mc-studio-sel");
+    if (lastSel && lastSel !== el) {{
+      lastSel.classList.remove("mc-studio-sel");
+    }}
+    lastSel = el;
+    if (window.parent !== window) {{
+      try {{ window.parent.postMessage({{ mcStudioSelect: idx }}, "*");
+      }} catch (e) {{}}
+    }}
+  }}, true);
   document.addEventListener("keydown", function (ev) {{
     if (ev.code === "Space" && ev.target === document.body) {{
       ev.preventDefault(); playing ? pause() : play();
@@ -266,555 +300,17 @@ def inject(html):
 # 服务模式（xmedia Studio：本地服务 + 浏览器 UI）
 # ---------------------------------------------------------------------------
 
-STUDIO_UI = r"""<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<title>xmedia Studio</title>
-<style>
-  :root {
-    --bg: #0b0b11; --panel: #15151d; --panel2: #1a1a24; --line: #26263a;
-    --ink: #e9e9f0; --dim: #9494a8; --acc: #6d8bff; --acc2: #8b6dff;
-    --ok: #3ecf8e; --err: #ff5c6c; --warn: #e8b64c;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 14px/1.45 -apple-system, "Helvetica Neue", sans-serif;
-         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  header { display: flex; align-items: center; gap: 12px; height: 46px;
-           padding: 0 14px; border-bottom: 1px solid var(--line);
-           background: var(--panel); flex: none; }
-  .logo { width: 24px; height: 24px; border-radius: 7px;
-          background: linear-gradient(135deg, var(--acc), var(--acc2)); }
-  header b { font-size: 13px; letter-spacing: 0.3px; }
-  header .file { color: var(--dim); font-size: 12px; background: var(--panel2);
-                 padding: 4px 10px; border-radius: 6px; }
-  header .sp { flex: 1; }
-  header button { background: var(--panel2); color: var(--ink); border: 1px
-                  solid var(--line); border-radius: 7px; padding: 7px 13px;
-                  cursor: pointer; font: inherit; font-size: 13px; }
-  header button:hover { border-color: var(--acc); }
-  header button.acc { background: linear-gradient(135deg, var(--acc),
-                       var(--acc2)); border: 0; color: #0d1122;
-                       font-weight: 600; }
-  header button:disabled { opacity: 0.4; cursor: default; }
-  main { flex: 1; display: grid; grid-template-columns: 420px 1fr;
-         min-height: 0; }
-  #left { border-right: 1px solid var(--line); display: flex;
-          flex-direction: column; min-height: 0; background: var(--panel); }
-  .panel-h { height: 34px; display: flex; align-items: center; gap: 8px;
-             padding: 0 14px; border-bottom: 1px solid var(--line);
-             font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
-             text-transform: uppercase; flex: none; }
-  #spec { flex: 1; width: 100%; background: transparent; color: var(--ink);
-          border: 0; outline: 0; resize: none; padding: 10px 14px;
-          font: 12px/1.6 ui-monospace, Menlo, monospace; }
-  #right { display: flex; flex-direction: column; min-height: 0;
-           background: var(--bg); }
-  #pvwrap { flex: 1; display: flex; align-items: center;
-            justify-content: center; min-height: 0; padding: 18px;
-            background: repeating-conic-gradient(#12121a 0 25%,
-                         #0e0e14 0 50%) 0 0/22px 22px; }
-  #pvframe { position: relative; background: #000; border-radius: 12px;
-             border: 1px solid var(--line); overflow: hidden;
-             box-shadow: 0 10px 44px rgba(0, 0, 0, 0.55); }
-  #pvframe iframe { width: 100%; height: 100%; border: 0; display: block; }
-  #scene-badge { position: absolute; top: 10px; left: 10px; font-size: 11px;
-                 color: var(--dim); background: rgba(10, 10, 16, 0.7);
-                 padding: 4px 9px; border-radius: 6px; z-index: 2147483000; }
-  #findings { flex: none; max-height: 96px; overflow: auto; padding: 8px 14px;
-              border-top: 1px solid var(--line); background: var(--panel); }
-  #findings:empty { display: none; }
-  #findings .f { font-size: 12px; padding: 1px 0; }
-  #inspector { border-top: 1px solid var(--line); background: var(--panel);
-               padding: 10px 14px; flex: none; }
-  #inspector .cap { font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
-                    text-transform: uppercase; }
-  #inspector .insp-grid { display: flex; gap: 14px; flex-wrap: wrap;
-                          margin-top: 8px; }
-  #inspector label { font-size: 12px; color: var(--dim); display: flex;
-                     flex-direction: column; gap: 4px; }
-  #inspector input, #inspector select { background: var(--panel2);
-      color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
-      padding: 5px 8px; font: inherit; }
-  #inspector .row { display: flex; align-items: center; gap: 12px;
-                    margin-top: 10px; }
-  #inspector button { background: var(--acc); color: #0d1122; border: 0;
-                      border-radius: 6px; padding: 6px 14px; cursor:
-                      pointer; font-weight: 600; }
-  #inspector .locknote { font-size: 12px; color: var(--warn); }
-  #findings .f.err { color: var(--err); }
-  #findings .f.warn { color: var(--warn); }
-  #findings .f.info { color: var(--dim); }
-  #bottom { border-top: 1px solid var(--line); height: 248px; flex: none;
-            display: flex; flex-direction: column; background: var(--panel); }
-  #tl-head { display: flex; align-items: center; gap: 10px; height: 32px;
-             padding: 0 14px; flex: none; }
-  #tl-head .cap { font-size: 11px; letter-spacing: 0.8px; color: var(--dim);
-                  text-transform: uppercase; }
-  #tlabel { font-variant-numeric: tabular-nums; color: var(--ink);
-            background: var(--panel2); padding: 3px 9px; border-radius: 6px; }
-  #tl-head .hint { color: var(--dim); }
-  #timeline { position: relative; flex: 1; overflow: hidden;
-              padding: 0 14px 8px; cursor: crosshair; }
-  .tl-ruler { position: relative; height: 16px; margin-left: 58px;
-              font-size: 10px; color: var(--dim); }
-  .tl-ruler .tick { position: absolute; top: 0; height: 100%;
-                    border-left: 1px solid #2e2e42; padding-left: 3px; }
-  .tl-row { display: flex; height: 30px; margin-top: 3px; }
-  .tl-label { width: 58px; flex: none; font-size: 11px; color: var(--dim);
-              display: flex; align-items: center; }
-  .tl-lane { flex: 1; position: relative; background: #12121a;
-             border-radius: 5px; }
-  .tl-blk { position: absolute; top: 3px; bottom: 3px; border-radius: 5px;
-            cursor: pointer; overflow: hidden; font-size: 11px;
-            padding: 4px 7px; white-space: nowrap; color: var(--ink); }
-  .tl-blk.scene { background: linear-gradient(180deg, #2b3560, #232b4c);
-                  border: 1px solid #46528c; }
-  .tl-blk.narration { background: linear-gradient(180deg, #3a2d5c, #2e244a);
-                      border: 1px solid #64468f; }
-  .tl-blk.sfx { background: linear-gradient(180deg, #24443a, #1c362f);
-                border: 1px solid #3f7a64; }
-  .tl-blk.bgm { background: linear-gradient(180deg, #4c3f24, #3a3020);
-                border: 1px solid #8f7a46; }
-  .tl-blk:hover { filter: brightness(1.25); }
-  .tl-blk.sel { border-color: var(--acc);
-                box-shadow: 0 0 0 1px var(--acc) inset; }
-  .tl-blk.locked { cursor: default; }
-  .tl-blk .dur { color: var(--dim); margin-left: 6px;
-                 font-variant-numeric: tabular-nums; }
-  .tl-blk .trim { position: absolute; right: 0; top: 0; bottom: 0;
-                  width: 9px; cursor: ew-resize;
-                  background: rgba(255, 255, 255, 0.12); }
-  .tl-blk .trim:hover { background: rgba(108, 139, 255, 0.55); }
-  .tl-blk .mv { position: absolute; top: 0; bottom: 0; width: 15px;
-                cursor: pointer; color: var(--ink); font-size: 12px;
-                display: flex; align-items: center; justify-content: center;
-                background: rgba(11, 11, 17, 0.72); }
-  .tl-blk .mv.left { left: 0; }
-  .tl-blk .mv.right { right: 9px; }
-  #playhead { position: absolute; top: 0; bottom: 0; width: 0;
-              pointer-events: none; z-index: 9; }
-  #playhead::before { content: ""; position: absolute; top: 0; bottom: 0;
-                      left: -1px; width: 2px; background: #ff5c7a; }
-  #playhead::after { content: ""; position: absolute; top: -1px; left: -6px;
-                     border: 6px solid transparent; border-top: 7px solid
-                     #ff5c7a; }
-  #log { flex: 1; overflow: auto; padding: 6px 14px; font: 11px/1.55
-         ui-monospace, Menlo, monospace; color: var(--dim);
-         border-top: 1px solid var(--line); white-space: pre-wrap; }
-  #log .err { color: var(--err); }
-  #log .ok { color: var(--ok); }
-  .spin { display: inline-block; width: 12px; height: 12px;
-          border: 2px solid var(--dim); border-top-color: var(--acc);
-          border-radius: 50%; animation: sp 0.8s linear infinite; }
-  @keyframes sp { to { transform: rotate(360deg); } }
-</style>
-</head>
-<body>
-<header>
-  <div class="logo"></div>
-  <b>xmedia Studio</b>
-  <span class="file" id="fileinfo"></span>
-  <span class="sp"></span>
-  <button id="btn-tts" title="对 spec 全场景生成旁白（say/HTTP）">生成旁白</button>
-  <button id="btn-recompose" class="acc" title="Ctrl/Cmd+Enter">重组合成</button>
-  <button id="btn-bake">烘焙 MP4</button>
-  <span id="job" style="min-width:70px;font-size:12px;color:var(--dim)"></span>
-</header>
-<main>
-  <div id="left">
-    <div class="panel-h">SPEC JSON
-      <span style="flex:1"></span>
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;
-                    text-transform:none;letter-spacing:0">
-        <input type="checkbox" id="sfx" checked> SFX</label>
-      <span style="text-transform:none;letter-spacing:0">Ctrl/Cmd+Enter 重组</span>
-    </div>
-    <textarea id="spec" spellcheck="false"></textarea>
-  </div>
-  <div id="right">
-    <div id="pvwrap">
-      <div id="pvframe">
-        <iframe id="pv"></iframe>
-        <div id="scene-badge"></div>
-      </div>
-    </div>
-    <div id="findings"></div>
-    <div id="inspector" style="display:none">
-      <div class="cap">SCENE INSPECTOR — <span id="insp-title"></span></div>
-      <div class="insp-grid">
-        <label>时长(秒)<input id="insp-dur" type="number" step="0.1" min="0.3"></label>
-        <label>背景<input id="insp-bg" type="color"></label>
-        <label>文字色<input id="insp-color" type="color"></label>
-        <label>动画<select id="insp-anim">
-          <option value="fade_in">fade_in</option>
-          <option value="fade_in_up">fade_in_up</option>
-          <option value="fade_in_down">fade_in_down</option>
-          <option value="slide_in_left">slide_in_left</option>
-          <option value="slide_in_right">slide_in_right</option>
-          <option value="scale_in">scale_in</option>
-        </select></label>
-      </div>
-      <div class="row">
-        <button id="insp-apply">应用到场景</button>
-        <span id="insp-lock" class="locknote"></span>
-      </div>
-    </div>
-  </div>
-</main>
-<div id="bottom">
-  <div id="tl-head">
-    <span class="cap">时间轴</span>
-    <span id="tlabel">0.0s</span>
-    <span class="hint">场景块：点选 ‹ › 排序 · 拖右缘裁剪（旁白锁定）·
-      标尺点击/拖动定位 · 空格播放</span>
-  </div>
-  <div id="timeline"></div>
-  <div id="log"></div>
-</div>
-<script>
-var state = { spec: null, duration: 0, scenes: [], audios: [],
-              width: 1080, height: 1920 };
-var selIdx = -1;
-var $ = function (id) { return document.getElementById(id); };
-function log(msg, cls) {
-  var el = document.createElement("div");
-  if (cls) el.className = cls;
-  el.textContent = msg;
-  $("log").appendChild(el);
-  $("log").scrollTop = $("log").scrollHeight;
-}
-function api(path, body) {
-  return fetch(path, { method: body ? "POST" : "GET",
-    headers: { "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined }).then(function (r) {
-      return r.json().then(function (j) {
-        if (j.error) throw new Error(j.error);
-        return j;
-      });
-    });
-}
-function activeScene(t) {
-  for (var i = 0; i < state.scenes.length; i++) {
-    var s = state.scenes[i];
-    if (t >= s.start && t < s.start + s.dur) return s;
-  }
-  return null;
-}
-function renderInspector() {
-  var el = $("inspector");
-  var sc = (selIdx >= 0 && state.spec.scenes[selIdx])
-               ? state.spec.scenes[selIdx] : null;
-  if (!sc) { el.style.display = "none"; return; }
-  el.style.display = "block";
-  var locked = !!sc.narration;
-  $("insp-title").textContent = "scene-" + selIdx + " (" + sc.type + ")";
-  // 时长显示 = 生效值（旁白场景 = 拟合后的 meta 窗口；普通场景 = spec
-  // 字段）；锁定场景禁止编辑。
-  var metaDur = (state.scenes && state.scenes[selIdx] &&
-                 state.scenes[selIdx].dur) || 0;
-  $("insp-dur").value = (locked ? metaDur : (sc.duration || metaDur))
-      .toFixed(1);
-  $("insp-dur").disabled = locked;
-  $("insp-lock").textContent = locked ? "时长随旁白拟合（锁定）" : "";
-  if (/^#[0-9a-fA-F]{6}$/.test(sc.bg || "")) {
-    $("insp-bg").value = sc.bg;
-  }
-  if (/^#[0-9a-fA-F]{6}$/.test(sc.text_color || "")) {
-    $("insp-color").value = sc.text_color;
-  }
-  $("insp-anim").value = sc.animation || "fade_in";
-}
-function applyInspector() {
-  if (selIdx < 0 || !state.spec.scenes[selIdx]) { return; }
-  var sc = state.spec.scenes[selIdx];
-  sc.duration = Math.max(0.3, parseFloat($("insp-dur").value) || sc.duration);
-  sc.bg = $("insp-bg").value;
-  sc.text_color = $("insp-color").value;
-  sc.animation = $("insp-anim").value;
-  $("spec").value = JSON.stringify(state.spec, null, 2);
-  log("inspector 应用到 scene-" + selIdx + "，重组合成…");
-  recompose();
-}
-$("insp-apply").onclick = applyInspector;
-function renderTimeline() {
-  var tl = $("timeline"); tl.innerHTML = "";
-  var total = Math.max(state.duration, 0.1);
-  var ruler = document.createElement("div"); ruler.className = "tl-ruler";
-  var step = total > 24 ? 5 : total > 12 ? 2 : 1;
-  for (var s = 0; s <= total; s += step) {
-    var tk = document.createElement("div"); tk.className = "tick";
-    tk.style.left = (s / total * 100) + "%";
-    tk.textContent = s + "s";
-    ruler.appendChild(tk);
-  }
-  tl.appendChild(ruler);
-  var phWrap = document.createElement("div");
-  phWrap.style.position = "relative";
-  var ph = document.createElement("div"); ph.id = "playhead";
-  phWrap.appendChild(ph);
-  [["场景", "scene"], ["旁白", "narration"], ["SFX", "sfx"],
-   ["音乐", "bgm"]].forEach(function (ld) {
-    var row = document.createElement("div"); row.className = "tl-row";
-    phWrap.appendChild(row);
-    var lab = document.createElement("div"); lab.className = "tl-label";
-    lab.textContent = ld[0];
-    var lane = document.createElement("div");
-    lane.className = "tl-lane " + ld[1];
-    lane.dataset.kind = ld[1];
-    row.appendChild(lab); row.appendChild(lane);
-    if (ld[1] === "scene") {
-      state.scenes.forEach(function (s, idx) {
-        var locked = !!(state.spec.scenes[idx] &&
-                        state.spec.scenes[idx].narration);
-        var b = document.createElement("div");
-        b.className = "tl-blk" + (locked ? " locked" : "") +
-                      (idx === selIdx ? " sel" : "");
-        b.style.left = (s.start / total * 100) + "%";
-        b.style.width = Math.max(1.5, s.dur / total * 100) + "%";
-        b.innerHTML = s.label +
-            '<span class="dur">' + s.dur.toFixed(1) + "s</span>";
-        b.title = locked ? "旁白锁定：时长随旁白拟合"
-                         : "点选：‹ › 排序；拖右缘裁剪时长";
-        b.onclick = function (ev) {
-          if (ev.target.className.indexOf("trim") >= 0 ||
-              ev.target.className.indexOf("mv") >= 0) { return; }
-          selIdx = (selIdx === idx) ? -1 : idx;
-          renderTimeline();
-          renderInspector();
-        };
-        if (!locked) {
-          var trim = document.createElement("div"); trim.className = "trim";
-          trim.onmousedown = function (e) {
-            e.stopPropagation();
-            var px0 = e.clientX, d0 = s.dur;
-            function mv(e2) {
-              var d = d0 + (e2.clientX - px0) / (lane.clientWidth) * total;
-              d = Math.max(0.3, Math.min(d, total - s.start));
-              b.style.width = Math.max(1.5, d / total * 100) + "%";
-              b._newDur = d;
-            }
-            function up() {
-              document.removeEventListener("mousemove", mv);
-              document.removeEventListener("mouseup", up);
-              if (b._newDur && Math.abs(b._newDur - d0) > 0.05) {
-                trimCommit(idx, b._newDur);
-              }
-            }
-            document.addEventListener("mousemove", mv);
-            document.addEventListener("mouseup", up);
-          };
-          b.appendChild(trim);
-        }
-        if (idx === selIdx && !locked) {
-          var mvL = document.createElement("div"); mvL.className = "mv left";
-          mvL.textContent = "‹"; mvL.title = "前移一位";
-          mvL.onclick = function (e) { e.stopPropagation(); reorder(idx, -1); };
-          var mvR = document.createElement("div"); mvR.className = "mv right";
-          mvR.textContent = "›"; mvR.title = "后移一位";
-          mvR.onclick = function (e) { e.stopPropagation(); reorder(idx, 1); };
-          b.appendChild(mvL); b.appendChild(mvR);
-        }
-        lane.appendChild(b);
-      });
-    } else {
-      state.audios.filter(function (a) { return a.kind === ld[1]; })
-        .forEach(function (a) {
-          var b = document.createElement("div");
-          b.className = "tl-blk locked";
-          b.style.left = (a.start / total * 100) + "%";
-          b.style.width = Math.max(1.5,
-              Math.min(a.dur || total, total) / total * 100) + "%";
-          var nm = a.src.split("/").pop();
-          b.innerHTML = nm + '<span class="dur">v' + a.vol.toFixed(1) +
-                        "</span>";
-          b.title = a.src;
-          b.onclick = function () { seekTo(a.start + 0.01); };
-          lane.appendChild(b);
-        });
-    }
-  });
-  $("timeline").appendChild(phWrap);
-  updatePlayhead(lastTime, total);
-}
-function trimCommit(idx, newDur) {
-  state.spec.scenes[idx].duration = Math.round(newDur * 100) / 100;
-  $("spec").value = JSON.stringify(state.spec, null, 2);
-  log("裁剪 scene-" + idx + " → " + state.spec.scenes[idx].duration +
-      "s，重组合成…");
-  recompose();
-}
-function reorder(idx, dir) {
-  var arr = state.spec.scenes, j = idx + dir;
-  if (j < 0 || j >= arr.length) { return; }
-  var t = arr[idx]; arr[idx] = arr[j]; arr[j] = t;
-  selIdx = j;
-  $("spec").value = JSON.stringify(state.spec, null, 2);
-  log("场景 " + idx + " " + (dir < 0 ? "前移" : "后移") + "，重组合成…");
-  recompose();
-}
-function seekTo(sec) {
-  $("pv").contentWindow.postMessage({ mcStudioSeek: sec }, "*");
-}
-var lastTime = 0;
-function updatePlayhead(t, total) {
-  lastTime = t;
-  var pct = (total > 0 ? Math.min(t, total) / total : 0) * 100 + "%";
-  var ph = $("playhead"); if (ph) ph.style.left = "calc(58px + " + pct +
-      " * (100% - 58px))";
-  var fps = (state.spec.composition || {}).fps || 30;
-  $("tlabel").textContent = t.toFixed(1) + "s · 帧 " +
-      Math.min(Math.round(t * fps), Math.round(total * fps)) + "/" +
-      Math.round(total * fps);
-  var badge = $("scene-badge");
-  var sc = activeScene(t);
-  if (badge) badge.textContent = sc ? sc.label : "—";
-}
-window.addEventListener("message", function (ev) {
-  var d = ev.data || {};
-  if (typeof d.mcStudioTime === "number") {
-    updatePlayhead(d.mcStudioTime, d.total || state.duration);
-  }
-});
-// 标尺点击/拖动定位（跨四轨的统一 scrub）
-(function () {
-  var scrub = function (ev) {
-    var tl = $("timeline");
-    var rect = tl.getBoundingClientRect();
-    var laneX = ev.clientX - rect.left - 58;
-    var laneW = rect.width - 58 - 14;
-    if (laneW <= 0 || laneX < 0) { return; }
-    var total = Math.max(state.duration, 0.1);
-    seekTo(Math.max(0, Math.min(total, laneX / laneW * total)));
-  };
-  $("timeline").addEventListener("mousedown", function (ev) {
-    if (ev.target.closest(".tl-blk")) { return; }
-    scrub(ev);
-    function mv(e2) { scrub(e2); }
-    function up() {
-      document.removeEventListener("mousemove", mv);
-      document.removeEventListener("mouseup", up);
-    }
-    document.addEventListener("mousemove", mv);
-    document.addEventListener("mouseup", up);
-  });
-})();
-function renderFindings(f) {
-  var el = $("findings"); el.innerHTML = "";
-  (f || []).forEach(function (x) {
-    var d = document.createElement("div");
-    d.className = "f " + x.level;
-    d.textContent = "[" + x.level + "] " + x.message;
-    el.appendChild(d);
-  });
-}
-function fitPreview() {
-  var wrap = $("pvwrap"), fr = $("pvframe");
-  var aw = state.width / state.height;
-  var maxW = Math.max(160, wrap.clientWidth - 40);
-  var maxH = Math.max(160, wrap.clientHeight - 40);
-  var w = Math.min(maxW, maxH * aw);
-  fr.style.width = w + "px";
-  fr.style.height = (w / aw) + "px";
-  $("pv").style.width = "100%";
-  $("pv").style.height = "100%";
-}
-function refresh(keepScroll) {
-  return api("/api/state").then(function (s) {
-    state = s;
-    if (!keepScroll) $("spec").value = JSON.stringify(s.spec, null, 2);
-    $("sfx").checked = !(s.spec.sfx && s.spec.sfx.enabled === false);
-    $("fileinfo").textContent = (s.spec_path || "未绑定 spec").split("/").pop();
-    fitPreview(); renderTimeline(); renderFindings(s.findings);
-    $("pv").src = "/preview?t=" + Date.now();
-  });
-}
-function recompose() {
-  var spec;
-  try { spec = JSON.parse($("spec").value); }
-  catch (e) { log("spec JSON 解析失败：" + e.message, "err"); return; }
-  spec.sfx = { enabled: $("sfx").checked };
-  api("/api/recompose", { spec: spec, no_sfx: !$("sfx").checked })
-    .then(function (r) {
-      return refresh(true).then(function () {
-        log((r.ok ? "重组成功 " : "重组完成（含校验错误）") +
-            r.duration.toFixed(1) + "s / " + r.scenes.length + " 场景 / sha " +
-            r.sha, r.ok ? "ok" : "err");
-        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，烘焙会被拒绝",
-                       "err");
-      });
-    })
-    .catch(function (e) { log("重组失败：" + e.message, "err"); });
-}
-$("btn-recompose").onclick = recompose;
-document.addEventListener("keydown", function (ev) {
-  if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") {
-    ev.preventDefault(); recompose();
-  }
-});
-$("sfx").addEventListener("change", recompose);
-$("btn-tts").onclick = function () {
-  var spec;
-  try { spec = JSON.parse($("spec").value); }
-  catch (e) { log("spec JSON 解析失败：" + e.message, "err"); return; }
-  $("btn-tts").disabled = true;
-  api("/api/tts", { spec: spec }).then(function (r) {
-    $("btn-tts").disabled = false;
-    $("spec").value = JSON.stringify(r.spec, null, 2);
-    log("旁白生成完成：" + r.generated + " 段（voice/ 目录）", "ok");
-    recompose();
-  }).catch(function (e) {
-    $("btn-tts").disabled = false;
-    log("TTS 失败：" + e.message, "err");
-  });
-};
-$("btn-bake").onclick = function () {
-  $("btn-bake").disabled = true;
-  $("job").innerHTML = '<span class="spin"></span> 烘焙中';
-  log("烘焙开始（参数由 spec 自动推导：" + state.width + "×" + state.height +
-      " / " + state.duration.toFixed(1) + "s / " +
-      (state.spec.composition || {}).fps + "fps）");
-  api("/api/bake", {}).then(function (r) { return pollJob(r.job); })
-    .then(function (j) {
-      $("btn-bake").disabled = false; $("job").textContent = "";
-      if (j.rc === 0) {
-        log("烘焙完成：" + j.out, "ok");
-        log("验源：ffprobe -show_format " + j.out + " | grep comment", "ok");
-      } else {
-        log("烘焙失败 rc=" + j.rc + "：" + j.tail, "err");
-      }
-    })
-    .catch(function (e) {
-      $("btn-bake").disabled = false; $("job").textContent = "";
-      log("烘焙失败：" + e.message, "err");
-    });
-};
-function pollJob(id) {
-  return api("/api/job?id=" + id).then(function (j) {
-    if (j.running) {
-      $("job").textContent = "烘焙中 " + j.elapsed.toFixed(0) + "s";
-      return pollJob(id);
-    }
-    return j;
-  });
-}
-window.addEventListener("resize", fitPreview);
-window.addEventListener("message", function (ev) {
-  var d = ev.data || {};
-  if (typeof d.mcStudioTime === "number") {
-    updatePlayhead(d.mcStudioTime, d.total || state.duration);
-  }
-});
-refresh().then(function () {
-  if (window.ResizeObserver) {
-    new ResizeObserver(function () { fitPreview(); }).observe($("pvwrap"));
-  }
-}).catch(function (e) { log("状态加载失败：" + e.message, "err"); });
-</script>
-</body>
-</html>
-"""
+# Studio UI：独立文件按请求读取——UI 改动刷新浏览器即生效
+# （无需重启服务，工程级开发闭环）。
+STUDIO_UI_PATH = os.path.join(TOOLS_DIR, "studio_ui.html")
+
+
+def studio_ui():
+    try:
+        with open(STUDIO_UI_PATH, "r", encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return "<html><body><p>studio_ui.html 缺失</p></body></html>"
 
 
 
@@ -945,7 +441,7 @@ def make_handler(server_ref):
             path = urllib.parse.urlparse(self.path).path
             srv = server_ref
             if path == "/":
-                self._send(200, STUDIO_UI, "text/html; charset=utf-8")
+                self._send(200, studio_ui(), "text/html; charset=utf-8")
             elif path == "/api/state":
                 import hf_validate
                 findings, errors, _, _ = hf_validate.validate(srv.current_html)
