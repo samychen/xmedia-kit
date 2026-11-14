@@ -203,6 +203,7 @@ say/网络）——`ctest -R hf_tts_smoke`。
 | narration | string | — | 旁白音频路径（相对 spec 目录或绝对路径）；设置后场景时长 = ffprobe 音频时长 + padding |
 | padding | float | 0.5 | narration 拟合时的尾部留白秒数 |
 | narration_volume | float | 1.0 | 旁白混音音量（BGM 默认 0.6 衬在旁白之下）|
+| transition | string | — | 场景级转场覆盖（进入方式）：`fade` / `slide-left` / `slide-right` / `wipe` / `none`；全局默认走顶层 `transitions: {type, duration}`（默认 fade / 0.5s）。语义 = 进入侧提前 duration 进入前一场景尾窗，总时长随重叠收缩 |
 | bg | string | `"#000000"` | 场景背景色 |
 | text_color | string | `"#ffffff"` | 文字颜色 |
 | animation | string | `"fade_in"` | 入场动画（见下表）|
