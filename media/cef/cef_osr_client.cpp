@@ -587,7 +587,7 @@ void CefOsClient::OnPaint(CefRefPtr<CefBrowser> /*browser*/,
   static bool logged_first_paint = false;
   if (!logged_first_paint) {
     logged_first_paint = true;
-    LOG(ERROR) << "[cef] OnPaint first PET_VIEW " << width << "x" << height
+    LOG(INFO) << "[cef] OnPaint first PET_VIEW " << width << "x" << height
               << "\n";
   }
 
@@ -657,7 +657,7 @@ void CefOsClient::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   // OSR: announce view size so the renderer produces the first PET_VIEW paint.
   browser->GetHost()->WasResized();
   browser->GetHost()->Invalidate(PET_VIEW);
-  LOG(ERROR) << "[cef] OnAfterCreated id=" << browser->GetIdentifier()
+  LOG(INFO) << "[cef] OnAfterCreated id=" << browser->GetIdentifier()
             << " view=" << view_width_ << "x" << view_height_ << "\n";
 
   if (has_url) {
@@ -697,7 +697,7 @@ void CefOsClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   if (!browser || !frame || !frame->IsMain()) {
     return;
   }
-  LOG(ERROR) << "[cef] OnLoadEnd status=" << httpStatusCode
+  LOG(INFO) << "[cef] OnLoadEnd status=" << httpStatusCode
             << " url=" << frame->GetURL().ToString() << "\n";
   // 采集/时序脚本重注入：browser create 时的首次注入发生在 load 之前，
   // 页面文档替换会丢掉 window 上的函数（实测前两帧 ApplyTimeline 落空）。

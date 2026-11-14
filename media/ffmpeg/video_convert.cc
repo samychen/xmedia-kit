@@ -70,10 +70,17 @@ bool VideoConverter::Configure(int src_w, int src_h, AVPixelFormat src_format,
     return true;
   }
   sws_.reset();
+  // YUVJ420P 是 YUV420P 的废弃别名（布局恒等，仅 range 元数据语义不同）：
+  // sws 上下文按规范名创建，否则 sws 对 YUVJ 输入/输出无条件打
+  // "deprecated pixel format" 告警；像素逐字节一致，range 语义由编码器
+  // 的 color_range 承载（mjpeg = AVCOL_RANGE_JPEG）。
+  const AVPixelFormat sws_dst = dst_format == AV_PIX_FMT_YUVJ420P
+                                    ? AV_PIX_FMT_YUV420P
+                                    : dst_format;
   // The fallback context is created eagerly: if the pair is broken we want
   // Configure() to fail up front rather than every Convert() frame.
   sws_ =
-      SwsPtr(sws_getContext(src_w, src_h, src_format, dst_w, dst_h, dst_format,
+      SwsPtr(sws_getContext(src_w, src_h, src_format, dst_w, dst_h, sws_dst,
                             SWS_BILINEAR, nullptr, nullptr, nullptr));
   if (!sws_) {
     configured_ = false;

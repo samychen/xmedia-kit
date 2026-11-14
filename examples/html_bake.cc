@@ -417,6 +417,43 @@ int main(int argc, char** argv) {
   composer_config.default_z = 0;
   GlElementComposer composer(composer_config);
 
+  // 页面音频清单（块循环前规划一次）：src 解析 + 文件存在性探测——任一
+  // 媒体元素文件可读才挂音频轨。文件全缺失时零混音，先建流会得到零包
+  // 轨道（封装器 "codec frame size" 告警，输出带一条空轨）。条目模板与
+  // 块无关，逐块只做 skip 偏移。
+  std::vector<xmedia::media::transcode::AudioMixClip> audio_plan;
+  if (!synthetic) {
+    const auto entries = layer.SnapshotElements().entries();
+    const std::string page_dir =
+        args.url.rfind("file://", 0) == 0
+            ? args.url.substr(7, args.url.find_last_of('/') - 7)
+            : std::string();
+    for (const auto& e : entries) {
+      if (!e.is_media || !e.has_src) {
+        continue;
+      }
+      xmedia::media::transcode::AudioMixClip clip;
+      clip.src = e.src.rfind("file://", 0) == 0
+                     ? e.src.substr(7)
+                     : (e.src.rfind("/", 0) == 0
+                            ? e.src
+                            : page_dir + "/" + e.src);
+      std::FILE* probe = std::fopen(clip.src.c_str(), "rb");
+      if (probe == nullptr) {
+        std::fprintf(stderr, "html_bake: audio '%s' missing — skipped\n",
+                     clip.src.c_str());
+        continue;
+      }
+      std::fclose(probe);
+      clip.start_ms = e.start_ms;
+      clip.duration_ms = e.duration_ms;
+      clip.media_start_ms = e.media_start_ms;
+      clip.volume = e.has_volume ? e.volume : 1.0;
+      clip.fade_in = e.fade_in;
+      clip.fade_out = e.fade_out;
+      audio_plan.push_back(std::move(clip));
+    }
+  }
 
   const int total_frames =
       static_cast<int>(args.seconds * args.fps + 0.5);
@@ -665,10 +702,11 @@ int main(int argc, char** argv) {
       layer.Stop();
       return 1;
     }
-    // 音频流（HyperFrames audio 契约）：音频/媒体元素的确定性混音轨。
+    // 音频轨（页面 audio 契约）：块循环前已规划（audio_plan 非空 = 存在
+    // 可读音频文件），在首个写包（header 写入）之前挂流。
     int audio_stream = -1;
     FFmpegAudioEncoder aac_encoder;
-    if (!synthetic) {
+    if (!audio_plan.empty()) {
       FFmpegAudioEncoder::Params ap;
       ap.codec_name = "aac";
       ap.sample_rate = 48000;
@@ -704,62 +742,44 @@ int main(int argc, char** argv) {
       ok = bake_frame(f, /*record=*/true);
     }
     // 音频混音（确定性文件级：解码 → media-start 修剪 → volume/淡入出 →
-    // 按 data-start 叠加），块窗口 [begin,end)。AAC 编码进块音频流。
-    if (audio_stream >= 0) {
-      std::vector<xmedia::media::transcode::AudioMixClip> mix_clips;
-      const auto entries = layer.SnapshotElements().entries();
-      const std::string page_dir =
-          args.url.rfind("file://", 0) == 0
-              ? args.url.substr(7, args.url.find_last_of('/') - 7)
-              : std::string();
-      for (const auto& e : entries) {
-        if (!e.is_media || !e.has_src) {
-          continue;
-        }
-        xmedia::media::transcode::AudioMixClip clip;
-        clip.src = e.src.rfind("file://", 0) == 0
-                       ? e.src.substr(7)
-                       : (e.src.rfind("/", 0) == 0
-                              ? e.src
-                              : page_dir + "/" + e.src);
-        const int64_t chunk_begin_ms =
-            static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
-        // 跨块延续：前块已播的 [start, chunk_begin) 段不再重播——
-        // media-start 推进等量偏移，时长同步裁剪（-1 = 播到文件尾保持语义）。
+    // 按 data-start 叠加），块窗口 [begin,end)。清单来自块循环前的
+    // audio_plan；跨块延续——前块已播的 [start, chunk_begin) 段不再重播
+    // （media-start 推进等量偏移，时长同步裁剪；-1 = 播到文件尾保持语义）。
+    if (!audio_plan.empty()) {
+      std::vector<xmedia::media::transcode::AudioMixClip> mix_clips =
+          audio_plan;
+      const int64_t chunk_begin_ms =
+          static_cast<int64_t>(begin) * 1000 / std::max(1, args.fps);
+      for (auto& clip : mix_clips) {
         const int64_t skip_ms =
-            std::max<int64_t>(0, chunk_begin_ms - e.start_ms);
-        clip.start_ms = std::max<int64_t>(0, e.start_ms - chunk_begin_ms);
-        clip.duration_ms = e.duration_ms < 0
-                               ? e.duration_ms
-                               : e.duration_ms - skip_ms;
-        clip.media_start_ms = e.media_start_ms + skip_ms;
-        clip.volume = e.has_volume ? e.volume : 1.0;
-        clip.fade_in = e.fade_in;
-        clip.fade_out = e.fade_out;
-        mix_clips.push_back(std::move(clip));
+            std::max<int64_t>(0, chunk_begin_ms - clip.start_ms);
+        clip.start_ms = std::max<int64_t>(0, clip.start_ms - chunk_begin_ms);
+        if (clip.duration_ms >= 0) {
+          clip.duration_ms -= skip_ms;
+        }
+        clip.media_start_ms += skip_ms;
       }
       const int64_t window_ms =
           static_cast<int64_t>(end - begin) * 1000 / std::max(1, args.fps);
-      if (!mix_clips.empty()) {
-        xmedia::media::transcode::AudioMixResult mix;
-        if (MixAudioClips(mix_clips, window_ms, &mix) && mix.sample_count > 0) {
-          auto audio_buffers = AudioMixToBuffers(mix, 1024);
-          for (auto& buf : audio_buffers) {
-            std::vector<EncodedPacket> audio_pkts;
-            if (aac_encoder.Encode(std::move(buf), &audio_pkts)) {
-              for (const auto& pkt : audio_pkts) {
-                if (chunk_muxer->WritePacket(audio_stream, pkt)) {
-                  ++encoded;
-                }
+      xmedia::media::transcode::AudioMixResult mix;
+      if (MixAudioClips(mix_clips, window_ms, &mix) && mix.sample_count > 0 &&
+          audio_stream >= 0) {
+        auto audio_buffers = AudioMixToBuffers(mix, 1024);
+        for (auto& buf : audio_buffers) {
+          std::vector<EncodedPacket> audio_pkts;
+          if (aac_encoder.Encode(std::move(buf), &audio_pkts)) {
+            for (const auto& pkt : audio_pkts) {
+              if (chunk_muxer->WritePacket(audio_stream, pkt)) {
+                ++encoded;
               }
             }
           }
-          std::vector<EncodedPacket> aflushed;
-          aac_encoder.Flush(&aflushed);
-          for (const auto& pkt : aflushed) {
-            if (chunk_muxer->WritePacket(audio_stream, pkt)) {
-              ++encoded;
-            }
+        }
+        std::vector<EncodedPacket> aflushed;
+        aac_encoder.Flush(&aflushed);
+        for (const auto& pkt : aflushed) {
+          if (chunk_muxer->WritePacket(audio_stream, pkt)) {
+            ++encoded;
           }
         }
       }
