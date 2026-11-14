@@ -98,7 +98,10 @@ def render_custom_template(defn, scene, idx):
         return esc(str(val)) if val is not None else ""
 
     body = SLOT_RE.sub(sub, body)
-    inner = f'  <div class="tpl-{defn.get("name", "custom")}" data-tpl="{defn.get("name", "")}">\n{body}\n  </div>\n'
+    name = defn.get("name", "custom")
+    # id 与 class 同时发射：模板 CSS 常用 #tpl-<name> ID 选择器定位盒子
+    inner = (f'  <div id="tpl-{name}" class="tpl-{name}" '
+             f'data-tpl="{name}">\n{body}\n  </div>\n')
     css = defn.get("css") or None
     return inner, css
 
