@@ -205,22 +205,49 @@ def gen_scene_html(scene, start_sec, idx):
     return html, dur
 
 
-def gen_timeline_js(scenes):
+def gen_timeline_js(scenes, starts, durs, trans, trans_dur):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
-    游标与 clip 窗口同源——同样走旁白拟合时长。"""
+    游标与 clip 窗口同源（starts/durs 由 compose 的场景计划传入，含
+    转场重叠）。转场类型 → 前一场景的出场动画（fade/slide/wipe）。"""
     lines = []
-    cursor = 0.0
     for idx, scene in enumerate(scenes):
-        dur = _fit_scene_duration(scene, 3.0)
         anim = scene.get("animation", DEFAULT_ANIMATION)
         if anim not in ANIMATIONS:
             anim = DEFAULT_ANIMATION
         from_v, to_v = ANIMATIONS[anim]
-        # duration/ease 进 toVars（GSAP fromTo 的第 3 参数）
-        to_v = to_v[:-1] + ', duration: 0.6, ease: "power2.out"}'
+        # 入场时长：转场场景钳到重叠窗宽（交叉期内完成过渡），其余 0.6s
+        enter = 0.6
+        if idx > 0 and trans[idx] != "none" and trans_dur > 0:
+            enter = max(0.3, min(0.6, trans_dur))
         target = f"#scene-{idx}"
-        lines.append(f'  tl.fromTo("{target}", {from_v}, {to_v}, {cursor});')
-        cursor += dur
+        if idx > 0 and trans[idx] == "wipe":
+            # wipe = 进入侧 clip-path 揭示（不淡入）：新场景从左向右盖在
+            # 旧场景上，旧场景保持原样直到窗尾——真正的擦除语义。
+            lines.append(
+                f'  tl.fromTo("{target}", '
+                f'{{clipPath: "inset(0% 0% 0% 100%)"}}, '
+                f'{{clipPath: "inset(0% 0% 0% 0%)", duration: {enter}, '
+                f'ease: "power2.out"}}, {starts[idx]});')
+            continue
+        from_v, to_v = ANIMATIONS[anim]
+        to_v = to_v[:-1] + f', duration: {enter}, ease: "power2.out"}}'
+        lines.append(f'  tl.fromTo("{target}", {from_v}, {to_v}, {starts[idx]});')
+        # 转场交叉：该场景入场的同时，前一场景按类型出场
+        if idx > 0 and trans[idx] != "none" and trans_dur > 0:
+            prev = f"#scene-{idx-1}"
+            ov = min(trans_dur, durs[idx - 1])
+            if trans[idx] == "slide-left":
+                lines.append(
+                    f'  tl.to("{prev}", {{x: -120, opacity: 0, duration: {ov}, '
+                    f'ease: "power1.in"}}, {starts[idx]});')
+            elif trans[idx] == "slide-right":
+                lines.append(
+                    f'  tl.to("{prev}", {{x: 120, opacity: 0, duration: {ov}, '
+                    f'ease: "power1.in"}}, {starts[idx]});')
+            else:  # fade
+                lines.append(
+                    f'  tl.to("{prev}", {{opacity: 0, duration: {ov}, '
+                    f'ease: "power1.in"}}, {starts[idx]});')
     return "\n".join(lines)
 
 
@@ -255,19 +282,36 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     if not scenes:
         raise ValueError("spec.scenes 不能为空")
 
-    # 生成场景 clip div
+    # 场景计划（含转场重叠）：全局 transitions 段为默认，场景级
+    # transition 字段覆盖；重叠窗内下一场景提前进入、上一场景按类型
+    # 出场（GSAP 交叉动画），总时长随重叠收缩。
+    trans_cfg = spec.get("transitions", {})
+    trans_dur = float(trans_cfg.get("duration", 0.5))
+    trans_default = str(trans_cfg.get("type", "fade") or "none")
     scene_html_parts = []
     scene_starts = []
+    starts = []
+    durs = []
+    trans = []
     start = 0.0
     for idx, scene in enumerate(scenes):
+        ttype = (str(scene.get("transition") or trans_default) or "none")
+        if ttype not in ("fade", "slide-left", "slide-right", "wipe", "none"):
+            ttype = "none"
+        if idx > 0:
+            # 转场归属进入侧：本场景提前 trans_dur 进入前一场景的尾窗
+            start -= (trans_dur if ttype != "none" else 0.0)
         scene_starts.append(start)
+        starts.append(start)
         html, dur = gen_scene_html(scene, start, idx)
         scene_html_parts.append(html)
+        durs.append(dur)
+        trans.append(ttype)
         start += dur
     total_duration = start
 
     # GSAP 时间线
-    timeline_js = gen_timeline_js(scenes)
+    timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_dur)
 
     # 音频
     audio = spec.get("audio", {})
