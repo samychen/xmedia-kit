@@ -1,24 +1,41 @@
 #!/usr/bin/env python3
-# xmedia Studio：契约 HTML 的浏览器预览驱动（Player-lite）。
+# xmedia Studio：契约 HTML 的预览与编排（Player-lite + 本地服务）。
 #
-# 用法：hf_studio.py <contract.html> [-o studio.html]
+# 两种模式：
+#   1. 注入模式（默认）：hf_studio.py <contract.html> [-o studio.html]
+#      向契约页注入传输条（播放/拖动/场景跳转）+ 驱动脚本，浏览器打开
+#      即预览。单文件自包含；契约页语义不变；幂等可原地更新。
+#   2. 服务模式：hf_studio.py <contract.html> --serve [--spec spec.json]
+#      [--port 8120]——本地 HTTP 服务 + 浏览器 UI（对位 Remotion Studio
+#      的核心闭环：spec 编辑器热重组、TTS 一键、场景时间轴、一键烘焙，
+#      参数从 spec 自动推导）。仅绑定 127.0.0.1。
 #
-# 在契约页注入传输条（播放/暂停/拖动/场景跳转）+ 驱动脚本——rAF 循环
-# 驱动 __timelines（totalTime 秒制）与 __mcApplyTimeline（毫秒可见性），
-# 与烘焙 seek 语义同源。单文件自包含，浏览器直接打开即用；契约页语义
-# 不变（烘焙仍用原契约文件）。幂等：重复注入替换旧 chrome。
-#
-# 注意：注入的 chrome DOM 不携带 data-start/duration 属性——避免被
-# __mcApplyTimeline 的可见性切换与 hf_validate 的 clip 统计误伤。
+# 驱动与烘焙 seek 语义同源：__timelines totalTime（秒制）+
+# __mcApplyTimeline（毫秒可见性）。注入的 chrome DOM 不携带
+# data-start/duration——避免被可见性切换与 hf_validate 误伤。幂等：
+# 重复注入剥离旧 chrome 再重注。
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import shlex
+import subprocess
 import sys
+import threading
+import time
+import urllib.parse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(TOOLS_DIR)
 MARK_BEGIN = "<!-- xmedia-kit studio:begin -->"
 MARK_END = "<!-- xmedia-kit studio:end -->"
+AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".aac"}
+FILE_EXTS = AUDIO_EXTS | {".txt", ".json", ".html"}
+
+sys.path.insert(0, TOOLS_DIR)
 
 
 def parse_scenes(html):
@@ -156,6 +173,13 @@ def build_chrome(total_s, scenes):
       if (g === null || g === undefined) {{ return; }}
       pause(); t = parseFloat(g); drive(t);
     }});
+  // Studio 服务的时间轴联动：父页面 postMessage {{mcStudioSeek: 秒}}。
+  window.addEventListener("message", function (ev) {{
+    var d = ev.data || {{}};
+    if (typeof d.mcStudioSeek === "number") {{
+      pause(); t = Math.max(0, Math.min(TOTAL, d.mcStudioSeek)); drive(t);
+    }}
+  }});
   document.addEventListener("keydown", function (ev) {{
     if (ev.code === "Space" && ev.target === document.body) {{
       ev.preventDefault(); playing ? pause() : play();
@@ -184,13 +208,505 @@ def inject(html):
     return html + "\n" + chrome
 
 
+# ---------------------------------------------------------------------------
+# 服务模式（xmedia Studio：本地服务 + 浏览器 UI）
+# ---------------------------------------------------------------------------
+
+STUDIO_UI = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>xmedia Studio</title>
+<style>
+  :root { --bg: #12121a; --panel: #1a1a26; --line: #2a2a3c;
+          --ink: #e8e8f0; --dim: #8a8aa0; --acc: #6c8cff; --ok: #4cc38a;
+          --err: #ff6c6c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 -apple-system, "Helvetica Neue", sans-serif;
+         height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 14px; height: 48px;
+           padding: 0 16px; border-bottom: 1px solid var(--line);
+           background: var(--panel); }
+  header b { letter-spacing: 0.4px; }
+  header .file { color: var(--dim); font-size: 12px; }
+  header .sp { flex: 1; }
+  header button { background: #2a2a3c; color: var(--ink); border: 0;
+                  border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  header button:hover { background: #3a3a52; }
+  header button.acc { background: var(--acc); color: #0d1122; font-weight: 600; }
+  header button:disabled { opacity: 0.45; cursor: default; }
+  main { flex: 1; display: grid; grid-template-columns: 440px 1fr;
+         min-height: 0; }
+  #left { border-right: 1px solid var(--line); display: flex;
+          flex-direction: column; min-height: 0; }
+  #spec { flex: 1; width: 100%; background: var(--panel); color: var(--ink);
+          border: 0; outline: 0; resize: none; padding: 12px 14px;
+          font: 12px/1.5 ui-monospace, Menlo, monospace; }
+  #right { display: flex; flex-direction: column; min-height: 0; }
+  #pvwrap { flex: 1; display: flex; align-items: center;
+            justify-content: center; background:
+            repeating-conic-gradient(#16161f 0 25%, #101018 0 50%) 0 0/24px 24px;
+            min-height: 0; }
+  #pvframe { background: #000; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+             border: 1px solid var(--line); }
+  #pvframe iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #bottom { border-top: 1px solid var(--line); height: 190px;
+            display: flex; flex-direction: column; background: var(--panel); }
+  #timeline { height: 64px; display: flex; align-items: stretch; gap: 2px;
+              padding: 10px 12px 4px; }
+  #timeline .blk { position: relative; border-radius: 4px; background:
+                   #2d3653; border: 1px solid #3d4770; cursor: pointer;
+                   overflow: hidden; font-size: 11px; color: var(--dim);
+                   padding: 4px 6px; white-space: nowrap; }
+  #timeline .blk:hover { border-color: var(--acc); color: var(--ink); }
+  #log { flex: 1; overflow: auto; padding: 8px 12px; font: 11px/1.6
+         ui-monospace, Menlo, monospace; color: var(--dim);
+         border-top: 1px solid var(--line); white-space: pre-wrap; }
+  #log .err { color: var(--err); }
+  #log .ok { color: var(--ok); }
+  #findings { max-height: 110px; overflow: auto; border-top: 1px solid
+              var(--line); padding: 6px 14px; font-size: 12px; }
+  #findings .err { color: var(--err); }
+  #findings .warn { color: #e0b050; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+  .spin { display: inline-block; width: 12px; height: 12px;
+          border: 2px solid var(--dim); border-top-color: var(--acc);
+          border-radius: 50%; animation: sp 0.8s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <b>xmedia Studio</b>
+  <span class="file" id="fileinfo"></span>
+  <span class="sp"></span>
+  <button id="btn-tts" title="对 spec 全场景生成旁白">生成旁白</button>
+  <button id="btn-recompose" class="acc" title="Ctrl/Cmd+Enter">重组合成</button>
+  <button id="btn-bake">烘焙 MP4</button>
+  <span id="job" style="min-width:60px;font-size:12px;color:var(--dim)"></span>
+</header>
+<main>
+  <div id="left">
+    <div class="row"><span style="color:var(--dim)">spec JSON（Ctrl/Cmd+Enter 重组）</span>
+      <span class="sp" style="flex:1"></span>
+      <label style="font-size:12px;color:var(--dim)"><input type="checkbox" id="sfx"> SFX</label></div>
+    <textarea id="spec" spellcheck="false"></textarea>
+  </div>
+  <div id="right">
+    <div id="pvwrap"><div id="pvframe"><iframe id="pv"></iframe></div></div>
+    <div id="findings"></div>
+  </div>
+</main>
+<div id="bottom">
+  <div id="timeline"></div>
+  <div id="log"></div>
+</div>
+<script>
+var state = { spec: null, duration: 0, scenes: [], width: 1080, height: 1920 };
+var $ = function (id) { return document.getElementById(id); };
+function log(msg, cls) {
+  var el = document.createElement("div");
+  if (cls) el.className = cls;
+  el.textContent = msg;
+  $("log").appendChild(el);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function api(path, body) {
+  return fetch(path, { method: body ? "POST" : "GET",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined }).then(function (r) {
+      return r.json().then(function (j) {
+        if (j.error) throw new Error(j.error);
+        return j;
+      });
+    });
+}
+function renderTimeline() {
+  var tl = $("timeline"); tl.innerHTML = "";
+  state.scenes.forEach(function (s) {
+    var d = document.createElement("div");
+    d.className = "blk";
+    d.style.flex = Math.max(0.6, s.dur);
+    d.textContent = s.label + " " + s.start.toFixed(1) + "s";
+    d.onclick = function () {
+      $("pv").contentWindow.postMessage({ mcStudioSeek: s.start + 0.01 }, "*");
+    };
+    tl.appendChild(d);
+  });
+}
+function fitPreview() {
+  var wrap = $("pvwrap"), fr = $("pvframe");
+  var aw = state.width / state.height;
+  var maxW = wrap.clientWidth - 24, maxH = wrap.clientHeight - 24;
+  var w = Math.min(maxW, maxH * aw), h = w / aw;
+  fr.style.width = w + "px"; fr.style.height = h + "px";
+  $("pv").style.width = w + "px"; $("pv").style.height = h + "px";
+}
+function renderFindings(f) {
+  var el = $("findings"); el.innerHTML = "";
+  (f || []).forEach(function (x) {
+    var d = document.createElement("div");
+    if (x.level === "error") d.className = "err";
+    if (x.level === "warning") d.className = "warn";
+    d.textContent = "[" + x.level + "] " + x.message;
+    el.appendChild(d);
+  });
+}
+function refresh(keepScroll) {
+  return api("/api/state").then(function (s) {
+    state = s;
+    if (!keepScroll) $("spec").value = JSON.stringify(s.spec, null, 2);
+    $("sfx").checked = !(s.spec.sfx && s.spec.sfx.enabled === false);
+    $("fileinfo").textContent = s.spec_path || "(未绑定 spec 文件)";
+    renderTimeline(); fitPreview();
+    renderFindings(s.findings);
+    $("pv").src = "/preview?t=" + Date.now();
+  });
+}
+function recompose() {
+  var spec;
+  try { spec = JSON.parse($("spec").value); }
+  catch (e) { log("spec JSON 解析失败：" + e.message, "err"); return; }
+  spec.sfx = { enabled: $("sfx").checked };
+  api("/api/recompose", { spec: spec, no_sfx: !$("sfx").checked })
+    .then(function (r) {
+      return refresh(true).then(function () {
+        log((r.ok ? "重组成功 " : "重组完成（含校验错误）") + r.duration.toFixed(1)
+            + "s / " + r.scenes.length + " 场景 / sha " + r.sha, r.ok ? "ok" : "err");
+        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，烘焙会被拒绝", "err");
+      });
+    })
+    .catch(function (e) { log("重组失败：" + e.message, "err"); });
+}
+$("btn-recompose").onclick = recompose;
+document.addEventListener("keydown", function (ev) {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") {
+    ev.preventDefault(); recompose();
+  }
+});
+$("sfx").addEventListener("change", recompose);
+$("btn-tts").onclick = function () {
+  var spec;
+  try { spec = JSON.parse($("spec").value); }
+  catch (e) { log("spec JSON 解析失败：" + e.message, "err"); return; }
+  $("btn-tts").disabled = true;
+  api("/api/tts", { spec: spec }).then(function (r) {
+    $("btn-tts").disabled = false;
+    $("spec").value = JSON.stringify(r.spec, null, 2);
+    log("旁白生成完成：" + r.generated + " 段（voice/ 目录）", "ok");
+    recompose();
+  }).catch(function (e) {
+    $("btn-tts").disabled = false;
+    log("TTS 失败：" + e.message, "err");
+  });
+};
+$("btn-bake").onclick = function () {
+  $("btn-bake").disabled = true;
+  $("job").innerHTML = '<span class="spin"></span> 烘焙中';
+  log("烘焙开始（参数由 spec 自动推导：" + state.width + "×" + state.height
+      + " / " + state.duration.toFixed(1) + "s）");
+  api("/api/bake", {}).then(function (r) { return pollJob(r.job); })
+    .then(function (j) {
+      $("btn-bake").disabled = false; $("job").textContent = "";
+      if (j.rc === 0) {
+        log("烘焙完成：" + j.out, "ok");
+        log("验源：ffprobe -show_format " + j.out + " | grep comment", "ok");
+      } else {
+        log("烘焙失败 rc=" + j.rc + "：" + j.tail, "err");
+      }
+    })
+    .catch(function (e) {
+      $("btn-bake").disabled = false; $("job").textContent = "";
+      log("烘焙失败：" + e.message, "err");
+    });
+};
+function pollJob(id) {
+  return api("/api/job?id=" + id).then(function (j) {
+    if (j.running) {
+      $("job").textContent = "烘焙中 " + j.elapsed.toFixed(0) + "s";
+      return pollJob(id);
+    }
+    return j;
+  });
+}
+window.addEventListener("resize", fitPreview);
+refresh().catch(function (e) { log("状态加载失败：" + e.message, "err"); });
+</script>
+</body>
+</html>
+"""
+
+
+class StudioServer:
+    """本地 Studio 服务：预览、重组、TTS、烘焙。仅绑定 127.0.0.1。"""
+
+    def __init__(self, contract_path, spec_path, port, no_sfx=False):
+        self.contract_path = os.path.abspath(contract_path)
+        self.spec_path = os.path.abspath(spec_path) if spec_path else None
+        self.spec_dir = os.path.dirname(self.contract_path) or "."
+        self.port = port
+        self.no_sfx = no_sfx
+        self.job = None
+        self.job_seq = 0
+        with open(self.contract_path, "r", encoding="utf-8") as f:
+            self.current_html = f.read()
+        self.current_spec = self._load_spec()
+
+    def _load_spec(self):
+        if not self.spec_path or not os.path.isfile(self.spec_path):
+            return None
+        with open(self.spec_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _write_spec(self, spec):
+        if not self.spec_path:
+            raise RuntimeError("未绑定 spec 文件（--serve 时加 --spec <path>）")
+        with open(self.spec_path, "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False, indent=2)
+        self.current_spec = spec
+
+    def _compose(self):
+        """当前 spec → 契约 HTML（进程内复用 hf_compose），写回契约文件。"""
+        import hf_compose
+        import hf_validate
+        spec = self.current_spec
+        if spec is None:
+            raise RuntimeError("未绑定 spec")
+        sha = hashlib.sha256(json.dumps(
+            spec, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        hf_compose._spec_dir = os.path.dirname(self.spec_path) or "."
+        hf_compose._gsap_src = hf_compose._load_gsap()
+        html = hf_compose.compose(spec, spec_sha=sha, no_sfx=self.no_sfx)
+        findings, errors, warnings, infos = hf_validate.validate(html)
+        with open(self.contract_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        self.current_html = html
+        scenes = parse_scenes(html)
+        total = parse_total(html, scenes)
+        return {
+            "ok": errors == 0,
+            "errors": errors,
+            "duration": total,
+            "scenes": scenes,
+            "sha": sha[:16],
+            "findings": [{"level": lv, "message": msg} for lv, msg in findings],
+        }
+
+    def _dims(self, spec):
+        import hf_compose
+        comp = spec.get("composition", {})
+        fmt = comp.get("format")
+        if fmt in hf_compose.FORMAT_PRESETS:
+            return hf_compose.FORMAT_PRESETS[fmt]
+        return (int(comp.get("width", 1080)), int(comp.get("height", 1920)))
+
+    def _start_bake(self):
+        if self.job and self.job["proc"].poll() is None:
+            raise RuntimeError("已有烘焙任务在跑")
+        import hf_compose
+        spec = self.current_spec or {}
+        w, h = self._dims(spec)
+        fps = int(spec.get("composition", {}).get("fps", 30))
+        total = parse_total(self.current_html, parse_scenes(self.current_html))
+        stem = self.spec_path and os.path.splitext(
+            os.path.basename(self.spec_path))[0].replace(".narrated", "") or "out"
+        out = os.path.join(os.path.dirname(self.contract_path), stem + ".mp4")
+        url = "file://" + urllib.parse.quote(self.contract_path)
+        cmd = [
+            os.path.join(ROOT_DIR, "build", "bin", "html_bake.app", "Contents",
+                         "MacOS", "html_bake"),
+            "--url", url, "--out", out,
+            "--seconds", f"{total:.2f}", "--fps", str(fps),
+            "--width", str(w), "--height", str(h), "--clock", "seek",
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True)
+        self.job = {"id": self.job_seq, "proc": proc, "out": out,
+                    "start": time.time(), "tail": ""}
+        self.job_seq += 1
+        return self.job["id"]
+
+    def _job_status(self, job_id):
+        if not self.job or self.job["id"] != job_id:
+            raise RuntimeError("无此任务")
+        proc = self.job["proc"]
+        running = proc.poll() is None
+        if not running and self.job["tail"] == "":
+            out = proc.stdout.read()
+            self.job["rc"] = proc.returncode
+            self.job["tail"] = out.strip()[-800:]
+            m = re.search(r"html_bake: (\S+\.mp4)", self.job["tail"])
+            if m:
+                self.job["out"] = m.group(1)
+        return {"running": running, "rc": self.job.get("rc", -1),
+                "out": self.job["out"], "elapsed": time.time() - self.job["start"],
+                "tail": self.job["tail"]}
+
+
+def make_handler(server_ref):
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code, body, ctype="application/json; charset=utf-8"):
+            data = body.encode("utf-8") if isinstance(body, str) else body
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _json(self, obj, code=200):
+            self._send(code, json.dumps(obj, ensure_ascii=False))
+
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            path = urllib.parse.urlparse(self.path).path
+            srv = server_ref
+            if path == "/":
+                self._send(200, STUDIO_UI, "text/html; charset=utf-8")
+            elif path == "/api/state":
+                import hf_validate
+                findings, errors, _, _ = hf_validate.validate(srv.current_html)
+                scenes = parse_scenes(srv.current_html)
+                total = parse_total(srv.current_html, scenes)
+                w, h = srv._dims(srv.current_spec or {})
+                self._json({"spec": srv.current_spec,
+                            "spec_path": srv.spec_path,
+                            "duration": total, "scenes": scenes,
+                            "width": w, "height": h,
+                            "errors": errors,
+                            "findings": [{"level": lv, "message": msg}
+                                         for lv, msg in findings]})
+            elif path == "/preview":
+                self._send(200, inject(srv.current_html),
+                           "text/html; charset=utf-8")
+            elif path == "/api/job":
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                try:
+                    self._json(srv._job_status(int(q["id"][0])))
+                except (RuntimeError, KeyError, ValueError) as e:
+                    self._json({"error": str(e)}, 400)
+            else:
+                self._serve_asset(path)
+
+        def do_POST(self):
+            path = urllib.parse.urlparse(self.path).path
+            srv = server_ref
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError as e:
+                self._json({"error": f"JSON 解析失败：{e}"}, 400)
+                return
+            try:
+                if path == "/api/recompose":
+                    srv.current_spec = body["spec"]
+                    srv._write_spec(srv.current_spec)
+                    self._json(srv._compose())
+                elif path == "/api/tts":
+                    srv.current_spec = body["spec"]
+                    srv._write_spec(srv.current_spec)
+                    proc = subprocess.run(
+                        [sys.executable, os.path.join(TOOLS_DIR, "hf_tts.py"),
+                         srv.spec_path, "-o", srv.spec_path],
+                        capture_output=True, text=True, timeout=600)
+                    if proc.returncode != 0:
+                        raise RuntimeError(proc.stderr[-400:] or "TTS 失败")
+                    srv.current_spec = srv._load_spec()
+                    generated = re.search(r"生成 (\d+)", proc.stdout)
+                    self._json({"spec": srv.current_spec,
+                                "generated": int(generated.group(1)) if
+                                generated else 0})
+                elif path == "/api/bake":
+                    if srv.current_spec is None:
+                        raise RuntimeError("未绑定 spec")
+                    self._json({"job": srv._start_bake()})
+                else:
+                    self._json({"error": "unknown endpoint"}, 404)
+            except (RuntimeError, OSError, KeyError) as e:
+                self._json({"error": str(e)}, 400)
+
+        def _serve_asset(self, path):
+            srv = server_ref
+            rel = urllib.parse.unquote(path.lstrip("/"))
+            ext = os.path.splitext(rel)[1].lower()
+            if ext not in FILE_EXTS:
+                self._send(404, "not found", "text/plain")
+                return
+            base = os.path.realpath(srv.spec_dir)
+            full = os.path.realpath(os.path.join(base, rel))
+            if not (full == base or full.startswith(base + os.sep)):
+                self._send(404, "not found", "text/plain")
+                return
+            if not os.path.isfile(full):
+                self._send(404, "not found", "text/plain")
+                return
+            ctype = ("audio/wav" if ext == ".wav" else
+                     "audio/mpeg" if ext == ".mp3" else
+                     "audio/mp4" if ext in (".m4a", ".aac") else
+                     "text/html; charset=utf-8" if ext == ".html" else
+                     "application/json" if ext == ".json" else
+                     "text/plain; charset=utf-8")
+            with open(full, "rb") as f:
+                self._send(200, f.read(), ctype)
+
+    return Handler
+
+
+def serve(contract_path, spec_path, port, no_sfx):
+    contract_path = os.path.abspath(contract_path)
+    spec_dir = os.path.dirname(contract_path) or "."
+    if spec_path is None:
+        # 契约页生成器注释携带 spec 文件名（hf_compose 写入）——自动发现
+        m = re.search(r'spec:([^|]+)\|', _read_head(contract_path))
+        if m:
+            candidate = os.path.join(os.path.dirname(contract_path),
+                                     m.group(1).strip())
+            if os.path.isfile(candidate):
+                spec_path = candidate
+    srv = StudioServer(contract_path, spec_path, port, no_sfx)
+
+    class PassThrough(ThreadingHTTPServer):
+        daemon_threads = True
+
+    httpd = PassThrough(("127.0.0.1", port), make_handler(srv))
+    port = httpd.server_address[1]
+    print(f"xmedia Studio: http://127.0.0.1:{port}  "
+          f"(contract: {os.path.basename(contract_path)}, "
+          f"spec: {srv.spec_path or '未绑定——只读预览'})  Ctrl+C 退出")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\nxmedia Studio: 已退出")
+    return 0
+
+
+def _read_head(path, limit=4096):
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read(limit)
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="xmedia Studio：契约 HTML 浏览器预览驱动注入")
+        description="xmedia Studio：契约 HTML 预览注入 / 本地 Studio 服务")
     parser.add_argument("html", help="契约 HTML（hf_compose 产出或过校验的手写页）")
     parser.add_argument("-o", "--output", default=None,
-                        help="输出 studio HTML（默认 <stem>.studio.html）")
+                        help="注入模式：输出 studio HTML（默认 <stem>.studio.html）")
+    parser.add_argument("--serve", action="store_true",
+                        help="启动本地 Studio 服务（浏览器 UI：编辑 spec → "
+                             "热重组 → TTS → 烘焙）")
+    parser.add_argument("--spec", default=None,
+                        help="服务模式：绑定的 spec JSON 路径（缺省从契约页"
+                             "生成器注释自动发现；无则只读预览）")
+    parser.add_argument("--port", type=int, default=8120)
+    parser.add_argument("--no-sfx", action="store_true",
+                        help="服务模式：重组时关闭 SFX")
     args = parser.parse_args()
+
+    if args.serve:
+        sys.exit(serve(args.html, args.spec, args.port, args.no_sfx))
 
     src = os.path.abspath(args.html)
     with open(src, "r", encoding="utf-8") as f:

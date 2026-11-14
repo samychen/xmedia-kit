@@ -90,6 +90,20 @@ python3 tools/hf_studio.py demo.html
 时长 = ffprobe(旁白) + padding，旁白 `<audio>` 与场景窗口同起点进混音，
 BGM（默认 0.6 音量）衬在旁白之下。
 
+### xmedia Studio（本地服务，浏览器编排）
+
+```bash
+python3 tools/hf_studio.py demo-output/demo.html --serve \
+  --spec demo-output/demo.narrated.json --port 8120
+# 浏览器打开 http://127.0.0.1:8120
+```
+
+UI 闭环（对位 Remotion Studio 的编辑→预览→渲染）：左侧 spec 编辑器 →
+**重组合成**（Ctrl/Cmd+Enter，热更新右侧预览 + 校验面板）→ **生成旁白**
+（全场景 TTS）→ 场景时间轴点击跳转 → **烘焙 MP4**（尺寸/时长/fps 由 spec
+自动推导，无需记 CLI 参数），产物与日志同面板。spec 文件即落盘产物——
+重开服务或直接走 CLI 烘焙都接得上。
+
 ## 功能速查（功能 → 命令）
 
 | 功能 | 命令 / spec 字段 |
@@ -111,7 +125,8 @@ BGM（默认 0.6 音量）衬在旁白之下。
 | 原版契约兼容 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一（契约对齐 heygen-com/hyperframes） |
 | 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
 | SFX 音效 | 三级选择（场景 `sfx` 覆盖 → 文本关键词 → 类型默认）随场景起点叠加，默认音量 0.4；素材 = `assets/sfx/` 五个 ffmpeg 合成音效（whoosh/pop/ding/success/transition，零授权，生成命令见该目录 README）；关闭：`--no-sfx` 或 spec `"sfx": {"enabled": false}`；自定义目录 `sfx.dir`、音量 `sfx.volume` |
-| Studio 预览 | `python3 tools/hf_studio.py out.html` → 注入传输条（播放/拖动/场景跳转/空格与方向键）的 `<stem>.studio.html`，浏览器打开即预览——驱动与烘焙 seek 同源（注册表 totalTime + 毫秒可见性）；幂等原地更新；烘焙仍用原契约页 |
+| Studio 预览 | 注入模式：`python3 tools/hf_studio.py out.html` → 注入传输条（播放/拖动/场景跳转/空格与方向键）的 `<stem>.studio.html`，浏览器打开即预览；幂等原地更新 |
+| xmedia Studio 服务 | `python3 tools/hf_studio.py out.html --serve --spec spec.narrated.json [--port 8120]` → 浏览器 UI（127.0.0.1）：**spec 编辑器热重组**（Ctrl/Cmd+Enter）、场景时间轴点击跳转、TTS 一键、**烘焙按钮（尺寸/时长由 spec 自动推导）**、校验与日志面板——对位 Remotion Studio 的编辑→预览→渲染闭环 |
 
 ### TTS provider（hf_tts.py）
 

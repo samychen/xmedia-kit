@@ -237,7 +237,7 @@ def _load_gsap():
     return "/* gsap not found */"
 
 
-def compose(spec, spec_sha=None, no_sfx=False):
+def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。
     确定性：同输入同输出。spec_sha 为来源锚点（canonical JSON 的
     sha256），写进 HTML 头部生成器注释供产物验源。"""
@@ -334,6 +334,8 @@ def compose(spec, spec_sha=None, no_sfx=False):
     # html_bake 再把 HTML sha256 写进 MP4 容器 metadata——MP4 → HTML →
     # spec 逐级验源）。
     provenance = f"<!-- xmedia-kit hf_compose | scenes={len(scenes)}"
+    if spec_name:
+        provenance += f" | spec:{spec_name}"
     if spec_sha:
         provenance += f" | spec sha256:{spec_sha}"
     provenance += " -->"
@@ -446,7 +448,8 @@ def main():
     spec_sha = hashlib.sha256(
         json.dumps(spec, sort_keys=True, ensure_ascii=False).encode(
             "utf-8")).hexdigest()
-    html = compose(spec, spec_sha=spec_sha, no_sfx=args.no_sfx)
+    html = compose(spec, spec_sha=spec_sha, no_sfx=args.no_sfx,
+                   spec_name=os.path.basename(args.spec))
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)

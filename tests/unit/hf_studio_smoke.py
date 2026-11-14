@@ -7,6 +7,10 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import time
+import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOOLS = os.path.join(ROOT, "tools")
@@ -62,6 +66,116 @@ def main():
         assert not os.path.exists(os.path.join(tmp, "studio_smoke.studio.studio.html")), \
             "产生了套娃文件名"
 
+    # ---- 服务模式闭环：state / recompose（写回契约文件）/ TTS / bake ----
+    wav = open(os.path.join(ROOT, "tests", "testdata", "tts",
+                            "narr_sample_1.wav"), "rb").read()
+
+    class MockTTS(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(wav)))
+            self.end_headers()
+            self.wfile.write(wav)
+
+        def log_message(self, *args):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), MockTTS)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    endpoint = f"http://127.0.0.1:{srv.server_address[1]}/tts"
+
+    sys.path.insert(0, TOOLS)
+    import hf_studio as studio_mod
+
+    with tempfile.TemporaryDirectory(prefix="hf_studio_srv_") as tmp:
+        spec = {
+            "composition": {"id": "srv-smoke", "fps": 30},
+            "tts": {"provider": "http", "endpoint": endpoint},
+            "scenes": [
+                {"type": "title", "text": "服务冒烟", "duration": 2,
+                 "bg": "#1a1a2e"},
+                {"type": "outro", "text": "结束", "duration": 1.5,
+                 "bg": "#0f3460"},
+            ],
+        }
+        spec_path = os.path.join(tmp, "srv_smoke.json")
+        with open(spec_path, "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False)
+        contract = os.path.join(tmp, "srv_smoke.html")
+        run_tool([os.path.join(TOOLS, "hf_compose.py"), spec_path,
+                  "-o", contract])
+
+        server = studio_mod.StudioServer(contract, spec_path, 0, False)
+        httpd = studio_mod.ThreadingHTTPServer(("127.0.0.1", 0),
+                                               studio_mod.make_handler(server))
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{httpd.server_address[1]}"
+
+        with urllib.request.urlopen(base + "/api/state", timeout=30) as r:
+            st = json.load(r)
+        assert st["spec_path"] == spec_path and st["errors"] == 0, st["findings"]
+        assert st["width"] == 1080 and st["height"] == 1920, st
+
+        with urllib.request.urlopen(base + "/preview", timeout=30) as r:
+            prev = r.read().decode("utf-8")
+        assert studio_mod.MARK_BEGIN in prev and "__mcStudio" in prev, \
+            "预览页未注入驱动"
+
+        # 重组：改文字 → 契约文件写回 + 校验结果随响应
+        st["spec"]["scenes"][0]["text"] = "改词后的标题"
+        req = urllib.request.Request(
+            base + "/api/recompose",
+            data=json.dumps({"spec": st["spec"]}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as r:
+            rc = json.load(r)
+        assert rc["ok"] and rc["sha"], rc
+        contract_now = open(contract, encoding="utf-8").read()
+        assert "改词后的标题" in contract_now, "重组未写回契约文件"
+
+        # 音频路由：spec 目录下的 narration 文件可经服务读取
+        # recompose 前的 spec 无 narration——由 TTS 步骤补齐后再验
+        req = urllib.request.Request(
+            base + "/api/tts",
+            data=json.dumps({"spec": st["spec"]}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=300) as r:
+            tts_result = json.load(r)
+        assert tts_result["generated"] >= 2, tts_result
+        narr = tts_result["spec"]["scenes"][0]["narration"]
+        assert narr and "scene-0-" in narr, narr
+        with urllib.request.urlopen(base + "/" + narr, timeout=30) as r:
+            assert r.status == 200 and int(r.headers.get("Content-Length", 0)) > 0, \
+                "音频路由失败"
+
+        # 烘焙闭环（参数由 spec 自动推导）：rc 0 + 产物存在
+        req = urllib.request.Request(base + "/api/bake", data=b"{}",
+                                     headers={"Content-Type": "application/json"},
+                                     method="POST")
+        with urllib.request.urlopen(req, timeout=60) as r:
+            job_id = json.load(r)["job"]
+        for _ in range(120):
+            with urllib.request.urlopen(base + f"/api/job?id={job_id}",
+                                        timeout=30) as r:
+                j = json.load(r)
+            if not j["running"]:
+                break
+            time.sleep(0.5)
+        assert j["rc"] == 0, f"烘焙失败：{j['tail']}"
+        assert os.path.isfile(j["out"]), "烘焙产物缺失"
+
+        # TTS 词变重生成：改文字后 narration 的文本哈希应更新
+        st["spec"]["scenes"][0]["text"] = "词变重生成验证"
+        req = urllib.request.Request(
+            base + "/api/tts", data=json.dumps({"spec": st["spec"]}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=300) as r:
+            r2 = json.load(r)
+        narr2 = r2["spec"]["scenes"][0]["narration"]
+        assert narr2 != narr and "scene-0-" in narr2, (narr, narr2)
+
+    httpd.shutdown()
     print("hf_studio_smoke: PASS")
 
 

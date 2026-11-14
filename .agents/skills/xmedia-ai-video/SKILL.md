@@ -41,8 +41,10 @@ python3 tools/hf_compose.py demo.narrated.json -o demo.html
 # 4. 契约校验——0 errors 是硬门，失败先修 spec 重跑，不许跳过
 python3 tools/hf_validate.py demo.html
 
-# 5. Studio 预览页（可选）：浏览器打开 demo.studio.html 边看边调 spec
+# 5. Studio 预览/编排（可选）：注入模式给单文件预览；服务模式给完整
+#    编排 UI（spec 编辑热重组 + TTS + 一键烘焙，浏览器打开 127.0.0.1:8120）
 python3 tools/hf_studio.py demo.html
+python3 tools/hf_studio.py demo.html --serve --spec demo.narrated.json --port 8120
 
 # 6. 烘焙（--seconds 取 hf_compose 打印的总时长；尺寸与 format 对齐；
 #    烘焙用原契约页 demo.html，不用 studio 页）
