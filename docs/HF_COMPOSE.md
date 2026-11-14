@@ -35,9 +35,9 @@ python3 tools/hf_compose.py my_video.json -o my_video.html
 # 3. 验证契约合规（0 errors 才交给 html_bake）
 python3 tools/hf_validate.py my_video.html
 
-# 4. 烘焙 MP4
+# 4. 烘焙 MP4（--url 支持相对路径；--seconds 取 spec 总时长）
 ./build/bin/html_bake.app/Contents/MacOS/html_bake \
-  --url "file://$(pwd)/my_video.html" \
+  --url ./my_video.html \
   --out my_video.mp4 \
   --seconds 9 --fps 30 \
   --width 1920 --height 1080 \
@@ -59,7 +59,7 @@ python3 tools/hf_compose.py demo.narrated.json -o demo.html
 # 3. 验证 + 烘焙（9:16 → --width 1080 --height 1920）
 python3 tools/hf_validate.py demo.html
 ./build/bin/html_bake.app/Contents/MacOS/html_bake \
-  --url "file://$(pwd)/demo.html" --out demo.mp4 \
+  --url ./demo.html --out demo.mp4 \
   --seconds <总时长> --fps 30 --width 1080 --height 1920 --clock seek
 ```
 
@@ -241,6 +241,7 @@ Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_tts.py（旁�
 
 - `.clip` 生命周期：注入 runtime 接管 `.clip` 元素显隐（其揭示协议需官方管线握手）。无 `.clip` 标记的数据驱动页不受影响——**hf_compose.py 生成的 HTML 不使用 `.clip` 标记**（场景可见性由 data-start/duration + GSAP opacity 驱动）✓
 - 时间单位：HF 页 `data-start/duration` 是秒，采集端自动归一到毫秒（根元素 `data-time-unit="s"` 声明，`__timelines` 注册表检测兜底）；消费端（合成/混音/元数据）统一毫秒，无需 CLI 单位开关。
-- 音频轨：旁白 `<audio>` + BGM 进 html_bake 确定性混音（解码 → 修剪/增益/斜坡 → data-start 叠加，AudioConverter 统一重采样）✓。
+- 音频轨：旁白 `<audio>` + BGM 进 html_bake 确定性混音（解码 → 修剪/增益/斜坡 → data-start 叠加，AudioConverter 统一重采样）✓。音频文件缺失时打印 `missing — skipped`、输出**无音轨**（不建零包空轨）——文件放对位置或删掉 spec 的 `audio` 段即可。
 - 分块音频：`--chunks N>1` 时音频按块独立 AAC 编码再拼接，块边界存在 ±1 AAC 帧（≈21ms）的相移——内容经段级比对一致；采样级精确请用 `--chunks 1`。
 - 烘焙画布：`--width/--height` 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。
+- CLI 健壮性：`--url` 支持相对路径（自动补全 `file://` 绝对 URL）；未知参数显式告警（拼写错如 `--hight` 不再静默吞掉）；二进制带 `__RESTRICT` 段——外部 `DYLD_LIBRARY_PATH` 等环境变量不影响其 FFmpeg 加载（机器上共存同名旧库也安全）。
