@@ -267,6 +267,12 @@ if(XMEDIA_ENABLE_FFMPEG)
         COMMAND ${XMEDIA_PYTHON3}
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_tts_smoke.py")
     set_tests_properties(hf_tts_smoke PROPERTIES TIMEOUT 120)
+
+    # ---- hf_studio：契约页预览驱动注入冒烟（chrome/幂等/契约语义不变）。
+    add_test(NAME hf_studio_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/hf_studio_smoke.py")
+    set_tests_properties(hf_studio_smoke PROPERTIES TIMEOUT 120)
   endif()
 
   # ---- lottie：时钟映射单测（渲染路径经 html_bake_smoke 覆盖）。

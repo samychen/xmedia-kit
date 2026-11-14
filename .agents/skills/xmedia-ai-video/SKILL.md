@@ -41,12 +41,17 @@ python3 tools/hf_compose.py demo.narrated.json -o demo.html
 # 4. 契约校验——0 errors 是硬门，失败先修 spec 重跑，不许跳过
 python3 tools/hf_validate.py demo.html
 
-# 5. 烘焙（--seconds 取 hf_compose 打印的总时长；尺寸与 format 对齐）
+# 5. Studio 预览页（可选）：浏览器打开 demo.studio.html 边看边调 spec
+python3 tools/hf_studio.py demo.html
+
+# 6. 烘焙（--seconds 取 hf_compose 打印的总时长；尺寸与 format 对齐；
+#    烘焙用原契约页 demo.html，不用 studio 页）
 ./build/bin/html_bake.app/Contents/MacOS/html_bake \
   --url ./demo.html --out demo.mp4 \
   --seconds 6.2 --fps 30 --width 1080 --height 1920 --clock seek
 
-# 6. 交付三件套：demo.mp4 + demo.html + demo.html_elements.json
+# 7. 交付三件套：demo.mp4 + demo.html + demo.html_elements.json
+#    （launch 工作流另有 plan.md + share-copy.md，见工作流 B）
 ```
 
 ## 硬性约定

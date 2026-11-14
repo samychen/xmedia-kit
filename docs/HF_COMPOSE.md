@@ -57,8 +57,11 @@ python3 tools/hf_tts.py demo.json
 # 2. 拟合时长 + 生成契约 HTML
 python3 tools/hf_compose.py demo.narrated.json -o demo.html
 
-# 3. 验证 + 烘焙（9:16 → --width 1080 --height 1920）
+# 3. 验证 + Studio 预览（浏览器打开 demo.studio.html 边看边调）
 python3 tools/hf_validate.py demo.html
+python3 tools/hf_studio.py demo.html
+
+# 4. 烘焙（9:16 → --width 1080 --height 1920）
 ./build/bin/html_bake.app/Contents/MacOS/html_bake \
   --url ./demo.html --out demo.mp4 \
   --seconds <总时长> --fps 30 --width 1080 --height 1920 --clock seek
@@ -108,6 +111,7 @@ BGM（默认 0.6 音量）衬在旁白之下。
 | 原版契约兼容 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一（契约对齐 heygen-com/hyperframes） |
 | 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
 | SFX 音效 | 三级选择（场景 `sfx` 覆盖 → 文本关键词 → 类型默认）随场景起点叠加，默认音量 0.4；素材 = `assets/sfx/` 五个 ffmpeg 合成音效（whoosh/pop/ding/success/transition，零授权，生成命令见该目录 README）；关闭：`--no-sfx` 或 spec `"sfx": {"enabled": false}`；自定义目录 `sfx.dir`、音量 `sfx.volume` |
+| Studio 预览 | `python3 tools/hf_studio.py out.html` → 注入传输条（播放/拖动/场景跳转/空格与方向键）的 `<stem>.studio.html`，浏览器打开即预览——驱动与烘焙 seek 同源（注册表 totalTime + 毫秒可见性）；幂等原地更新；烘焙仍用原契约页 |
 
 ### TTS provider（hf_tts.py）
 
