@@ -35,6 +35,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits.h>  // PATH_MAX
+#include <set>
 #include <string>
 #include <thread>
 #include <unistd.h>  // getcwd
@@ -391,6 +392,18 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  // 页面就绪等待：首个 seek 必须晚于采集脚本注入（OnLoadEnd）——早于
+  // 注入的 seek 会被脚本静默跳过，而启动竞态家族（静默冻结/误判
+  // no_seek）的输出是纯色蓝屏。以采集脚本的首份 rects 报告为就绪信号，
+  // 轮询有界等待。
+  for (int waited = 0; waited < 5000; waited += 10) {
+    if (layer.SnapshotElements().last_t_ms() >= 0) {
+      break;
+    }
+    layer.Pump();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
   // 时序预热：采集脚本经 OnLoadEnd 重注入，但 ExecuteJavaScript 的渲染
   // 进程落地相对 VT 步进有 ~2 帧热身期（实测前两帧时序不生效）。先丢两
   // 轮 t=0 的步进，DOM 可见性机制稳定后再开录。
@@ -504,6 +517,9 @@ int main(int argc, char** argv) {
   const int total_frames =
       static_cast<int>(args.seconds * args.fps + 0.5);
   int64_t encoded = 0;
+  // 冻结守卫的输入：录制期去重光栅哈希（页面声明多场景却整段只有一种
+  // 光栅 = 静默冻结——启动竞态/时钟失效家族，输出纯色蓝屏）。
+  std::set<uint64_t> seen_rasters;
 
   // 单帧烘焙：fast_forward=true 时只步进不合成/编码（分块的窗前快进）。
   // 活动封装器指针：bake_frame 写视频包的目标。分块循环每块设置一次
@@ -685,6 +701,7 @@ int main(int argc, char** argv) {
     const int64_t next_t =
         static_cast<int64_t>(f + 1) * 1000 / std::max(1, args.fps);
     prev_raster_hash = raster_hash(*frame);
+    seen_rasters.insert(prev_raster_hash);
     if (args.clock == "virtual_time") {
       layer.ApplyTimeline(next_t);
       if (!layer.AwaitTimelineApplied(next_t, 2000)) {
@@ -847,6 +864,29 @@ int main(int argc, char** argv) {
     }
   }
   layer.Stop();
+
+  // 冻结守卫：页面声明 ≥2 个时序元素，整段录制却只有 1 种光栅内容 =
+  // 静默冻结（启动竞态/时钟失效家族，输出纯色蓝屏）——先写元数据
+  // 留诊断，再响亮失败，不交坏产物。
+  {
+    const auto table = layer.SnapshotElements();
+    int timed_windows = 0;
+    for (const auto& e : table.entries()) {
+      if (e.has_start && e.has_duration && e.duration_ms > 500 &&
+          e.tag != "audio") {
+        ++timed_windows;
+      }
+    }
+    if (timed_windows >= 2 && seen_rasters.size() <= 1) {
+      std::fprintf(stderr,
+                   "html_bake: FROZEN OUTPUT — %d timed scene windows but "
+                   "only %zu distinct raster(s); refusing to deliver. "
+                   "(meta: %s)\n",
+                   timed_windows, seen_rasters.size(),
+                   HtmlElementsMetaJsonPath(args.out).c_str());
+      return 1;
+    }
+  }
 
   // 元数据导出（MC render_demo 对齐）：<out>.html_elements.json——
   // 元素级时序/矩形元数据，供合成工具与调试消费。
