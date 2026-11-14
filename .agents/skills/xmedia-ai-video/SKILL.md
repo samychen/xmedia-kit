@@ -1,0 +1,84 @@
+---
+name: xmedia-ai-video
+description: xmedia-kit AI 视频生成管线——agent 按 spec JSON 确定性生成 MP4（TTS 旁白、7 类场景模板、竖屏、混音、来源验源）。凡用户提到"生成视频 / 做一条视频 / 宣传短片 / 把文案变成视频 / TTS 旁白视频 / 竖屏短视频 / 烤视频"，即使没点名 xmedia-kit，也用本管线——不要让模型手写 HTML 或引入其他渲染方案。
+---
+
+# xmedia-kit AI 视频生成管线
+
+把用户的视频需求转成 spec JSON，走确定性管线出 MP4（同 spec 两次生成
+逐字节一致）。本仓库（xmedia-kit）是唯一真源：完整 schema、字段语义、
+已知边界见 `docs/HF_COMPOSE.md`——与本技能冲突时以文档为准。
+
+## 何时用 / 不用
+
+用：文案或主题 → 短视频（16:9 / 9:16 竖屏），需要 TTS 旁白、BGM、场景
+模板、逐场景幂等重渲、来源可验证的无人值守生成。
+
+不用：实拍素材剪辑、复杂自由动效。Lottie 叠加有 `--lottie` 支持
+（叠加层垫在 HTML 元素之下）。
+
+## 管线（六步，缺一步不算完成）
+
+```bash
+# 1. 写 spec JSON（可直接复制 docs/HF_COMPOSE.md 的 demo.json 示例）
+
+# 2. TTS 旁白（可选；say 离线零依赖，或 OmniVoice 式 HTTP 服务）
+python3 tools/hf_tts.py demo.json            # → demo.narrated.json + voice/
+
+# 3. spec → 契约 HTML
+python3 tools/hf_compose.py demo.narrated.json -o demo.html
+
+# 4. 契约校验——0 errors 是硬门，失败先修 spec 重跑，不许跳过
+python3 tools/hf_validate.py demo.html
+
+# 5. 烘焙（--seconds 取 hf_compose 打印的总时长；尺寸与 format 对齐）
+./build/bin/html_bake.app/Contents/MacOS/html_bake \
+  --url ./demo.html --out demo.mp4 \
+  --seconds 6.2 --fps 30 --width 1080 --height 1920 --clock seek
+
+# 6. 交付三件套：demo.mp4 + demo.html + demo.html_elements.json
+```
+
+## 硬性约定
+
+- agent **不手写 HTML** 冒充管线产物——手写页（进阶场景）也必须过
+  hf_validate，且没有生成器注释（来源不可证，见下）
+- `--seconds` 取 hf_compose 打印的总时长（旁白拟合后 ≠ 手写 duration
+  之和）
+- `--width/--height` 与 `composition.format` 对齐：16:9→1920×1080、
+  9:16→1080×1920、1:1→1080×1080、4:5→1080×1350
+- 未知参数会显式告警——`--height` 别写成 `--hight`
+
+## 交付前必做：来源验证（查产物，不采信口头声明）
+
+三重锚点逐级可验（MP4 → HTML → spec），交付时把验证输出贴给用户：
+
+```bash
+head -2 demo.html                              # 生成器注释（含 spec sha256）
+ffprobe -show_format demo.mp4 | grep comment   # MP4 metadata（含 html sha256）
+grep generator demo.html_elements.json         # 工具指纹
+```
+
+任一锚点缺失 = 产物不是本管线生成，不得交付。
+
+## spec 最小集
+
+| 字段 | 说明 |
+|---|---|
+| `composition` | `{id, format, width, height, fps}`——format 预设覆盖 width/height |
+| `scenes[].type` | `title`/`text`/`outro`/`quote`/`list`/`stats`/`comparison` |
+| `scenes[].animation` | `fade_in`/`fade_in_up`/`fade_in_down`/`slide_in_left`/`slide_in_right`/`scale_in` |
+| `scenes[].narration` | 旁白路径（hf_tts 回填）；场景时长 = 旁白实长 + padding |
+| `scenes[].narration_volume` / `audio` | 旁白音量 / BGM `{src, volume, fade_in, fade_out}`；音频文件缺失 → 输出无音轨并提示 |
+
+专有字段（quote/author、items、value/description、left/right_items）见
+`docs/HF_COMPOSE.md`。TTS 可朗读文本 = `text` 优先、按类型聚合专有字段
+（stats 取 value/description 等——专有类型不因无 text 漏旁白）。
+
+## 常见坑
+
+- 改了 spec 重跑：hf_tts 幂等（text 变了会重新生成对应场景旁白）
+- `--chunks N>1`：音频块边界 ±1 AAC 帧（≈21ms）相移；采样级精确用
+  `--chunks 1`；拼接产物不保留 MP4 metadata——验源用 HTML/sidecar 锚点
+- 测试样例：`tests/testdata/tts/`（固定旁白 wav + 混合类型 spec）；
+  回归 `ctest -R hf_tts_smoke`
