@@ -249,11 +249,13 @@ if(XMEDIA_ENABLE_FFMPEG)
     # 这里只登记测试。
     if(TARGET html_bake)
       add_test(NAME html_bake_smoke
-          COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/html_bake.app/Contents/MacOS/html_bake"
+          COMMAND ${XMEDIA_PYTHON3}
+              "${CMAKE_SOURCE_DIR}/tests/unit/bake_retry.py"
+              "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/html_bake.app/Contents/MacOS/html_bake"
               --url "file://${CMAKE_SOURCE_DIR}/tests/testdata/smoke.html"
               --out "${CMAKE_BINARY_DIR}/html_bake_smoke_out.mkv"
               --seconds 0.5 --fps 10)
-      set_tests_properties(html_bake_smoke PROPERTIES TIMEOUT 180
+      set_tests_properties(html_bake_smoke PROPERTIES TIMEOUT 180 RUN_SERIAL true
           ENVIRONMENT "XMEDIA_CEF_ROOT=${XMEDIA_CEF_ROOT}")
     endif()
   endif()
@@ -273,6 +275,12 @@ if(XMEDIA_ENABLE_FFMPEG)
         COMMAND ${XMEDIA_PYTHON3}
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_studio_smoke.py")
     set_tests_properties(hf_studio_smoke PROPERTIES TIMEOUT 120)
+
+    # ---- xmedia CLI：doctor + init + render 一条命令全链冒烟。
+    add_test(NAME xmedia_cli_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/xmedia_cli_smoke.py")
+    set_tests_properties(xmedia_cli_smoke PROPERTIES TIMEOUT 300 RUN_SERIAL true)
   endif()
 
   # ---- lottie：时钟映射单测（渲染路径经 html_bake_smoke 覆盖）。

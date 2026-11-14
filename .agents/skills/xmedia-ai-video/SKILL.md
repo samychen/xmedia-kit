@@ -27,33 +27,39 @@ description: xmedia-kit AI 视频生成管线——agent 按 spec JSON 确定性
 不用：实拍素材剪辑、复杂自由动效。Lottie 叠加有 `--lottie` 支持
 （叠加层垫在 HTML 元素之下）。
 
-## 管线（六步，缺一步不算完成）
+## 管线（统一 CLI 优先）
+
+**一条命令全链**（TTS→compose→validate→bake，参数全自动推导；首次使用先
+`xmedia doctor` 自检环境）：
+
+```bash
+python3 tools/xmedia.py doctor                        # 环境自检（8 项）
+python3 tools/xmedia.py render demo.json --out demo.mp4
+```
+
+单步（需要中间检查/调整时；交付三件套与 launch 工作流的 plan.md/
+share-copy.md 见工作流 B）：
 
 ```bash
 # 1. 写 spec JSON（可直接复制 docs/HF_COMPOSE.md 的 demo.json 示例）
 
 # 2. TTS 旁白（可选；say 离线零依赖，或 OmniVoice 式 HTTP 服务）
-python3 tools/hf_tts.py demo.json            # → demo.narrated.json + voice/
+python3 tools/xmedia.py tts demo.json            # → demo.narrated.json + voice/
 
 # 3. spec → 契约 HTML
-python3 tools/hf_compose.py demo.narrated.json -o demo.html
+python3 tools/xmedia.py compose demo.narrated.json -o demo.html
 
 # 4. 契约校验——0 errors 是硬门，失败先修 spec 重跑，不许跳过
-python3 tools/hf_validate.py demo.html
+python3 tools/xmedia.py validate demo.html
 
 # 5. Studio 预览/编排（可选）：注入模式给单文件预览；服务模式给完整
 #    编排 UI（spec 编辑热重组 + TTS + 一键烘焙，浏览器打开 127.0.0.1:8120）
-python3 tools/hf_studio.py demo.html
-python3 tools/hf_studio.py demo.html --serve --spec demo.narrated.json --port 8120
+python3 tools/xmedia.py studio demo.html
+python3 tools/xmedia.py studio demo.html --serve --spec demo.narrated.json --port 8120
 
 # 6. 烘焙（--seconds 取 hf_compose 打印的总时长；尺寸与 format 对齐；
 #    烘焙用原契约页 demo.html，不用 studio 页）
-./build/bin/html_bake.app/Contents/MacOS/html_bake \
-  --url ./demo.html --out demo.mp4 \
-  --seconds 6.2 --fps 30 --width 1080 --height 1920 --clock seek
-
-# 7. 交付三件套：demo.mp4 + demo.html + demo.html_elements.json
-#    （launch 工作流另有 plan.md + share-copy.md，见工作流 B）
+python3 tools/xmedia.py render demo.narrated.json --out demo.mp4 --no-tts
 ```
 
 ## 硬性约定

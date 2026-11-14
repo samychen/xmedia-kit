@@ -7,6 +7,20 @@ Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 
 
 ## 快速上手
 
+**统一 CLI**（推荐，所有能力的入口；详细子命令 `xmedia --help`）：
+
+```bash
+python3 tools/xmedia.py init my-proj          # 脚手架：可运行示例 spec
+python3 tools/xmedia.py render my-proj/demo.json --out my-proj/demo.mp4
+                                             # 一条命令全链：TTS→compose→
+                                             # validate→bake（参数全自动推导）
+python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告）
+```
+
+单步命令（等价透传）：`xmedia tts/compose/validate/studio/sfx`。
+
+手动分步（与统一 CLI 等价）：
+
 ```bash
 # 1. 写 spec JSON（agent 或人类填空）
 cat > my_video.json <<'EOF'
