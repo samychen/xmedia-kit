@@ -223,6 +223,24 @@ say/网络）——`ctest -R hf_tts_smoke`。
 
 旁白驱动时长拟合：`narration` 优先于 `duration`——场景 clip 窗口与 GSAP 入场游标**同源拟合**，逐场景对齐旁白长度（AI-auto-generate-video 模式）。
 
+## 自定义模板协议
+
+场景类型可扩展：在 `templates/`（内置）或 `<spec 目录>/templates/`（用户覆盖，优先）放 `<name>.json` 即注册一个场景类型：
+
+```json
+{
+  "name": "lower-third",
+  "description": "底部人名条",
+  "slots": ["title", "subtitle"],
+  "css": "#tpl-lower-third { ... }",
+  "body": "<div class=\\"lt-title\\">{{title}}</div><div class=\\"lt-sub\\">{{subtitle}}</div>",
+  "sfx": "whoosh"
+}
+```
+
+- 场景 `"type": "lower-third"` 即命中注册表；`{{slot}}` 由场景同名字段替换（esc 转义、缺失置空），模板 CSS 注入 style 块，`sfx` 为该类型默认音效
+- 注册表每次 compose 扫描（新模板**热加载**）；`hf_validate` 照常把守；内置示例 `templates/lower-third.json`
+
 ### animation（入场动画预设）
 
 | 名称 | 效果 |
