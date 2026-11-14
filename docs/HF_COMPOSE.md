@@ -133,6 +133,10 @@ CLI > spec > 环境变量（`TTS_PROVIDER` / `TTS_ENDPOINT`，兼容
 comparison 取列标题）；已有 `narration` 的场景跳过（保留既有旁白）。
 默认输出 `<stem>.narrated.json`。
 
+**交付产物**（与 narrated spec 同目录）：`<stem>.script.txt`——旁白全文
+逐行（供字幕工具）；`<stem>.voice.m4a`——按场景起点定位拼接的独立旁白
+轨（起点 = 旁白实长 + padding 累计，与 compose 拟合公式同源）。
+
 测试样例与冒烟：`tests/testdata/tts/`（固定旁白 wav + spec）+
 `tests/unit/hf_tts_smoke.py`（本地 HTTP mock 充当 TTS 服务，不依赖
 say/网络）——`ctest -R hf_tts_smoke`。

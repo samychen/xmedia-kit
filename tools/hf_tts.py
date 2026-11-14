@@ -175,11 +175,49 @@ def main():
 
     if args.output:
         out_spec = args.output
+        stem = os.path.splitext(os.path.basename(out_spec))[0]
+        stem = stem[: -len(".narrated")] if stem.endswith(".narrated") else stem
     else:
         stem = os.path.splitext(os.path.basename(spec_path))[0]
         out_spec = os.path.join(spec_dir, f"{stem}.narrated.json")
     with open(out_spec, "w", encoding="utf-8") as f:
         json.dump(spec, f, ensure_ascii=False, indent=2)
+
+    # 交付产物（参考管线第 2/4 步对齐）：旁白全文 script.txt（供字幕工具）
+    # + 按场景起点定位拼接的独立旁白轨 voice.m4a（场景起点 = 旁白实长 +
+    # padding 累计，与 hf_compose 的拟合公式同源）。
+    clips = []
+    texts = []
+    start_ms = 0
+    for idx, scene in enumerate(spec.get("scenes", [])):
+        narration = scene.get("narration")
+        if not narration:
+            continue
+        path = (narration if os.path.isabs(narration)
+                else os.path.join(spec_dir, narration))
+        dur = _probe_audio_duration(path)
+        if dur is None:
+            continue
+        clips.append((path, start_ms))
+        texts.append(tts_text(scene))
+        start_ms += int(round((dur + float(scene.get("padding", 0.5))) * 1000))
+    if clips:
+        script_txt = os.path.join(spec_dir, f"{stem}.script.txt")
+        with open(script_txt, "w", encoding="utf-8") as f:
+            f.write("\n".join(texts) + "\n")
+        voice_track = os.path.join(spec_dir, f"{stem}.voice.m4a")
+        cmd = ["ffmpeg", "-y", "-v", "error"]
+        for path, _ in clips:
+            cmd += ["-i", path]
+        parts = [f"[{i}:a]adelay={ms}:all=1[a{i}]"
+                 for i, (_, ms) in enumerate(clips)]
+        fc = (";".join(parts) + ";" + "".join(f"[a{i}]" for i in range(len(clips)))
+              + f"amix=inputs={len(clips)}:normalize=0:duration=longest[aout]")
+        cmd += ["-filter_complex", fc, "-map", "[aout]",
+                "-c:a", "aac", "-b:a", "192k", voice_track]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=300)
+        print(f"hf_tts: 旁白轨 {voice_track}（{len(clips)} 段定位拼接）"
+              f" + 字幕文本 {script_txt}")
 
     print(f"hf_tts: {provider} — 生成 {generated}，幂等复用 {skipped}，"
           f"保留既有 {kept}；旁白目录 {out_dir} → {out_spec}")

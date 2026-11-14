@@ -79,6 +79,18 @@ def main():
         assert "生成 0" in proc2.stdout and "保留既有 3" in proc2.stdout, \
             proc2.stdout
 
+        # 交付产物（参考管线第 2/4 步）：旁白全文 script.txt + 定位拼接
+        # 的独立旁白轨 voice.m4a（与 narrated spec 同目录）
+        assert os.path.isfile(os.path.join(tmp, "tts_smoke.script.txt")), \
+            "script.txt 缺失"
+        voice_track = os.path.join(tmp, "tts_smoke.voice.m4a")
+        assert os.path.isfile(voice_track), "独立旁白轨缺失"
+        probe = subprocess.run(["ffprobe", "-v", "error",
+                                "-show_entries", "format=duration",
+                                "-of", "csv=p=0", voice_track],
+                               capture_output=True, text=True, timeout=60)
+        assert float(probe.stdout.strip()) > 1.0, "旁白轨时长异常"
+
         # compose 拟合链：narrated spec → 契约 HTML（旁白发射 <audio>）
         html_path = os.path.join(tmp, "tts_smoke.html")
         run_tool([os.path.join(TOOLS, "hf_compose.py"), out_spec,
