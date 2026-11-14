@@ -1,0 +1,8 @@
+{
+  "name": "listicle",
+  "description": "逐条清单：编号列表逐行入场风格",
+  "slots": ["heading", "item1", "item2", "item3"],
+  "css": "#tpl-listicle { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 9%; background: #10101c; } #tpl-listicle .li-heading { font-size: 56px; font-weight: 700; color: #ffffff; margin-bottom: 44px; } #tpl-listicle .li-item { font-size: 34px; color: #c8d4ff; margin: 20px 0; padding-left: 20px; border-left: 4px solid #6d8bff; }",
+  "body": "<div class=\"li-heading\">{{heading}}</div><div class=\"li-item\">{{item1}}</div><div class=\"li-item\">{{item2}}</div><div class=\"li-item\">{{item3}}</div>",
+  "sfx": "pop"
+}

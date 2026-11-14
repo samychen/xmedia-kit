@@ -1,0 +1,8 @@
+{
+  "name": "countdown",
+  "description": "倒数/强调帧：巨字居中，适合悬念与发布时刻",
+  "slots": ["value", "title"],
+  "css": "#tpl-countdown { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #1a1a2e, #0a0a1a 70%); } #tpl-countdown .cd-value { font-size: 260px; font-weight: 900; color: #6d8bff; line-height: 1; text-shadow: 0 0 60px rgba(109, 139, 255, 0.5); } #tpl-countdown .cd-title { font-size: 30px; color: #9aa4c8; margin-top: 30px; letter-spacing: 6px; }",
+  "body": "<div class=\"cd-value\">{{value}}</div><div class=\"cd-title\">{{title}}</div>",
+  "sfx": "whoosh"
+}

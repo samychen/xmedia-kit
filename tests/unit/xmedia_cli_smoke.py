@@ -57,6 +57,14 @@ def main():
         assert os.path.isfile(os.path.join(proj, "demo.html_elements.json")), \
             "元素元数据 sidecar 缺失"
 
+        # docs 子命令：文档站与真源同步
+        proc = run(["docs"])
+        site = os.path.join(ROOT, "docs-site", "index.html")
+        assert os.path.isfile(site), "docs-site/index.html 缺失"
+        html = open(site, encoding="utf-8").read()
+        assert "xmedia-kit AI 视频生成管线" in html and \
+            "自定义模板协议" in html, "文档站关键章节缺失"
+
     print("xmedia_cli_smoke: PASS")
 
 

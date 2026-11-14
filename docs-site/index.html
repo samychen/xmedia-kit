@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>xmedia-kit — AI 视频生成管线文档</title>
+<style>
+  :root { --bg: #0b0b11; --panel: #15151d; --line: #26263a;
+          --ink: #e9e9f0; --dim: #9494a8; --acc: #6d8bff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.7 -apple-system, "Helvetica Neue", sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo { width: 26px; height: 26px; border-radius: 8px;
+          background: linear-gradient(135deg, #6d8bff, #8b6dff); }
+  .top b { font-size: 15px; }
+  h1 { font-size: 30px; border-bottom: 2px solid var(--acc);
+       padding-bottom: 12px; }
+  h2 { font-size: 22px; margin-top: 44px; border-left: 4px solid var(--acc);
+       padding-left: 12px; }
+  h3 { font-size: 17px; color: var(--acc); margin-top: 30px; }
+  p, li { color: #c9c9d6; }
+  code { background: var(--panel); padding: 2px 6px; border-radius: 5px;
+         font: 12.5px ui-monospace, Menlo, monospace; color: #9fb4ff; }
+  pre { background: var(--panel); border: 1px solid var(--line);
+        border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+  pre code { background: none; padding: 0; color: #c9d4ff; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0;
+          font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 7px 11px;
+           text-align: left; vertical-align: top; }
+  th { background: var(--panel); color: var(--ink); }
+  td { color: #c9c9d6; }
+  tr:hover td { background: var(--panel2); }
+  a { color: var(--acc); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 34px 0; }
+  ul { padding-left: 22px; }
+  .foot { color: var(--dim); font-size: 12px; margin-top: 60px;
+          text-align: center; }
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><div class="logo"></div><b>xmedia-kit</b></div>
+<h1 id='xmedia-kit-ai-视频生成管线'>xmedia-kit AI 视频生成管线</h1>
+<p>Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 MP4。</p>
+<p>三步管线，同 spec 两次生成逐字节一致（确定性）。</p>
+<p>返回：<a href="../README.md">README</a> ｜ 相关：<a href="EXAMPLES.md">EXAMPLES</a> ｜ <a href="COOKBOOK.md">COOKBOOK</a></p>
+<h2 id='快速上手'>快速上手</h2>
+<p><b>统一 CLI</b>（推荐，所有能力的入口；详细子命令 <code>xmedia --help</code>）：</p>
+<pre><code class="bash">python3 tools/xmedia.py init my-proj          # 脚手架：可运行示例 spec
+python3 tools/xmedia.py render my-proj/demo.json --out my-proj/demo.mp4
+                                             # 一条命令全链：TTS→compose→
+                                             # validate→bake（参数全自动推导）
+python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告）</code></pre>
+<p>单步命令（等价透传）：<code>xmedia tts/compose/validate/studio/sfx</code>。</p>
+<p>手动分步（与统一 CLI 等价）：</p>
+<pre><code class="bash"># 1. 写 spec JSON（agent 或人类填空）
+cat &gt; my_video.json &lt;&lt;'EOF'
+{
+  "composition": {"id": "demo", "width": 1920, "height": 1080, "fps": 30},
+  "background": "#0a0a1a",
+  "scenes": [
+    {"type": "title", "text": "产品发布", "subtitle": "v2.0",
+     "duration": 3, "bg": "#0a0a1e", "text_color": "#ffffff",
+     "animation": "fade_in_up"},
+    {"type": "text", "text": "核心特性",
+     "duration": 4, "bg": "#16213e", "text_color": "#e0e0e0",
+     "animation": "slide_in_left",
+     "content": [{"text": "• 确定性渲染"}, {"text": "• 音频混音"}]},
+    {"type": "outro", "text": "Thanks",
+     "duration": 2, "bg": "#0f3460", "text_color": "#ffffff",
+     "animation": "fade_in"}
+  ],
+  "audio": {"src": "bgm.mp3", "volume": 0.6, "fade_in": 1, "fade_out": 2}
+}
+EOF
+
+# 2. 生成契约 HTML
+python3 tools/hf_compose.py my_video.json -o my_video.html
+
+# 3. 验证契约合规（0 errors 才交给 html_bake）
+python3 tools/hf_validate.py my_video.html
+
+# 4. 烘焙 MP4（--url 支持相对路径；--seconds 取 spec 总时长）
+./build/bin/html_bake.app/Contents/MacOS/html_bake \
+  --url ./my_video.html \
+  --out my_video.mp4 \
+  --seconds 9 --fps 30 \
+  --width 1920 --height 1080 \
+  --clock seek</code></pre>
+<h3 id='旁白驱动-竖屏-ai-auto-generate-video-模式'>旁白驱动 + 竖屏（AI-auto-generate-video 模式）</h3>
+<p><code>hf_tts.py</code> 逐场景生成旁白并回填 <code>narration</code>，<code>hf_compose</code> 拟合时长并把</p>
+<p>旁白发成 <code><audio></code> 元素进确定性混音；<code>format: "9:16"</code> 一键竖屏：</p>
+<pre><code class="bash"># 1. TTS 生成旁白（voice/scene-N-&lt;文本哈希&gt;.wav + 回填 narration →
+#    demo.narrated.json；词变自动重生成，跨 spec 同目录不串音）
+python3 tools/hf_tts.py demo.json
+
+# 2. 拟合时长 + 生成契约 HTML
+python3 tools/hf_compose.py demo.narrated.json -o demo.html
+
+# 3. 验证 + Studio 预览（浏览器打开 demo.studio.html 边看边调）
+python3 tools/hf_validate.py demo.html
+python3 tools/hf_studio.py demo.html
+
+# 4. 烘焙（9:16 → --width 1080 --height 1920）
+./build/bin/html_bake.app/Contents/MacOS/html_bake \
+  --url ./demo.html --out demo.mp4 \
+  --seconds &lt;总时长&gt; --fps 30 --width 1080 --height 1920 --clock seek</code></pre>
+<p>可直接复制的 <code>demo.json</code>（旁白文本即场景文本，TTS 只认 <code>text</code>）：</p>
+<pre><code class="json">{
+  "composition": {"id": "demo", "format": "9:16", "fps": 30},
+  "background": "#0a0a1a",
+  "tts": {"provider": "say", "voice": "Tingting", "rate": 200},
+  "scenes": [
+    {"type": "title", "text": "欢迎使用 xmedia-kit",
+     "subtitle": "AI 视频生成管线", "bg": "#1a1a2e",
+     "animation": "fade_in_up"},
+    {"type": "stats", "value": "1026", "description": "回归测试全部通过",
+     "bg": "#16213e", "animation": "scale_in"},
+    {"type": "outro", "text": "谢谢观看", "duration": 2, "bg": "#0f3460"}
+  ]
+}</code></pre>
+<p><code>--seconds</code> 取 <code>hf_compose</code> 打印的总时长（旁白拟合后可能 ≠ 手写 duration</p>
+<p>之和）。spec 侧也可以手写 <code>narration</code> 路径跳过 TTS（时长照样拟合）。场景</p>
+<p>时长 = ffprobe(旁白) + padding，旁白 <code><audio></code> 与场景窗口同起点进混音，</p>
+<p>BGM（默认 0.6 音量）衬在旁白之下。</p>
+<h3 id='xmedia-studio-本地服务-浏览器编排'>xmedia Studio（本地服务，浏览器编排）</h3>
+<pre><code class="bash">python3 tools/hf_studio.py demo-output/demo.html --serve \
+  --spec demo-output/demo.narrated.json --port 8120
+# 浏览器打开 http://127.0.0.1:8120</code></pre>
+<p>UI 闭环（对位 Remotion Studio 的编辑→预览→渲染）：左侧 spec 编辑器 →</p>
+<p><b>重组合成</b>（Ctrl/Cmd+Enter，热更新右侧预览 + 校验面板）→ <b>生成旁白</b></p>
+<p>（全场景 TTS）→ 场景时间轴点击跳转 → <b>烘焙 MP4</b>（尺寸/时长/fps 由 spec</p>
+<p>自动推导，无需记 CLI 参数），产物与日志同面板。spec 文件即落盘产物——</p>
+<p>重开服务或直接走 CLI 烘焙都接得上。</p>
+<h2 id='功能速查-功能-命令'>功能速查（功能 → 命令）</h2>
+<table><tr><th>功能</th><th>命令 / spec 字段</th></tr><tr><td>场景模板（7 类）</td><td><code>hf_compose</code>，spec <code>scenes[].type</code>：<code>title</code>/<code>text</code>/<code>outro</code>/<code>quote</code>/<code>list</code>/<code>stats</code>/<code>comparison</code></td></tr><tr><td>入场动画（6 种）</td><td><code>scenes[].animation</code>：<code>fade_in</code>/<code>fade_in_up</code>/<code>fade_in_down</code>/<code>slide_in_left</code>/<code>slide_in_right</code>/<code>scale_in</code></td></tr><tr><td>画幅预设</td><td><code>composition.format</code>：<code>16:9</code> / <code>9:16</code> / <code>1:1</code> / <code>4:5</code>（覆盖 width/height）</td></tr><tr><td>TTS 旁白</td><td>`hf_tts.py <spec.json> [-o narrated.json] [--provider say\</td><td>http] [--voice NAME] [--rate N] [--endpoint URL] [--out-dir DIR]<code>；spec </code>tts<code> 段；环境变量 </code>TTS_PROVIDER<code>/</code>TTS_ENDPOINT<code>（兼容 </code>OMNIVOICE_ENDPOINT`）；幂等（产物可探测即跳过）</td></tr><tr><td>旁白驱动时长拟合</td><td><code>scenes[].narration</code> + <code>padding</code>（场景时长 = ffprobe 实长 + padding，GSAP 游标与 clip 窗口同源）；旁白音量 <code>scenes[].narration_volume</code></td></tr><tr><td>BGM</td><td>spec <code>audio: {src, volume, fade_in, fade_out}</code>（默认 0.6 音量衬在旁白之下）</td></tr><tr><td>分块烘焙（逐场景幂等重渲）</td><td><code>html_bake --chunks N</code>（每块独立编码器冷启 + Concat 无损拼接）</td></tr><tr><td>烘焙时钟</td><td><code>--clock seek</code>（页面契约，帧级精确，默认推荐）/ <code>virtual_time</code>（VT 步进）/ <code>live</code>（墙钟）</td></tr><tr><td>编码器 / 封装</td><td><code>--codec mjpeg</code>（默认，基础构建）/ <code>libx264</code>（x264 依赖层开启时）；输出封装按扩展名 <code>mp4</code>/<code>gif</code>/<code>webm</code>/<code>mov</code></td></tr><tr><td>Lottie 叠加</td><td><code>html_bake --lottie <path> [--lottie-z N] [--lottie-speed S] [--lottie-loop N]</code>（z 垫在 HTML 元素之下，bake 时钟驱动）</td></tr><tr><td>页面数据注入</td><td><code>html_bake --data '<json>'</code>（<code>window.update(d)</code> 契约，首帧后注入一次）</td></tr><tr><td>嵌套合成 + 变量</td><td>spec <code>content</code> 手写 <code>data-composition-src</code> / <code>data-variable-values</code>（注入 runtime 页内挂载，子合成经 <code>__hyperframes.getVariables()</code> 消费）</td></tr><tr><td>元数据导出</td><td>自动产出 <code><out>.html_elements.json</code>（元素时序/矩形，毫秒域；调试与合成工具消费）</td></tr><tr><td>契约自查</td><td><code>hf_validate.py <html> [--json]</code>（composition 根/duration/clip/__timelines/GSAP/file:// 子资源告警——agent 无人值守的前置门）</td></tr><tr><td>原版契约兼容</td><td>生成器自动保证：<code>data-composition-id</code> 根 + clip <code>data-start/duration</code>(秒) + paused GSAP 注册 <code>window.__timelines</code> + 内联 GSAP（离线确定性）；驱动 = 注册表 <code>totalTime(秒+1e-3)</code> + 采集端 <code>data-time-unit="s"</code> 秒→毫秒归一（契约对齐 heygen-com/hyperframes）</td></tr><tr><td>确定性音频混音</td><td>页面 <code><audio></code> 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k</td></tr><tr><td>SFX 音效</td><td>三级选择（场景 <code>sfx</code> 覆盖 → 文本关键词 → 类型默认）随场景起点叠加，默认音量 0.4；素材 = <code>assets/sfx/</code> 五个 ffmpeg 合成音效（whoosh/pop/ding/success/transition，零授权，生成命令见该目录 README）；关闭：<code>--no-sfx</code> 或 spec <code>"sfx": {"enabled": false}</code>；自定义目录 <code>sfx.dir</code>、音量 <code>sfx.volume</code></td></tr><tr><td>Studio 预览</td><td>注入模式：<code>python3 tools/hf_studio.py out.html</code> → 注入传输条（播放/拖动/场景跳转/空格与方向键）的 <code><stem>.studio.html</code>，浏览器打开即预览；幂等原地更新</td></tr><tr><td>xmedia Studio 服务</td><td><code>python3 tools/hf_studio.py out.html --serve --spec spec.narrated.json [--port 8120]</code> → 浏览器 UI（127.0.0.1）：<b>spec 编辑器热重组</b>（Ctrl/Cmd+Enter）、场景时间轴点击跳转、TTS 一键、<b>烘焙按钮（尺寸/时长由 spec 自动推导）</b>、校验与日志面板——对位 Remotion Studio 的编辑→预览→渲染闭环</td></tr></table>
+<h3 id='tts-provider-hf_tts-py'>TTS provider（hf_tts.py）</h3>
+<table><tr><th>provider</th><th>说明</th><th>依赖</th></tr><tr><td><code>say</code></td><td>macOS 离线 TTS（<code>--data-format=LEI16@22050</code> 出 WAV）</td><td>系统自带，零依赖</td></tr><tr><td><code>http</code></td><td>本地 TTS 服务：<code>POST {text, voice, rate}</code> → audio 字节（OmniVoice 式，对齐 AI-auto-generate-video 的本地服务架构）</td><td>自备服务</td></tr></table>
+<pre><code class="json">"tts": {
+  "provider": "say",
+  "voice": "Tingting",
+  "rate": 200,
+  "endpoint": "http://127.0.0.1:8123/tts",
+  "out_dir": "voice"
+}</code></pre>
+<p>CLI <code>--provider/--voice/--rate/--endpoint/--out-dir</code> 覆盖 spec；优先级</p>
+<p>CLI > spec > 环境变量（<code>TTS_PROVIDER</code> / <code>TTS_ENDPOINT</code>，兼容</p>
+<p>`OMNIVOICE_ENDPOINT）> 默认。幂等：产物已存在且 ffprobe 可探测则跳过，</p>
+<p>重复执行安全；可朗读文本 = <code>text</code> 优先，缺失时按类型聚合专有字段</p>
+<p>（stats 取 value/description，quote 取 quote/author，list 取 items，</p>
+<p>comparison 取列标题）；已有 <code>narration</code> 的场景跳过（保留既有旁白）。</p>
+<p>默认输出 <code><stem>.narrated.json</code>。</p>
+<p><b>交付产物</b>（与 narrated spec 同目录）：<code><stem>.script.txt</code>——旁白全文</p>
+<p>逐行（供字幕工具）；<code><stem>.voice.m4a</code>——按场景起点定位拼接的独立旁白</p>
+<p>轨（起点 = 旁白实长 + padding 累计，与 compose 拟合公式同源）。</p>
+<p>测试样例与冒烟：<code>tests/testdata/tts/</code>（固定旁白 wav + spec）+</p>
+<p><code>tests/unit/hf_tts_smoke.py</code>（本地 HTTP mock 充当 TTS 服务，不依赖</p>
+<p>say/网络）——<code>ctest -R hf_tts_smoke</code>。</p>
+<h2 id='spec-schema'>Spec Schema</h2>
+<h3 id='composition-合成参数'>composition（合成参数）</h3>
+<table><tr><th>字段</th><th>类型</th><th>默认</th><th>说明</th></tr><tr><td>id</td><td>string</td><td><code>"main"</code></td><td>合成 ID（__timelines 注册键）</td></tr><tr><td>schema_version</td><td>string</td><td><code>"1.0"</code></td><td>spec 契约版本；与本构建支持版本不符时 compose 拒绝并提示（产物注释含 schema 锚点）</td></tr><tr><td>width / height</td><td>int</td><td>1920 / 1080</td><td>画布尺寸（像素）</td></tr><tr><td>format</td><td>string</td><td>—</td><td>画幅快捷预设：<code>16:9</code> / <code>9:16</code> / <code>1:1</code> / <code>4:5</code>，设置后覆盖 width/height</td></tr><tr><td>fps</td><td>int</td><td>30</td><td>帧率</td></tr></table>
+<h3 id='background-全局背景'>background（全局背景）</h3>
+<table><tr><th>字段</th><th>类型</th><th>默认</th><th>说明</th></tr><tr><td>background</td><td>string</td><td><code>"#000000"</code></td><td>全局背景色（CSS 颜色）</td></tr></table>
+<h3 id='scenes-场景数组-按序播放'>scenes[]（场景数组，按序播放）</h3>
+<table><tr><th>字段</th><th>类型</th><th>默认</th><th>说明</th></tr><tr><td>type</td><td>string</td><td><code>"text"</code></td><td>场景类型：<code>title</code> / <code>text</code> / <code>outro</code> / <code>quote</code> / <code>list</code> / <code>stats</code> / <code>comparison</code></td></tr><tr><td>text</td><td>string</td><td><code>""</code></td><td>主文本</td></tr><tr><td>subtitle</td><td>string</td><td><code>""</code></td><td>副文本（仅 title 类型）</td></tr><tr><td>duration</td><td>float</td><td>3</td><td>秒制时长（有 narration 时被拟合值覆盖，见下）</td></tr><tr><td>narration</td><td>string</td><td>—</td><td>旁白音频路径（相对 spec 目录或绝对路径）；设置后场景时长 = ffprobe 音频时长 + padding</td></tr><tr><td>padding</td><td>float</td><td>0.5</td><td>narration 拟合时的尾部留白秒数</td></tr><tr><td>narration_volume</td><td>float</td><td>1.0</td><td>旁白混音音量（BGM 默认 0.6 衬在旁白之下）</td></tr><tr><td>transition</td><td>string</td><td>—</td><td>场景级转场覆盖（进入方式）：<code>fade</code> / <code>slide-left</code> / <code>slide-right</code> / <code>wipe</code> / <code>none</code>；全局默认走顶层 <code>transitions: {type, duration}</code>（默认 fade / 0.5s）。语义 = 进入侧提前 duration 进入前一场景尾窗，总时长随重叠收缩</td></tr><tr><td>bg</td><td>string</td><td><code>"#000000"</code></td><td>场景背景色</td></tr><tr><td>text_color</td><td>string</td><td><code>"#ffffff"</code></td><td>文字颜色</td></tr><tr><td>animation</td><td>string</td><td><code>"fade_in"</code></td><td>入场动画（见下表）</td></tr><tr><td>content[]</td><td>array</td><td><code>[]</code></td><td>子项（text/list 类型，每项 <code>{text}</code>）</td></tr></table>
+<p>各场景类型的专有字段：</p>
+<table><tr><th>类型</th><th>专有字段</th></tr><tr><td>title</td><td><code>subtitle</code></td></tr><tr><td>text</td><td><code>content[]</code></td></tr><tr><td>quote</td><td><code>quote</code>（缺省用 <code>text</code>）、<code>author</code></td></tr><tr><td>list</td><td><code>items[]</code>（字符串数组，或用 <code>content[]</code>）</td></tr><tr><td>stats</td><td><code>value</code>（大数字）、<code>description</code></td></tr><tr><td>comparison</td><td><code>left</code> / <code>right</code>（列标题）、<code>left_items[]</code> / <code>right_items[]</code></td></tr></table>
+<p>旁白驱动时长拟合：<code>narration</code> 优先于 <code>duration</code>——场景 clip 窗口与 GSAP 入场游标<b>同源拟合</b>，逐场景对齐旁白长度（AI-auto-generate-video 模式）。</p>
+<h2 id='自定义模板协议'>自定义模板协议</h2>
+<p>场景类型可扩展：在 <code>templates/</code>（内置）或 <code><spec 目录>/templates/</code>（用户覆盖，优先）放 <code><name>.json</code> 即注册一个场景类型：</p>
+<pre><code class="json">{
+  "name": "lower-third",
+  "description": "底部人名条",
+  "slots": ["title", "subtitle"],
+  "css": "#tpl-lower-third { ... }",
+  "body": "&lt;div class=\\"lt-title\\"&gt;{{title}}&lt;/div&gt;&lt;div class=\\"lt-sub\\"&gt;{{subtitle}}&lt;/div&gt;",
+  "sfx": "whoosh"
+}</code></pre>
+<ul>
+<li>场景 <code>"type": "lower-third"</code> 即命中注册表；<code>{{slot}}</code> 由场景同名字段替换（esc 转义、缺失置空），模板 CSS 注入 style 块，<code>sfx</code> 为该类型默认音效</li>
+<li>注册表每次 compose 扫描（新模板<b>热加载</b>）；<code>hf_validate</code> 照常把守；内置示例 <code>templates/lower-third.json</code></li>
+</ul>
+<h3 id='animation-入场动画预设'>animation（入场动画预设）</h3>
+<table><tr><th>名称</th><th>效果</th></tr><tr><td><code>fade_in</code></td><td>淡入</td></tr><tr><td><code>fade_in_up</code></td><td>淡入 + 上移</td></tr><tr><td><code>fade_in_down</code></td><td>淡入 + 下移</td></tr><tr><td><code>slide_in_left</code></td><td>左滑入</td></tr><tr><td><code>slide_in_right</code></td><td>右滑入</td></tr><tr><td><code>scale_in</code></td><td>缩放入</td></tr></table>
+<h3 id='audio-背景音乐-音效'>audio（背景音乐/音效）</h3>
+<table><tr><th>字段</th><th>类型</th><th>默认</th><th>说明</th></tr><tr><td>src</td><td>string</td><td>必填</td><td>音频文件路径（相对 spec 目录或绝对路径）</td></tr><tr><td>volume</td><td>float</td><td>0.6</td><td>音量（1 = 0dB，0 = 静音）</td></tr><tr><td>fade_in</td><td>float</td><td>0</td><td>起点淡入秒数</td></tr><tr><td>fade_out</td><td>float</td><td>0</td><td>终点淡出秒数</td></tr></table>
+<h2 id='agent-集成'>Agent 集成</h2>
+<p>AI agent（Claude / Cursor / Codex 等）的使用方式与 brag 一致——agent 不直接写 HTML，而是<b>按 schema 填 spec JSON</b>：</p>
+<pre><code class="">User: "做一个 10 秒的产品宣传片，深色背景，3 个场景"
+Agent: 读本文档 schema → 填 spec JSON → python3 tools/hf_tts.py（旁白）
+       → python3 tools/hf_compose.py → python3 tools/hf_validate.py
+       （0 errors 才继续）→ html_bake 渲染 → 返回 MP4 路径</code></pre>
+<p>生成器保证契约合规：data-\* 秒制 + <code>__timelines</code> 注册 + GSAP 4 参数形 + 内联 GSAP（离线确定性，不依赖 CDN）。<code>hf_validate.py</code> 是 agent 的自查工具——0 errors 才交给 html_bake。</p>
+<h2 id='agent-调用协议与来源验证'>Agent 调用协议与来源验证</h2>
+<p><b>调用协议</b>（agent 按序执行，缺一步不算完成）：</p>
+<p>1. 读本文档 schema → 填 spec JSON（<code>demo.json</code> 示例见上）</p>
+<p>2. <code>python3 tools/hf_tts.py spec.json</code>（旁白，可选）</p>
+<p>3. <code>python3 tools/hf_compose.py spec.narrated.json -o out.html</code></p>
+<p>4. <code>python3 tools/hf_validate.py out.html</code>——<b>0 errors 是硬门</b></p>
+<p>5. <code>html_bake --url ./out.html --out out.mp4 --seconds <总时长> --fps 30 --width W --height H --clock seek</code></p>
+<p>6. 交付产物三件套：<code>out.mp4</code> + <code>out.html</code> + <code>out.html_elements.json</code></p>
+<p><b>约定</b>：agent 不手写 HTML 冒充管线产物——手写页（进阶场景）也必须过</p>
+<p><code>hf_validate</code>，且没有生成器注释（来源不可证，见下）。</p>
+<p><b>来源验证</b>（查产物、不采信 agent 口头声明）——三重锚点逐级可验：</p>
+<table><tr><th>锚点</th><th>位置</th><th>验证命令</th></tr><tr><td>spec 哈希</td><td><code>out.html</code> 头部生成器注释</td><td><code>head -2 out.html</code></td></tr><tr><td>HTML 哈希</td><td><code>out.mp4</code> 容器 metadata comment</td><td>`ffprobe -show_format out.mp4 \</td><td>grep comment`</td></tr><tr><td>工具指纹</td><td><code>out.html_elements.json</code> generator 字段</td><td><code>grep generator out.html_elements.json</code></td></tr></table>
+<p>链路：MP4 metadata（<code>xmedia-kit html_bake | html sha256:…</code>）→ HTML 头部</p>
+<p>（<code>xmedia-kit hf_compose | scenes=N | spec sha256:…</code>，spec 哈希 =</p>
+<p>canonical JSON 的 sha256）→ spec 源文件。产物任一锚点缺失 = 不是本管线</p>
+<p>生成（注意：<code>--chunks N>1</code> 的拼接产物不保留 MP4 metadata——用 HTML 注释</p>
+<p>与 sidecar 锚点验证）。</p>
+<h2 id='与-brag-的对应'>与 brag 的对应</h2>
+<table><tr><th>brag</th><th>xmedia-kit</th></tr><tr><td>agent 读项目代码</td><td>agent 读本文档 schema</td></tr><tr><td>agent 写 HyperFrames HTML</td><td>agent 填 spec JSON → hf_compose.py 生成</td></tr><tr><td><code>npx hyperframes render</code></td><td><code>html_bake --url file://... --out out.mp4</code></td></tr><tr><td>HyperFrames runtime 管理合成</td><td>注入 runtime + 注册表 seek（同款契约）</td></tr></table>
+<p>区别：brag 的 LLM 直接写 HTML（灵活但可能格式出错）；xmedia-kit 的 spec→HTML 是<b>确定性模板引擎</b>（同 spec 必出同 HTML，schema 校验挡住格式错误）——更适合无人值守的 agent 流水线。</p>
+<h2 id='嵌套合成与变量-进阶'>嵌套合成与变量（进阶）</h2>
+<p>生成的 HTML 兼容原版（heygen-com/hyperframes）嵌套/变量语义——在 spec 的 <code>content</code> 里手写 <code>data-composition-src</code> 即可嵌套子合成：</p>
+<pre><code class="json">{"type": "text", "text": "", "duration": 5,
+ "content": [{"text": "&lt;div data-composition-src='./sub.html' data-variable-values='{\"title\":\"Pro\"}'&gt;&lt;/div&gt;"}]}</code></pre>
+<p>子合成内通过 <code>window.__hyperframes?.getVariables?.()</code> 消费变量。</p>
+<h2 id='已知边界'>已知边界</h2>
+<ul>
+<li><code>.clip</code> 生命周期：注入 runtime 接管 <code>.clip</code> 元素显隐（其揭示协议需官方管线握手）。无 <code>.clip</code> 标记的数据驱动页不受影响——<b>hf_compose.py 生成的 HTML 不使用 <code>.clip</code> 标记</b>（场景可见性由 data-start/duration + GSAP opacity 驱动）✓</li>
+<li>时间单位：HF 页 <code>data-start/duration</code> 是秒，采集端自动归一到毫秒（根元素 <code>data-time-unit="s"</code> 声明，<code>__timelines</code> 注册表检测兜底）；消费端（合成/混音/元数据）统一毫秒，无需 CLI 单位开关。</li>
+<li>音频轨：旁白 <code><audio></code> + BGM 进 html_bake 确定性混音（解码 → 修剪/增益/斜坡 → data-start 叠加，AudioConverter 统一重采样）✓。音频文件缺失时打印 <code>missing — skipped</code>、输出<b>无音轨</b>（不建零包空轨）——文件放对位置或删掉 spec 的 <code>audio</code> 段即可。</li>
+<li>分块音频：<code>--chunks N>1</code> 时音频按块独立 AAC 编码再拼接，块边界存在 ±1 AAC 帧（≈21ms）的相移——内容经段级比对一致；采样级精确请用 <code>--chunks 1</code>。</li>
+<li>烘焙画布：<code>--width/--height</code> 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。</li>
+<li>CLI 健壮性：<code>--url</code> 支持相对路径（自动补全 <code>file://</code> 绝对 URL）；未知参数显式告警（拼写错如 <code>--hight</code> 不再静默吞掉）；二进制带 <code>__RESTRICT</code> 段——外部 <code>DYLD_LIBRARY_PATH</code> 等环境变量不影响其 FFmpeg 加载（机器上共存同名旧库也安全）。</li>
+</ul>
+<div class="foot">xmedia-kit · 本页由 <code>xmedia docs</code> 从
+docs/HF_COMPOSE.md 生成</div>
+</div></body></html>

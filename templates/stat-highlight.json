@@ -1,0 +1,8 @@
+{
+  "name": "stat-highlight",
+  "description": "巨幅数字强调：渐变底 + 大数字 + 说明行",
+  "slots": ["value", "label"],
+  "css": "#tpl-stat-highlight { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(150deg, #16213e, #0f3460 60%, #1a1a2e); } #tpl-stat-highlight .sh-value { font-size: 220px; font-weight: 800; color: #ffffff; letter-spacing: -4px; text-shadow: 0 8px 40px rgba(109, 139, 255, 0.45); } #tpl-stat-highlight .sh-label { font-size: 32px; color: #9aa4c8; margin-top: 16px; }",
+  "body": "<div class=\"sh-value\">{{value}}</div><div class=\"sh-label\">{{label}}</div>",
+  "sfx": "success"
+}

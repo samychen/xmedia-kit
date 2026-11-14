@@ -1,0 +1,8 @@
+{
+  "name": "outro-brand",
+  "description": "品牌收尾：居中品牌名 + tagline，渐变底",
+  "slots": ["brand", "tagline"],
+  "css": "#tpl-outro-brand { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(160deg, #0f3460, #1a1a2e 65%, #0a0a1a); } #tpl-outro-brand .ob-brand { font-size: 110px; font-weight: 800; color: #ffffff; letter-spacing: 2px; } #tpl-outro-brand .ob-tagline { font-size: 30px; color: #9aa4c8; margin-top: 26px; } #tpl-outro-brand .ob-line { width: 120px; height: 4px; background: linear-gradient(90deg, var(--acc, #6d8bff), transparent); margin-top: 34px; border-radius: 2px; }",
+  "body": "<div class=\"ob-brand\">{{brand}}</div><div class=\"ob-line\"></div><div class=\"ob-tagline\">{{tagline}}</div>",
+  "sfx": "ding"
+}

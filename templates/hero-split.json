@@ -1,0 +1,8 @@
+{
+  "name": "hero-split",
+  "description": "左右分栏 Hero：文案区 + 强调色块，开场场景",
+  "slots": ["title", "subtitle", "tag"],
+  "css": "#tpl-hero-split { position: absolute; inset: 0; display: flex; } #tpl-hero-split .hs-copy { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 7%; background: #10101c; } #tpl-hero-split .hs-block { width: 34%; background: linear-gradient(160deg, #6d8bff, #8b6dff); } #tpl-hero-split .hs-title { font-size: 84px; font-weight: 800; line-height: 1.15; color: #ffffff; } #tpl-hero-split .hs-sub { font-size: 30px; color: #9aa4c8; margin-top: 22px; } #tpl-hero-split .hs-tag { font-size: 22px; color: #6d8bff; letter-spacing: 4px; text-transform: uppercase; }",
+  "body": "<div class=\"hs-copy\"><div class=\"hs-tag\">{{tag}}</div><div class=\"hs-title\">{{title}}</div><div class=\"hs-sub\">{{subtitle}}</div></div><div class=\"hs-block\"></div>",
+  "sfx": "whoosh"
+}

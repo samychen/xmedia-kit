@@ -1,0 +1,8 @@
+{
+  "name": "quote-card",
+  "description": "引用卡片：衬线引号 + 居中卡片底",
+  "slots": ["quote", "author"],
+  "css": "#tpl-quote-card { position: absolute; inset: 8% 10%; background: rgba(10, 10, 16, 0.72); border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; justify-content: center; padding: 0 7%; } #tpl-quote-card .qc-mark { font-size: 90px; color: #6d8bff; line-height: 0.6; font-family: Georgia, serif; } #tpl-quote-card .qc-quote { font-size: 52px; line-height: 1.4; color: #ffffff; font-family: Georgia, serif; margin-top: 18px; } #tpl-quote-card .qc-author { font-size: 24px; color: #9aa4c8; margin-top: 26px; text-align: right; }",
+  "body": "<div class=\"qc-mark\">“</div><div class=\"qc-quote\">{{quote}}</div><div class=\"qc-author\">—— {{author}}</div>",
+  "sfx": "ding"
+}

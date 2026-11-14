@@ -108,6 +108,156 @@ def cmd_render(args):
     print(f"xmedia: 完成 {args.out}（{seconds:.1f}s / {w}x{h} @ {fps}fps）")
 
 
+def md_inline(s):
+    """行内元素：**粗体**、`代码`、[文本](链接)。"""
+    s = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", s)
+    s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+    s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
+               r'<a href="\2">\1</a>', s)
+    return s
+
+
+def md_to_html(md):
+    """HF_COMPOSE.md 子集的最小转换器（标题/代码块/表格/列表/引用/
+    分隔线/段落）——零第三方依赖，`xmedia docs` 一条命令保持文档站
+    与真源同步。"""
+    out = []
+    in_code = False
+    code_lang = ""
+    code_buf = []
+    table_buf = []
+    in_list = False
+    for line in md.splitlines():
+        if line.strip().startswith("```"):
+            if in_code:
+                out.append(f'<pre><code class="{code_lang}">'
+                           + "\n".join(code_buf) + "</code></pre>")
+                code_buf = []
+                in_code = False
+            else:
+                # 悬空缓冲（表格/列表）先收口
+                if table_buf:
+                    out.append("<table>" + "".join(table_buf) + "</table>")
+                    table_buf = []
+                if in_list:
+                    out.append("</ul>")
+                    in_list = False
+                in_code = True
+                code_lang = line.strip()[3:].strip()
+            continue
+        if in_code:
+            code_buf.append(line.replace("&", "&amp;")
+                            .replace("<", "&lt;").replace(">", "&gt;"))
+            continue
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            if all(re.fullmatch(r"-{3,}:?|:?-{3,}:?", c) for c in cells):
+                continue  # 分隔行
+            tag = "th" if not table_buf else "td"
+            table_buf.append("<tr>" + "".join(
+                f"<{tag}>{md_inline(c)}</{tag}>" for c in cells) + "</tr>")
+            continue
+        if table_buf:
+            out.append("<table>" + "".join(table_buf) + "</table>")
+            table_buf = []
+        m = re.match(r"^(#{1,4})\s+(.*)", line)
+        if m:
+            level = len(m.group(1))
+            anchor = re.sub(r"[^\w\u4e00-\u9fff]+", "-",
+                            m.group(2)).strip("-").lower()
+            out.append(f"<h{level} id='{anchor}'>{md_inline(m.group(2))}"
+                       f"</h{level}>")
+            continue
+        if stripped.startswith("- "):
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{md_inline(stripped[2:])}</li>")
+            continue
+        if in_list and stripped:
+            out.append(f"<li>{md_inline(stripped)}</li>")
+            continue
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+        if stripped == "---":
+            out.append("<hr>")
+            continue
+        if stripped:
+            out.append(f"<p>{md_inline(stripped)}</p>")
+    if table_buf:
+        out.append("<table>" + "".join(table_buf) + "</table>")
+    if in_list:
+        out.append("</ul>")
+    return "\n".join(out)
+
+
+def cmd_docs(args):
+    """文档站：docs/HF_COMPOSE.md → docs-site/index.html（样式化单页，
+    标题锚点 + 暗色主题与 Studio 同源）。"""
+    src = root("docs", "HF_COMPOSE.md")
+    with open(src, "r", encoding="utf-8") as f:
+        md = f.read()
+    body = md_to_html(md)
+    page = f'''<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>xmedia-kit — AI 视频生成管线文档</title>
+<style>
+  :root {{ --bg: #0b0b11; --panel: #15151d; --line: #26263a;
+          --ink: #e9e9f0; --dim: #9494a8; --acc: #6d8bff; }}
+  * {{ box-sizing: border-box; }}
+  body {{ margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.7 -apple-system, "Helvetica Neue", sans-serif; }}
+  .wrap {{ max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }}
+  .top {{ display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }}
+  .logo {{ width: 26px; height: 26px; border-radius: 8px;
+          background: linear-gradient(135deg, #6d8bff, #8b6dff); }}
+  .top b {{ font-size: 15px; }}
+  h1 {{ font-size: 30px; border-bottom: 2px solid var(--acc);
+       padding-bottom: 12px; }}
+  h2 {{ font-size: 22px; margin-top: 44px; border-left: 4px solid var(--acc);
+       padding-left: 12px; }}
+  h3 {{ font-size: 17px; color: var(--acc); margin-top: 30px; }}
+  p, li {{ color: #c9c9d6; }}
+  code {{ background: var(--panel); padding: 2px 6px; border-radius: 5px;
+         font: 12.5px ui-monospace, Menlo, monospace; color: #9fb4ff; }}
+  pre {{ background: var(--panel); border: 1px solid var(--line);
+        border-radius: 10px; padding: 14px 16px; overflow-x: auto; }}
+  pre code {{ background: none; padding: 0; color: #c9d4ff; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 14px 0;
+          font-size: 13.5px; }}
+  th, td {{ border: 1px solid var(--line); padding: 7px 11px;
+           text-align: left; vertical-align: top; }}
+  th {{ background: var(--panel); color: var(--ink); }}
+  td {{ color: #c9c9d6; }}
+  tr:hover td {{ background: var(--panel2); }}
+  a {{ color: var(--acc); text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
+  hr {{ border: 0; border-top: 1px solid var(--line); margin: 34px 0; }}
+  ul {{ padding-left: 22px; }}
+  .foot {{ color: var(--dim); font-size: 12px; margin-top: 60px;
+          text-align: center; }}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><div class="logo"></div><b>xmedia-kit</b></div>
+{body}
+<div class="foot">xmedia-kit · 本页由 <code>xmedia docs</code> 从
+docs/HF_COMPOSE.md 生成</div>
+</div></body></html>
+'''
+    out_dir = root("docs-site")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, "index.html")
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(page)
+    print(f"xmedia: 文档站已生成 {out}"
+          f"（{len(md.splitlines())} 行源 → {len(page.splitlines())} 行 HTML）")
+
+
 def cmd_doctor(args):
     """环境自检：管线每一步的依赖逐项报告。全部 PASS 才可无人值守。"""
     checks = []
@@ -246,6 +396,8 @@ def main():
     p.set_defaults(fn=cmd_init)
     sub.add_parser("sfx", help="再生成 assets/sfx 音效").set_defaults(
         fn=cmd_sfx)
+    sub.add_parser("docs", help="生成文档站 docs-site/index.html").set_defaults(
+        fn=cmd_docs)
 
     args = parser.parse_args()
     if getattr(args, "args", None) and args.args and \
