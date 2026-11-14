@@ -200,6 +200,15 @@ def cmd_docs(args):
     with open(src, "r", encoding="utf-8") as f:
         md = f.read()
     body = md_to_html(md)
+    # 独立站上的相对链接改写为 GitHub 绝对链接（docs-site 不携带仓库
+    # 其余文件——README/EXAMPLES 等在站内无对应文件）。
+    repo = "https://github.com/samychen/xmedia-kit"
+    body = re.sub(r'href="(\.\./[^"]+)"',
+                  lambda m: f'href="{repo}/tree/main/'
+                            + m.group(1).replace("../", "") + '"', body)
+    body = re.sub(r'href="((?!http)[^":][^"]*\.md)"',
+                  lambda m: f'href="{repo}/blob/main/docs/'
+                            + m.group(1).replace("./", "") + '"', body)
     page = f'''<!DOCTYPE html>
 <html lang="zh">
 <head>
