@@ -258,6 +258,17 @@ if(XMEDIA_ENABLE_FFMPEG)
     endif()
   endif()
 
+  # ---- hf_tts/hf_compose 链路冒烟（纯 Python）：本地 HTTP mock 充当 TTS
+  # 服务（固定 wav 字节），不依赖 say/网络——http provider、类型聚合
+  # （stats 无 text 不漏旁白）、幂等复跑、compose 拟合与 <audio> 发射。
+  find_program(XMEDIA_PYTHON3 python3)
+  if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_PYTHON3)
+    add_test(NAME hf_tts_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/hf_tts_smoke.py")
+    set_tests_properties(hf_tts_smoke PROPERTIES TIMEOUT 120)
+  endif()
+
   # ---- lottie：时钟映射单测（渲染路径经 html_bake_smoke 覆盖）。
   if(XMEDIA_HAS_LOTTIE)
     file(GLOB XMEDIA_LOTTIE_UNITTEST_SOURCES CONFIGURE_DEPENDS

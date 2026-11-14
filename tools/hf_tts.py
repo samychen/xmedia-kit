@@ -25,8 +25,8 @@
 #     "out_dir": "voice"
 #   }
 # }
-# 环境变量兜底：TTS_PROVIDER / TTS_ENDPOINT（也读 OMNIVOICE_ENDPOINT，
-# 对齐参考项目）。
+# 环境变量兜底（优先级 CLI > spec > 环境 > 默认）：TTS_PROVIDER /
+# TTS_ENDPOINT（也读 OMNIVOICE_ENDPOINT，对齐参考项目）。
 
 import json
 import os
@@ -126,12 +126,16 @@ def main():
         sys.exit(1)
 
     tts = spec.get("tts", {})
-    provider = (args.provider or os.environ.get("TTS_PROVIDER")
-                or tts.get("provider")
+    # 优先级：CLI > spec > 环境变量 > 默认（spec 是文件契约，环境是
+    # 机器级兜底——环境压过 spec 会 surprises：全局 TTS_* 让该 spec 的
+    # provider 选择失效）。
+    provider = (args.provider or tts.get("provider")
+                or os.environ.get("TTS_PROVIDER")
                 or ("say" if sys.platform == "darwin" else "http"))
-    endpoint = (args.endpoint or os.environ.get("TTS_ENDPOINT")
+    endpoint = (args.endpoint or tts.get("endpoint")
+                or os.environ.get("TTS_ENDPOINT")
                 or os.environ.get("OMNIVOICE_ENDPOINT")
-                or tts.get("endpoint") or "http://127.0.0.1:8123/tts")
+                or "http://127.0.0.1:8123/tts")
     voice = args.voice if args.voice is not None else tts.get("voice")
     rate = args.rate if args.rate is not None else tts.get("rate")
     out_dir = args.out_dir or tts.get("out_dir") or "voice"

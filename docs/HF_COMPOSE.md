@@ -124,10 +124,17 @@ BGM（默认 0.6 音量）衬在旁白之下。
 }
 ```
 
-CLI `--provider/--voice/--rate/--endpoint/--out-dir` 覆盖 spec；环境变量
-`TTS_PROVIDER` / `TTS_ENDPOINT`（兼容 `OMNIVOICE_ENDPOINT）兜底。幂等：
-产物已存在且 ffprobe 可探测则跳过，重复执行安全；无 `text` 或已有
-`narration` 的场景跳过（保留既有旁白）。默认输出 `<stem>.narrated.json`。
+CLI `--provider/--voice/--rate/--endpoint/--out-dir` 覆盖 spec；优先级
+CLI > spec > 环境变量（`TTS_PROVIDER` / `TTS_ENDPOINT`，兼容
+`OMNIVOICE_ENDPOINT）> 默认。幂等：产物已存在且 ffprobe 可探测则跳过，
+重复执行安全；可朗读文本 = `text` 优先，缺失时按类型聚合专有字段
+（stats 取 value/description，quote 取 quote/author，list 取 items，
+comparison 取列标题）；已有 `narration` 的场景跳过（保留既有旁白）。
+默认输出 `<stem>.narrated.json`。
+
+测试样例与冒烟：`tests/testdata/tts/`（固定旁白 wav + spec）+
+`tests/unit/hf_tts_smoke.py`（本地 HTTP mock 充当 TTS 服务，不依赖
+say/网络）——`ctest -R hf_tts_smoke`。
 
 ## Spec Schema
 

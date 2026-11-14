@@ -1,0 +1,12 @@
+{
+  "composition": {"id": "tts-smoke", "fps": 30},
+  "background": "#0a0a1a",
+  "scenes": [
+    {"type": "title", "text": "冒烟测试标题",
+     "bg": "#1a1a2e", "animation": "fade_in_up"},
+    {"type": "stats", "value": "1026", "description": "类型聚合旁白",
+     "bg": "#16213e", "animation": "scale_in"},
+    {"type": "outro", "text": "谢谢观看",
+     "bg": "#0f3460", "duration": 2}
+  ]
+}
