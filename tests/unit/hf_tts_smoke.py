@@ -98,6 +98,16 @@ def main():
         html = open(html_path, encoding="utf-8").read()
         assert html.startswith("<!DOCTYPE html>\n"
                                "<!-- xmedia-kit hf_compose"), "生成器注释缺失"
+        assert "| schema:1.0" in html, "schema 版本锚点缺失"
+        # schema 版本门：未知版本拒绝
+        bad = os.path.join(tmp, "bad.json")
+        json.dump({**spec, "schema_version": "9.9"},
+                  open(bad, "w", encoding="utf-8"), ensure_ascii=False)
+        p = subprocess.run([sys.executable,
+                            os.path.join(TOOLS, "hf_compose.py"), bad],
+                           capture_output=True, text=True)
+        assert p.returncode == 1 and "不受支持" in p.stderr, \
+            f"坏版本未被拒绝：{p.returncode} {p.stderr[-200:]}"
         # 3 旁白 + 3 SFX（SFX 目录解析兜底到仓库 assets/sfx；类型默认
         # whoosh/success/ding）
         assert html.count("<audio") == 6, f"SFX+旁白 <audio> 数量不符"

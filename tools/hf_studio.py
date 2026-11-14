@@ -158,6 +158,18 @@ def build_chrome(total_s, scenes):
     }} else if (typeof window.seek === "function") {{
       try {{ window.seek(sec * 1000); }} catch (e) {{}}
     }}
+    // 视频元素同步到时间轴位置（scrub 精确；播放态逐帧 seek）。
+    try {{
+      var vids = document.querySelectorAll("video");
+      for (var vi = 0; vi < vids.length; vi++) {{
+        var v = vids[vi];
+        var vs = parseFloat(v.getAttribute("data-start") || "0");
+        var local = Math.max(0, sec - vs);
+        if (Math.abs(v.currentTime - local) > 0.05) {{
+          v.currentTime = local;
+        }}
+      }}
+    }} catch (e) {{}}
     bar.value = TOTAL > 0 ? Math.round(sec / TOTAL * 1000) : 0;
     label.textContent = sec.toFixed(1) + " / " + TOTAL.toFixed(1) + "s";
     // Studio 服务模式：把播放时间回报给父页（多轨时间轴播放头联动）。
@@ -907,7 +919,7 @@ def make_handler(server_ref):
                     self._json({"job": srv._start_bake()})
                 else:
                     self._json({"error": "unknown endpoint"}, 404)
-            except (RuntimeError, OSError, KeyError) as e:
+            except (RuntimeError, ValueError, OSError, KeyError) as e:
                 self._json({"error": str(e)}, 400)
 
         def _serve_asset(self, path):

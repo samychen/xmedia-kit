@@ -182,6 +182,7 @@ say/网络）——`ctest -R hf_tts_smoke`。
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | id | string | `"main"` | 合成 ID（__timelines 注册键）|
+| schema_version | string | `"1.0"` | spec 契约版本；与本构建支持版本不符时 compose 拒绝并提示（产物注释含 schema 锚点）|
 | width / height | int | 1920 / 1080 | 画布尺寸（像素）|
 | format | string | — | 画幅快捷预设：`16:9` / `9:16` / `1:1` / `4:5`，设置后覆盖 width/height |
 | fps | int | 30 | 帧率 |

@@ -48,6 +48,7 @@ ANIMATIONS = {
 }
 
 DEFAULT_ANIMATION = "fade_in"
+SUPPORTED_SCHEMA = "1.0"  # spec schema_version；不匹配 → 拒绝并提示
 SUPPORTED_TYPES = ("title", "text", "outro",
                    "quote", "list", "stats", "comparison")
 
@@ -306,6 +307,11 @@ def _load_gsap():
 
 
 def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
+    ver = str(spec.get("schema_version", SUPPORTED_SCHEMA))
+    if ver != SUPPORTED_SCHEMA:
+        raise ValueError(
+            f"spec schema_version {ver} 不受支持（本构建支持 "
+            f"{SUPPORTED_SCHEMA}）——升级 xmedia-kit 或修正 schema_version")
     """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。
     确定性：同输入同输出。spec_sha 为来源锚点（canonical JSON 的
     sha256），写进 HTML 头部生成器注释供产物验源。"""
@@ -427,7 +433,8 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     # 产物来源锚点：HTML 头部生成器注释（spec sha256 由 main 传入；
     # html_bake 再把 HTML sha256 写进 MP4 容器 metadata——MP4 → HTML →
     # spec 逐级验源）。
-    provenance = f"<!-- xmedia-kit hf_compose | scenes={len(scenes)}"
+    provenance = (f"<!-- xmedia-kit hf_compose | scenes={len(scenes)}"
+                  f" | schema:{ver}")
     if spec_name:
         provenance += f" | spec:{spec_name}"
     if spec_sha:
@@ -562,8 +569,12 @@ def main():
     spec_sha = hashlib.sha256(
         json.dumps(spec, sort_keys=True, ensure_ascii=False).encode(
             "utf-8")).hexdigest()
-    html = compose(spec, spec_sha=spec_sha, no_sfx=args.no_sfx,
-                   spec_name=os.path.basename(args.spec))
+    try:
+        html = compose(spec, spec_sha=spec_sha, no_sfx=args.no_sfx,
+                       spec_name=os.path.basename(args.spec))
+    except ValueError as e:
+        print(f"hf_compose: {e}", file=sys.stderr)
+        sys.exit(1)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(html)
