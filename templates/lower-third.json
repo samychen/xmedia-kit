@@ -1,0 +1,8 @@
+{
+  "name": "lower-third",
+  "description": "底部人名条：标题 + 副行，适合人物/产品介绍场景",
+  "slots": ["title", "subtitle"],
+  "css": "#tpl-lower-third { position: absolute; left: 8%; right: 8%; bottom: 12%; text-align: left; background: rgba(0, 0, 0, 0.55); border-left: 6px solid #6d8bff; padding: 28px 36px; border-radius: 10px; } #tpl-lower-third .lt-title { font-size: 64px; font-weight: 700; color: #ffffff; } #tpl-lower-third .lt-sub { font-size: 30px; color: #c8d4ff; margin-top: 10px; }",
+  "body": "<div class=\"lt-title\">{{title}}</div><div class=\"lt-sub\">{{subtitle}}</div>",
+  "sfx": "whoosh"
+}

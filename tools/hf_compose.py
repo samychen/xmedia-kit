@@ -52,6 +52,56 @@ SUPPORTED_SCHEMA = "1.0"  # spec schema_version；不匹配 → 拒绝并提示
 SUPPORTED_TYPES = ("title", "text", "outro",
                    "quote", "list", "stats", "comparison")
 
+# 自定义模板协议（对齐参考项目 slots 模式）：templates 目录（spec 目录
+# 优先、内置 templates/ 兜底）下的 <name>.json = {name, description,
+# slots, css, body, sfx}——body 的 {{slot}} 由场景字段替换。扫描在每次
+# compose 时执行（新模板热加载）。
+SLOT_RE = re.compile(r"\{\{(\w+)\}\}")
+
+
+def load_custom_templates(spec_dir):
+    """扫描模板目录 → {name: def}。spec_dir/templates 优先（用户覆盖），
+    内置 templates/ 兜底；同名先到先得。"""
+    registry = {}
+    dirs = []
+    builtin_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "templates")
+    for d in (os.path.join(spec_dir or ".", "templates"), builtin_dir):
+        if os.path.isdir(d) and d not in dirs:
+            dirs.append(d)
+    for d in dirs:
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(d, fn), "r", encoding="utf-8") as f:
+                    defn = json.load(f)
+                name = defn.get("name")
+                if name and defn.get("body") and name not in registry:
+                    defn["_dir"] = d
+                    registry[name] = defn
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"hf_compose: 模板 {fn} 解析失败跳过：{e}",
+                      file=sys.stderr)
+    return registry
+
+
+def render_custom_template(defn, scene, idx):
+    """自定义模板场景渲染：{{slot}} ← 场景同名字段（esc 转义，缺失
+    置空）；返回 (inner_html, css 或 None)。"""
+    body = defn.get("body", "")
+
+    def sub(m):
+        slot = m.group(1)
+        val = scene.get(slot)
+        return esc(str(val)) if val is not None else ""
+
+    body = SLOT_RE.sub(sub, body)
+    inner = f'  <div class="tpl-{defn.get("name", "custom")}" data-tpl="{defn.get("name", "")}">\n{body}\n  </div>\n'
+    css = defn.get("css") or None
+    return inner, css
+
 # 9:16 竖屏快捷预设（AI-auto-generate-video 对齐）。
 FORMAT_PRESETS = {
     "16:9":  (1920, 1080),
@@ -159,11 +209,29 @@ def tts_text(scene):
     return "。".join(parts)
 
 
-def gen_scene_html(scene, start_sec, idx, caption=None):
-    """单场景 → clip div HTML 片段。"""
+def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
+                   css_out=None):
+    """单场景 → clip div HTML 片段。自定义模板类型（registry 命中）
+    走 {{slot}} 渲染路径，其 css 经 css_out 回传进 style 块。"""
     typ = scene.get("type", "text")
+    if registry and typ in registry:
+        dur = _fit_scene_duration(scene, 3.0)
+        inner, css = render_custom_template(registry[typ], scene, idx)
+        if css and css_out is not None:
+            css_out.append(css)
+        caption_html = ""
+        if caption:
+            caption_html = (f'  <div class="scene-caption">'
+                            f'{esc(caption)}</div>\n')
+        html = f'''  <div id="scene-{idx}" class="clip scene scene-custom"
+       data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
+       data-bg="transparent">
+{inner}{caption_html}  </div>
+'''
+        return html, dur
     if typ not in SUPPORTED_TYPES:
-        raise ValueError(f"scene[{idx}] 未知类型 '{typ}'（支持: {SUPPORTED_TYPES}）")
+        raise ValueError(f"scene[{idx}] 未知类型 '{typ}'（支持: {SUPPORTED_TYPES}"
+                         f" + 自定义模板目录）")
     text = esc(scene.get("text", ""))
     subtitle = esc(scene.get("subtitle", ""))
     dur = _fit_scene_duration(scene, 3.0)
@@ -345,6 +413,8 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     durs = []
     trans = []
     start = 0.0
+    registry = load_custom_templates(_spec_dir)
+    tpl_css = []
     for idx, scene in enumerate(scenes):
         ttype = (str(scene.get("transition") or trans_default) or "none")
         if ttype not in ("fade", "slide-left", "slide-right", "wipe", "none"):
@@ -359,7 +429,8 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
             cap_text = tts_text(scene)
             if cap_text:
                 caption = cap_text
-        html, dur = gen_scene_html(scene, start, idx, caption=caption)
+        html, dur = gen_scene_html(scene, start, idx, caption=caption,
+                                   registry=registry, css_out=tpl_css)
         scene_html_parts.append(html)
         durs.append(dur)
         trans.append(ttype)
@@ -457,6 +528,8 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
             f'  #scene-{idx} {{ background: {bg_style}; color: {color}; }}')
 
     style_block = "\n".join(scene_styles)
+    if tpl_css:
+        style_block += "\n" + "\n".join(tpl_css)
 
     html = f'''<!DOCTYPE html>
 {provenance}

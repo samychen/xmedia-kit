@@ -99,6 +99,28 @@ def main():
         assert html.startswith("<!DOCTYPE html>\n"
                                "<!-- xmedia-kit hf_compose"), "生成器注释缺失"
         assert "| schema:1.0" in html, "schema 版本锚点缺失"
+        # 自定义模板协议：spec_dir/templates/<name>.json 注册 → 场景命中
+        tpl_dir = os.path.join(tmp, "templates")
+        os.makedirs(tpl_dir, exist_ok=True)
+        with open(os.path.join(tpl_dir, "badge.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"name": "badge",
+                       "slots": ["title"],
+                       "css": ".tpl-badge { color: #ffcc00; }",
+                       "body": "<b class=\"tpl-badge\">{{title}}</b>"},
+                      f, ensure_ascii=False)
+        spec["scenes"].append({"type": "badge", "title": "徽标场景",
+                               "duration": 1})
+        spec_with_tpl = os.path.join(tmp, "with_tpl.json")
+        json.dump(spec, open(spec_with_tpl, "w", encoding="utf-8"),
+                  ensure_ascii=False)
+        run_tool([os.path.join(TOOLS, "hf_compose.py"), spec_with_tpl,
+                  "-o", os.path.join(tmp, "with_tpl.html")])
+        tpl_html = open(os.path.join(tmp, "with_tpl.html"),
+                        encoding="utf-8").read()
+        assert "tpl-badge" in tpl_html and "徽标场景" in tpl_html, \
+            "自定义模板未命中"
+        assert '.tpl-badge { color: #ffcc00; }' in tpl_html, "模板 CSS 未注入"
         # schema 版本门：未知版本拒绝
         bad = os.path.join(tmp, "bad.json")
         json.dump({**spec, "schema_version": "9.9"},
