@@ -34,8 +34,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits.h>  // PATH_MAX
 #include <string>
 #include <thread>
+#include <unistd.h>  // getcwd
 #include <vector>
 
 #include "base/logging.h"
@@ -160,6 +162,21 @@ Args ParseArgs(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--lottie-loop") == 0) {
       a.lottie_loop = std::atoi(v.c_str());
       ++i;
+    } else {
+      // 未知参数显式告警（如 --hight 拼写错——静默忽略会让画布落到默认值）。
+      std::fprintf(stderr, "html_bake: unknown argument '%s' (ignored)\n",
+                   argv[i]);
+    }
+  }
+  // 相对 --url → file:// 绝对 URL：CEF 需要完整 URL 才能加载，且页面内
+  // 相对子资源（音频等）按 URL 目录解析——裸相对路径整页黑。
+  if (!a.url.empty() && !a.url.starts_with("http://") &&
+      !a.url.starts_with("https://") && !a.url.starts_with("file://")) {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+      const std::string path =
+          a.url[0] == '/' ? a.url : std::string(cwd) + "/" + a.url;
+      a.url = "file://" + path;
     }
   }
   return a;

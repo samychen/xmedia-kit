@@ -64,9 +64,9 @@ endif()
 # （见上方 headless / play_* 等）。
 add_subdirectory(base)
 
-# HTML → 视频离线烘焙（HyperFrames html_bake 对齐）：CEF OSR VT bake 时钟
-# → GlElementComposer 元素拆纹理 → GlScene 合成 → 读回 → 编码封装。CEF 子
-# 进程契约：macOS 上 POST_BUILD 组装 .app bundle（共享函数），ctest 从
+# HTML → 视频离线烘焙（对齐 heygen-com/hyperframes 同名工具）：CEF OSR VT
+# bake 时钟 → GlElementComposer 元素拆纹理 → GlScene 合成 → 读回 → 编码封装。
+# CEF 子进程契约：macOS 上 POST_BUILD 组装 .app bundle（共享函数），ctest 从
 # bundle 内启动。
 if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
   add_executable(html_bake html_bake.cc)
@@ -74,6 +74,14 @@ if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
       xmedia::platform_glfw xmedia::cef xmedia::transcode
       $<$<BOOL:${XMEDIA_HAS_LOTTIE}>:xmedia::lottie>)
   target_include_directories(html_bake SYSTEM PRIVATE ${FFmpeg_INCLUDE_DIRS})
+  if(APPLE)
+    # __RESTRICT 段：dyld 对 restricted 进程忽略 DYLD_* 环境变量。本机其他
+    # 项目（同名 libavformat.61.dylib 的旧构建）的全局 DYLD_LIBRARY_PATH
+    # 会按叶子文件名遮蔽自建 FFmpeg（符号缺失直接 abort）——本二进制以
+    # 绝对安装名链接 tools/build/lib，靠 __RESTRICT 免疫外部 DYLD 设置。
+    target_link_options(html_bake PRIVATE
+        "-Wl,-sectcreate,__RESTRICT,__restrict,/dev/null")
+  endif()
   xmedia_configure_target(html_bake)
   xmedia_assemble_cef_app(html_bake)
 endif()
