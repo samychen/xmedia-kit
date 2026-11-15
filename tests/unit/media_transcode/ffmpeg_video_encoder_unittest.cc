@@ -401,8 +401,10 @@ TEST(VideoEncoderAlphaTest, Vp9AlphaRoundTripsThroughYuva420p) {
     const int expected_alpha = (i == 0) ? 255 : 0;
     EXPECT_NEAR(frames[i]->data[3][0], expected_alpha, 8)
         << "frame " << i << " alpha plane corner";
-    EXPECT_NEAR(frames[i]->data[3][static_cast<size_t>(frames[i]->linesize[3]) * 16 + 16],
-                expected_alpha, 8)
+    EXPECT_NEAR(
+        frames[i]->data[3][static_cast<size_t>(frames[i]->linesize[3]) * 16 +
+                           16],
+        expected_alpha, 8)
         << "frame " << i << " alpha plane centre";
     av_frame_free(&frames[i]);
   }

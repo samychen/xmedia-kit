@@ -193,7 +193,8 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   // the fragment program (RGB passthrough vs YUV conversion) at draw time,
   // because a scene can hold both -- the HTML path publishes kARGB while the
   // video path stays planar YUV.
-  bool is_rgb() const { return texture_source_ ? texture_source_->is_rgb_ : is_rgb_; }
+  bool is_rgb() const {
+    return texture_source_ ? texture_source_->is_rgb_ : is_rgb_; }
 
   // ---- 纹理别名（元素拆纹理的 N 元素 1 份纹理优化） ----------------------
   //
@@ -220,12 +221,15 @@ class XMEDIA_MEDIA_EXPORT GlVideoLayer {
   // True once a frame has been uploaded. Bind() on a layer that has none would
   // sample uninitialised textures, so callers check this rather than assuming.
   // 纹理视图跟随 source 的就绪态（视图从不自己 Upload）。
-  bool ready() const { return texture_source_ ? texture_source_->ready_ : ready_; }
+  bool ready() const {
+    return texture_source_ ? texture_source_->ready_ : ready_; }
 
   // Coded size of the last uploaded frame; zero before the first upload and
   // after a failed one. 视图跟随 source。
-  int width() const { return texture_source_ ? texture_source_->width_ : width_; }
-  int height() const { return texture_source_ ? texture_source_->height_ : height_; }
+  int width() const {
+    return texture_source_ ? texture_source_->width_ : width_; }
+  int height() const {
+    return texture_source_ ? texture_source_->height_ : height_; }
 
   // The shape the picture is meant to be SEEN at: its natural size with the
   // container's display rotation applied (a quarter turn swaps the axes) and

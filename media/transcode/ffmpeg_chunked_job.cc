@@ -137,7 +137,8 @@ Status ChunkedTranscode(const ChunkedTranscodeParams& params,
     for (const auto& path : chunk_paths) {
       std::remove(path.c_str());
     }
-    LOG(ERROR) << "chunked transcode: " << what << ": " << st.error().ToString();
+    LOG(ERROR) << "chunked transcode: " << what << ": "
+               << st.error().ToString();
     return st;
   };
 

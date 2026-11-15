@@ -91,7 +91,8 @@ std::string MakeSeekScript(int64_t t_ms) {
              "  if (!window.__mcRectsCollector) { return; }\n"
              "  if (window.__timelines || window.__hf) {\n"
              "    var tt = t / 1000;\n"
-             "    if (window.__hf && typeof window.__hf.seek === 'function') {\n"
+             "    if (window.__hf &&\n"
+             "        typeof window.__hf.seek === 'function') {\n"
              "      try { window.__hf.seek(tt); } catch (e) {}\n"
              "    }\n"
              "    try {\n"
@@ -119,7 +120,8 @@ std::string MakeSeekScript(int64_t t_ms) {
              "    try {\n"
              "      var vids = document.querySelectorAll('video');\n"
              "      var tsv = (window.__timelines &&\n"
-             "                 Object.keys(window.__timelines).length) ? 1000 : 1;\n"
+             "                 Object.keys(window.__timelines)\n"
+             "                     .length) ? 1000 : 1;\n"
              "      for (var vi = 0; vi < vids.length; vi++) {\n"
              "        var v = vids[vi];\n"
              "        var vs = v.getAttribute('data-start');\n"
@@ -170,7 +172,8 @@ std::string MakeSeekScript(int64_t t_ms) {
              "      if (typeof window.__hfWaitForSeekCompletion ===\n"
              "          'function') {\n"
              "        Promise.all([Promise.resolve(\n"
-             "window.__hfWaitForSeekCompletion()), videoDone]).then(done, done);\n"
+             "          window.__hfWaitForSeekCompletion()),\n"
+             "          videoDone]).then(done, done);\n"
              "      } else { videoDone.then(done, done); }\n"
              "    }\n"
              "    return;\n"
@@ -251,7 +254,8 @@ std::string MakeRectsScript() {
         var ms = num(el.getAttribute('data-media-start'));
         if (ms !== null) { o.media_start = Math.max(0, Math.round(ms * TS)); }
         var ps = num(el.getAttribute('data-playback-start'));
-        if (ps !== null) { o.playback_start = Math.max(0, Math.round(ps * TS)); }
+        if (ps !== null) {
+          o.playback_start = Math.max(0, Math.round(ps * TS)); }
         var pr = num(el.getAttribute('data-playback-rate'));
         if (pr !== null) { o.playback_rate = pr; }
         var lsrc = el.getAttribute('data-lottie-src');

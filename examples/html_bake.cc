@@ -52,13 +52,9 @@
 #endif
 #include "media/cef/cef_runtime.h"
 #include "media/ffmpeg/av_includes.h"
-// 产物来源锚点：HTML sha256（FFmpeg 7 由 av_hash.h 更名）。此构建的
-// hash.h 无 C++ 守卫，手工包 extern "C"。
-extern "C" {
-#include <libavutil/hash.h>
-}
+#include "media/ffmpeg/av_hash_hex.h"  // 产物来源锚点：HTML sha256
 #include "media/ffmpeg/compat.h"
-#include "video_element_source.h"  // 视频元素原生解码（T2 视频素材元素）
+#include "media/transcode/video_element_source.h"  // 视频元素原生解码
 #include "media/ffmpeg/video_convert.h"
 #include "media/gl/gl_element_composer.h"
 #include "media/gl/gl_present.h"
@@ -402,7 +398,8 @@ int main(int argc, char** argv) {
     lp.path = args.lottie_path;
     lp.speed = args.lottie_speed;
     lp.loop = args.lottie_loop != 0;
-    lottie_anim = lottie::LottieAnimation::Open(lp, std::max(drawable_w, drawable_h));
+    lottie_anim = lottie::LottieAnimation::Open(
+        lp, std::max(drawable_w, drawable_h));
     if (lottie_anim) {
       lottie_layer = scene->AddVideoLayer(args.lottie_z);
       // Lottie 铺满内容矩形（与元素拆纹理同一内容映射）。
@@ -582,22 +579,7 @@ int main(int argc, char** argv) {
           content.append(buf, n);
         }
         std::fclose(hf);
-        AVHashContext* hash = nullptr;
-        if (av_hash_alloc(&hash, "SHA256") >= 0) {
-          av_hash_init(hash);
-          av_hash_update(hash,
-                         reinterpret_cast<const uint8_t*>(content.data()),
-                         content.size());
-          const int digest_size = av_hash_get_size(hash);
-          uint8_t digest[AV_HASH_MAX_SIZE];
-          av_hash_final(hash, digest);
-          char hex[AV_HASH_MAX_SIZE * 2 + 1] = {0};
-          for (int b = 0; b < digest_size; ++b) {
-            std::snprintf(hex + b * 2, 3, "%02x", digest[b]);
-          }
-          provenance += " | html sha256:" + std::string(hex);
-          av_hash_freep(&hash);
-        }
+        provenance += " | html sha256:" + ff::Sha256Hex(content);
       }
     }
   }
@@ -765,7 +747,8 @@ int main(int argc, char** argv) {
     {
       const size_t row_bytes = static_cast<size_t>(drawable_w) * 4;
       std::vector<uint8_t> tmp(row_bytes);
-      for (int top = 0, bottom = drawable_h - 1; top < bottom; ++top, --bottom) {
+      for (int top = 0, bottom = drawable_h - 1; top < bottom;
+           ++top, --bottom) {
         uint8_t* a = bgra.data() + static_cast<size_t>(top) * row_bytes;
         uint8_t* b = bgra.data() + static_cast<size_t>(bottom) * row_bytes;
         std::memcpy(tmp.data(), a, row_bytes);

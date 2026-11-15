@@ -113,7 +113,8 @@ bool CefPlatformLoadFramework(const std::string& framework_dir) {
     // already loaded (g_libcef_handle set), so a host that pre-loaded CEF
     // before starting a layer would be misread as a load failure. Probe with
     // RTLD_NOLOAD first — a non-null handle means the framework is resident.
-    void* resident = dlopen(lib_path.c_str(), RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+    void* resident = dlopen(lib_path.c_str(), RTLD_LAZY | RTLD_LOCAL |
+                             RTLD_NOLOAD);
     if (resident != nullptr) {
       return true;
     }

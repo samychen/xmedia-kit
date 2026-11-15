@@ -147,7 +147,8 @@ struct CefLayerSource::Impl : public cef::HtmlBrowserListener {
       // 倍数如 1080/540 时 stride > w*4）。逐行拷贝，否则行漂移 = 对角
       // 剪切（1920/3840 宽恰好对齐掩盖了此 bug）。
       const size_t src_stride = static_cast<size_t>(w) * 4;
-      const size_t dst_stride = static_cast<size_t>(out->stride(VideoFrame::kYPlane));
+      const size_t dst_stride =
+          static_cast<size_t>(out->stride(VideoFrame::kYPlane));
       if (dst_stride == src_stride) {
         memcpy(span.data(), frame->bgra.data(), bytes);
       } else {
@@ -389,7 +390,8 @@ void CefLayerSource::ApplyTimeline(int64_t t_ms) {
         "window.__mcApplyTimeline ? window.__mcApplyTimeline(" +
             std::to_string(t_ms) + ") : (window.cefQuery && "
             "window.cefQuery({request:'mc.html.error:no_apply',"
-            "persistent:false,onSuccess:function(){},onFailure:function(){}}));");
+            "persistent:false,onSuccess:function(){},\n"
+            "onFailure:function(){}));");
   }
 }
 

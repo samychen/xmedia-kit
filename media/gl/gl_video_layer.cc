@@ -540,9 +540,8 @@ std::unique_ptr<gl::GlProgram> CreateLayerProgram(const gl::GlApi& gl,
 // the sampler contract differ, which is why the sampler units are set once
 // here instead of being inherited: uTexRgba is unit 0, and the YUV units the
 // YUV program binds are simply absent here.
-std::unique_ptr<gl::GlProgram> CreateRgbLayerProgram(const gl::GlApi& gl,
-                                                     const char* sampler_defines,
-                                                     std::string* error) {
+std::unique_ptr<gl::GlProgram> CreateRgbLayerProgram(
+    const gl::GlApi& gl, const char* sampler_defines, std::string* error) {
   const std::string prologue = gl::ShaderPrologue(gl);
   auto program = gl::GlProgram::Create(
       gl,

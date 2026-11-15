@@ -226,7 +226,8 @@ bool ParseFrameVerifyRecords(const std::string& json_text, int* grid_w,
     if (obj_end == std::string::npos) {
       break;
     }
-    const std::string item = json_text.substr(obj_start, obj_end - obj_start + 1);
+    const std::string item =
+        json_text.substr(obj_start, obj_end - obj_start + 1);
     pos = obj_end + 1;
 
     FrameVerifyRecord rec;

@@ -4,12 +4,6 @@
 
 #include "video_element_source.h"
 
-#include <libswscale/swscale.h>
-
-extern "C" {
-// 本构建的 libavutil/hash.h 无 C++ 守卫——同款处理前置（若将来引入）。
-}
-
 #include "base/logging.h"
 
 namespace xmedia {
@@ -88,7 +82,8 @@ bool VideoElementSource::DecodeNext(double until_sec) {
                        : last_pts_ + frame_dur_;
       // 换算 BGRA（首帧后建 sws）。
       if (!sws_) {
-        sws_ = sws_getContext(w_, h_, static_cast<AVPixelFormat>(frame_->format),
+        sws_ = sws_getContext(w_, h_,
+                              static_cast<AVPixelFormat>(frame_->format),
                               w_, h_, AV_PIX_FMT_BGRA, SWS_BILINEAR, nullptr,
                               nullptr, nullptr);
         if (!sws_) {
