@@ -61,6 +61,19 @@ struct HtmlElementRect {
   bool has_src = false;
   std::string src;                // src/data-src（音频或媒体文件）
   bool is_media = false;          // audio/video 标签
+  // 渲染态（非 data-* 声明，采集端逐帧采样）：元素的**有效**不透明度与
+  // 可见窗口。画面元素（video）在 CEF 里是 visibility:hidden 的，像素由
+  // 原生视频层供给；入场/转场动画只改场景容器的 opacity / clip-path，
+  // 因此原生层必须拿到这两个量才能跟着淡入淡出、擦除、滑出。
+  // opacity = 自身与祖先 opacity 的乘积（GSAP 的交叉淡入淡出就落在这里）；
+  // clip 是元素矩形与祖先 clip-path(inset) 的交集，由消费端再与画布求交。
+  bool has_opacity = false;
+  double opacity = 1.0;           // [0,1]
+  bool has_clip = false;
+  float clip_x = 0.f;             // 视图像素
+  float clip_y = 0.f;
+  float clip_w = 0.f;
+  float clip_h = 0.f;
   bool has_volume = false;
   double volume = 1.0;            // data-volume（1 = 0dB，0 = 静音，>1 增益）
   bool has_fade_in = false;
@@ -110,6 +123,11 @@ struct HtmlElementMetaEntry {
   int z = 0;
   bool visible = false;
   float x = 0.f, y = 0.f, w = 0.f, h = 0.f;  // 最近一次矩形（视图像素）
+  // 渲染态：与矩形同样取最新快照（动画逐帧变，不能粘滞）。
+  bool has_opacity = false;
+  double opacity = 1.0;
+  bool has_clip = false;
+  float clip_x = 0.f, clip_y = 0.f, clip_w = 0.f, clip_h = 0.f;
   // HyperFrames 原版词汇（同 HtmlElementRect，粘滞语义同 has_z）。
   bool has_end = false;
   int64_t end_ms = 0;

@@ -42,3 +42,20 @@ Testing/
 # 时是空文件）。它是生成器的副产物，不是源码；漏进索引会让每次跑 apidocs 都脏。
 doxygen-warnings.log
 .box-agent*
+
+# 生成产物：Studio / xmedia render 的输出目录。1GB+ 的中间素材与成片
+# 可由 spec 一条命令重建（python3 tools/xmedia.py render ...），入库只会
+# 让 clone 变慢、diff 变脏。gallery/ 只保留 README 与可直接运行的 spec。
+demo-output/
+tmp-*/
+gallery/*.mp4
+gallery/*.html
+gallery/*.html_elements.json
+gallery/*.narrated.json
+gallery/*.script.txt
+gallery/*.voice.*
+gallery/*.png
+gallery/voice/
+
+# WorkBuddy 的项目记忆与会话数据（本地工作状态，不是源码）
+.workbuddy/

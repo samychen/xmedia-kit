@@ -227,12 +227,64 @@ std::string MakeRectsScript() {
     try {
       var els = document.querySelectorAll(SEL);
       var out = [];
+      // 有效不透明度 = 自身与祖先 opacity 的乘积。入场 / 转场动画只改
+      // 场景容器的 opacity，画面元素（video）自身是隐藏的（像素由原生
+      // 视频层供给），所以原生层只能靠这个乘积决定自己的 alpha。
+      function effOpacity(el) {
+        var o = 1;
+        for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+          var v = parseFloat(getComputedStyle(n).opacity);
+          if (isFinite(v)) { o *= v; }
+          if (o <= 0.0005) { return 0; }
+        }
+        return Math.max(0, Math.min(1, o));
+      }
+      // 祖先 clip-path(inset) 与元素矩形的交集。wipe 转场就是给进入侧
+      // 场景挂 inset()，原生视频层不裁就会「擦除没反应」。
+      function effClip(el, r) {
+        var x = r.left, y = r.top;
+        var x1 = r.left + r.width, y1 = r.top + r.height;
+        for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+          var cp = '';
+          try { cp = getComputedStyle(n).clipPath || ''; } catch (e) { continue; }
+          if (!cp || cp === 'none') { continue; }
+          var m = /^inset\(([^)]*)\)/.exec(cp);
+          if (!m) { continue; }
+          var parts = m[1].trim().split(/\s+/);
+          var vals = [];
+          for (var k = 0; k < parts.length && k < 4; k++) {
+            var s = parts[k];
+            var nv = parseFloat(s);
+            if (!isFinite(nv)) { nv = 0; }
+            vals.push({v: nv, pct: s.indexOf('%') >= 0});
+          }
+          if (!vals.length) { continue; }
+          var t, rr, b, l;
+          if (vals.length === 1) { t = rr = b = l = vals[0]; }
+          else if (vals.length === 2) { t = b = vals[0]; rr = l = vals[1]; }
+          else if (vals.length === 3) { t = vals[0]; rr = l = vals[1]; b = vals[2]; }
+          else { t = vals[0]; rr = vals[1]; b = vals[2]; l = vals[3]; }
+          var nr = n.getBoundingClientRect();
+          var px = function (it, base) {
+            return it.pct ? base * it.v / 100 : it.v;
+          };
+          var nx0 = nr.left + px(l, nr.width);
+          var ny0 = nr.top + px(t, nr.height);
+          var nx1 = nr.right - px(rr, nr.width);
+          var ny1 = nr.bottom - px(b, nr.height);
+          x = Math.max(x, nx0); y = Math.max(y, ny0);
+          x1 = Math.min(x1, nx1); y1 = Math.min(y1, ny1);
+          if (x1 <= x || y1 <= y) { return {x: 0, y: 0, w: 0, h: 0}; }
+        }
+        return {x: x, y: y, w: x1 - x, h: y1 - y};
+      }
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
         var r = el.getBoundingClientRect();
+        var tag = (el.tagName || '').toLowerCase();
         var o = {
           id: el.getAttribute('data-mc-id') || el.id || '',
-          tag: (el.tagName || '').toLowerCase(),
+          tag: tag,
           x: Math.round(r.left * 100) / 100,
           y: Math.round(r.top * 100) / 100,
           w: Math.round(r.width * 100) / 100,
@@ -271,9 +323,16 @@ std::string MakeRectsScript() {
         // 音频/媒体链路（data-attributes.md Media 段）。
         var src = el.getAttribute('src') || el.getAttribute('data-src');
         if (src) { o.src = src; }
-        var tag = (el.tagName || '').toLowerCase();
         if (tag === 'audio' || tag === 'video') {
           o.is_media = true;
+          // 渲染态只对媒体元素采样：它是唯一由原生层（而非页面光栅）
+          // 出像素的消费者，其余元素的透明度已经烘进光栅里了。
+          o.opacity = effOpacity(el);
+          var cr = effClip(el, r);
+          o.clip_x = Math.round(cr.x * 100) / 100;
+          o.clip_y = Math.round(cr.y * 100) / 100;
+          o.clip_w = Math.round(cr.w * 100) / 100;
+          o.clip_h = Math.round(cr.h * 100) / 100;
         }
         var vol = num(el.getAttribute('data-volume'));
         if (vol !== null) { o.volume = vol; }

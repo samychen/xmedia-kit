@@ -118,6 +118,15 @@ void HtmlElementMetaTable::Merge(const HtmlRectsSnapshot& snap) {
     entry->y = el.y;
     entry->w = el.w;
     entry->h = el.h;
+    // 渲染态同理取最新：动画每帧变，粘滞会让原生视频层停在第一帧的
+    // 不透明度上（即「转场没反应」）。
+    entry->has_opacity = el.has_opacity;
+    entry->opacity = el.opacity;
+    entry->has_clip = el.has_clip;
+    entry->clip_x = el.clip_x;
+    entry->clip_y = el.clip_y;
+    entry->clip_w = el.clip_w;
+    entry->clip_h = el.clip_h;
     entry->last_t_ms = snap.t_ms;
     entry->samples++;
   }
@@ -334,6 +343,16 @@ std::string BuildElementsMetaJson(const HtmlElementMetaDoc& doc) {
     node += ",\"samples\":" + std::to_string(e->samples);
     node += ",\"visible\":";
     node += e->visible ? "true" : "false";
+    // 渲染态只在被采集到时才写：老页面没有 opacity/clip（恒 1 / 全矩形），
+    // 导出文本保持逐字节不变。
+    if (e->has_opacity) {
+      node += ",\"opacity\":" + Num(e->opacity);
+    }
+    if (e->has_clip) {
+      node += ",\"clip\":{\"x\":" + Num(e->clip_x) + ",\"y\":" +
+              Num(e->clip_y) + ",\"w\":" + Num(e->clip_w) + ",\"h\":" +
+              Num(e->clip_h) + "}";
+    }
     node += "}";
     arr += node;
   }

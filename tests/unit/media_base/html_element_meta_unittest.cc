@@ -255,6 +255,108 @@ TEST(HtmlElementGeometryTest, CanvasMapFlipsYAndScalesIndependently) {
 
 // ---- 导出 ----------------------------------------------------------------
 
+TEST(HtmlRectsPayloadTest, ParsesRenderStateForMediaElements) {
+  // 渲染态（逐帧采样）：有效不透明度 + 祖先 clip-path 交集矩形。原生
+  // 视频层靠这两个量跟着转场淡入淡出 / 擦除。
+  const std::string payload =
+      "{\"t_ms\":500,\"elements\":["
+      "{\"id\":\"v\",\"tag\":\"video\",\"x\":0,\"y\":0,\"w\":640,\"h\":360,"
+      "\"visible\":true,\"is_media\":true,\"opacity\":0.5,\"clip_x\":0,"
+      "\"clip_y\":0,\"clip_w\":320,\"clip_h\":360}]}";
+  HtmlRectsSnapshot snap;
+  ASSERT_TRUE(ParseHtmlRectsPayload(payload, &snap));
+  ASSERT_EQ(snap.elements.size(), 1u);
+  const HtmlElementRect& el = snap.elements[0];
+  EXPECT_TRUE(el.is_media);
+  EXPECT_TRUE(el.has_opacity);
+  EXPECT_DOUBLE_EQ(el.opacity, 0.5);
+  EXPECT_TRUE(el.has_clip);
+  EXPECT_FLOAT_EQ(el.clip_w, 320.f);
+  EXPECT_FLOAT_EQ(el.clip_h, 360.f);
+
+  // opacity 钳到 [0,1]；负的 clip 尺寸钳 0（越界值不该变成负矩形）。
+  const std::string clamped =
+      "{\"elements\":[{\"id\":\"v\",\"tag\":\"video\",\"x\":0,\"y\":0,"
+      "\"w\":10,\"h\":10,\"opacity\":3.5,\"clip_x\":0,\"clip_y\":0,"
+      "\"clip_w\":-4,\"clip_h\":10}]}";
+  HtmlRectsSnapshot snap2;
+  ASSERT_TRUE(ParseHtmlRectsPayload(clamped, &snap2));
+  ASSERT_EQ(snap2.elements.size(), 1u);
+  EXPECT_DOUBLE_EQ(snap2.elements[0].opacity, 1.0);
+  EXPECT_FLOAT_EQ(snap2.elements[0].clip_w, 0.f);
+}
+
+TEST(HtmlElementMetaTableTest, RenderStateTakesTheLatestSnapshot) {
+  // 转场是逐帧变的：opacity/clip 必须取最新快照，粘滞会让原生层停在
+  // 第一帧的不透明度上（成片里就是"转场没反应"）。
+  HtmlElementMetaTable table;
+  HtmlRectsSnapshot a;
+  a.t_ms = 0;
+  HtmlElementRect v = MakeRect("v", 0, 0, 100, 100);
+  v.has_opacity = true;
+  v.opacity = 1.0;
+  a.elements.push_back(v);
+  table.Merge(a);
+
+  HtmlRectsSnapshot b;
+  b.t_ms = 500;
+  v.has_opacity = true;
+  v.opacity = 0.25;
+  v.has_clip = true;
+  v.clip_x = 10;
+  v.clip_y = 0;
+  v.clip_w = 50;
+  v.clip_h = 100;
+  b.elements.push_back(v);
+  table.Merge(b);
+
+  ASSERT_EQ(table.entries().size(), 1u);
+  const HtmlElementMetaEntry& e = table.entries()[0];
+  EXPECT_TRUE(e.has_opacity);
+  EXPECT_DOUBLE_EQ(e.opacity, 0.25);
+  EXPECT_TRUE(e.has_clip);
+  EXPECT_FLOAT_EQ(e.clip_x, 10.f);
+  EXPECT_FLOAT_EQ(e.clip_w, 50.f);
+}
+
+TEST(HtmlElementsMetaExportTest, WritesRenderStateOnlyWhenSampled) {
+  HtmlElementMetaTable table;
+  HtmlRectsSnapshot snap;
+  snap.t_ms = 0;
+  HtmlElementRect plain = MakeRect("plain", 0, 0, 10, 10);
+  HtmlElementRect faded = MakeRect("faded", 0, 0, 10, 10);
+  faded.has_opacity = true;
+  faded.opacity = 0.5;
+  faded.has_clip = true;
+  faded.clip_x = 1;
+  faded.clip_y = 2;
+  faded.clip_w = 3;
+  faded.clip_h = 4;
+  snap.elements.push_back(plain);
+  snap.elements.push_back(faded);
+  table.Merge(snap);
+
+  HtmlElementMetaDoc doc;
+  doc.html_url = "u";
+  doc.mode = "bake";
+  doc.bake_clock = "seek";
+  doc.view_width = 10;
+  doc.view_height = 10;
+  doc.report.entries = table.entries();
+  const std::string json = BuildElementsMetaJson(doc);
+  // 只对被采集到的元素写 opacity/clip：老页面（没有渲染态）导出文本不变。
+  EXPECT_NE(json.find("\"opacity\":0.50"), std::string::npos);
+  EXPECT_NE(json.find("\"clip\":{\"x\":1.00,\"y\":2.00,\"w\":3.00,\"h\":4.00}"),
+            std::string::npos);
+  const size_t plain_pos = json.find("\"id\":\"plain\"");
+  const size_t faded_pos = json.find("\"id\":\"faded\"");
+  ASSERT_NE(plain_pos, std::string::npos);
+  ASSERT_NE(faded_pos, std::string::npos);
+  EXPECT_LT(plain_pos, faded_pos);
+  EXPECT_EQ(json.substr(plain_pos, faded_pos - plain_pos).find("\"opacity\""),
+            std::string::npos);
+}
+
 TEST(HtmlElementsMetaExportTest, OrdersByZThenOrdinalAndEscapes) {
   HtmlElementMetaTable table;
   HtmlRectsSnapshot snap;

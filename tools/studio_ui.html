@@ -366,12 +366,49 @@
     font: 9.5px ui-monospace, Menlo, monospace; color: #fff;
     background: #b93b2c; padding: 1px 5px; border-radius: 3px;
     white-space: nowrap; }
+  /* ---------- 时间轴区间：选区外压暗、选区内原色 ---------- */
+  #tl-dim-l, #tl-dim-r { position: absolute; top: 26px; bottom: 0; z-index: 5;
+    background: rgba(3, 3, 8, .68); pointer-events: none; }
+  #tl-range-body { position: absolute; top: 26px; bottom: 0; z-index: 5;
+    pointer-events: none; background: rgba(140, 170, 255, .045);
+    border-left: 1px solid rgba(159, 192, 255, .85);
+    border-right: 1px solid rgba(159, 192, 255, .85);
+    box-shadow: inset 0 0 22px rgba(109, 139, 255, .13); }
+  #tl-range-ruler { position: absolute; top: 0; height: 26px; z-index: 6;
+    pointer-events: none; background: rgba(109, 139, 255, .2);
+    border-left: 1px solid rgba(159, 192, 255, .9);
+    border-right: 1px solid rgba(159, 192, 255, .9); }
+  .tl-ih { position: absolute; top: 0; bottom: 0; width: 12px; z-index: 7;
+    cursor: ew-resize; }
+  .tl-ih::before { content: ""; position: absolute; top: 0; bottom: 0;
+    left: 4px; width: 3px; border-radius: 2px; background: #9fc0ff;
+    box-shadow: 0 0 9px rgba(109, 139, 255, .75); }
+  .tl-ih::after { content: ""; position: absolute; top: 0; left: 0;
+    width: 11px; height: 13px; border-radius: 2px 2px 5px 5px;
+    background: #9fc0ff; }
+  .tl-ih:hover::before { background: #fff; }
+  .tl-ih:hover::after { background: #fff; }
+  .tl-ih .tc { position: absolute; top: 15px; font: 9px ui-monospace, Menlo,
+      monospace; color: #0d1122; background: #9fc0ff; padding: 0 4px;
+      border-radius: 3px; white-space: nowrap; }
+  .tl-ih.left .tc { left: 7px; }
+  .tl-ih.right .tc { right: 7px; }
+  #timeline.range-mode, #timeline.range-mode .tl-row .tl-lane {
+    cursor: cell; }
+  .tl-range-box { display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 4px; border-radius: 5px;
+    background: rgba(109, 139, 255, .16);
+    border: 1px solid rgba(109, 139, 255, .45); }
+  .tl-range-box[hidden] { display: none; }
+  .tl-range-box .tc { font-size: 10.5px; padding: 0 3px; background: none;
+    color: #cfd9ff; font-variant-numeric: tabular-nums; }
   #log { flex: none; height: 0; overflow: auto; padding: 0 14px;
          font: 11px/1.55 ui-monospace, Menlo, monospace; color: var(--dim);
          border-top: 0; white-space: pre-wrap; transition: height .15s; }
   #log.open { height: 88px; border-top: 1px solid var(--line); padding: 6px 14px; }
   #log .err { color: var(--err); }
   #log .ok { color: var(--ok); }
+  #log .warn { color: var(--warn); }
 
   /* ---------- Ask AI（自然语言 → spec → 热重组） ---------- */
   #ask-fab { position: fixed; right: 18px; bottom: 18px; z-index: 60;
@@ -521,7 +558,7 @@
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10.5v-8M5 5.5 8 2.5l3 3M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>导入素材</button>
   <button class="btn" id="btn-tts" title="对 spec 全场景生成旁白">生成旁白</button>
   <button class="btn acc" id="btn-recompose" title="Ctrl/Cmd + Enter">重组合成</button>
-  <button class="btn" id="btn-bake">烘焙 MP4</button>
+  <button class="btn" id="btn-bake" title="导出 MP4（尺寸 / 时长由 spec 自动推导）">导出 MP4</button>
   <span class="job" id="job"></span>
 </header>
 
@@ -641,6 +678,7 @@
             <option value="slide_in_left">slide_in_left</option>
             <option value="slide_in_right">slide_in_right</option>
             <option value="scale_in">scale_in</option>
+            <option value="none">none（硬切进入）</option>
           </select></div>
         </div>
         <div class="insp-section">
@@ -674,7 +712,7 @@
   <div class="dock-head">
     <span class="cap">时间轴</span>
     <span id="tlabel">00:00.00 · 帧 0/0</span>
-    <span class="hint">点选片段 · 拖右缘裁剪 · 拖动标尺定位 · Ctrl/⌘ + 滚轮缩放</span>
+    <span class="hint">点选片段 · 拖右缘裁剪 · S 切割 · Shift+拖拽框选区间 · I/O 打点 · ⌘+滚轮缩放</span>
     <span class="sp"></span>
     <button class="mini" id="btn-log">日志</button>
   </div>
@@ -693,6 +731,15 @@
     <button class="mini" id="tl-zoom-in" title="放大时间轴">+</button>
     <button class="mini" id="tl-zoom-sel" title="放大到所选片段（双击片段也可）">所选</button>
     <span class="zoom-label" id="tl-zoom-label">100%</span>
+    <span class="sep"></span>
+    <button class="mini" id="tl-split" title="在播放头处切开所选 / 所在片段（S）；视频片段的后半段从源内对应时刻继续">切割</button>
+    <button class="mini" id="tl-range-mode" title="区间选择：开启后可直接拖拽框选；也可 Shift + 拖拽，或按 I / O 在播放头打 in / out 点">区间</button>
+    <span class="tl-range-box" id="tl-range-box" hidden>
+      <span class="tc" id="tl-range-info">--</span>
+      <button class="mini" id="tl-range-play" title="从 in 点播放到 out 点">▶区间</button>
+      <button class="mini" id="tl-range-loop" title="循环播放所选区间">循环</button>
+      <button class="mini" id="tl-range-clear" title="清除区间（Esc）">✕</button>
+    </span>
     <span class="sp"></span>
     <span class="hint">5 轨 · 缩略图与波形按 spec 确定性生成</span>
   </div>
@@ -800,7 +847,7 @@
     <button data-msg="生成旁白">生成旁白</button>
     <button data-msg="自动字幕">ASR 字幕</button>
     <button data-open="import">导入素材</button>
-    <button data-msg="烘焙 MP4">烘焙</button>
+    <button data-msg="导出 MP4">导出</button>
   </div>
   <form id="ask-form">
     <input id="ask-input" autocomplete="off" spellcheck="false"
@@ -879,6 +926,9 @@ function phFrame(now) {
 }
 /* 时间轴：HEAD_W = 轨道头宽，tlPPS = 每秒像素（可缩放），tlSnap = 帧/边界吸附。 */
 var HEAD_W = 150, tlPPS = 60, tlFitPPS = 60, tlFitted = false, tlSnap = true;
+/* 区间选择（in / out）：tlRange = {a, b}（秒，a<b），tlRangeMode = 拖拽即框选，
+   rangeLoop = 到 out 点回卷到 in 点继续播。NLE 惯例：选区外压暗、选区内原色。 */
+var tlRange = null, tlRangeMode = false, rangeLoop = false;
 var $ = function (id) { return document.getElementById(id); };
 var fps = function () {
   return (state.spec && state.spec.composition &&
@@ -1244,7 +1294,14 @@ function renderInspector() {
   $("insp-trans").value = sc.transition || "";
   var fields = sceneFields(sc);
   curFields = fields;
-  $("insp-fields").innerHTML = fields.map(function (f) {
+  // 视频场景暴露「源内起点」：切割产出的 video_from 在这里看得见、改得动
+  // （改大 = 从素材更后面开始取画面/音轨）。
+  var fromRow = sc.video
+      ? '<div class="field"><span>源内起点</span><input id="insp-from" value="' +
+        (Number(sc.video_from) || 0).toFixed(2) +
+        '"' + (locked ? " disabled" : "") + '></div>'
+      : "";
+  $("insp-fields").innerHTML = fromRow + fields.map(function (f) {
     var v = sc[f[1]];
     var val = (f[1] === "content")
         ? (v || []).map(function (x) { return x.text || ""; }).join("\n")
@@ -1271,6 +1328,20 @@ function applyInspector() {
   sc.animation = $("insp-anim").value;
   var tr = $("insp-trans").value;
   if (tr) sc.transition = tr; else delete sc.transition;
+  if (tr && tr !== "none") {
+    // 转场要靠进入侧入场动画让位：animation 还是硬切的 none 时，新场景
+    // 瞬间盖满，前一场景的出场动画全被遮住（看回来还是硬切）。
+    // 窗宽由 hf_compose 决定（全局 transitions.duration 为 0 时，显式声明
+    // 的转场按 0.5s 处理），所以这里不用改 spec 的全局段。
+    if (sc.animation === "none") {
+      sc.animation = "fade_in";
+    }
+  }
+  if (sc.video && $("insp-from")) {
+    var vf = Math.max(0, parseFloat($("insp-from").value) || 0);
+    if (vf > 0) sc.video_from = Math.round(vf * 1000) / 1000;
+    else delete sc.video_from;
+  }
   for (var i = 0; i < curFields.length; i++) {
     var key = curFields[i][1], el = $("insp-f-" + key);
     if (!el) continue;
@@ -1291,6 +1362,24 @@ function applyInspector() {
   recompose();
 }
 $("insp-apply").onclick = applyInspector;
+/* 转场 / 入场动画改成「选完即生效」，不再要求再点一次「应用到场景」：
+   这两个下拉最常用来试转场，点完没反应会像是功能坏了（其它字段仍然
+   显式应用，避免输入中途反复重组）。 */
+$("insp-trans").onchange = function () {
+  if (selIdx < 0) return;
+  applyInspector();
+  // 同一素材的连续两段：fade 的两边是几乎相同的画面，混合前后亮度一样，
+  // 看起来就像「转场没反应」。这不是没生效，是素材本身没有差异。
+  if ($("insp-trans").value === "fade" && sameSourceSeam(selIdx)) {
+    log("提示：scene-" + (selIdx - 1) + " / scene-" + selIdx +
+        " 是同一素材的连续画面，fade 交叉淡化在画面上看不出变化；" +
+        "要可见效果请用 slide-left / slide-right / wipe", "warn");
+  }
+};
+$("insp-anim").onchange = function () {
+  if (selIdx < 0) return;
+  applyInspector();
+};
 $("insp-dup").onclick = function () {
   if (selIdx < 0 || !state.spec.scenes[selIdx]) return;
   var copy = JSON.parse(JSON.stringify(state.spec.scenes[selIdx]));
@@ -1407,21 +1496,26 @@ function paintThumbs(holder, frames) {
     holder.appendChild(im);
   }
 }
-function loadThumbsForClip(holder, videoPath) {
+/* 缩略图按片段自己的源内窗口取样：切割后的后段从 video_from 起抽帧，
+   否则前后两段缩略图一模一样，看不出刀口落在哪。 */
+function loadThumbsForClip(holder, videoPath, from, dur) {
   if (!videoPath) return;
-  if (thumbCache[videoPath]) {
-    paintThumbs(holder, thumbCache[videoPath]);
+  var f = Math.max(0, Number(from) || 0);
+  var d = Math.max(0, Number(dur) || 0);
+  var key = videoPath + "|" + f.toFixed(3) + "|" + d.toFixed(3);
+  if (thumbCache[key]) {
+    paintThumbs(holder, thumbCache[key]);
     return;
   }
   holder.classList.add("loading");
   fetch("/api/thumbs?path=" + encodeURIComponent(videoPath) +
-        "&n=10&w=480&h=270")
+        "&n=10&w=480&h=270&s=" + f.toFixed(3) + "&d=" + d.toFixed(3))
     .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d && d.frames && d.frames.length) {
-        thumbCache[videoPath] = d.frames;
+    .then(function (res) {
+      if (res && res.frames && res.frames.length) {
+        thumbCache[key] = res.frames;
         if (document.body.contains(holder)) {
-          paintThumbs(holder, d.frames);
+          paintThumbs(holder, res.frames);
         }
       } else {
         holder.classList.remove("loading");
@@ -1482,6 +1576,203 @@ function snapTime(t) {
     });
   });
   return Math.max(0, Math.min(state.duration, best));
+}
+
+/* ---------------- 时间轴区间（in / out） ----------------
+   NLE 惯例：选区外压暗、选区内保持原色；两端把手可拖，标尺上有一道高亮带。
+   选区只影响预览与播放范围，不改 spec —— 破坏性裁剪仍走单片段拖右缘。 */
+function tlTotal() { return Math.max(state.duration, 0.1); }
+function tlCw() { return Math.max(220, Math.round(tlTotal() * tlPPS)); }
+function rangeOpen() {
+  return !!tlRange && (tlRange.b - tlRange.a) >= 0.5 / fps();
+}
+function rangeTimeAt(ev) {
+  var rect = $("tl-grid").getBoundingClientRect();
+  return Math.max(0, Math.min(tlTotal(),
+    (ev.clientX - rect.left - HEAD_W) / tlPPS));
+}
+function rangeClamp(r) {
+  var total = tlTotal();
+  var a = Math.max(0, Math.min(total, Number(r.a) || 0));
+  var b = Math.max(0, Math.min(total, Number(r.b) || 0));
+  if (b < a) { var t = a; a = b; b = t; }
+  return { a: a, b: b };
+}
+function rangeLabel() {
+  if (!rangeOpen()) return "无选区";
+  var d = tlRange.b - tlRange.a;
+  return fmtTime(tlRange.a) + " – " + fmtTime(tlRange.b) + " · " +
+         d.toFixed(2) + "s · " + Math.round(d * fps()) + " 帧";
+}
+/* 覆盖层只在 renderTimeline 重排后重建一次；拖拽过程只改几何，不整块重绘
+   （重绘会重建全部片段与缩略图，拖动时必然掉帧）。 */
+function ensureRangeOverlay() {
+  var g = $("tl-grid");
+  if (!g) return;
+  var old = $("tl-dim-l");
+  if (old && old.parentNode === g) return;
+  function el(id, cls) {
+    var e = document.createElement("div");
+    if (id) e.id = id;
+    if (cls) e.className = cls;
+    return e;
+  }
+  g.appendChild(el("tl-dim-l"));
+  g.appendChild(el("tl-dim-r"));
+  g.appendChild(el("tl-range-body"));
+  g.appendChild(el("tl-range-ruler"));
+  var hl = el("", "tl-ih left"), hr = el("", "tl-ih right");
+  hl.appendChild(el("", "tc"));
+  hr.appendChild(el("", "tc"));
+  hl.onmousedown = function (ev) { dragRangeHandle(ev, "a"); };
+  hr.onmousedown = function (ev) { dragRangeHandle(ev, "b"); };
+  g.appendChild(hl);
+  g.appendChild(hr);
+}
+function applyRangeGeom() {
+  var g = $("tl-grid");
+  if (!g) return;
+  var hl = g.querySelector(".tl-ih.left");
+  var hr = g.querySelector(".tl-ih.right");
+  var parts = ["tl-dim-l", "tl-dim-r", "tl-range-body", "tl-range-ruler"];
+  var has = rangeOpen();
+  if (!has) {
+    parts.forEach(function (id) {
+      var e = $(id); if (e) e.style.display = "none";
+    });
+    if (hl) hl.style.display = "none";
+    if (hr) hr.style.display = "none";
+    return;
+  }
+  var cw = tlCw();
+  var x1 = HEAD_W + tlRange.a * tlPPS;
+  var x2 = HEAD_W + tlRange.b * tlPPS;
+  var w = Math.max(1, x2 - x1);
+  parts.forEach(function (id) {
+    var e = $(id); if (e) e.style.display = "";
+  });
+  var dl = $("tl-dim-l"), dr = $("tl-dim-r");
+  var body = $("tl-range-body"), band = $("tl-range-ruler");
+  if (dl) {
+    dl.style.left = HEAD_W + "px";
+    dl.style.width = Math.max(0, x1 - HEAD_W) + "px";
+  }
+  if (dr) {
+    dr.style.left = x2 + "px";
+    dr.style.width = Math.max(0, HEAD_W + cw - x2) + "px";
+  }
+  if (body) { body.style.left = x1 + "px"; body.style.width = w + "px"; }
+  if (band) { band.style.left = x1 + "px"; band.style.width = w + "px"; }
+  if (hl) {
+    hl.style.display = "";
+    hl.style.left = (x1 - 6) + "px";
+    hl.querySelector(".tc").textContent = fmtTime(tlRange.a);
+    hl.querySelector(".tc").style.display = w < 96 ? "none" : "";
+  }
+  if (hr) {
+    hr.style.display = "";
+    hr.style.left = (x2 - 6) + "px";
+    hr.querySelector(".tc").textContent = fmtTime(tlRange.b);
+    hr.querySelector(".tc").style.display = w < 96 ? "none" : "";
+  }
+}
+function syncRangeUI() {
+  var box = $("tl-range-box");
+  if (box) box.hidden = !rangeOpen();
+  var info = $("tl-range-info");
+  if (info) info.textContent = rangeLabel();
+  var lp = $("tl-range-loop");
+  if (lp) lp.classList.toggle("on", rangeLoop);
+  var md = $("tl-range-mode");
+  if (md) md.classList.toggle("on", tlRangeMode);
+  var tl = $("timeline");
+  if (tl) tl.classList.toggle("range-mode", tlRangeMode);
+}
+function pushRange() {
+  var w = $("pv").contentWindow;
+  if (!w) return;
+  var payload = rangeOpen()
+      ? { a: tlRange.a, b: tlRange.b, loop: rangeLoop } : null;
+  if (w.__mcStudioAPI && w.__mcStudioAPI.setRange) {
+    w.__mcStudioAPI.setRange(payload);
+  } else {
+    w.postMessage({ mcStudioCommand: "range", mcStudioValue: payload }, "*");
+  }
+}
+function setRange(a, b, quiet) {
+  tlRange = rangeClamp({ a: a, b: b });
+  if (!rangeOpen()) tlRange = null;
+  ensureRangeOverlay();
+  applyRangeGeom();
+  syncRangeUI();
+  pushRange();
+  if (!quiet && rangeOpen()) log("选区 " + rangeLabel());
+}
+function clearRange(quiet) {
+  if (!tlRange) return;
+  tlRange = null;
+  applyRangeGeom();
+  syncRangeUI();
+  pushRange();
+  if (!quiet) log("已清除选区");
+}
+function dragRangeHandle(ev, which) {
+  if (!rangeOpen()) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  var minGap = 1 / fps();
+  function mv(e2) {
+    var t = rangeTimeAt(e2);
+    if (tlSnap) t = snapTime(t);
+    var r = { a: tlRange.a, b: tlRange.b };
+    if (which === "a") r.a = Math.max(0, Math.min(t, r.b - minGap));
+    else r.b = Math.min(tlTotal(), Math.max(t, r.a + minGap));
+    tlRange = r;
+    applyRangeGeom();
+    syncRangeUI();
+  }
+  function up() {
+    document.removeEventListener("mousemove", mv);
+    document.removeEventListener("mouseup", up);
+    pushRange();
+    log("选区 " + rangeLabel());
+  }
+  document.addEventListener("mousemove", mv);
+  document.addEventListener("mouseup", up);
+}
+/* 从按下点拖出一个新区间；不足 1.5 帧视作单击定位。 */
+function startRangeDrag(ev) {
+  var t0 = rangeTimeAt(ev);
+  if (tlSnap) t0 = snapTime(t0);
+  var moved = false;
+  tlRange = { a: t0, b: t0 };
+  ensureRangeOverlay();
+  applyRangeGeom();
+  syncRangeUI();
+  function mv(e2) {
+    var t = rangeTimeAt(e2);
+    if (tlSnap) t = snapTime(t);
+    if (Math.abs(t - t0) > 1.5 / fps()) moved = true;
+    tlRange = rangeClamp({ a: t0, b: t });
+    applyRangeGeom();
+    syncRangeUI();
+  }
+  function up() {
+    document.removeEventListener("mousemove", mv);
+    document.removeEventListener("mouseup", up);
+    if (!moved || !rangeOpen()) {
+      tlRange = null;
+      applyRangeGeom();
+      syncRangeUI();
+      pushRange();
+      seekTo(t0);
+      return;
+    }
+    pushRange();
+    log("选区 " + rangeLabel());
+  }
+  document.addEventListener("mousemove", mv);
+  document.addEventListener("mouseup", up);
 }
 function renderTimeline() {
   var total = Math.max(state.duration, 0.1);
@@ -1554,13 +1845,17 @@ function renderTimeline() {
         b.style.left = (s.start * tlPPS) + "px";
         b.style.width = w + "px";
         b.title = (locked ? "旁白锁定：时长随旁白拟合"
-                          : "点选；拖右缘裁剪时长") + " · " + s.label;
+                          : "点选；拖右缘裁剪时长；右键在播放头处切割") +
+                  " · " + s.label;
         b.innerHTML = '<div class="cap">' + (idx + 1) + " · " + s.label +
           '<span class="dur">' + s.dur.toFixed(2) + "s</span></div>" +
           stripHTML(s, idx, w);
         if (spec.video) {
           var _strip = b.querySelector(".strip");
-          if (_strip) loadThumbsForClip(_strip, spec.video);
+          if (_strip) {
+            loadThumbsForClip(_strip, spec.video,
+                              spec.video_from || 0, s.dur);
+          }
         }
         b.onclick = function (ev) {
           var cn = ev.target.className || "";
@@ -1568,6 +1863,16 @@ function renderTimeline() {
           selectScene(selIdx === idx ? -1 : idx, false);
         };
         b.ondblclick = function () { selectScene(idx, false); zoomToScene(idx); };
+        // 右键 = 在播放头处切开这一段（刀口不在片段内时给日志提示）。
+        b.oncontextmenu = function (ev) {
+          ev.preventDefault();
+          if (locked) {
+            log("scene-" + idx + " 旁白锁定，不支持切割", "err");
+            return;
+          }
+          selectScene(idx, false);
+          splitScene(idx, lastTime);
+        };
         if (!locked) {
           var trim = mk("div", "trim");
           trim.onmousedown = function (e) {
@@ -1659,6 +1964,10 @@ function renderTimeline() {
   var ph = mk("div", "", '<span class="ph-tc"></span>');
   ph.id = "playhead";
   grid.appendChild(ph);
+  // 区间覆盖层：整块重排后必须重建（innerHTML 清空会把旧节点连同选区一起丢掉）。
+  ensureRangeOverlay();
+  applyRangeGeom();
+  syncRangeUI();
   if (!playing) phVisual = lastTime;  // 暂停态恢复真实位置
   updatePlayhead(phVisual, total);
   // 播放头元素被重建，必须重新挂上合成层过渡，否则会停在起点。
@@ -1680,6 +1989,104 @@ function reorder(idx, dir) {
   log("场景 " + idx + (dir < 0 ? " 前移" : " 后移") + "，重组合成…");
   recompose();
 }
+
+/* ---------------- 片段切割（刀口 = 播放头） ----------------
+   把一段切成前后两段：后半段继承类型 / 样式 / 文字（同一画面继续），视频
+   场景把 video_from 累加刀口偏移——渲染侧按 data-media-start 从源视频该
+   时刻继续取帧、混音按同一点修剪音轨，等于把一条素材物理切开。
+   字幕轨不动：captions.segments 是绝对时间轴上的段，切割不改变总时长。 */
+/* 纯数据变换：把场景 sc 在 cut 秒处切开，返回后半段副本（不碰 DOM，
+   便于单测）。前后两段时长之和保持不变；视频场景把 video_from 累加到
+   刀口——后半段从源视频该时刻继续，对象形式的 video.from 归一成
+   video_from（渲染侧只认场景级字段）。 */
+function splitSceneData(sc, cut, total) {
+  var tail = JSON.parse(JSON.stringify(sc));
+  var c = Math.round(cut * 100) / 100;
+  sc.duration = c;
+  tail.duration = Math.round((total - c) * 100) / 100;
+  // 接缝必须是硬切：两段是同一素材的连续画面，继承来的入场动画 /
+  // 转场会让后半段在刀口再淡入一次（画面内容没变，看起来就是"转场
+  // 没反应"，总时长还会被转场重叠吃掉）。要过渡就在属性面板里给
+  // 后半段显式选一个转场。
+  tail.transition = "none";
+  tail.animation = "none";
+  if (sc.video) {
+    var base = Number(sc.video_from);
+    if (!base && sc.video && typeof sc.video === "object") {
+      base = Number(sc.video.from) || 0;
+    }
+    base = base || 0;
+    if (tail.video && typeof tail.video === "object") delete tail.video.from;
+    tail.video_from = Math.round((base + c) * 1000) / 1000;
+  }
+  return tail;
+}
+function splitScene(idx, atSec) {
+  var arr = (state.spec && state.spec.scenes) || [];
+  var sc = arr[idx], s = state.scenes[idx];
+  if (!sc || !s) return false;
+  if (sc.narration) {
+    log("scene-" + idx + " 时长由旁白拟合（narration），不支持切割", "err");
+    return false;
+  }
+  var total = Number(sc.duration) || s.dur;
+  var t = (typeof atSec === "number" && isFinite(atSec)) ? atSec : lastTime;
+  var minDur = 1 / fps();
+  var cut = Math.round((t - s.start) * 100) / 100;
+  if (cut < minDur || total - cut < minDur) {
+    log("刀口需落在片段内部（" + s.label + " " + s.start.toFixed(2) + " – " +
+        (s.start + total).toFixed(2) + "s，播放头 " + t.toFixed(2) + "s）", "err");
+    return false;
+  }
+  var tail = splitSceneData(sc, cut, total);
+  arr.splice(idx + 1, 0, tail);
+  selIdx = idx + 1;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  log("切割 scene-" + idx + " @" + t.toFixed(2) + "s → 前 " + sc.duration +
+      "s / 后 " + tail.duration + "s" +
+      (sc.video ? "（源内起点 " + tail.video_from + "s）" : "") +
+      "，接缝为硬切（要过渡就给后半段选转场），重组合成…");
+  recompose();
+  return true;
+}
+/* 两段是不是「同一素材的连续画面」（切割接缝）：同一 src，且后段的源内
+   起点正好接在前段终点上。这种接缝上 fade 的两侧几乎是同一帧，混合前后
+   亮度不变——看起来像"转场没反应"，其实是没东西可淡。 */
+function sameSourceSeam(idx) {
+  var arr = (state.spec && state.spec.scenes) || [];
+  var cur = arr[idx], prev = arr[idx - 1];
+  if (!cur || !prev || !cur.video || !prev.video) return false;
+  var src = function (v) { return typeof v === "string" ? v : (v && v.src) || ""; };
+  if (src(cur.video) !== src(prev.video)) return false;
+  var prevFrom = Number(prev.video_from) ||
+                 (typeof prev.video === "object" ? Number(prev.video.from) || 0 : 0);
+  var curFrom = Number(cur.video_from) ||
+                (typeof cur.video === "object" ? Number(cur.video.from) || 0 : 0);
+  var prevEnd = prevFrom + (Number(prev.duration) || 0);
+  return Math.abs(curFrom - prevEnd) < 0.05;
+}
+
+/* 刀口选择：优先所选片段（且播放头确实落在它内部），否则取播放头所在
+   片段——转场重叠时两个片段都覆盖同一时刻，所以先看 selIdx。 */
+function splitAtPlayhead() {
+  var t = Math.max(0, Math.min(tlTotal(), lastTime));
+  var scenes = state.scenes || [];
+  var inside = function (i) {
+    var s = scenes[i];
+    return s && t > s.start + 1e-6 && t < s.start + s.dur - 1e-6;
+  };
+  var idx = inside(selIdx) ? selIdx : -1;
+  if (idx < 0) {
+    for (var i = 0; i < scenes.length; i++) {
+      if (inside(i)) { idx = i; break; }
+    }
+  }
+  if (idx < 0) {
+    log("播放头不在任何片段内部——先把播放头拖到要切的位置（刀口）", "err");
+    return false;
+  }
+  return splitScene(idx, t);
+}
 (function () {
   function scrubAt(ev) {
     var rect = $("tl-grid").getBoundingClientRect();
@@ -1689,7 +2096,10 @@ function reorder(idx, dir) {
     seekTo(tlSnap ? snapTime(t) : Math.round(t * fps()) / fps());
   }
   $("timeline").addEventListener("mousedown", function (ev) {
-    if (ev.target.closest(".clip") || ev.target.closest(".tl-head")) return;
+    if (ev.target.closest(".tl-head") || ev.target.closest(".tl-ih")) return;
+    var onTrim = ev.target.closest(".trim") || ev.target.closest(".mv");
+    if (!onTrim && (tlRangeMode || ev.shiftKey)) { startRangeDrag(ev); return; }
+    if (ev.target.closest(".clip")) return;
     scrubAt(ev);
     function mv(e2) { scrubAt(e2); }
     function up() {
@@ -1728,6 +2138,11 @@ function refresh(keepSpec) {
   return api("/api/state").then(function (s) {
     s.spec = s.spec || {};
     state = s;
+    // 重组后总长可能变化：把选区夹回 [0, duration]，完全越界则清空。
+    if (tlRange) {
+      tlRange = rangeClamp(tlRange);
+      if (!rangeOpen()) tlRange = null;
+    }
     // 只读预览（启动未带 --spec）无法写回，导入入口直接禁用并说明原因。
     $("btn-import").disabled = !s.spec_path;
     $("btn-import").title = s.spec_path
@@ -1767,7 +2182,7 @@ function recompose() {
         log((r.ok ? "重组成功 " : "重组完成（含校验错误）") +
             r.duration.toFixed(1) + "s / " + r.scenes.length +
             " 场景 / sha " + r.sha, r.ok ? "ok" : "err");
-        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，烘焙会被拒绝",
+        if (!r.ok) log("hf_validate 未过 0 errors——预览可用，导出会被拒绝",
                        "err");
       });
     })
@@ -1792,28 +2207,28 @@ $("btn-tts").onclick = function () {
 };
 $("btn-bake").onclick = function () {
   $("btn-bake").disabled = true;
-  $("job").innerHTML = '<span class="spin"></span> 烘焙中';
-  log("烘焙开始（参数由 spec 自动推导：" + state.width + "×" + state.height +
+  $("job").innerHTML = '<span class="spin"></span> 导出中';
+  log("导出开始（参数由 spec 自动推导：" + state.width + "×" + state.height +
       " / " + state.duration.toFixed(1) + "s / " + fps() + "fps）");
   api("/api/bake", {}).then(function (r) { return pollJob(r.job); })
     .then(function (j) {
       $("btn-bake").disabled = false; $("job").textContent = "";
       if (j.rc === 0) {
-        log("烘焙完成：" + j.out, "ok");
+        log("导出完成：" + j.out, "ok");
         log("验源：ffprobe -show_format " + j.out + " | grep comment", "ok");
       } else {
-        log("烘焙失败 rc=" + j.rc + "：" + j.tail, "err");
+        log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
       }
     })
     .catch(function (e) {
       $("btn-bake").disabled = false; $("job").textContent = "";
-      log("烘焙失败：" + e.message, "err");
+      log("导出失败：" + e.message, "err");
     });
 };
 function pollJob(id) {
   return api("/api/job?id=" + id).then(function (j) {
     if (j.running) {
-      $("job").textContent = "烘焙中 " + j.elapsed.toFixed(0) + "s";
+      $("job").textContent = "导出中 " + j.elapsed.toFixed(0) + "s";
       return pollJob(id);
     }
     return j;
@@ -1890,6 +2305,29 @@ $("tl-fit").onclick = fitTimeline;
 $("tl-zoom-in").onclick = function () { zoomTimeline(1.4); };
 $("tl-zoom-out").onclick = function () { zoomTimeline(1 / 1.4); };
 $("tl-zoom-sel").onclick = function () { zoomToScene(selIdx); };
+$("tl-split").onclick = function () { splitAtPlayhead(); };
+/* 区间：拖拽框选 / 两端把手 / 区间内播放与循环。 */
+$("tl-range-mode").onclick = function () {
+  tlRangeMode = !tlRangeMode;
+  syncRangeUI();
+};
+$("tl-range-play").onclick = function () {
+  if (!rangeOpen()) return;
+  seekTo(tlRange.a);
+  pushRange();
+  pvCmd("play");
+};
+$("tl-range-loop").onclick = function () {
+  rangeLoop = !rangeLoop;
+  syncRangeUI();
+  pushRange();
+  if (rangeLoop && rangeOpen()) {
+    if (lastTime < tlRange.a - 0.02 || lastTime >= tlRange.b - 0.02) {
+      seekTo(tlRange.a);
+    }
+  }
+};
+$("tl-range-clear").onclick = function () { clearRange(); };
 $("tl-snap").onclick = function () {
   tlSnap = !tlSnap;
   this.classList.toggle("on", tlSnap);
@@ -1921,6 +2359,8 @@ function shortcut(code, shift, meta, ctrl, editable) {
   if ((meta || ctrl) && code === "Enter") { recompose(); return true; }
   if (editable) return false;
   if (code === "Space") { pvCmd("toggle"); return true; }
+  // 切割：S 在播放头处下刀（⌘/Ctrl+S 留给浏览器保存，不拦）
+  if (code === "KeyS" && !meta && !ctrl) { splitAtPlayhead(); return true; }
   if (code === "KeyM") {
     audioOn = !audioOn;
     pvCmd("setMuted", !audioOn);
@@ -1932,6 +2372,30 @@ function shortcut(code, shift, meta, ctrl, editable) {
   if (code === "Home") { pvCmd("goto", 0); return true; }
   if (code === "End") {
     pvCmd("goto", Math.max(0, state.duration - 1 / fps())); return true;
+  }
+  // 区间打点：I = in，O = out（以播放头为基准，遵守吸附）。
+  if (code === "KeyI" || code === "KeyO") {
+    var at = snapTime(Math.max(0, Math.min(tlTotal(), lastTime)));
+    var gap = 1 / fps();
+    if (code === "KeyI") {
+      if (!tlRange) tlRange = { a: at, b: Math.min(tlTotal(), at + gap) };
+      else tlRange.a = at;
+      if (tlRange.b <= tlRange.a) {
+        tlRange.b = Math.min(tlTotal(), tlRange.a + gap);
+      }
+    } else {
+      if (!tlRange) tlRange = { a: Math.max(0, at - gap), b: at };
+      else tlRange.b = at;
+      if (tlRange.b <= tlRange.a) tlRange.a = Math.max(0, tlRange.b - gap);
+    }
+    ensureRangeOverlay();
+    applyRangeGeom();
+    syncRangeUI();
+    pushRange();
+    return true;
+  }
+  if (code === "Escape") {
+    if (tlRange) { clearRange(); return true; }
   }
   if (code === "Equal" || code === "NumpadAdd") { zoomStep(1); return true; }
   if (code === "Minus" || code === "NumpadSubtract") {
@@ -1960,7 +2424,7 @@ window.addEventListener("message", function (ev) {
     shortcut(d.mcStudioKey, d.shiftKey, d.metaKey, d.ctrlKey, false);
   }
 });
-$("pv").addEventListener("load", fitPreview);
+$("pv").addEventListener("load", function () { fitPreview(); pushRange(); });
 refresh().then(function () {
   if (window.ResizeObserver) {
     new ResizeObserver(function () { fitPreview(); }).observe($("pvwrap"));
@@ -2010,10 +2474,10 @@ function askSend(msg) {
         askAdd(r.asr.notes.join("\n"), "bot");
     }
     if (r.action === "bake" && typeof r.job === "number") {
-      askAdd("烘焙任务 #" + r.job + " 已启动", "bot");
+      askAdd("导出任务 #" + r.job + " 已启动", "bot");
       pollJob(r.job).then(function (j) {
-        askAdd(j.rc === 0 ? "烘焙完成：" + j.out :
-               "烘焙失败 rc=" + j.rc + "：" + j.tail, "bot",
+        askAdd(j.rc === 0 ? "导出完成：" + j.out :
+               "导出失败 rc=" + j.rc + "：" + j.tail, "bot",
                j.rc === 0 ? "ok" : "err");
       });
     }

@@ -84,11 +84,23 @@ def parse_scenes(html):
 
 
 def parse_audio_tracks(html):
-    """页面 <audio> 元素 → 音轨清单 [{src, start, dur, vol, kind}]（秒）。
-    kind：narration（voice/ 旁白）/ sfx（assets/sfx）/ bgm（其余）。"""
+    """页面 <audio>/<video> 元素 → 音轨清单（秒）。
+
+    [{src, start, dur, vol, media_start, kind}]
+    kind：narration（voice/ 旁白）/ sfx（assets/sfx）/ bgm（其余）/
+    video（<video> 素材自带音轨）。
+
+    <video> 必须一起进混音：成片的声音本来就包含实拍素材的原声，导出侧
+    （html_bake 的 is_media 清单）一直按场景窗口把它叠进去；预览若只认
+    <audio>，导入素材的工程在 Studio 里就是全静音（画面对、完全没声）。
+    video 轨道不进音轨车道——声音属于片段，不是独立音轨。
+    """
     tracks = []
-    for m in re.finditer(r'<audio\b([^>]*)>', html, re.S):
-        attrs = m.group(1)
+    for m in re.finditer(r'<(audio|video)\b([^>]*)>', html, re.S):
+        tag, attrs = m.group(1), m.group(2)
+        # 显式关闭原声（data-has-audio="false"）不参与混音
+        if tag == "video" and 'data-has-audio="false"' in attrs:
+            continue
         src = re.search(r'src="([^"]+)"', attrs)
         start = re.search(r'data-start="([\d.]+)"', attrs)
         dur = re.search(r'data-duration="([\d.]+)"', attrs)
@@ -96,12 +108,19 @@ def parse_audio_tracks(html):
         if not (src and start):
             continue
         s = src.group(1)
-        kind = ("sfx" if "assets/sfx" in s else
-                "narration" if ("voice/" in s or "narr" in
-                                os.path.basename(s)) else "bgm")
+        if tag == "video":
+            kind = "video"
+        else:
+            kind = ("sfx" if "assets/sfx" in s else
+                    "narration" if ("voice/" in s or "narr" in
+                                    os.path.basename(s)) else "bgm")
+        # 源内起点（片段切割）：音轨从素材的第 media_start 秒起播，
+        # 与画面 data-media-start 同源，否则切过的工程声音会提前一段。
+        ms = re.search(r'data-media-start="([\d.]+)"', attrs)
         tracks.append({"src": s, "start": float(start.group(1)),
                        "dur": float(dur.group(1)) if dur else 0.0,
                        "vol": float(vol.group(1)) if vol else 1.0,
+                       "media_start": float(ms.group(1)) if ms else 0.0,
                        "kind": kind})
     return tracks
 
@@ -131,12 +150,16 @@ def _track_local_path(src, contract_path):
 
 
 def build_preview_mix(contract_path, html, total_s):
-    """把契约页的多条 <audio> 预混成单条 WAV（仅服务模式预览使用）。
+    """把契约页的多条 <audio> / <video> 预混成单条 WAV（仅服务模式预览）。
 
     播放中途不再有任何 HTMLAudioElement 首次 play()：Safari 的音轨解码器 /
     输出设备初始化是同步的，会阻塞与父页共享的主线程，表现为第二个、第三个
-    音效起点前游标突然停住数帧。混音在服务端按 data-start / data-volume
-    做一次，契约页、注入模式的单文件、file:// 烘焙链路全部不变。
+    音效起点前游标突然停住数帧。混音在服务端按 data-start / data-volume /
+    data-media-start 做一次，契约页、注入模式的单文件、file:// 烘焙链路
+    全部不变。
+
+    <video> 也在这条链上：视频元素本身带 muted（预览画由它自己播，声音统一
+    走混音），素材原声由此叠进单轨——否则导入素材的工程预览完全没有声音。
     """
     tracks = parse_audio_tracks(html)
     pairs = []
@@ -149,17 +172,32 @@ def build_preview_mix(contract_path, html, total_s):
     cmd = ["ffmpeg", "-v", "error", "-y"]
     filt = []
     for i, (p, t) in enumerate(pairs):
+        # 源内起点（data-media-start）：-ss 放在 -i 之前，只解音轨且直接
+        # 跳到目标位置——20Mbps 的实拍素材重解一遍画面会让预览起播卡住。
+        ms = max(0.0, float(t.get("media_start") or 0.0))
+        if ms > 0:
+            cmd += ["-ss", f"{ms:.3f}"]
         cmd += ["-i", p]
         delay = max(0, int(round(t["start"] * 1000)))
         vol = max(0.0, min(4.0, float(t["vol"])))
-        filt.append(
-            f"[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,"
-            f"adelay={delay}:all=1,volume={vol:.4f}[a{i}]")
+        dur = max(0.0, float(t.get("dur") or 0.0))
+        # 按片段窗口修剪：不加 atrim 时，切过的后段音轨会盖过场景终点
+        # 继续向前播（画面已走，声音还在）。asetpts 重置时间戳，否则
+        # atrim 保留的 PTS 会把 adelay 的起点整体推后。
+        chain = (f"[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,")
+        if dur > 0:
+            chain += f"atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
+        chain += f"adelay={delay}:all=1,volume={vol:.4f}[a{i}]"
+        filt.append(chain)
     ins = "".join(f"[a{i}]" for i in range(len(pairs)))
+    # 尾部不补 apad：amix 的输入被 atrim 截断后，apad 的无限静音源与
+    # adelay 的 EOF 推迟在 ffmpeg 7 上会让 framesync 永远等不到结束
+    # （实测进程挂死，输出文件停在半截）。改在输出端 -t 总时长收口：
+    # 末轨之后的静音本来就不需要写进 WAV，播放器播到结尾即可。
     filt.append(
-        f"{ins}amix=inputs={len(pairs)}:duration=longest:normalize=0,"
-        f"apad,atrim=0:{total_s:.3f}[out]")
+        f"{ins}amix=inputs={len(pairs)}:duration=longest:normalize=0[out]")
     cmd += ["-filter_complex", ";".join(filt), "-map", "[out]",
+            "-t", f"{total_s:.3f}",
             "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le"]
     fd, tmp = tempfile.mkstemp(prefix="xmedia_preview_", suffix=".wav")
     os.close(fd)
@@ -252,6 +290,9 @@ def build_chrome(total_s, scenes, mix_url=""):
   var TOTAL_FR = Math.round(TOTAL * FPS);
   var playing = false, t = 0, raf = 0, last = 0;
   var loop = false, rate = 1;
+  // 区间（in/out）：{{a, b, loop}}。rangeArmed 在每次起播时判定——只有从中
+  // 途「范围内」起播才在 out 点收住 / 回卷，避免设了选区后整段预览被劫持。
+  var RANGE = null, rangeArmed = false;
   // 嵌入 Studio 服务模式：父页自带传输条，内嵌 chrome 让位。
   var EMBED = /[?&]embed=1(?:&|$)/.test(location.search) &&
               window.parent !== window;
@@ -280,8 +321,12 @@ def build_chrome(total_s, scenes, mix_url=""):
   var audioPend = false;
   var AUDIOS = [];
   var audioOn = true, masterVol = 1, audioBlocked = false, audioActive = 0;
+  // 是否走单条预混音：true 时视频元素必须保持 muted（声音已混进那条音轨），
+  // false 时视频元素自己出声，静音与音量也要跟着它走。
+  var audioMixed = false;
   (function initAudio() {{
     if (MIX_URL) {{
+      audioMixed = true;
       // 单条预混音：所有素材已在服务端按 start/volume 对齐成一条时间轴。
       // 播放中途不再有任何元素首次 play()，Safari 的解码器/输出设备同步
       // 初始化开销全部集中在起播那一帧，不再打断 00:01.37 / 00:03.90
@@ -316,6 +361,14 @@ def build_chrome(total_s, scenes, mix_url=""):
       el.setAttribute("data-mc-audio", "idle");
       AUDIOS.push({{ el: el, start: st, dur: du, vol: vo,
                      pending: false, warming: false, warmed: false }});
+    }});
+    // 多轨引擎（无预混音：注入模式 / ffmpeg 缺失的降级路径）里也要让
+    // 视频元素自己出声。契约页把它们写成 muted（画面走原生层/自身解码，
+    // 声音本应由服务端混音供给），一旦混音不可用而这里不解锁，导入素材
+    // 的工程就完全静音——画面对、一点声音都没有。
+    [].forEach.call(document.querySelectorAll("video"), function (v) {{
+      if (v.getAttribute("data-has-audio") === "false") {{ return; }}
+      v.muted = false;
     }});
   }})();
   // 预热：页面加载后把每条音轨静音起播一次再停回 0，让解码器与音频
@@ -386,6 +439,15 @@ def build_chrome(total_s, scenes, mix_url=""):
       a.el.muted = !audioOn;
       a.el.volume = Math.max(0, Math.min(1, a.vol * masterVol));
     }});
+    // 多轨引擎下视频元素自身就是音源：总静音 / 总音量要同步作用到它，
+    // 否则按 M 后画面静了、素材原声还在响。混音模式下它必须保持 muted。
+    if (!audioMixed) {{
+      [].forEach.call(document.querySelectorAll("video"), function (v) {{
+        if (v.getAttribute("data-has-audio") === "false") {{ return; }}
+        v.muted = !audioOn;
+        v.volume = Math.max(0, Math.min(1, masterVol));
+      }});
+    }}
   }}
   function syncAudio(sec, isPlaying, forceSeek) {{
     var active = 0;
@@ -484,12 +546,17 @@ def build_chrome(total_s, scenes, mix_url=""):
         var v = vids[vi];
         var vs = parseFloat(v.getAttribute("data-start") || "0");
         var vd = parseFloat(v.getAttribute("data-duration") || "0");
-        var off = sec - vs;
-        var inWin = off >= -0.02 && off <= vd + 0.05;
+        // 源内起点（片段切割产物）：窗口判定用时间轴局部时刻 loc，
+        // 取帧用源内时刻 loc + vf——两者不能混，否则 vf>0 的窗口会提前关。
+        // 属性单位与 data-start 一致（秒），直接相加即可。
+        var vf = parseFloat(v.getAttribute("data-media-start") || "0");
+        var loc = sec - vs;
+        var at = Math.max(0, loc + vf);
+        var inWin = loc >= -0.02 && loc <= vd + 0.05;
         if (playing && inWin) {{
           if (v.paused) {{
-            if (Math.abs(v.currentTime - Math.max(0, off)) > 0.05) {{
-              try {{ v.currentTime = Math.max(0, off); }} catch (e) {{}}
+            if (Math.abs(v.currentTime - at) > 0.05) {{
+              try {{ v.currentTime = at; }} catch (e) {{}}
             }}
             var vp = v.play();
             if (vp && vp.catch) {{ vp.catch(function () {{}}); }}
@@ -497,11 +564,11 @@ def build_chrome(total_s, scenes, mix_url=""):
         }} else {{
           if (!v.paused) {{ try {{ v.pause(); }} catch (e) {{}} }}
           if (inWin) {{  // 暂停态拖拽：定位到对应帧以便预览
-            if (Math.abs(v.currentTime - Math.max(0, off)) > 0.05) {{
-              try {{ v.currentTime = Math.max(0, off); }} catch (e) {{}}
+            if (Math.abs(v.currentTime - at) > 0.05) {{
+              try {{ v.currentTime = at; }} catch (e) {{}}
             }}
-          }} else if (v.currentTime !== 0) {{
-            try {{ v.currentTime = 0; }} catch (e) {{}}  // 离开窗口复位，下次从头播
+          }} else if (Math.abs(v.currentTime - vf) > 0.05) {{
+            try {{ v.currentTime = vf; }} catch (e) {{}}  // 离开窗口复位到起点，下次从源内起点播
           }}
         }}
       }}
@@ -527,9 +594,11 @@ def build_chrome(total_s, scenes, mix_url=""):
       mcStudioTime: t, total: TOTAL,
       frame: Math.round(t * FPS), frames: TOTAL_FR, fps: FPS,
       playing: playing, loop: loop, rate: rate, audio: audioState(),
+      range: RANGE,
       mcStudioState: {{ time: t, frame: Math.round(t * FPS),
         frames: TOTAL_FR, fps: FPS, total: TOTAL,
-        playing: playing, loop: loop, rate: rate, audio: audioState() }}
+        playing: playing, loop: loop, rate: rate, audio: audioState(),
+        range: RANGE }}
     }}, "*"); }} catch (e) {{}}
   }}
   // 播放时钟：t 严格单调，只由 rAF 累加推进，正常播放时完全匀速。
@@ -554,6 +623,22 @@ def build_chrome(total_s, scenes, mix_url=""):
     }}
     t = Math.min(TOTAL, t + step);
     drive(t);
+    // 区间优先于整段：仅当本次起播落在选区内才在 out 点收住。
+    if (RANGE && rangeArmed && t >= RANGE.b) {{
+      if (RANGE.loop) {{
+        playing = true; last = now; goto(RANGE.a);
+        raf = requestAnimationFrame(frame);
+        return;
+      }}
+      t = RANGE.b;
+      playing = false; btn.textContent = "▶";
+      if (raf) {{ cancelAnimationFrame(raf); raf = 0; }}
+      drive(t, true);
+      pauseVideos();
+      syncAudio(t, false, false);
+      report();
+      return;
+    }}
     if (t >= TOTAL) {{
       if (loop || window.__mcStudioLoop) {{
         // 回到起点时重新定位音轨：避免上一轮 done 短路让音效不再起播。
@@ -568,6 +653,8 @@ def build_chrome(total_s, scenes, mix_url=""):
   }}
   function play() {{
     if (playing) {{ return; }}
+    // 起点落在选区内 → 本次播放按区间收束；落在区外 → 正常播到结尾。
+    rangeArmed = !!(RANGE && t >= RANGE.a - 0.001 && t < RANGE.b - 0.001);
     if (t >= TOTAL) {{ t = 0; }}
     playing = true; last = performance.now();
     btn.textContent = "⏸";
@@ -600,6 +687,17 @@ def build_chrome(total_s, scenes, mix_url=""):
     pause(); goto(t + frames / FPS);
   }}
   function setLoop(on) {{ loop = !!on; window.__mcStudioLoop = loop; report(); }}
+  // 设定 / 清除播放区间。传 null（或无效值）即恢复整段播放。
+  function setRange(r) {{
+    if (!r || typeof r.a !== "number" || typeof r.b !== "number") {{
+      RANGE = null;
+    }} else {{
+      var ra = Math.max(0, Math.min(TOTAL, r.a));
+      var rb = Math.max(0, Math.min(TOTAL, r.b));
+      RANGE = (rb - ra > 0.01) ? {{ a: ra, b: rb, loop: !!r.loop }} : null;
+    }}
+    report();
+  }}
   function setRate(r) {{
     rate = Math.max(0.1, Math.min(4, r || 1));
     syncAudio(t, playing, false);
@@ -622,12 +720,13 @@ def build_chrome(total_s, scenes, mix_url=""):
     play: play, pause: pause,
     toggle: function () {{ playing ? pause() : play(); }},
     seek: goto, step: step, setLoop: setLoop, setRate: setRate,
+    setRange: setRange,
     setMuted: setMuted, setVolume: setVolume,
     enableAudio: unlockAudio, audioState: audioState,
     state: function () {{
       return {{ time: t, total: TOTAL, frame: Math.round(t * FPS),
         frames: TOTAL_FR, fps: FPS, playing: playing, loop: loop,
-        rate: rate, audio: audioState() }};
+        rate: rate, audio: audioState(), range: RANGE }};
     }}
   }};
   btn.addEventListener("click", function () {{
@@ -656,6 +755,7 @@ def build_chrome(total_s, scenes, mix_url=""):
       else if (c === "step") {{ step(Number(v) || 1); }}
       else if (c === "goto") {{ pause(); goto(Number(v) || 0); }}
       else if (c === "loop") {{ setLoop(v); }}
+      else if (c === "range") {{ setRange(v); }}
       else if (c === "rate") {{ setRate(Number(v) || 1); }}
       else if (c === "setMuted") {{ setMuted(!!v); }}
       else if (c === "setVolume") {{ setVolume(v); }}
@@ -887,14 +987,18 @@ class StudioServer:
         os.makedirs(d, exist_ok=True)
         return d
 
-    def build_thumbs(self, raw_path, n=10, w=480, h=270):
+    def build_thumbs(self, raw_path, n=10, w=480, h=270, start=0.0, dur=0.0):
         """从源视频抽 n 帧生成缩略图，返回只读服务 URL 列表（带缓存）。
 
         raw_path 是 spec 里记录的绝对 / 相对路径（与 _register_spec_paths
         同源登记）。仅在白名单内且文件存在时才抽帧，避免暴露任意磁盘。
+        start/dur 限定取样窗口（秒）：片段切割后每段按自己的源内区间抽帧，
+        否则前后两段缩略图完全一样，看不出刀口在哪。
         """
         import hashlib
         import subprocess
+        start = max(0.0, float(start or 0))
+        dur = max(0.0, float(dur or 0))
         raw = urllib.parse.unquote(raw_path)
         root = os.path.realpath(ROOT_DIR)
         spec_root = os.path.realpath(self._spec_root())
@@ -913,7 +1017,7 @@ class StudioServer:
                    full in self.external_files)
         if not allowed or not os.path.isfile(full):
             raise RuntimeError("缩略图素材不可访问: " + raw_path)
-        key = "{}|{}|{}|{}".format(full, n, w, h)
+        key = "{}|{}|{}|{}|{:.3f}|{:.3f}".format(full, n, w, h, start, dur)
         hsh = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
         cache = os.path.join(self._thumbs_dir(), hsh)
         os.makedirs(cache, exist_ok=True)
@@ -926,18 +1030,22 @@ class StudioServer:
             else:
                 pending.append((i, jp))
         if pending:
-            dur = 0.0
+            src_dur = 0.0
             try:
                 out = subprocess.run(
                     ["ffprobe", "-v", "error", "-show_entries",
                      "format=duration", "-of",
                      "default=nokey=1:noprint_wrappers=1", full],
                     capture_output=True, text=True, timeout=30)
-                dur = float(out.stdout.strip() or 0)
+                src_dur = float(out.stdout.strip() or 0)
             except Exception:
-                dur = 0.0
+                src_dur = 0.0
+            # 取样窗口：给了 dur 就均分该窗口（切割后的片段各取各的区间），
+            # 否则沿用整段均匀取样（旧行为，字节一致）。
+            span = dur if dur > 0 else src_dur
             for i, jp in pending:
-                tt = (dur * (i + 0.5) / n) if dur > 0 else i * 0.2
+                tt = (start + span * (i + 0.5) / n) if span > 0 \
+                    else start + i * 0.2
                 try:
                     subprocess.run(
                         ["ffmpeg", "-v", "error", "-y", "-ss",
@@ -1048,7 +1156,7 @@ class StudioServer:
 
     def _start_bake(self):
         if self.job and self.job["proc"].poll() is None:
-            raise RuntimeError("已有烘焙任务在跑")
+            raise RuntimeError("已有导出任务在跑")
         import hf_compose
         spec = self.current_spec or {}
         w, h = self._dims(spec)
@@ -1408,7 +1516,10 @@ def make_handler(server_ref):
                     n = max(1, min(24, int((q.get("n") or ["8"])[0])))
                     w = max(16, min(480, int((q.get("w") or ["120"])[0])))
                     h = max(16, min(480, int((q.get("h") or ["68"])[0])))
-                    frames = srv.build_thumbs(raw, n=n, w=w, h=h)
+                    s0 = max(0.0, float((q.get("s") or ["0"])[0] or 0))
+                    d0 = max(0.0, float((q.get("d") or ["0"])[0] or 0))
+                    frames = srv.build_thumbs(raw, n=n, w=w, h=h,
+                                              start=s0, dur=d0)
                     self._json({"ok": True, "frames": frames,
                                 "count": len(frames)})
                 except Exception as e:
@@ -1640,7 +1751,7 @@ def main():
                         help="注入模式：输出 studio HTML（默认 <stem>.studio.html）")
     parser.add_argument("--serve", action="store_true",
                         help="启动本地 Studio 服务（浏览器 UI：编辑 spec → "
-                             "热重组 → TTS → 烘焙）")
+                             "热重组 → TTS → 导出）")
     parser.add_argument("--spec", default=None,
                         help="服务模式：绑定的 spec JSON 路径（缺省从契约页"
                              "生成器注释自动发现；无则只读预览）")

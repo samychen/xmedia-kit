@@ -8,6 +8,7 @@
 // mpd_parser 已确立「受控格式的自研子集解析器」先例。通用 JSON 能力
 // （嵌套自由结构）不是目标，解析失败即结构非法。
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -202,6 +203,11 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   bool is_media = false;
   bool has_volume = false;
   double volume = 1.0;
+  // 渲染态（逐帧采样）：有效不透明度 + 祖先 clip-path 交集矩形。
+  bool has_opacity = false;
+  double opacity = 1.0;
+  bool has_clip = false;
+  float clip_x = 0.f, clip_y = 0.f, clip_w = 0.f, clip_h = 0.f;
   bool has_fade_in = false;
   double fade_in = 0;
   bool has_fade_out = false;
@@ -324,6 +330,24 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       }
       has_volume = true;
       volume = num;
+    } else if (key == "opacity") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      has_opacity = true;
+      opacity = std::min(1.0, std::max(0.0, num));
+    } else if (key == "clip_x" || key == "clip_y" || key == "clip_w" ||
+               key == "clip_h") {
+      double num = 0;
+      if (!c.ReadNumber(&num)) {
+        return false;
+      }
+      if (key == "clip_x") { clip_x = static_cast<float>(num); }
+      else if (key == "clip_y") { clip_y = static_cast<float>(num); }
+      else if (key == "clip_w") { clip_w = static_cast<float>(std::max(0.0, num)); }
+      else { clip_h = static_cast<float>(std::max(0.0, num)); }
+      has_clip = true;
     } else if (key == "fade_in") {
       double num = 0;
       if (!c.ReadNumber(&num)) {
@@ -481,6 +505,13 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
   out->is_media = is_media;
   out->has_volume = has_volume;
   out->volume = volume;
+  out->has_opacity = has_opacity;
+  out->opacity = opacity;
+  out->has_clip = has_clip;
+  out->clip_x = clip_x;
+  out->clip_y = clip_y;
+  out->clip_w = clip_w;
+  out->clip_h = clip_h;
   out->has_fade_in = has_fade_in;
   out->fade_in = fade_in;
   out->has_fade_out = has_fade_out;

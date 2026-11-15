@@ -30,6 +30,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -502,6 +503,10 @@ int main(int argc, char** argv) {
     GlScene::LayerId layer = GlScene::kNoLayer;
     double start_ms = 0;
     double dur_ms = -1;
+    // 源内起点（data-media-start）：片段切割出的后段从源视频该时刻继续。
+    double from_ms = 0;
+    // 元素 id：逐帧用它在快照里取渲染态（不透明度 / 裁剪矩形）。
+    std::string id;
   };
   std::vector<VideoElementLayer> video_layers;
   if (!synthetic && has_video_scene) {
@@ -544,6 +549,8 @@ int main(int argc, char** argv) {
       }
       vl.start_ms = static_cast<double>(e.start_ms);
       vl.dur_ms = static_cast<double>(e.duration_ms);
+      vl.from_ms = static_cast<double>(e.media_start_ms);
+      vl.id = e.id;  // 逐帧按 id 取回渲染态（opacity / clip）
       vl.layer = scene->AddVideoLayer(e.has_z ? e.z : -1);
       if (vl.layer != GlScene::kNoLayer) {
         scene->SetLayerRect(vl.layer, e.x / static_cast<float>(args.width),
@@ -694,14 +701,70 @@ int main(int argc, char** argv) {
     // 视频元素原生层：FFmpeg 解码当前时刻帧 → kARGB 上传（行拷贝进
     // 64 字节对齐平面）；窗外隐藏。
     for (auto& vl : video_layers) {
+      // 渲染态：入场 / 转场动画动的是场景容器的 opacity 与 clip-path，
+      // 而原生视频层直接按矩形出帧。不跟着这两个量走，视频场景之间的
+      // 转场（尤其是切割出来的接缝）在成片里就是硬切——页面光栅淡出
+      // 了，画面却原地不动，看上去"转场没反应"。
+      const HtmlElementMetaEntry* meta = nullptr;
+      for (const auto& e : elements) {
+        if (e.id == vl.id) {
+          meta = &e;
+          break;
+        }
+      }
       const double local = (t_ms - vl.start_ms) / 1000.0;
       const bool active =
           local >= 0 && (vl.dur_ms < 0 || local * 1000 < vl.dur_ms);
-      if (!active) {
+      float alpha =
+          (meta != nullptr && meta->has_opacity)
+              ? static_cast<float>(meta->opacity)
+              : 1.f;
+      // 淡到看不见就整层跳过：既省一次解码，也避免 alpha≈0 的层仍占
+      // 一次混合。
+      if (!active || alpha <= 0.002f) {
         scene->SetLayerVisible(vl.layer, false);
         continue;
       }
-      if (vl.src.FrameAt(local)) {
+      scene->SetLayerOpacity(vl.layer, alpha);
+      if (meta != nullptr && meta->w > 0.f && meta->h > 0.f) {
+        // 可见矩形 = 元素矩形 ∩ 祖先 clip-path ∩ 画布。源内取样矩形按
+        // 同样的交集裁，而不是把整幅画面挤进交集——擦除 / 滑出是裁切，
+        // 压缩会变成变形。
+        const float cw = static_cast<float>(args.width);
+        const float ch = static_cast<float>(args.height);
+        float vx0 = std::max(meta->x, 0.f);
+        float vy0 = std::max(meta->y, 0.f);
+        float vx1 = std::min(meta->x + meta->w, cw);
+        float vy1 = std::min(meta->y + meta->h, ch);
+        if (meta->has_clip) {
+          vx0 = std::max(vx0, meta->clip_x);
+          vy0 = std::max(vy0, meta->clip_y);
+          vx1 = std::min(vx1, meta->clip_x + meta->clip_w);
+          vy1 = std::min(vy1, meta->clip_y + meta->clip_h);
+        }
+        const float vw = vx1 - vx0;
+        const float vh = vy1 - vy0;
+        if (vw <= 0.5f || vh <= 0.5f) {
+          scene->SetLayerVisible(vl.layer, false);  // 已完全移出 / 裁空
+          continue;
+        }
+        scene->SetLayerRect(vl.layer, vx0 / cw, vy0 / ch, vw / cw, vh / ch);
+        float sx = std::min(std::max((vx0 - meta->x) / meta->w, 0.f), 1.f);
+        float sy = std::min(std::max((vy0 - meta->y) / meta->h, 0.f), 1.f);
+        const float sw = std::min(vw / meta->w, 1.f - sx);
+        const float sh = std::min(vh / meta->h, 1.f - sy);
+        if (sw > 0.f && sh > 0.f) {
+          scene->SetLayerSourceRect(vl.layer, sx, sy, sw, sh);
+        }
+      }
+      // 源内起点：切割出的后段（data-media-start > 0）从源视频该时刻
+      // 继续播；超出源时长时钉在末帧，避免 EOS 后整层变黑。
+      double src_sec = local + vl.from_ms / 1000.0;
+      const double src_dur = vl.src.duration();
+      if (src_dur > 0 && src_sec > src_dur) {
+        src_sec = src_dur;
+      }
+      if (vl.src.FrameAt(src_sec)) {
         auto vf = VideoFrame::CreateBlackFrame(
             VideoFormat::kARGB, Size{vl.src.width(), vl.src.height()},
             Size{vl.src.width(), vl.src.height()}, Rational{1, 1},

@@ -348,8 +348,17 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     if video:
         vsrc = esc(video if isinstance(video, str) else
                    str(video.get("src", "")))
+        # 源内起点（片段切割产物）：后段从源视频第 video_from 秒继续。
+        # data-media-start 同时被视频原生层（画面 seek）与音频混音（音轨
+        # 修剪）消费；单位与 data-start 一致（秒）——采集端按 hfScale 统一
+        # 换算成毫秒，写毫秒会被再乘 1000。0 时不写，保证未切割的 spec
+        # 产物逐字节不变。
+        vfrom = float(scene.get("video_from") or 0)
+        if isinstance(video, dict):
+            vfrom = float(video.get("from") or vfrom)
+        fattr = (f' data-media-start="{vfrom}"' if vfrom > 0 else "")
         video_tag = (f'  <video class="scene-video" src="{vsrc}"'
-                     f' data-start="{start_sec}" data-duration="{dur}"'
+                     f' data-start="{start_sec}" data-duration="{dur}"{fattr}'
                      f' muted playsinline preload="auto"></video>\n')
     # 字幕轨（T3）：优先 ASR / 手工分段字幕（captions.segments 或场景
     # captions），否则回退到「旁白文本整段字幕」——TTS 与字幕同源，
@@ -366,7 +375,7 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     return html, dur
 
 
-def gen_timeline_js(scenes, starts, durs, trans, trans_dur,
+def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                     caption_segments=None):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
     游标与 clip 窗口同源（starts/durs 由 compose 的场景计划传入，含
@@ -376,16 +385,29 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_dur,
     因此 --clock seek 烘焙逐帧出图也能拿到正确字幕（不依赖 rAF/CSS 动画）。"""
     lines = []
     for idx, scene in enumerate(scenes):
+        # 场景级转场窗宽（compose 已按场景算好；标量也给，方便外部调用方）。
+        trans_dur = (trans_durs[idx] if isinstance(trans_durs, (list, tuple))
+                     else trans_durs)
         anim = scene.get("animation", DEFAULT_ANIMATION)
-        if anim not in ANIMATIONS:
+        # "none" = 不做入场动画（切割接缝：前半段的最后一帧与后半段的
+        # 第一帧本是同一画面，再淡入一次就是凭空多出一个黑场）。
+        # 其余未知值一律回落默认，保持旧 spec 的产物不变。
+        if anim != "none" and anim not in ANIMATIONS:
             anim = DEFAULT_ANIMATION
-        from_v, to_v = ANIMATIONS[anim]
         # 入场时长：转场场景钳到重叠窗宽（交叉期内完成过渡），其余 0.6s
         enter = 0.6
-        if idx > 0 and trans[idx] != "none" and trans_dur > 0:
+        has_trans = idx > 0 and trans[idx] != "none" and trans_dur > 0
+        if has_trans:
             enter = max(0.3, min(0.6, trans_dur))
+        # 转场优先于 animation:"none"：进入侧若瞬间满不透明，前一场景的
+        # 出场动画全被盖住，等于又变回硬切。声明了转场就回落默认淡入
+        # （wipe 走下面的 clip-path 分支，不在此列）。
+        if anim == "none" and has_trans and trans[idx] != "wipe":
+            anim = DEFAULT_ANIMATION
         target = f"#scene-{idx}"
-        if idx > 0 and trans[idx] == "wipe":
+        if anim == "none":
+            pass  # 硬切进入：由 data-start 的可见性切换承担
+        elif idx > 0 and trans[idx] == "wipe":
             # wipe = 进入侧 clip-path 揭示（不淡入）：新场景从左向右盖在
             # 旧场景上，旧场景保持原样直到窗尾——真正的擦除语义。
             lines.append(
@@ -394,11 +416,13 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_dur,
                 f'{{clipPath: "inset(0% 0% 0% 0%)", duration: {enter}, '
                 f'ease: "power2.out"}}, {starts[idx]});')
             continue
-        from_v, to_v = ANIMATIONS[anim]
-        to_v = to_v[:-1] + f', duration: {enter}, ease: "power2.out"}}'
-        lines.append(f'  tl.fromTo("{target}", {from_v}, {to_v}, {starts[idx]});')
+        else:
+            from_v, to_v = ANIMATIONS[anim]
+            to_v = to_v[:-1] + f', duration: {enter}, ease: "power2.out"}}'
+            lines.append(
+                f'  tl.fromTo("{target}", {from_v}, {to_v}, {starts[idx]});')
         # 转场交叉：该场景入场的同时，前一场景按类型出场
-        if idx > 0 and trans[idx] != "none" and trans_dur > 0:
+        if has_trans:
             prev = f"#scene-{idx-1}"
             ov = min(trans_dur, durs[idx - 1])
             if trans[idx] == "slide-left":
@@ -449,6 +473,12 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     """spec dict → 契约 HTML 字符串（兼容 HyperFrames 原版协议）。
     确定性：同输入同输出。spec_sha 为来源锚点（canonical JSON 的
     sha256），写进 HTML 头部生成器注释供产物验源。"""
+    # 直接调用 compose()（测试、Studio 之外的嵌入方）时 CLI 的 main 没跑过，
+    # _gsap_src 还是空串——页面里就只剩 `const tl = gsap.timeline()`，一执行
+    # 就抛 ReferenceError，所有入场/转场静默消失。首次使用时补加载。
+    global _gsap_src
+    if not _gsap_src:
+        _gsap_src = _load_gsap()
     comp = spec.get("composition", {})
     comp_id = comp.get("id", "main")
     fmt = comp.get("format")
@@ -482,6 +512,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     starts = []
     durs = []
     trans = []
+    trans_durs = []
     start = 0.0
     registry = load_custom_templates(_spec_dir)
     tpl_css = []
@@ -489,9 +520,17 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         ttype = (str(scene.get("transition") or trans_default) or "none")
         if ttype not in ("fade", "slide-left", "slide-right", "wipe", "none"):
             ttype = "none"
+        # 场景级转场的窗口：全局 transitions.duration 是默认值，但它为 0
+        # 时场景级 transition 会连窗口都没有——类型有了、重叠窗是 0，
+        # 面板上选了 slide / wipe 却"没反应"就是这条。显式声明转场的场景
+        # 回落到 0.5s；只吃全局默认的场景仍按 0 处理（旧 spec 行为不变）。
+        sdur = trans_dur
+        if sdur <= 0 and scene.get("transition") and ttype != "none":
+            sdur = 0.5
         if idx > 0:
-            # 转场归属进入侧：本场景提前 trans_dur 进入前一场景的尾窗
-            start -= (trans_dur if ttype != "none" else 0.0)
+            # 转场归属进入侧：本场景提前 sdur 进入前一场景的尾窗
+            start -= (sdur if ttype != "none" else 0.0)
+        trans_durs.append(sdur)
         scene_starts.append(start)
         starts.append(start)
         caption = None
@@ -519,7 +558,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     total_duration = start
 
     # GSAP 时间线（含分段字幕的点亮/熄灭 tween）
-    timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_dur,
+    timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                                   cap_by_scene)
 
     # 音频

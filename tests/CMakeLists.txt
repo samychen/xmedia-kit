@@ -291,6 +291,14 @@ if(XMEDIA_ENABLE_FFMPEG)
     set_tests_properties(hf_video_scene_smoke PROPERTIES TIMEOUT 300
         RUN_SERIAL true)
 
+    # ---- hf_split_scene：时间轴片段切割的渲染侧闭环（video_from →
+    # data-media-start → 烘焙帧对位；RUN_SERIAL 同 CEF 重负载）。
+    add_test(NAME hf_split_scene_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/hf_split_scene_smoke.py")
+    set_tests_properties(hf_split_scene_smoke PROPERTIES TIMEOUT 300
+        RUN_SERIAL true)
+
     # ---- xmedia CLI：doctor + init + render 一条命令全链冒烟。
     add_test(NAME xmedia_cli_smoke
         COMMAND ${XMEDIA_PYTHON3}

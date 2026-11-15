@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "xmedia-kit": {
+      "command": "python3",
+      "args": [
+        "/ABS/PATH/TO/xmedia-kit/tools/xmedia_mcp.py",
+        "--studio-url",
+        "http://127.0.0.1:8120"
+      ],
+      "env": {
+        "XMEDIA_LLM_ENDPOINT": "",
+        "XMEDIA_LLM_API_KEY": "",
+        "XMEDIA_LLM_MODEL": "gpt-4o-mini"
+      }
+    }
+  }
+}

@@ -2,6 +2,8 @@
 # hf_studio 冒烟（ctest hf_studio_smoke）：契约 HTML → Studio 注入。
 # 验证 chrome/驱动注入、场景按钮、幂等原地更新、契约语义不变
 # （hf_validate 在 studio 页仍 0 errors、场景 div 原样保留）。
+import array
+import io
 import json
 import os
 import re
@@ -124,6 +126,19 @@ def main():
         assert "function capSegments(" in ui and \
             "captions.segments" in ui and "function capTrackSub(" in ui, \
             "字幕轨未读取全局字幕段（ASR 后轨道会空白）"
+        # 时间轴区间：选区外压暗、选区内原色；I / O 打点、两端把手可拖、
+        # 区间播放收在 out 点（预览驱动侧 setRange）。
+        for el in ('id="tl-range-mode"', 'id="tl-range-box"',
+                   'id="tl-range-info"', 'id="tl-range-clear"'):
+            assert el in ui, f"区间控件缺失：{el}"
+        assert '"tl-dim-l"' in ui and '"tl-dim-r"' in ui and \
+            "#tl-range-body" in ui, "区间压暗覆盖层缺失（选区外应变暗）"
+        assert "function startRangeDrag(" in ui and \
+            "function dragRangeHandle(" in ui and \
+            "function applyRangeGeom(" in ui and "function pushRange(" in ui, \
+            "区间拖拽 / 把手 / 推送预览缺失"
+        assert 'code === "KeyI"' in ui and 'code === "KeyO"' in ui, \
+            "I / O 区间打点快捷键缺失"
         # 播放头流畅度：CSS transition 在合成层插值推进，播放中 JS 不写
         # transform。Safari 同源 iframe 与父页共享主线程，音轨首次 play()
         # 的解码初始化会同步阻塞父页 rAF，任何 JS 逐帧驱动都会在音效起点
@@ -178,6 +193,56 @@ def main():
                 mix_contract, open(mix_contract, encoding="utf-8").read(), 2.0)
             assert mix_bytes and mix_bytes[:4] == b"RIFF", \
                 "预混音 WAV 生成失败"
+
+            # 视频原声：<video> 必须进混音清单。曾经只认 <audio>，导入素材
+            # 的工程（视频元素是 muted、页面没有 audio）预览完全静音。
+            vt = studio_mod.parse_audio_tracks(
+                '<video src="/x/kpl.mp4" data-start="3" data-duration="5"'
+                ' data-media-start="1.5" muted playsinline></video>')
+            assert len(vt) == 1, "parse_audio_tracks 未纳入 <video>"
+            assert vt[0]["kind"] == "video" and vt[0]["start"] == 3.0 and \
+                vt[0]["dur"] == 5.0 and vt[0]["media_start"] == 1.5, \
+                "视频音轨的起点/窗口/源内偏移解析错误"
+            assert studio_mod.parse_audio_tracks(
+                '<video src="/x/a.mp4" data-start="0" data-has-audio="false">'
+                '</video>') == [], "data-has-audio=false 未被排除"
+
+            # 端到端：带音轨的素材 + data-media-start，验证「源内偏移 →
+            # 场景起点延迟」两级对齐（切过的工程声音不能提前/推后）。
+            clip = os.path.join(tmp, "clip_av.mp4")
+            subprocess.run(
+                ["ffmpeg", "-v", "error", "-y",
+                 "-f", "lavfi", "-i", "testsrc=size=64x64:rate=10",
+                 "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+                 "-t", "1.2", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                 "-c:a", "aac", "-shortest", clip],
+                capture_output=True, timeout=60)
+            assert os.path.getsize(clip) > 0, "测试素材合成失败"
+            vcontract = os.path.join(tmp, "video_smoke.html")
+            with open(vcontract, "w", encoding="utf-8") as f:
+                f.write(f'<video src="{clip}" data-start="1" '
+                        'data-duration="0.5" data-media-start="0.5" '
+                        'muted></video>')
+            vbytes = studio_mod.build_preview_mix(
+                vcontract, open(vcontract, encoding="utf-8").read(), 2.0)
+            assert vbytes and vbytes[:4] == b"RIFF", "视频原声混音失败"
+
+            def rms(bs, a, b):
+                import wave
+                with wave.open(io.BytesIO(bs)) as w:
+                    n, ch = w.getframerate(), w.getnchannels()
+                    w.readframes(int(a * n))
+                    raw = w.readframes(int((b - a) * n))
+                if not raw:
+                    return 0.0
+                arr = array.array("h")
+                arr.frombytes(raw)
+                return (sum(x * x for x in arr) / len(arr)) ** 0.5
+
+            assert rms(vbytes, 0.2, 0.9) < 100, \
+                "视频原声提前出声（data-start 延迟失效）"
+            assert rms(vbytes, 1.05, 1.45) > 1000, \
+                "视频原声在场景窗口内缺失（<video> 没进混音）"
 
         # 契约语义不变：场景 div 原样保留、根与 clip 属性未被 chrome 污染
         assert html.count('class="clip scene') == contract_scenes, \
@@ -250,6 +315,9 @@ def main():
             prev = r.read().decode("utf-8")
         assert studio_mod.MARK_BEGIN in prev and "__mcStudio" in prev, \
             "预览页未注入驱动"
+        # 区间播放：驱动必须提供 setRange，否则时间轴选区只能画不能播。
+        assert "setRange: setRange" in prev and "rangeArmed" in prev, \
+            "预览驱动缺少区间（in/out）播放支持"
         # 混音可用 → 单音轨；不可用 → 优雅降级到契约页多轨引擎。
         if server.preview_mix():
             assert 'var MIX_URL = "/__xmedia_preview_mix__.wav"' in prev, \
