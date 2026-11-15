@@ -57,13 +57,40 @@ def main():
         assert os.path.isfile(os.path.join(proj, "demo.html_elements.json")), \
             "元素元数据 sidecar 缺失"
 
-        # docs 子命令：文档站与真源同步
+        # docs 子命令：文档站与真源同步 + 落地页静态契约
         proc = run(["docs"])
         site = os.path.join(ROOT, "docs-site", "index.html")
         assert os.path.isfile(site), "docs-site/index.html 缺失"
         html = open(site, encoding="utf-8").read()
         assert "xmedia-kit AI 视频生成管线" in html and \
             "自定义模板协议" in html, "文档站关键章节缺失"
+        assert "文档站与作品轮播" in html, "新增文档章节未同步"
+        for section in ("AI 能力集成", "ASR 分段字幕", "素材自动导入",
+                        "Ask AI 与 Agent", "MCP server"):
+            assert section in html, f"AI 能力文档章节未同步：{section}"
+        for token in ('class="stage"', 'id="reel-tabs"',
+                      'id="stage-cover"', 'id="works-track"',
+                      'id="doc-body"', 'class="toc"',
+                      'var SLIDES = [', '<article class="work-card'):
+            assert token in html, f"落地页缺失：{token}"
+        assert "@@BODY@@" not in html, "模板占位符未替换"
+        # 模板注释里不能出现锚点字面量，否则数据会被注入两次。
+        assert html.count('<article class="work-card') <= 6, \
+            "作品卡片重复注入"
+        assert html.count('var SLIDES = [') == 1, "轮播数据重复注入"
+        # docs 幂等：重复生成逐字一致（预览素材按 mtime 缓存）。
+        run(["docs"])
+        assert open(site, encoding="utf-8").read() == html, \
+            "xmedia docs 非幂等"
+
+        # AI 能力 CLI 注册：import / asr / agent / mcp 必须随统一入口发布
+        cli_help = run(["--help"]).stdout
+        for cmd in ("import", "asr", "agent", "mcp"):
+            assert cmd in cli_help, f"xmedia CLI 缺少 {cmd} 子命令"
+        for mod in ("hf_asr.py", "hf_import.py", "hf_agent.py",
+                    "xmedia_mcp.py"):
+            assert os.path.isfile(os.path.join(ROOT, "tools", mod)), \
+                f"AI 模块缺失：{mod}"
 
     print("xmedia_cli_smoke: PASS")
 

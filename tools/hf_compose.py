@@ -212,8 +212,59 @@ def tts_text(scene):
     return "。".join(parts)
 
 
+CAP_SEG_LIMIT = 400
+
+
+def _norm_caption_segments(raw, duration):
+    """规范化「场景相对」字幕段：排序、裁剪、去空、限量（确定性）。"""
+    out = []
+    for seg in (raw or [])[:CAP_SEG_LIMIT]:
+        if not isinstance(seg, dict):
+            continue
+        try:
+            a = max(0.0, float(seg.get("start", 0)))
+            b = float(seg.get("end", 0))
+        except (TypeError, ValueError):
+            continue
+        text = re.sub(r"\s+", " ", str(seg.get("text") or "")).strip()
+        a, b = min(a, duration), min(b, duration)
+        if b > a and text:
+            out.append({"start": round(a, 3), "end": round(b, 3),
+                        "text": text[:300]})
+    out.sort(key=lambda s: (s["start"], s["end"], s["text"]))
+    return out
+
+
+def _clip_caption_segments(global_segs, scene_start, duration):
+    """全局时间轴字幕 → 场景相对段，按场景窗口裁剪。"""
+    clipped = []
+    for seg in global_segs or []:
+        a = max(float(seg["start"]), scene_start) - scene_start
+        b = min(float(seg["end"]), scene_start + duration) - scene_start
+        if b > a:
+            clipped.append({"start": a, "end": b, "text": seg["text"]})
+    return _norm_caption_segments(clipped, duration)
+
+
+def render_caption_html(caption, segments, idx):
+    """字幕条：有分段时每个段一个独立 div（初始 opacity:0，由 GSAP
+    时间线按时间点亮，兼容 --clock seek 逐帧烘焙）；否则沿用整段字幕。"""
+    if segments:
+        parts = []
+        for j, seg in enumerate(segments):
+            parts.append(
+                f'  <div id="cap-{idx}-{j}" class="scene-caption seg"'
+                f' data-cap-start="{seg["start"]}"'
+                f' data-cap-end="{seg["end"]}">'
+                f'{esc(seg["text"])}</div>\n')
+        return "".join(parts)
+    if caption:
+        return f'  <div class="scene-caption">{esc(caption)}</div>\n'
+    return ""
+
+
 def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
-                   css_out=None):
+                   css_out=None, caption_segments=None):
     """单场景 → clip div HTML 片段。自定义模板类型（registry 命中）
     走 {{slot}} 渲染路径，其 css 经 css_out 回传进 style 块。"""
     typ = scene.get("type", "text")
@@ -222,10 +273,8 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         inner, css = render_custom_template(registry[typ], scene, idx)
         if css and css_out is not None:
             css_out.append(css)
-        caption_html = ""
-        if caption:
-            caption_html = (f'  <div class="scene-caption">'
-                            f'{esc(caption)}</div>\n')
+        caption_html = render_caption_html(
+            caption, _norm_caption_segments(caption_segments, dur), idx)
         html = f'''  <div id="scene-{idx}" class="clip scene scene-custom"
        data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
        data-bg="transparent">
@@ -302,12 +351,11 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         video_tag = (f'  <video class="scene-video" src="{vsrc}"'
                      f' data-start="{start_sec}" data-duration="{dur}"'
                      f' muted playsinline preload="auto"></video>\n')
-    # 字幕轨（T3）：场景旁白文本渲染为底部字幕条——TTS 与字幕同源，
-    # 有 narration 才有字幕（captions.enabled=false 全局关闭）。
-    caption_html = ""
-    if caption:
-        caption_html = (f'  <div class="scene-caption">'
-                        f'{esc(caption)}</div>\n')
+    # 字幕轨（T3）：优先 ASR / 手工分段字幕（captions.segments 或场景
+    # captions），否则回退到「旁白文本整段字幕」——TTS 与字幕同源，
+    # 有 narration 才有整段字幕（captions.enabled=false 全局关闭）。
+    caption_html = render_caption_html(
+        caption, _norm_caption_segments(caption_segments, dur), idx)
 
     html = f'''  <div id="{scene_id}" class="clip scene scene-{typ}"
        data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
@@ -318,10 +366,14 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     return html, dur
 
 
-def gen_timeline_js(scenes, starts, durs, trans, trans_dur):
+def gen_timeline_js(scenes, starts, durs, trans, trans_dur,
+                    caption_segments=None):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
     游标与 clip 窗口同源（starts/durs 由 compose 的场景计划传入，含
-    转场重叠）。转场类型 → 前一场景的出场动画（fade/slide/wipe）。"""
+    转场重叠）。转场类型 → 前一场景的出场动画（fade/slide/wipe）。
+    caption_segments: {场景 idx: [场景相对段]}——逐段点亮/熄灭用零宽
+    tween 挂在同一条 paused 时间线上，seek(t) 时 GSAP 会精确还原状态，
+    因此 --clock seek 烘焙逐帧出图也能拿到正确字幕（不依赖 rAF/CSS 动画）。"""
     lines = []
     for idx, scene in enumerate(scenes):
         anim = scene.get("animation", DEFAULT_ANIMATION)
@@ -361,6 +413,17 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_dur):
                 lines.append(
                     f'  tl.to("{prev}", {{opacity: 0, duration: {ov}, '
                     f'ease: "power1.in"}}, {starts[idx]});')
+    # 分段字幕：每个 caption div 在自己的 [start, end) 窗口内 opacity=1。
+    # 用 1ms 的 fromTo/to 而不是 CSS 动画——烘焙侧逐帧 seek 到任意 t，
+    # GSAP 都会把这两条 tween 的状态正确还原。
+    for idx in sorted((caption_segments or {}).keys()):
+        base = starts[idx] if idx < len(starts) else 0.0
+        for j, seg in enumerate(caption_segments[idx]):
+            sel = f"#cap-{idx}-{j}"
+            a, b = round(base + seg["start"], 3), round(base + seg["end"], 3)
+            lines.append(f'  tl.set("{sel}", {{opacity: 0}}, 0);')
+            lines.append(f'  tl.set("{sel}", {{opacity: 1}}, {a});')
+            lines.append(f'  tl.set("{sel}", {{opacity: 0}}, {b});')
     return "\n".join(lines)
 
 
@@ -405,10 +468,14 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     # 出场（GSAP 交叉动画），总时长随重叠收缩。
     trans_cfg = spec.get("transitions", {})
     trans_dur = float(trans_cfg.get("duration", 0.5))
-    # 字幕轨（T3）：captions.enabled 默认开——有 narration 的场景渲染
-    # 底部字幕条（TTS 与字幕同源文本）。
-    cap_cfg = spec.get("captions", {})
+    # 字幕轨（T3）：captions.segments 是「全局时间轴绝对秒」的 ASR 字幕段
+    # （hf_asr.py 的 captions.json 可直接填进来）；场景级 captions 是场景
+    # 相对秒。两者都没有时才回退到「旁白文本整段字幕」。
+    cap_cfg = spec.get("captions") or {}
     captions_on = cap_cfg.get("enabled", True)
+    global_caps = _norm_caption_segments(cap_cfg.get("segments") or [],
+                                         86400.0)
+    cap_by_scene = {}
     trans_default = str(trans_cfg.get("type", "fade") or "none")
     scene_html_parts = []
     scene_starts = []
@@ -428,20 +495,32 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         scene_starts.append(start)
         starts.append(start)
         caption = None
-        if captions_on and scene.get("narration"):
-            cap_text = tts_text(scene)
-            if cap_text:
-                caption = cap_text
+        cap_segs = None
+        if captions_on:
+            local = scene.get("captions")
+            hint = _fit_scene_duration(scene, 3.0)
+            if isinstance(local, list) and local:
+                cap_segs = _norm_caption_segments(local, hint)
+            elif global_caps:
+                cap_segs = _clip_caption_segments(global_caps, start, hint)
+            if not cap_segs and scene.get("narration"):
+                cap_text = tts_text(scene)
+                if cap_text:
+                    caption = cap_text
         html, dur = gen_scene_html(scene, start, idx, caption=caption,
-                                   registry=registry, css_out=tpl_css)
+                                   registry=registry, css_out=tpl_css,
+                                   caption_segments=cap_segs)
+        if cap_segs:
+            cap_by_scene[idx] = cap_segs
         scene_html_parts.append(html)
         durs.append(dur)
         trans.append(ttype)
         start += dur
     total_duration = start
 
-    # GSAP 时间线
-    timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_dur)
+    # GSAP 时间线（含分段字幕的点亮/熄灭 tween）
+    timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_dur,
+                                  cap_by_scene)
 
     # 音频
     audio = spec.get("audio", {})
@@ -576,6 +655,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     font-size: 30px; line-height: 1.4; padding: 10px 22px;
     border-radius: 10px; text-align: center;
   }}
+  .scene > .scene-caption.seg {{ opacity: 0; }}
   .scene-title {{ font-size: 72px; font-weight: 700; }}
   .scene-subtitle {{ font-size: 36px; opacity: 0.8; margin-top: 16px; }}
   .scene-body {{ font-size: 42px; line-height: 1.6; }}

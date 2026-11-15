@@ -11,6 +11,7 @@
 #   xmedia doctor                              # 环境自检（表格式报告）
 
 import argparse
+import html as _html
 import json
 import os
 import re
@@ -193,9 +194,233 @@ def md_to_html(md):
     return "\n".join(out)
 
 
+# 文档站落地页：作品展示文案（其余字段一律从 spec / ffprobe 实测，
+# 避免 README 式数字漂移）。键名对应 gallery/<键>.json 与 .mp4。
+WORKS_INFO = {
+    "product-launch": (
+        "产品发布会",
+        "16:9 横屏：自定义 lower-third 人名条、stats 场景与 wipe / fade 转场。",
+        ("16:9", "自定义模板", "转场")),
+    "knowledge-cards": (
+        "竖屏知识卡片",
+        "9:16 竖屏：list / stats 场景、slide 转场与内嵌字幕。",
+        ("9:16", "字幕", "list")),
+    "event-invite": (
+        "活动邀请函",
+        "9:16 竖屏：wipe 转场、quote 场景与 BGM 确定性混音。",
+        ("9:16", "BGM", "quote")),
+    "demo": (
+        "管线快速示例",
+        "官方 CLI 示例：标题 + 数据场景、TTS 旁白与烘焙 MP4。",
+        ("9:16", "TTS", "入门")),
+}
+
+# Hero 三段介绍（对位 Remotion 官网 hero 下的三栏切换轮播）。
+INTRO_SLIDES = (
+    ("product-launch", "写一份 spec",
+     "画幅、场景、动画与时序都声明在 JSON 里；改一个字段就是一条新片。"),
+    ("knowledge-cards", "帧级预览",
+     "Studio 等比缩放画布、逐帧步进，播放头与场景 / 属性双向联动。"),
+    ("event-invite", "确定性烘焙",
+     "CEF 离屏 → GL 合成 → FFmpeg 编码，同 spec 两次输出逐字节一致。"),
+)
+
+
+def ffprobe_meta(path):
+    """实测视频宽高与时长；ffprobe 不可用或失败时返回空字典。"""
+    probe = shutil.which("ffprobe")
+    if not probe:
+        return {}
+    try:
+        proc = subprocess.run(
+            [probe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height:format=duration",
+             "-of", "json", path],
+            capture_output=True, text=True, timeout=20)
+        info = json.loads(proc.stdout)
+        stream = (info.get("streams") or [{}])[0]
+        w, h = stream.get("width"), stream.get("height")
+        dur = float((info.get("format") or {}).get("duration") or 0)
+        return {"dims": f"{w} × {h}" if w and h else "",
+                "ratio": "16:9" if w and h and w > h else "9:16",
+                "dur": dur}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {}
+
+
+def collect_works():
+    """从仓库内的真实 spec + MP4 收集作品，缺任一方即跳过。"""
+    works = []
+    for wid, (title, desc, tags) in WORKS_INFO.items():
+        base = root("demo-output" if wid == "demo" else "gallery")
+        spec = os.path.join(base, wid + ".json")
+        mp4 = os.path.join(base, wid + ".mp4")
+        if not (os.path.isfile(spec) and os.path.isfile(mp4)):
+            continue
+        try:
+            with open(spec, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+        comp = data.get("composition", {})
+        scenes = data.get("scenes", [])
+        meta = ffprobe_meta(mp4)
+        if not meta.get("dims"):
+            fmt = comp.get("format", "9:16")
+            w, h = FORMAT_PRESETS.get(fmt, (1080, 1920))
+            w = comp.get("width", w)
+            h = comp.get("height", h)
+            meta.update(dims=f"{w} × {h}",
+                        ratio="16:9" if w > h else "9:16", dur=0)
+        # 舞台右侧代码面板展示真实 spec 节选，而不是手工编的假代码。
+        sample = {"composition": comp, "scenes": scenes[:1]}
+        works.append({
+            "id": wid, "title": title, "desc": desc, "tags": tags,
+            "file": wid + ".json", "spec": spec, "mp4": mp4,
+            "href": os.path.join("..", os.path.basename(base), wid + ".json")
+                    .replace(os.sep, "/"),
+            "contract": os.path.join("..", os.path.basename(base),
+                                     wid + ".html").replace(os.sep, "/"),
+            "dims": meta["dims"], "ratio": meta["ratio"],
+            "dur": meta["dur"], "fps": comp.get("fps", 30),
+            "scenes": len(scenes),
+            "code": json.dumps(sample, ensure_ascii=False, indent=2),
+            "video": "", "poster": "",
+        })
+    return works
+
+
+def ensure_previews(works):
+    """把 gallery 的 MJPEG MP4 转成网页可播的 H.264 预览 + 封面帧。
+
+    浏览器不保证支持 MP4 容器里的 mjpeg，所以展示层不能直接引用烘焙产物。
+    结果缓存于 docs-site/media/（源更新则重建）；无 ffmpeg 时静默降级，
+    页面自动回退到占位封面，文档生成不受影响。
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    media = root("docs-site", "media")
+    os.makedirs(media, exist_ok=True)
+    for w in works:
+        src = w["mp4"]
+        preview = os.path.join(media, w["id"] + ".mp4")
+        cover = os.path.join(media, w["id"] + ".jpg")
+        if not ffmpeg or not os.path.isfile(src):
+            continue
+
+        def stale(path):
+            return (not os.path.isfile(path)) or \
+                   os.path.getmtime(path) < os.path.getmtime(src)
+
+        if stale(preview):
+            try:
+                subprocess.run(
+                    [ffmpeg, "-y", "-loglevel", "error", "-i", src,
+                     "-t", "6", "-vf", "scale=-2:720", "-c:v", "libx264",
+                     "-crf", "30", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                     "-an", "-movflags", "+faststart", preview],
+                    capture_output=True, timeout=120, check=False)
+            except (OSError, subprocess.SubprocessError):
+                pass
+        if stale(cover):
+            try:
+                subprocess.run(
+                    [ffmpeg, "-y", "-loglevel", "error", "-ss", "1.2",
+                     "-i", src, "-frames:v", "1", "-vf", "scale=-2:720",
+                     "-q:v", "6", cover],
+                    capture_output=True, timeout=60, check=False)
+            except (OSError, subprocess.SubprocessError):
+                pass
+        rel = "media/"
+        if os.path.isfile(preview):
+            w["video"] = rel + w["id"] + ".mp4"
+        if os.path.isfile(cover):
+            w["poster"] = rel + w["id"] + ".jpg"
+
+
+def render_works_html(works):
+    """作品轮播卡片：视频懒加载，缺失素材以渐变封面兜底。"""
+    if not works:
+        return ('<article class="work-card"><div class="work-media">'
+                '<div class="ph" style="display:block"></div></div>'
+                '<div class="work-info"><h3>暂无可展示作品</h3>'
+                '<p>运行 xmedia render 生成 spec / MP4 后，再次执行 '
+                'xmedia docs 即会出现在这里。</p></div></article>')
+    out = []
+    for w in works:
+        esc = _html.escape
+        tags = "".join(f"<span>{esc(t)}</span>" for t in w["tags"])
+        video = (f'<video muted loop playsinline preload="none" '
+                 f'data-src="{w["video"]}" poster="{w["poster"]}"></video>'
+                 if w["video"] else "")
+        ph = "" if w["video"] else ' style="display:block"'
+        dur = f'{w["dur"]:.1f}s' if w["dur"] else "—"
+        wide = " wide" if w["ratio"] == "16:9" else ""
+        out.append(f'''<article class="work-card{wide}">
+  <div class="work-media">{video}<div class="ph"{ph}></div>
+    <span class="tag">{w["ratio"]} · {dur}</span>
+    <span class="play" aria-hidden="true"></span></div>
+  <div class="work-info"><h3>{esc(w["title"])}</h3>
+    <p>{esc(w["desc"])}</p><div class="tags">{tags}</div>
+    <div class="work-links"><a href="{w["href"]}" target="_blank">spec ↗</a>
+      <a href="{w["contract"]}" target="_blank">契约页 ↗</a>
+      <a href="{w["video"] or w["poster"]}" target="_blank">预览 ↗</a></div>
+  </div></article>''')
+    return "\n".join(out)
+
+
+def build_landing(body):
+    """把 markdown 正文注入落地页模板：轮播数据、卡片、统计与目录。"""
+    works = collect_works()
+    ensure_previews(works)
+    by_id = {w["id"]: w for w in works}
+
+    slides = []
+    fallback_code = ('{\n  "composition": {"format": "9:16", "fps": 30},\n'
+                     '  "scenes": []\n}')
+    for i, (wid, title, desc) in enumerate(INTRO_SLIDES, 1):
+        w = by_id.get(wid, {})
+        slides.append({
+            "no": f"{i:02d}", "title": title, "desc": desc,
+            "file": w.get("file", wid + ".json"),
+            "dims": w.get("dims", "1080 × 1920"),
+            "fps": w.get("fps", 30),
+            "code": w.get("code", fallback_code),
+            "video": w.get("video", ""), "poster": w.get("poster", ""),
+        })
+
+    templates = len([f for f in os.listdir(root("templates"))
+                     if f.endswith(".json")]) if os.path.isdir(root("templates")) else 0
+    stats = (
+        (str(len(works)), "REPRODUCIBLE WORKS"),
+        (str(sum(w["scenes"] for w in works)), "SCENES IN SPECS"),
+        (str(templates), "CUSTOM TEMPLATES"),
+        ("3×", "PROVENANCE ANCHORS"),
+    )
+    stats_html = "".join(
+        f'<div class="stat"><b>{v}</b><span>{k}</span></div>' for v, k in stats)
+    toc = "".join(
+        f'<a href="#{m.group(1)}">{m.group(2)}</a>'
+        for m in re.finditer(r"<h2 id='([^']+)'>(.*?)</h2>", body))
+
+    with open(root("tools", "docs_landing.html"), "r", encoding="utf-8") as f:
+        tmpl = f.read()
+    # JSON 内联进 <script>，转义 </ 以免提前闭合脚本标签。
+    data = json.dumps(slides, ensure_ascii=False).replace("</", "<\\/")
+    for key, val in (("@@SLIDES@@", data),
+                     ("@@WORKS@@", render_works_html(works)),
+                     ("@@STATS@@", stats_html),
+                     ("@@TOC@@", toc),
+                     ("@@BODY@@", body)):
+        tmpl = tmpl.replace(key, val)
+    return tmpl
+
+
 def cmd_docs(args):
-    """文档站：docs/HF_COMPOSE.md → docs-site/index.html（样式化单页，
-    标题锚点 + 暗色主题与 Studio 同源）。"""
+    """文档站：docs/HF_COMPOSE.md → docs-site/index.html。
+
+    落地页模板在 tools/docs_landing.html；作品预览由 gallery 实拍产物
+    转码到 docs-site/media/。正文仍逐字来自 markdown 真源。
+    """
     src = root("docs", "HF_COMPOSE.md")
     with open(src, "r", encoding="utf-8") as f:
         md = f.read()
@@ -209,55 +434,7 @@ def cmd_docs(args):
     body = re.sub(r'href="((?!http)[^":][^"]*\.md)"',
                   lambda m: f'href="{repo}/blob/main/docs/'
                             + m.group(1).replace("./", "") + '"', body)
-    page = f'''<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<title>xmedia-kit — AI 视频生成管线文档</title>
-<style>
-  :root {{ --bg: #0b0b11; --panel: #15151d; --line: #26263a;
-          --ink: #e9e9f0; --dim: #9494a8; --acc: #6d8bff; }}
-  * {{ box-sizing: border-box; }}
-  body {{ margin: 0; background: var(--bg); color: var(--ink);
-         font: 15px/1.7 -apple-system, "Helvetica Neue", sans-serif; }}
-  .wrap {{ max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }}
-  .top {{ display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }}
-  .logo {{ width: 26px; height: 26px; border-radius: 8px;
-          background: linear-gradient(135deg, #6d8bff, #8b6dff); }}
-  .top b {{ font-size: 15px; }}
-  h1 {{ font-size: 30px; border-bottom: 2px solid var(--acc);
-       padding-bottom: 12px; }}
-  h2 {{ font-size: 22px; margin-top: 44px; border-left: 4px solid var(--acc);
-       padding-left: 12px; }}
-  h3 {{ font-size: 17px; color: var(--acc); margin-top: 30px; }}
-  p, li {{ color: #c9c9d6; }}
-  code {{ background: var(--panel); padding: 2px 6px; border-radius: 5px;
-         font: 12.5px ui-monospace, Menlo, monospace; color: #9fb4ff; }}
-  pre {{ background: var(--panel); border: 1px solid var(--line);
-        border-radius: 10px; padding: 14px 16px; overflow-x: auto; }}
-  pre code {{ background: none; padding: 0; color: #c9d4ff; }}
-  table {{ border-collapse: collapse; width: 100%; margin: 14px 0;
-          font-size: 13.5px; }}
-  th, td {{ border: 1px solid var(--line); padding: 7px 11px;
-           text-align: left; vertical-align: top; }}
-  th {{ background: var(--panel); color: var(--ink); }}
-  td {{ color: #c9c9d6; }}
-  tr:hover td {{ background: var(--panel2); }}
-  a {{ color: var(--acc); text-decoration: none; }}
-  a:hover {{ text-decoration: underline; }}
-  hr {{ border: 0; border-top: 1px solid var(--line); margin: 34px 0; }}
-  ul {{ padding-left: 22px; }}
-  .foot {{ color: var(--dim); font-size: 12px; margin-top: 60px;
-          text-align: center; }}
-</style>
-</head>
-<body><div class="wrap">
-<div class="top"><div class="logo"></div><b>xmedia-kit</b></div>
-{body}
-<div class="foot">xmedia-kit · 本页由 <code>xmedia docs</code> 从
-docs/HF_COMPOSE.md 生成</div>
-</div></body></html>
-'''
+    page = build_landing(body)
     out_dir = root("docs-site")
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, "index.html")
@@ -396,6 +573,27 @@ def main():
     p = sub.add_parser("studio", help="预览注入 / 本地 Studio 服务（透传）")
     p.add_argument("args", nargs=argparse.REMAINDER)
     p.set_defaults(fn=lambda a: run([sys.executable, py_tool("hf_studio.py")]
+                                    + a.args))
+
+    p = sub.add_parser("import",
+                       help="素材目录 → spec（自动排时间轴 / ASR 字幕 / 片尾卡）")
+    p.add_argument("args", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=lambda a: run([sys.executable, py_tool("hf_import.py")]
+                                    + a.args))
+
+    p = sub.add_parser("asr", help="语音转写 / SRT 导入为分段字幕（透传）")
+    p.add_argument("args", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=lambda a: run([sys.executable, py_tool("hf_asr.py")]
+                                    + a.args))
+
+    p = sub.add_parser("agent", help="自然语言指令 → spec 变更（自检 / 透传）")
+    p.add_argument("args", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=lambda a: run([sys.executable, py_tool("hf_agent.py")]
+                                    + a.args))
+
+    p = sub.add_parser("mcp", help="启动 stdio MCP server（供 Claude/Cursor 调用）")
+    p.add_argument("args", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=lambda a: run([sys.executable, py_tool("xmedia_mcp.py")]
                                     + a.args))
 
     sub.add_parser("doctor", help="环境自检").set_defaults(fn=cmd_doctor)

@@ -112,11 +112,91 @@ python3 tools/hf_studio.py demo-output/demo.html --serve \
 # 浏览器打开 http://127.0.0.1:8120
 ```
 
-UI 闭环（对位 Remotion Studio 的编辑→预览→渲染）：左侧 spec 编辑器 →
-**重组合成**（Ctrl/Cmd+Enter，热更新右侧预览 + 校验面板）→ **生成旁白**
-（全场景 TTS）→ 场景时间轴点击跳转 → **烘焙 MP4**（尺寸/时长/fps 由 spec
-自动推导，无需记 CLI 参数），产物与日志同面板。spec 文件即落盘产物——
-重开服务或直接走 CLI 烘焙都接得上。
+三栏工作区（对位 Remotion Studio 的编辑→预览→渲染闭环）：
+
+| 区域 | 内容 |
+|---|---|
+| 左 | 场景列表（点选、上下移序、时长与旁白标记）与「源码 JSON」页签；SFX 开关 |
+| 中 | 预览区：原生画布等比缩放、传输条（含声音开关与音量）、校验状态 |
+| 右 | 场景属性面板：内容字段（按场景类型或自定义模板动态生成）、样式（背景 / 文字色 / 动画）、时序（时长 / 转场）、应用 / 复制 / 删除 |
+| 下 | NLE 风格五轨时间轴（场景 / 字幕 / 旁白 / 音效 / 音乐）+ 时间轴工具栏与可折叠日志 |
+
+**预览区**（`tools/studio_ui.html`）：iframe 始终以 spec 的原生像素尺寸渲染，
+再经 CSS `transform: scale()` 等比缩放——不裁切、不失真，与 `html_bake` 的
+`--width/--height` 同源。工具栏提供适配与 25%–300% 缩放、棋盘 / 深色 / 浅色
+背景、三分构图网格、10% 安全区与全屏；传输条提供跳首 / 逐帧 / 播放暂停 /
+跳尾 / 循环 / 0.5×–2× 速率、帧级 scrubber 与 `mm:ss.cc · 帧 N/M · fps` 时间码。
+点选预览画面或时间轴场景块会双向联动场景列表与属性面板；重组重载预览后自动
+恢复到重组前的时间点。打开时默认选中第一个场景，并定位到该场景的稳定帧——
+契约页的入场动画在 t=0 时 `opacity≈0`，直接停在 0 帧只会看到一块空背景；
+「跳到开头」按钮可随时回到 0 帧。
+
+**预览声音**：契约页的 `<audio data-start/data-duration/data-volume>` 是烘焙侧
+的确定性混音清单，本身不带 `autoplay`，直接用浏览器打开契约页是静音的。
+Studio 注入的驱动把这些元素当作多轨素材：播放头进入素材窗口即按对应偏移
+起播，离开窗口或暂停即停；拖动时间轴强制对位，0.5×–2× 变速同步
+`playbackRate`。**播放期间绝不逐帧 seek**：每次 `currentTime` 赋值都会让媒体
+重新缓冲并短暂静音，用 rAF 累加的时间去校正音频时钟会形成「落后 → seek →
+再缓冲 → 再落后」的循环，正是声音断续的根因。
+
+**播放头时钟**：视觉时间由 rAF 严格单调推进，正常播放时步长恒为 `dt × rate`，
+音频时钟**不参与逐帧纠偏**。两种早期做法都会造成边界卡顿：直接把播放时间
+覆盖成 `audioClock()`，会在音轨起播 / 切换时把游标钉在素材起点（新轨缓冲中
+`currentTime=0`）；把音频时钟当作每一帧的目标做牵引，则会在新 SFX 起播、
+音频时钟短暂滞后时连续多帧把步长压到下限（60% 速度），观感是「第二、第三个
+音效开始时顿一下，之后正常」。现在只有偏差超过 0.18s 死区才以 ≤2ms/帧
+缓慢收敛，参考时钟也只取确实已推进（`currentTime > 0.02`）且与当前时间
+最接近的一条轨，所有音轨边界播放头都匀速前进。此外：页面加载后把所有
+`<audio>` 静音预热一次（提前初始化解码器与音频输出设备），播放态的音频同步
+移到 `setTimeout(0)` 任务、状态上报提前到 `drive()` 开头，减少第 2、3 个
+SFX 首次 `play()` 对渲染帧的占用。
+
+**游标合成层动画**：Safari 的同源 iframe 与父页共享主线程，音轨首次 `play()`
+仍会同步阻塞父页 rAF（录屏实测 `00:01.37` 前连续 13 帧、约 216ms 游标不
+动）。因此播放时父页**完全不写** `transform`：`startPhAnim()` 给播放头挂一条
+`transform <剩余时长>s linear` 的 CSS transition，配合 `will-change: transform`
+由 compositor 独立插值，主线程被占满时游标仍匀速前进；`phFrame` 只按 1/4
+频率更新时间码、场景标签与自动滚动，状态文本仅在变化时写 DOM。过渡只在播放
+开始、暂停、循环回卷、显式定位、倍速变化、时间轴重建时重建；播放中绝不用
+iframe 上报时间拉回游标——iframe 的 rAF 同样会被阻塞，它的时间会落后墙钟。
+
+**预览单音轨混音**：服务模式在首次 `/preview` 请求时用 ffmpeg 把契约页所有
+`<audio>` 按 `data-start` / `data-volume` 预混成一条与总时长一致的 WAV
+（`/__xmedia_preview_mix__.wav`，按契约页内容哈希缓存、支持 Range 206，
+重组后自动重算）。预览页只播放这一条音轨，**播放中途不存在任何元素首次
+`play()`**，从源头消除 Safari 的解码器 / 输出设备同步初始化开销。契约页原有
+的音轨仍完整保留给 `html_bake` 离线混音，仅在预览时禁用预加载；ffmpeg 不可
+用时自动降级回多轨引擎。混音音量、起始时间与烘焙产物一致。
+
+传输条的喇叭按钮（`M`）静音、滑杆调总音量，音量沿用契约页
+的 `data-volume`；浏览器拦截自动播放时会出现「点此开启声音」提示，任意用户
+手势会自动重试解锁。内置 SFX 在契约页中写的是绝对文件系统路径（供 `file://`
+烘焙解析），HTTP 预览下由服务的 `/__xmedia_root__/` 只读映射提供——只在
+`/preview` 的内存副本里改写，契约文件与烘焙链路不受影响。
+
+**时间轴**（`tools/studio_ui.html`）：对位专业 NLE 的呈现——150px 轨道头
+（名称 / 副信息 / 眼睛可见性开关 / 音量值）、带主次刻度与时间码的标尺、
+蓝色场景片段内的连续缩略图 filmstrip、橙色字幕条、绿色旁白双通道波形与
+SFX / BGM 块状波形、贯穿所有轨道的红色播放头。缩略图按场景 `bg` 与类型、
+波形按素材路径哈希**确定性生成**，不引入随机数或外部素材。
+
+画布按 `px/s` 绘制并可横向滚动：`适配 / + / -` 与 Ctrl/⌘ + 滚轮缩放
+（12–400 px/s），主刻度间隔随缩放自适应；拖动标尺定位默认吸附到帧与场景
+边界，工具栏可关闭吸附。点选场景片段联动左栏与属性面板，拖右缘裁剪时长，
+选中后用 `‹ ›` 调整顺序；播放时播放头自动跟随滚动，轨道头眼睛可隐藏该轨。
+
+| 快捷键 | 作用 |
+|---|---|
+| `Space` | 播放 / 暂停 |
+| `M` | 预览声音静音 / 取消静音 |
+| `←` / `→` | ±1 帧；`Shift` + 方向键 ±10 帧 |
+| `Home` / `End` | 跳到开头 / 结尾 |
+| `+` / `-`、Ctrl/⌘ + 滚轮 | 缩放档位切换 |
+| `Ctrl/Cmd + Enter` | 重组合成 |
+
+服务模式下内嵌的悬浮传输条自动让位（`/preview?embed=1`），由父页统一控制；
+单文件注入模式仍保留自带的悬浮传输条。spec 文件即落盘产物——重开服务或直接
+走 CLI 烘焙都接得上。
 
 ## 功能速查（功能 → 命令）
 
@@ -139,8 +219,13 @@ UI 闭环（对位 Remotion Studio 的编辑→预览→渲染）：左侧 spec 
 | 原版契约兼容 | 生成器自动保证：`data-composition-id` 根 + clip `data-start/duration`(秒) + paused GSAP 注册 `window.__timelines` + 内联 GSAP（离线确定性）；驱动 = 注册表 `totalTime(秒+1e-3)` + 采集端 `data-time-unit="s"` 秒→毫秒归一（契约对齐 heygen-com/hyperframes） |
 | 确定性音频混音 | 页面 `<audio>` 元素（data-start/duration/volume/fade-in/out）→ libav 解码 → AudioConverter 统一重采样 48k FLTP → media-start 修剪 → 增益/斜坡 → data-start 叠加 → AAC 192k |
 | SFX 音效 | 三级选择（场景 `sfx` 覆盖 → 文本关键词 → 类型默认）随场景起点叠加，默认音量 0.4；素材 = `assets/sfx/` 五个 ffmpeg 合成音效（whoosh/pop/ding/success/transition，零授权，生成命令见该目录 README）；关闭：`--no-sfx` 或 spec `"sfx": {"enabled": false}`；自定义目录 `sfx.dir`、音量 `sfx.volume` |
+| Studio 预览区（服务模式） | 原生画布等比缩放（不裁切）+ 适配 / 25%–300% 缩放 + 棋盘 / 网格 / 安全区 / 全屏 + 传输条（播放、逐帧、循环、倍率、帧级时间码）+ 预览点选联动，见下方 Studio 小节 |
 | Studio 预览 | 注入模式：`python3 tools/hf_studio.py out.html` → 注入传输条（播放/拖动/场景跳转/空格与方向键）的 `<stem>.studio.html`，浏览器打开即预览；幂等原地更新 |
-| xmedia Studio 服务 | `python3 tools/hf_studio.py out.html --serve --spec spec.narrated.json [--port 8120]` → 浏览器 UI（127.0.0.1）：**spec 编辑器热重组**（Ctrl/Cmd+Enter）、场景时间轴点击跳转、TTS 一键、**烘焙按钮（尺寸/时长由 spec 自动推导）**、校验与日志面板——对位 Remotion Studio 的编辑→预览→渲染闭环 |
+| xmedia Studio 服务 | `python3 tools/hf_studio.py out.html --serve --spec spec.narrated.json [--port 8120]` → 浏览器 UI（127.0.0.1）：**spec 编辑器热重组**（Ctrl/Cmd+Enter）、五轨时间轴点选与标尺定位、TTS 一键、**烘焙按钮（尺寸/时长由 spec 自动推导）**、校验与日志面板——对位 Remotion Studio 的编辑→预览→渲染闭环 |
+| ASR 分段字幕 | `xmedia asr <media\|.srt\|.vtt> -o captions.json [--provider auto\|srt\|whisper\|fw]`；输出 `{segments:[{start,end,text}]}`，填进 spec `captions.segments` |
+| 素材自动导入 | `xmedia import <dir> -o spec.json [--asr] [--captions cap.srt] [--endcard] [--format 9:16]`；ffprobe 实长按文件名排序排时间轴 |
+| 自然语言编辑 | Studio 右下角 `Ask AI`（Ctrl/⌘ + K）或 `POST /api/agent`；本地规则引擎零配置可用，可选 OpenAI 兼容 LLM |
+| MCP server | `xmedia mcp --studio-url http://127.0.0.1:8120`（stdio JSON-RPC，11 个 tools） |
 
 ### TTS provider（hf_tts.py）
 
@@ -209,6 +294,29 @@ say/网络）——`ctest -R hf_tts_smoke`。
 | text_color | string | `"#ffffff"` | 文字颜色 |
 | animation | string | `"fade_in"` | 入场动画（见下表）|
 | content[] | array | `[]` | 子项（text/list 类型，每项 `{text}`）|
+| video | string | — | 实拍视频素材路径（相对 spec 目录或绝对路径）；生成 `<video class="scene-video" data-start/data-duration>`，画面由烘焙侧 FFmpeg 原生视频层供给，`visibility:hidden` 不进光栅（CEF OSR 的 `<video>` 不随 seek 重绘）。素材导入见下方「素材自动导入」|
+| captions | array | — | **场景相对秒**的分段字幕 `[{start, end, text}]`；优先于顶层 `captions.segments`。有分段时不再渲染「旁白整段字幕」|
+| sfx | string | — | 场景级音效覆盖（覆盖关键词与类型默认）|
+
+### captions（分段字幕，全局时间轴）
+
+顶层 `captions` 是**全局绝对秒**（从合成 0 开始），由 `hf_asr.py` 的
+`captions.json` 或 SRT/VTT 直接填入；`start`/`end` 落在哪个场景窗口，字幕
+就自动挂到那个场景并转成场景相对时间。
+
+| 字段 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| enabled | bool | `true` | 关闭后所有字幕（含整段旁白字幕）都不渲染 |
+| segments[] | array | `[]` | `[{start, end, text}]`，绝对秒；确定性排序、去重、裁剪到场景窗口，上限 800 段 |
+| segments[].start / end | float | 必填 | 秒制时间窗；`end > start` 才有效 |
+| segments[].text | string | 必填 | 单行字幕文本（HTML 转义，最长 300 字符）|
+
+**渲染契约**：每个分段生成一个 `<div id="cap-{scene}-{i}" class="scene-caption seg">`
+（CSS 初始 `opacity:0`），GSAP 时间线上挂三条零时长 `tl.set()`：0 秒隐藏、
+段起点点亮、段终点熄灭。用 `set` 而不是带 duration 的 tween，是为了让
+`tl.seek(t)` 在**正向和反向**任意时间点都精确还原状态（1ms tween 会在恰好
+落在边界的帧上错一帧）。因此 `--clock seek` 逐帧烘焙与 Studio 拖动 scrubber
+拿到的字幕完全一致，不依赖 rAF 或 CSS 动画。
 
 各场景类型的专有字段：
 
@@ -302,6 +410,165 @@ canonical JSON 的 sha256）→ spec 源文件。产物任一锚点缺失 = 不�
 生成（注意：`--chunks N>1` 的拼接产物不保留 MP4 metadata——用 HTML 注释
 与 sidecar 锚点验证）。
 
+## AI 能力集成（ASR / 导入 / Agent / MCP）
+
+对位 Remotion 官网 `Make videos agentically` 演示里那条指令：
+`Please import the videos I just recorded from ~/Downloads and put them on a
+timeline, caption it.` → `add our endcard to it`。xmedia-kit 把这句话拆成
+四个可独立调用的能力，全部落在同一份 spec JSON 上。
+
+### ASR 分段字幕
+
+`tools/hf_asr.py` 把已录素材的语音转成带时间戳的字幕段：
+
+```bash
+xmedia asr ~/Downloads/clip.mp4 -o captions.json --provider whisper
+xmedia asr clip.srt -o captions.json                 # 直接读 SRT/VTT
+```
+
+| provider | 依赖 | 说明 |
+|---|---|---|
+| `srt` | 无 | 解析 SRT / WebVTT（`-->` 时间戳，去 HTML 标签），永远可用 |
+| `whisper` | whisper.cpp | `XMEDIA_WHISPER_BIN`（默认找 `whisper-cli`）+ `XMEDIA_WHISPER_MODEL` 模型路径；ffmpeg 先抽 16k 单声道 WAV |
+| `fw` | `pip install faster-whisper` | Python 包（CTranslate2，纯 CPU int8 可跑）；`--model` 选尺寸，默认 `small` |
+| `auto` | — | 有字幕文件走 srt，否则 whisper → fw；两个都失败时把**各自的原因**一起报出来 |
+
+**本机装一次就能用（已验证）**：
+
+```bash
+pip install faster-whisper "av<19"        # av>=19 去掉了 metadata_errors，fw 会解码失败
+```
+
+- 模型缓存：`~/.cache/xmedia-asr/models/<尺寸>/`（`XMEDIA_ASR_MODEL_DIR` 可改），
+  首次运行自动下载；默认 `small`（中文口播明显好于 base），`XMEDIA_ASR_MODEL`
+  可换成 `tiny/base/medium/large-v3` 或本地模型目录（免联网）。
+- 国内网络：未设 `HF_ENDPOINT` 时，首次加载失败会**自动改用 `hf-mirror.com`
+  重试一次**；镜像断流时也可以直接用 curl 断点续传把
+  `config.json / model.bin / tokenizer.json / vocabulary.txt` 下到
+  `~/.cache/xmedia-asr/models/small/`，之后完全离线可用。
+- 速度参考（8 核 CPU / small / int8）：20s 音频约 17s，118s 素材约 1.5~2min；
+  `cpu_threads` 自动取 `核数-1`。
+
+输出统一为 `{"source", "provider", "duration", "segments":[{start,end,text}]}`，
+可直接作为 spec 顶层 `captions.segments`（全局绝对秒）。`transcribe_with_fallback()`
+会在 ASR 依赖缺失时自动找同目录的同名 `.srt/.vtt`（或目录里唯一一份字幕）
+降级，因此**零依赖环境也能跑通「导入并加字幕」**，结果的
+`fallback_from` 字段会说明降级原因。
+
+### 素材自动导入
+
+`tools/hf_import.py` 扫一个目录（或直接给**单个音视频文件**），用 ffprobe 读
+每个视频的实长、按文件名确定性排序排到时间轴：
+
+```bash
+xmedia import ~/Downloads -o my_video.json --asr --endcard --format 9:16
+xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景
+```
+
+- 每段视频 → 一个 `scenes[]`：`{type:"text", video:<路径>, duration:<实长>}`；
+  路径相对输出 spec 所在目录，跨目录自动改绝对路径。单文件导入时 spec 目录
+  默认取该文件所在目录。
+- 单个文件里若不是音视频扩展名（`.srt` / `.txt` 等）直接报「不支持该文件类型」。
+- `--asr` 逐素材转写，字幕段按累计场景起点偏移到全局时间轴；
+  `--captions cap.srt` 直接挂外部字幕；两者可叠加。
+- `--endcard` 追加内置 `outro-brand` 品牌片尾卡模板（`templates/outro-brand.json`）。
+- 导入结果默认 `transitions: {"type":"none"}`（场景起点 = 时长累加，保证全局
+  字幕时间戳与画面对齐）与 `sfx.enabled=false`（实拍素材不叠合成音效）。
+- 目录里独立的音频文件自动作为 BGM（`audio.src`，音量 0.35）。
+
+产物是普通 spec JSON，之后走与手写 spec **完全相同**的
+TTS → compose → validate → Studio → bake 链路，三重来源锚点照常可验。
+
+#### Studio 里的导入入口
+
+顶栏 **导入素材** 按钮（或 Ask AI 面板的「导入素材」快捷按钮）打开导入面板；
+两种方式都汇合到 `POST /api/import`，成功后自动刷新预览、时间轴与属性面板：
+
+| 方式 | 端点 | 适用场景 |
+|---|---|---|
+| 本机目录 · 零拷贝 | `POST /api/import {"dir":"~/Downloads/clips"}` | 大素材：Studio 服务本机直读，不复制文件 |
+| 本机单文件 | `POST /api/import {"dir":"~/Movies/kpl.mp4"}` | 只要一条素材：等价于「只含一个素材的目录」，`vid` 直接指向原文件 |
+| 选择 / 拖入文件 | `POST /api/import/upload`（multipart）→ 用返回的 `dir` 再调 `/api/import` | 没有路径、只想用文件选择器；文件落到 spec 目录 `imported/<批次>/`，合计 ≤ 512 MB |
+
+面板可设画幅（16:9 / 9:16 / 1:1 / 4:5）、ASR 自动字幕、外部
+SRT/VTT/captions.json、追加片尾卡、内置音效；导入 notes 逐条显示在状态区。
+
+合并策略：**默认替换**——时间轴只留本次导入的素材，上一次导入的画面 / 字幕 /
+BGM 不会残留到新素材前面；勾选「追加到当前时间轴」（API `append: true`，兼容旧
+参数 `replace: false`）才接在末尾，同一素材已在时间轴上时附一条提示。
+替换是破坏性的，所以服务端会保留一份导入前的 spec 快照，`POST /api/import/undo`
+（面板「撤销导入」按钮）可一键回滚。只读预览（启动时未带 `--spec`）时按钮禁用。
+`GET /api/state` 的 `import.last_dir / spec_dir / upload_max_mb / can_undo /
+undo_label` 供面板预填与提示。
+
+跨目录素材在 spec 里写绝对路径。`hf_studio.py` 把 spec 显式引用过的文件登记为
+只读白名单，预览页改写为 `/__xmedia_media__/<绝对路径>`，因此 HTTP 预览不会
+404，而契约文件仍保留原始绝对路径（`file://` 烘焙语义不变）。未登记的路径
+一律拒绝访问。
+
+### Ask AI 与 Agent 规则引擎
+
+Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
+`POST /api/agent` → 服务端 `tools/hf_agent.py` → 写回 spec → 重组 →
+`refresh()` 让预览、时间轴、属性面板同步更新。快捷按钮覆盖片尾卡、竖屏、
+字幕开关、旁白、ASR、导入素材、烘焙。
+
+`hf_agent.handle()` 两级设计：
+
+1. **本地规则引擎**（零配置、确定性）：`导入 <目录|文件>` / `加片尾卡` /
+   `删除第 N 个场景` / `第 N 个场景文字改成 X` / `改成竖屏` /
+   `背景改成 #1a1a2e` / `关闭字幕` / `第 N 个场景时长 X 秒` /
+   `生成旁白` / `自动字幕` / `烘焙 MP4` / `重组合成`。
+   路径抽取优先引号包裹（可含空格 / 中文）→ `~/…` → `./`、`../` → 绝对路径 →
+   含 `/` 的相对路径 → 带音视频扩展名的裸文件名（`kpl.mp4`）；抽不到路径时
+   回引导文案，不抛「目录不存在」。
+2. **可选 LLM**：环境变量 `XMEDIA_LLM_ENDPOINT`（OpenAI 兼容
+   `/chat/completions`）、`XMEDIA_LLM_API_KEY`、`XMEDIA_LLM_MODEL`。
+   规则未命中时把「指令 + 当前 spec」发给模型，要求只回
+   `{"reply","spec"}` JSON。**密钥只在服务端**，不下发浏览器。
+
+`hf_agent.validate_spec()` 是所有外部 spec 的硬门：结构、schema 版本、
+场景类型（7 类 + 自定义模板名）、时长范围、禁止远程/脚本 URL、规模上限。
+校验不过直接拒绝写回——延续「agent 不手写 HTML、按 schema 填 spec JSON」
+的约定。`/api/state` 的 `agent.llm` 会在面板上显示当前是「本地规则引擎」
+还是「LLM + 本地规则」。
+
+### MCP server
+
+`tools/xmedia_mcp.py` 是 stdio JSON-RPC 2.0 server（protocolVersion
+`2024-11-05`），把编辑能力暴露给 Claude / Cursor / Codex / WorkBuddy：
+
+```json
+{
+  "mcpServers": {
+    "xmedia-kit": {
+      "command": "python3",
+      "args": ["/abs/path/to/xmedia-kit/tools/xmedia_mcp.py",
+               "--studio-url", "http://127.0.0.1:8120"]
+    }
+  }
+}
+```
+
+11 个 tools：`xmedia_state` / `recompose` / `tts` / `bake` / `job` /
+`agent` / `import` / `asr` / `compose` / `validate` / `help`。其中
+`import` / `asr` / `compose` / `validate` / `help` 直接调本地模块，
+**Studio 服务没启动也能用**；其余通过 `--studio-url` 走 HTTP。
+项目根的 `mcp.json.example` 可直接复制进 MCP 客户端配置。
+stdout 严格只输出 JSON-RPC 行，日志走 stderr。
+
+### HTTP 端点（Agent 可直接调）
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| GET | `/api/state` | spec / 场景 / 时长 / 校验结果 / `agent` 能力标记 |
+| POST | `/api/recompose` | 完整 spec → 写回 + 重组预览 |
+| POST | `/api/tts` | 全场景生成旁白 |
+| POST | `/api/bake` · GET `/api/job?id=` | 启动烘焙 / 查进度 |
+| POST | `/api/asr` | `{path, provider?, srt?, apply?}` → 字幕段；`apply` 直接写入 spec |
+| POST | `/api/import` | `{dir, asr?, captions?, endcard?, format?}` → 生成 spec 并重组 |
+| POST | `/api/agent` | `{message}` → 规则/LLM → spec 变更或管线动作 → 自动重组 |
+
 ## 与 brag 的对应
 
 | brag | xmedia-kit |
@@ -324,6 +591,23 @@ canonical JSON 的 sha256）→ spec 源文件。产物任一锚点缺失 = 不�
 
 子合成内通过 `window.__hyperframes?.getVariables?.()` 消费变量。
 
+## 文档站与作品轮播
+
+`python3 tools/xmedia.py docs` 从本文档生成 `docs-site/index.html`：上半页是
+`tools/docs_landing.html` 模板渲染的产品介绍（Hero → 大演示窗口 → 三段
+可切换介绍轮播 → 作品轮播 → 能力网格 → 实测统计），下半页仍是本文档逐字
+转换的正文，附自动生成的目录与滚动高亮。纯静态、零外部依赖。
+
+- 介绍轮播：7 秒自动推进、悬停暂停、进度条、左右按钮 / ← → 键切换；
+  演示窗口左侧播放作品预览，右侧展示该作品真实 spec 节选。
+- 作品轮播：横向 scroll-snap + 拖拽 / 箭头 / 分页点，视频仅在进入视口时
+  懒加载与播放，离开即暂停；`prefers-reduced-motion` 下关闭自动轮播。
+- 预览素材：烘焙产物是 MP4 容器里的 mjpeg（浏览器不保证可播），因此
+  `docs` 会用 ffmpeg 转一份 H.264 预览与封面帧到 `docs-site/media/`，按源文件
+  mtime 缓存；无 ffmpeg 时静默降级为占位封面，文档生成不受影响。
+- 作品标题 / 描述 / 标签写在 `tools/xmedia.py` 的 `WORKS_INFO`，画幅、时长、
+  fps、场景数与统计数字一律从 spec 和 ffprobe 实测，避免文档漂移。
+
 ## 已知边界
 
 - `.clip` 生命周期：注入 runtime 接管 `.clip` 元素显隐（其揭示协议需官方管线握手）。无 `.clip` 标记的数据驱动页不受影响——**hf_compose.py 生成的 HTML 不使用 `.clip` 标记**（场景可见性由 data-start/duration + GSAP opacity 驱动）✓
@@ -332,3 +616,5 @@ canonical JSON 的 sha256）→ spec 源文件。产物任一锚点缺失 = 不�
 - 分块音频：`--chunks N>1` 时音频按块独立 AAC 编码再拼接，块边界存在 ±1 AAC 帧（≈21ms）的相移——内容经段级比对一致；采样级精确请用 `--chunks 1`。
 - 烘焙画布：`--width/--height` 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。
 - CLI 健壮性：`--url` 支持相对路径（自动补全 `file://` 绝对 URL）；未知参数显式告警（拼写错如 `--hight` 不再静默吞掉）；二进制带 `__RESTRICT` 段——外部 `DYLD_LIBRARY_PATH` 等环境变量不影响其 FFmpeg 加载（机器上共存同名旧库也安全）。
+- ASR 真语音识别需要外部 provider（whisper.cpp 或 faster-whisper）；仓库零强制依赖，缺失时自动降级到 SRT/VTT 字幕文件，不会把静音素材凭空变成文字。分段字幕是逐段整行显示，暂不做逐词卡拉 OK 高亮。
+- Studio 的 `Ask AI` 未配置 `XMEDIA_LLM_ENDPOINT` 时只跑本地规则引擎（覆盖常见编辑指令），自由自然语言会返回可用指令列表；LLM 仅作为可选增强，未接入时不影响其余功能。

@@ -276,6 +276,13 @@ if(XMEDIA_ENABLE_FFMPEG)
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_studio_smoke.py")
     set_tests_properties(hf_studio_smoke PROPERTIES TIMEOUT 120)
 
+    # ---- hf_ai：ASR 分段字幕 / 素材导入 / Agent 规则 / MCP stdio /
+    # Ask AI HTTP 闭环冒烟（临时端口自起自停，不依赖 8120 常驻服务）。
+    add_test(NAME hf_ai_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/hf_ai_smoke.py")
+    set_tests_properties(hf_ai_smoke PROPERTIES TIMEOUT 240)
+
     # ---- hf_video_scene：视频素材元素全链冒烟（FFmpeg 原生解码合成 +
     # 帧推进 + 帧精度，RUN_SERIAL 串行——CEF 烘焙重负载）。
     add_test(NAME hf_video_scene_smoke
