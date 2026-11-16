@@ -73,6 +73,20 @@ python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告�
 
 单步命令（等价透传）：`xmedia tts/compose/validate/studio/sfx`。
 
+**能力对齐 HF Studio 的评估结论**（2026-11-17 对齐任务链）：
+
+- **云渲染（deploy/cloud、Lambda/Cloud Run）**：评估暂不实现——本仓库
+  定位是本地确定性引擎（单机烘焙 + 硬件加速真零拷贝路径），云渲染是
+  新基建（队列/存储/计费/隔离），依赖真实多租户需求再立项；4K 本地
+  烘焙已有压力测试覆盖。
+- **HDR / Motion Blur / VFX chain（data-vfx-chain）**：评估暂不实现——
+  shader transitions 已覆盖大部分视觉过渡；HDR 编码管线与 per-pixel
+  效果链属于渲染核心扩展，待渲染确定性专项收尾后评估。
+- **HeyGen 生态绑定项**（Avatar presenter / HeyGen Video 1 / HeyGen
+  Voice / Share for review 云评审）：明确不做——依赖 HeyGen 账号体系
+  与云服务，与本仓库本地/开源定位冲突。替代路径：口型播报可接开源
+  TTS+口型方案；评审分享用产物文件 + 常规渠道。
+
 **launch 四段式发布视频**（对齐 HF first-video：Hook → Proof → Turn → CTA）：
 
 ```bash
