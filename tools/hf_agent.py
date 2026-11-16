@@ -290,6 +290,24 @@ def handle(message, spec, spec_dir=""):
             base["scenes"][idx]["text"] = m.group(2).strip().strip("\"'“”")
             return out(f"第 {idx+1} 个场景文字已改为「{base['scenes'][idx]['text']}」", base)
 
+    # 4b. 字幕段文字编辑（Script 逐词面板的 Cut/Fix 落点）：改
+    #     captions.segments[N-1].text——注意 TTS 音频由 tts_text 生成，
+    #     这里只改字幕显示文本，剪音频请改旁白文本后重新生成旁白。
+    m = re.search(r"字幕段\s*([一二三四五六七八九十\d]+)\s*(?:的)?(?:文字|文本)?\s*(?:改成|改为|设为)\s*[:：]?\s*(.+)", msg, re.I)
+    if m and not re.search(r"关闭字幕|去掉字幕|删除字幕", msg):
+        caps = base.setdefault("captions", {})
+        segs = caps.setdefault("segments", [])
+        idx = _int(m.group(1), 0) - 1
+        if 0 <= idx < len(segs):
+            new_text = m.group(2).strip().strip("\"'“”")
+            old = segs[idx].get("text", "")
+            segs[idx]["text"] = new_text
+            caps["enabled"] = True
+            return out(f"字幕段 {idx+1} 已改为「{new_text}」"
+                       f"（原「{old}」；音频未剪，剪音频请改旁白后重新生成）",
+                       base)
+        return out(f"字幕段 {idx+1} 不存在（当前 {len(segs)} 段）", mode="help")
+
     # 5. 画幅
     if re.search(r"竖屏|9:16|9：16", msg, re.I):
         base.setdefault("composition", {})["format"] = "9:16"
