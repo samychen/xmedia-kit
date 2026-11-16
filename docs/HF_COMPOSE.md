@@ -5,6 +5,36 @@ Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 
 
 返回：[README](../README.md) ｜ 相关：[EXAMPLES](EXAMPLES.md) ｜ [COOKBOOK](COOKBOOK.md)
 
+### 确定性边界（2026-11-17 取证）
+
+管线各层的确定性实测结论——**输入侧确定，呈现层有已知限制**：
+
+| 层 | 确定性 | 依据 |
+|---|---|---|
+| hf_tts（say 离线） | ✓ 幂等 | 同文本复用缓存产物，不重生成 |
+| hf_compose（spec → HTML） | ✓ 逐字节 | 同 spec 两次 compose 的 HTML md5 一致（canonical sha256 锚定） |
+| 音频混音 | ✓ 帧级 | 双烘 `-map 0:a -f md5` 一致 |
+| 页面 GSAP 时间线 | ✓ 逐 seek | seekDone 回执探针：`tl.time()` 每帧 = 请求 t + 1ms（seek 脚本的 `totalTime(t+1e-3)` 设计值），两支烘焙完全一致 |
+| 视频像素 | ⚠ 逐帧 md5 有 5–18/165 差异帧 | 见下 |
+
+**视频像素差异的根因**：macOS OSR 走 software compositor（`disable-gpu`），
+partial raster 下**内容变化帧**（字幕点亮/场景进出/动画）触发整层重光栅，
+OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块（黑块边界即 tile 边界）。
+取证排除了其它假设：seek 在飞门控的丢弃从未触发（探针实测）；GSAP 时间线
+状态两支逐 seek 一致；无动画 spec 同样出现（差异与动画无关）；compose 产物
+逐字节一致（差异不在输入）。`--disable-partial-raster` +
+`--run-all-compositor-stages-before-draw` 开关无效（software path 不吃）。
+
+尝试过并回退的修复（各自引入新问题，保持回退态等待专项）：
+"同 t 反复 Invalidate 到光栅 hash 稳定"（治好黑块但差异帧反增）、
+"在飞 seek 暂存补发"、"烘焙默认切 VT 时钟"（VT 另有退出挂起 +
+pre-apply ack miss 问题，不可用）。
+
+影响面与对策：差异帧是黑 tile 级（PSNR 19–31），**视觉上偶发可见**，
+发布级交付前应抽帧目检（渲染验证三件套）；同 spec 复烤不保证逐字节一致。
+专项方向：CEF software compositor 的 tile 光栅完成度门控（需要
+OnPaint 之外的完整性信号），或 VT 时钟的退出/ack 修复后切默认。
+
 ## 快速上手
 
 **统一 CLI**（推荐，所有能力的入口；详细子命令 `xmedia --help`）：
