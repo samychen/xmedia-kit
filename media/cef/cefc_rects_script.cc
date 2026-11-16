@@ -246,7 +246,9 @@ std::string MakeRectsScript() {
         var x1 = r.left + r.width, y1 = r.top + r.height;
         for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
           var cp = '';
-          try { cp = getComputedStyle(n).clipPath || ''; } catch (e) { continue; }
+          try {
+            cp = getComputedStyle(n).clipPath || '';
+          } catch (e) { continue; }
           if (!cp || cp === 'none') { continue; }
           var m = /^inset\(([^)]*)\)/.exec(cp);
           if (!m) { continue; }
@@ -262,7 +264,9 @@ std::string MakeRectsScript() {
           var t, rr, b, l;
           if (vals.length === 1) { t = rr = b = l = vals[0]; }
           else if (vals.length === 2) { t = b = vals[0]; rr = l = vals[1]; }
-          else if (vals.length === 3) { t = vals[0]; rr = l = vals[1]; b = vals[2]; }
+          else if (vals.length === 3) {
+            t = vals[0]; rr = l = vals[1]; b = vals[2];
+          }
           else { t = vals[0]; rr = vals[1]; b = vals[2]; l = vals[3]; }
           var nr = n.getBoundingClientRect();
           var px = function (it, base) {

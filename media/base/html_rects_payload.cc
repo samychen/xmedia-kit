@@ -345,7 +345,9 @@ bool ReadRectElement(JsonCursor& c, int ordinal, HtmlElementRect* out) {
       }
       if (key == "clip_x") { clip_x = static_cast<float>(num); }
       else if (key == "clip_y") { clip_y = static_cast<float>(num); }
-      else if (key == "clip_w") { clip_w = static_cast<float>(std::max(0.0, num)); }
+      else if (key == "clip_w") {
+        clip_w = static_cast<float>(std::max(0.0, num));
+      }
       else { clip_h = static_cast<float>(std::max(0.0, num)); }
       has_clip = true;
     } else if (key == "fade_in") {

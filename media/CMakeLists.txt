@@ -251,9 +251,11 @@ if(XMEDIA_HAS_CEF)
     set(CMAKE_OSX_ARCHITECTURES "${_X_SAVE_OSX_ARCHS}")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "${_X_SAVE_OSX_DEPLOY}")
 
+    # 只收 .cc：STYLE.md 要求 .cc 后缀（Chromium 约定），cef/ 下原本有
+    # 三个 .cpp（cef_app/cef_osr_client/cef_runtime），2026-11-15 改名
+    # 对齐。glob 不再兜 .cpp——兜着就等于默许新文件继续用错后缀。
     file(GLOB XMEDIA_CEF_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cc"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/cef/*.cc")
     add_library(xmedia_cef ${XMEDIA_CEF_SOURCES})
     add_library(xmedia::cef ALIAS xmedia_cef)
     target_include_directories(xmedia_cef PUBLIC
@@ -273,7 +275,7 @@ if(XMEDIA_HAS_CEF)
       add_dependencies(xmedia_cef libcef_lib)
     endif()
 
-    # Helper 子进程（cef_helper_main.cc + cef_app.cpp）：Chromium 以
+    # Helper 子进程（cef_helper_main.cc + cef_app.cc）：Chromium 以
     # --type=... 重启本可执行执行子进程角色。macOS 子进程在加载期就要解析
     # cef_* 符号（dyld 两级命名空间不做 dynamic_lookup——未解析即 crash，
     # GPU 子进程 exit 11 实测）。CEF 156 的 macOS distro 不设
@@ -290,7 +292,7 @@ if(XMEDIA_HAS_CEF)
     else()
       set(XMEDIA_CEF_FRAMEWORK_LIB libcef_lib)
     endif()
-    add_executable(xmedia_cef_helper cef/cef_helper_main.cc cef/cef_app.cpp)
+    add_executable(xmedia_cef_helper cef/cef_helper_main.cc cef/cef_app.cc)
     target_compile_definitions(xmedia_cef_helper PRIVATE XMEDIA_HAS_CEF=1)
     target_include_directories(xmedia_cef_helper PRIVATE
         ${CMAKE_SOURCE_DIR} ${CEF_INCLUDE_PATH})

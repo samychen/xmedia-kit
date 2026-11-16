@@ -452,11 +452,18 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
 
 
 def _load_gsap():
-    """内联 GSAP（离线确定性：不依赖 CDN/file:// 子资源）。"""
+    """内联 GSAP（离线确定性：不依赖 CDN/file:// 子资源）。
+
+    查找顺序有讲究：spec 目录优先（用户可钉版本），然后是 tools/ 自带的一
+    份，最后才回落到 tests/testdata/（源码树的路径）。tools/ 那份是为
+    npm 包准备的——`npx xmedia-kit` 装出来没有 tests/ 目录，以前会静默
+    生成 `/* gsap not found */`，产物能动但所有动画都不跑。
+    """
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
     for candidate in [
         os.path.join(_spec_dir, "gsap.min.js"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
-                     "tests", "testdata", "gsap.min.js"),
+        os.path.join(tools_dir, "gsap.min.js"),
+        os.path.join(tools_dir, "..", "tests", "testdata", "gsap.min.js"),
     ]:
         if os.path.isfile(candidate):
             with open(candidate, "r", encoding="utf-8") as f:

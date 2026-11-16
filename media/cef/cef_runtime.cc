@@ -171,7 +171,8 @@ bool CefRuntime::Init(const std::string& framework_dir,
   }
   if (!subprocess_path.empty()) {
     // macOS: Helper bundle executable. Linux: this executable itself
-    // (single-binary subprocess; main() delegates via CefPlatformSubprocessMain).
+    // (single-binary subprocess; main() delegates via
+    // CefPlatformSubprocessMain).
     CefString(&settings.browser_subprocess_path) = subprocess_path;
   }
 

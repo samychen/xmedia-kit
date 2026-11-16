@@ -24,6 +24,9 @@ build system or the compiler cannot catch on its own:
   C30  examples/ never spawns a bare std::thread (docs/10 §12, V7: an example
        is the template a host copies, so it speaks the SDK's threading
        vocabulary -- base::Thread)
+  C31  source files end in .cc, not .cpp (STYLE.md: ".cc (不是 .cpp)"). A
+       .cpp compiles fine, so without this rule the suffix only drifts --
+       media/cef/ had three of them until 2026-11-15.
 
 The nine style rules this gate used to carry (C2, C7-C9, C11, C14, C17, C18,
 C20, C21) were cut in the "keep only what finds bugs" pass: C18 (throw) is
@@ -142,6 +145,74 @@ LINE_LIMIT_ALLOWLIST = {
         502, "The header of the 624 entry: one declaration block per "
              "mirrored half. 500 -> 502 is the record-tap and output-target "
              "declarations (2026-10-31)."),
+    # The four entries below are the C1 debt this file's own audit surfaced
+    # (docs/PROJECT-REVIEW.md, 2026-11-15). Two of them shrank on the spot
+    # (html_bake.cc 1120 -> 895 via the video-layer and CLI-args splits); the
+    # rest are ceilings taken at today's size, not targets. Each records why a
+    # split along a real seam was not available, so the next person does not
+    # have to rediscover it. Ratcheted: they may only move down.
+    "examples/html_bake.cc": (
+        895, "The bake pipeline itself. Two seams were real and were taken: "
+             "<video> native layers to html_bake_video_layer.{h,cc} (1120 -> "
+             "983) and argv parsing to html_bake_args.{h,cc} (983 -> 895). "
+             "What remains is one main() carrying the CEF OSR lifecycle, the "
+             "VT bake clock, the GlElementComposer fan-out, the chunk loop and "
+             "the encoder/muxer pair. The 176-line bake_frame lambda captures "
+             "all of it by reference; extracting it would mean threading a "
+             "dozen locals through a context struct -- a rewrite of the "
+             "pipeline, not a split of it, and the one place a mistake shows "
+             "up as a silently wrong frame rather than a build error. Revisit "
+             "by extracting the chunk loop, which owns only encoder/muxer "
+             "construction."),
+    "media/base/html_rects_payload.cc": (
+        620, "One hand-written schema-directed JSON reader (JsonCursor plus "
+             "one Read* function per shape) for the payload hf_compose emits. "
+             "There is no jsoncpp in this tree and no general JSON capability "
+             "by design: the schema is fixed and flat, and the parser is the "
+             "place that enforces it. The functions form a mutually recursive "
+             "descent over one cursor -- splitting the file by shape would "
+             "scatter that recursion across translation units and turn a "
+             "self-contained reader into a protocol between files. 618 -> 620 "
+             "is the render-state fields (has_opacity/opacity/has_clip/"
+             "clip_*). Revisit if a second consumer ever needs a JSON reader: "
+             "then the reader is a component, not this payload's private "
+             "detail."),
+    "media/gl/gl_video_layer.cc": (
+        586, "The video-domain half of the GL path: 19 small members (plane "
+             "texture setup, sampler binding, the colour-matrix uniforms, the "
+             "RGBA and planar upload paths) plus the two GLSL fragment bodies "
+             "that describe them. No member is over 111 lines, so there is no "
+             "single block to lift; the overshoot is the count of small, "
+             "cohesive steps that make one object work. The shader strings "
+             "could move to a .h, which would buy ~60 lines and hide the only "
+             "part of this file a reader wants beside its uniforms. Revisit "
+             "with the upload paths: UploadCpuPlanes (111) and UploadRgbaPlane "
+             "(38) share texture lifetime and nothing else."),
+    "media/cef/cef_osr_client.cc": (
+        627, "The CEF OSR client: the CefClient/CefLifeSpanHandler/"
+             "CefLoadHandler/CefRenderHandler override set plus one Queue* "
+             "entry per CEF action. 886 -> 627 on 2026-11-15 by moving the ten "
+             "CefTask classes to cef_osr_tasks.h -- those share no state with "
+             "the client, only CEF's types. What is left cannot come apart the "
+             "same way: every Queue* method locks mutex_ and reads browser_, "
+             "and the VT clock members (vt_state_/vt_credit_/vt_enabled_) are "
+             "touched from both the CEF UI thread and the caller. Splitting "
+             "either group means promoting private state to a cross-TU "
+             "protocol -- changing the encapsulation to satisfy a line count, "
+             "which is the trade this allowlist exists to refuse. Note this "
+             "file was .cpp until 2026-11-15, so C1 never saw it; the new C31 "
+             "suffix rule is what surfaced it."),
+    "media/transcode/ffmpeg_transcode_job.cc": (
+        610, "The transcode job's control flow: parameter validation, the "
+             "decode/encode/filter leg wiring, progress accounting and the "
+             "cancel path. It has been split twice already (the stream-level "
+             "helpers to ffmpeg_transcode_streams, the async driver to "
+             "ffmpeg_transcode_job_async); what is left is the ordering that "
+             "makes those pieces a job, and reordering it is how the cancel "
+             "path breaks. Unchanged since 2026-11-07 (9c08453), i.e. this is "
+             "pre-existing debt, not growth from the AI pipeline work. Revisit "
+             "with the filter-graph construction, which is the one section "
+             "that does not touch the job's state."),
 }
 
 # Layers that must never see a vendor or platform header (invariants C4, C5).
@@ -157,10 +228,25 @@ PLATFORM_MACRO_RE = re.compile(r'\b(__ANDROID__|__APPLE__|__linux__|_WIN32|__lin
 # units selected by the build system (platform_thread_posix.cc,
 # platform_thread_win.cc, ...). Those files ARE base/'s platform abstraction
 # layer, so the C5 "no platform macros in core" rule exempts them by suffix.
-# The exemption is narrow: it applies only under base/ and only to files whose
-# name ends in a recognised platform suffix.
+# The exemption is narrow: it applies only under base/ or media/cef/, and only
+# to files whose name ends in a recognised platform suffix.
+#
+# media/cef/ earns the same treatment for the same reason. A CEF host must
+# initialise the framework differently per OS (macOS: locate the .app bundle
+# and dlopen the framework; Linux: locate libcef.so and set the subprocess
+# path), and those differences ARE the file. cef_platform_mac.cc and
+# cef_platform_linux.cc are in the build on every platform -- each is gated
+# internally by XMEDIA_HAS_CEF plus its own OS macro, which is exactly what a
+# per-platform TU looks like. The rule these two used to trip is "the portable
+# layers stay portable": media/cef/ is not portable, it is the platform
+# binding for one optional dependency, and it is only compiled at all when
+# XMEDIA_ENABLE_CEF is ON. Note cef_platform_common.cc deliberately does NOT
+# match the suffix -- the shared half must stay platform-macro-free, and this
+# exemption must not widen to cover it.
 PLATFORM_SUFFIX_RE = re.compile(
-    r"_(posix|linux|win|mac|ios|android|fuchsia|epoll|x11|wayland)\.(cc|h)$")
+    r"_(posix|linux|win|mac|ios|android|fuchsia|epoll|x11|wayland|platform)"
+    r"\.(cc|h)$")
+PLATFORM_TU_DIRS = ("base/", "media/cef/")
 
 # media/transcode/ used to need a per-file exemption here:
 # video_encoder_factory.{h,cc} picked its hardware encoder list under
@@ -285,7 +371,7 @@ def check_file(path: pathlib.Path, rel: str, report: Report) -> None:
         # exemption at all any more (see the note above the DRAFT_FILES list):
         # its encoder factory selects hardware through XMEDIA_ENABLE_* flags,
         # which are the build's vocabulary, not the host's.
-        is_platform_tu = rel.startswith("base/") and bool(
+        is_platform_tu = rel.startswith(PLATFORM_TU_DIRS) and bool(
             PLATFORM_SUFFIX_RE.search(rel))
         is_vendor_adapter = rel.startswith("media/ffmpeg/")
         if (rel.startswith(("base/", "media/", "player/")) and not is_test
@@ -660,6 +746,28 @@ def check_public_headers(root: pathlib.Path, report: Report) -> None:
                            "(docs/10 §12 V7)")
 
 
+def check_suffixes(root: pathlib.Path, report: Report) -> None:
+    """C31: source files end in .cc, not .cpp.
+
+    STYLE.md states the suffix in one line and nothing enforced it. A .cpp
+    compiles exactly like a .cc, so the mistake is invisible until someone
+    greps for "*.cc" and silently misses three files -- which is what happened
+    in media/cef/ (cef_app, cef_osr_client, cef_runtime, fixed 2026-11-15).
+
+    Cheap and total: one directory walk already done by iter_sources, and the
+    check is a string suffix. No allowlist -- there is no good reason for a
+    .cpp in a tree whose style guide names .cc, and an allowlist here would
+    just be the drift coming back with paperwork.
+    """
+    for path in sorted(iter_sources(root)):
+        if path.suffix == ".cpp":
+            rel = path.relative_to(root).as_posix()
+            report.add("C31", path, 0,
+                       "source file uses .cpp; STYLE.md requires .cc "
+                       "(git mv to rename, then update CMakeLists if the "
+                       "file is listed explicitly)")
+
+
 def check_columns(root: pathlib.Path, report: Report, update: bool) -> None:
     """C23: column width, as a ratchet rather than a hard limit.
 
@@ -779,6 +887,7 @@ def main() -> int:
     check_sources_in_a_target(root, report)
     check_public_headers(root, report)
     check_columns(root, report, args.update_baseline)
+    check_suffixes(root, report)
 
     for note in report.notes:
         print(f"note: {note}")

@@ -7,11 +7,26 @@
   },
   "files": [
     "bin/",
-    "tools/",
+    "tools/hf_tts.py",
+    "tools/hf_compose.py",
+    "tools/hf_validate.py",
+    "tools/hf_studio.py",
+    "tools/studio_contract.py",
+    "tools/hf_asr.py",
+    "tools/hf_import.py",
+    "tools/hf_agent.py",
+    "tools/xmedia_mcp.py",
+    "tools/xmedia.py",
+    "tools/gsap.min.js",
+    "tools/studio_ui.html",
+    "tools/docs_landing.html",
     "templates/",
     "assets/sfx/",
-    "gallery/",
-    "docs/HF_COMPOSE.md"
+    "gallery/README.md",
+    "docs/HF_COMPOSE.md",
+    "gallery/event-invite.json",
+    "gallery/knowledge-cards.json",
+    "gallery/product-launch.json"
   ],
   "engines": {
     "node": ">=18"
@@ -21,5 +36,11 @@
     "type": "git",
     "url": "git+https://github.com/samychen/xmedia-kit.git"
   },
-  "keywords": ["video", "ai", "tts", "chromium", "html-to-video"]
+  "keywords": [
+    "video",
+    "ai",
+    "tts",
+    "chromium",
+    "html-to-video"
+  ]
 }

@@ -30,10 +30,20 @@ def root(*parts):
 
 
 def bake_bin():
-    """html_bake 可执行文件：macOS bundle 优先，Linux 裸二进制兜底。"""
-    cands = [root("build", "bin", "html_bake.app", "Contents", "MacOS",
-                  "html_bake"),
-             root("build", "bin", "html_bake")]
+    """html_bake 可执行文件：macOS bundle 优先，Linux 裸二进制兜底。
+
+    搜索顺序：build/bin/（顶层构建）→ build/<preset>/bin/（CMakePresets 的
+    每个预设各一棵树，CI 与本地多配置并存时二进制在这里）。预设目录按名字
+    排序，保证同一仓库多棵树时结果确定；返回第一个可执行的。
+    """
+    rel = [("html_bake.app", "Contents", "MacOS", "html_bake"), ("html_bake",)]
+    cands = [root("build", "bin", *r) for r in rel]
+    build_root = root("build")
+    if os.path.isdir(build_root):
+        for name in sorted(os.listdir(build_root)):
+            if os.path.isdir(os.path.join(build_root, name, "bin")):
+                cands.extend(os.path.join(build_root, name, "bin", *r)
+                             for r in rel)
     for c in cands:
         if os.path.isfile(c) and os.access(c, os.X_OK):
             return c
@@ -460,8 +470,12 @@ def cmd_doctor(args):
         check("say（macOS 离线 TTS）", os.path.isfile("/usr/bin/say"))
     check("html_bake 已构建", bake_bin() is not None, bake_bin() or
           "缺失（make html_bake）")
-    check("GSAP 内联素材", os.path.isfile(root("tests", "testdata",
-                                              "gsap.min.js")))
+    # tools/gsap.min.js 是随包分发的那份（npm 用户没有 tests/）；
+    # tests/testdata/ 那份是源码树的原始位置。两者有其一即可。
+    gsap = [root("tools", "gsap.min.js"),
+            root("tests", "testdata", "gsap.min.js")]
+    check("GSAP 内联素材", any(os.path.isfile(g) for g in gsap),
+          next((g for g in gsap if os.path.isfile(g)), "缺失（动画不会跑）"))
     sfx = [f for f in os.listdir(root("assets", "sfx"))
            if f.endswith(".wav")] if os.path.isdir(root("assets", "sfx")) else []
     check("SFX 素材（assets/sfx）", len(sfx) >= 5,

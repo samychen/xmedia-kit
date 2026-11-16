@@ -1,8 +1,14 @@
 # TOOLS · `tools/` 逐文件说明
 
-> 更新：**2026-10-23**。`tools/` 下 44 个受版本控制的文件，**没有一个是产品代码的
-> 一部分**（唯一例外是 `tools/inspect/`，它本身就是交付给宿主的诊断 CLI）。
-> 这个目录装的是四类东西：**门禁**、**行为验收**、**度量**、**生成器**。
+> 更新：**2026-11-15**。`tools/` 下 58 个受版本控制的文件，分两类：
+>
+> ① **播放器 SDK 的工程工具**（§1–§8）：门禁、行为验收、度量、生成器。
+> 这些**不是产品代码**——唯一例外是 `tools/inspect/`，它本身就是交付给宿主的
+> 诊断 CLI。
+> ② **AI 视频管线的产品本体**（§10）：`hf_*.py` / `xmedia*.py` /
+> `studio_ui.html` / `docs_landing.html` / `gsap.min.js`。这一组**是**产品代码，
+> 会随 npm 包分发（`npx xmedia-kit`），也由 `xmedia` 这条 CLI 直接暴露给用户。
+> 此前本文档只记 ①，把整整一条产品线漏在了外面（2026-11-15 补）。
 >
 > 与 [BUILDING §5](BUILDING.md)（"不需要编译器就能跑的四个工具"）互补：那一节讲
 > 怎么用，本文讲**都有什么、该挑哪个、红了该信几分**。
@@ -311,3 +317,87 @@ PASS/FAIL 汇总。
 `tools/build/`（FFmpeg / GLFW 的构建前缀，约 1.1 GB）与 `tools/deps/`（下载的依赖）
 都在 `.gitignore` 里。它们**不是工具**，是工具的产物；误把它们当源文件读会得出
 "tools/ 有上 GB 的代码"这种结论。
+
+---
+
+## 10. AI 视频管线的产品本体（`tools/hf_*.py` / `xmedia*`）
+
+这一节与 §1–§8 性质不同：这些文件**是产品**，不是工程工具。`npx xmedia-kit`
+装出来的就是它们，`xmedia <subcommand>` 是它们的统一门面。用户文档在
+[HF_COMPOSE.md](HF_COMPOSE.md)（怎么用），本节只讲**都有什么、谁调谁、红了
+该信几分**。
+
+### 10.1 调用图
+
+```
+xmedia.py（统一 CLI / 生态门面）
+  ├─ render ──→ hf_tts ──→ hf_compose ──→ hf_validate ──→ html_bake(二进制)
+  ├─ tts/compose/validate  ──→ 单个工具透传
+  ├─ import ──→ hf_import ──→ (可选) hf_asr
+  ├─ asr    ──→ hf_asr
+  ├─ agent  ──→ hf_agent
+  ├─ studio ──→ hf_studio（本地 HTTP 服务 + studio_ui.html）
+  ├─ mcp    ──→ xmedia_mcp（stdio JSON-RPC）
+  └─ docs   ──→ docs_landing.html（模板）→ docs-site/index.html
+
+hf_studio.py（浏览器编排）
+  ├─ 注入 studio_ui.html（每请求读盘，刷新即生效）
+  ├─ 注入预览驱动（Python f-string，改后必须重启服务）
+  ├─ /api/* ──→ hf_tts / hf_asr / hf_import / hf_agent / hf_compose / html_bake
+  └─ build_preview_mix ──→ ffmpeg（服务端预混音，消除播放中途的 play()）
+```
+
+### 10.2 逐文件
+
+| 文件 | 行数 | 职责 | 谁调它 |
+|---|---|---|---|
+| `xmedia.py` | 631 | 统一 CLI 门面：`render/tts/compose/validate/studio/import/asr/agent/mcp/doctor/init/sfx/docs` 13 个子命令 + `bake_bin()` 探测 + `doctor` 环境自检 | 用户、`bin/xmedia.js`、测试 |
+| `hf_compose.py` | 791 | spec JSON → 契约 HTML。场景类型、转场重叠窗、分段字幕裁剪、自定义模板热加载、GSAP 内联 | `xmedia compose/render`、`hf_studio` |
+| `hf_validate.py` | 116 | 契约 HTML 校验（硬门，0 errors 才放行）。协议兼容 HyperFrames | `xmedia validate/render`、`hf_studio`、`gallery_smoke` |
+| `hf_tts.py` | 213 | 旁白生成。`say`（macOS 离线）/ HTTP provider 可插拔，幂等复用（text 没变不重跑） | `xmedia tts/render`、`hf_studio /api/tts` |
+| `hf_studio.py` | 1802 | Studio 本地服务：静态 UI + `/preview` 注入 + `/api/{state,recompose,tts,bake,job,asr,import,import/undo,import/upload,thumbs}` + `build_preview_mix` | `xmedia studio`、用户浏览器 |
+| `hf_asr.py` | 431 | 语音 → 分段字幕。whisper.cpp / faster-whisper 可插拔（`auto` 链合并两份失败原因），SRT/VTT 零依赖降级 | `xmedia asr/import`、`hf_studio /api/asr` |
+| `hf_import.py` | 252 | 素材目录/单文件 → spec。ffprobe 实长、确定性排序、ASR 字幕按累计起点偏移、可选片尾卡 | `xmedia import`、`hf_studio /api/import` |
+| `hf_agent.py` | 353 | 自然语言 → spec 变更（12 条中英规则 + 可选 LLM 代理）。**路径抽取有形态校验**，抽不到时回引导而不是报错 | `xmedia agent`、`hf_studio /api/agent`、MCP |
+| `xmedia_mcp.py` | 266 | stdio JSON-RPC 2.0 MCP server，11 个 tool。`import/asr/compose/validate/help` 不依赖 8120 常驻服务 | Claude/Cursor 等 MCP 客户端 |
+| `studio_ui.html` | 2746 | Studio 前端单文件（三栏 + 五轨 NLE 时间轴 + Inspector + Ask AI + 导入面板） | `hf_studio` 每请求读盘 |
+| `docs_landing.html` | 716 | 文档站落地页模板，`@@占位符@@` 由 `xmedia docs` 注入真实数据 | `xmedia docs` |
+| `gsap.min.js` | 72KB | GSAP 3.12.5（BSD）。**随包分发**——`npx` 用户没有 `tests/`，缺了它产物能动但动画全不跑 | `hf_compose._load_gsap` |
+
+### 10.3 改哪里要重启 / 刷新
+
+| 改动 | 生效方式 |
+|---|---|
+| `studio_ui.html`、`docs_landing.html` | 刷新浏览器即生效（每请求读盘） |
+| `hf_studio.py` 的**注入脚本** | **必须重启服务**（注入块在启动时组装成字符串） |
+| `hf_compose.py` / `hf_tts.py` / `hf_validate.py` | 下次 compose/render 生效（无状态） |
+| `xmedia.py` 子命令 | 立即（CLI 每次启动新进程） |
+
+### 10.4 冒烟测试对照
+
+| 测试 | 守什么 | 需要烘焙二进制 |
+|---|---|---|
+| `hf_tts_smoke` | TTS provider + compose 拟合 + `<audio>` 发射 | 否 |
+| `hf_studio_smoke` | 注入幂等、契约语义不变、预览音频/混音/缩略图、`/api/*` 闭环 | **是**（烘焙段，缺则 SKIP） |
+| `hf_ai_smoke` | ASR 解析/裁剪、导入确定性、Agent 规则、MCP stdio、Ask AI HTTP | 否 |
+| `hf_video_scene_smoke` | 视频元素全链：帧推进 + 帧精度 RMS + 音轨 | **是** |
+| `hf_split_scene_smoke` | 片段切割：`video_from` 对位 + 跨段交叉淡化 | **是** |
+| `xmedia_cli_smoke` | doctor + init + render 全链 + 产物验源锚点 | **是** |
+| `gallery_smoke` | 示例库每个 spec compose + validate | 否 |
+
+> 「需要烘焙二进制」的三条在 ctest 里只在 `TARGET html_bake` 时注册
+> （`tests/CMakeLists.txt`）；直接跑脚本时缺二进制会打印 SKIP 并以 0 退出
+> ——**跳过会说明原因，不会静默当通过**。这是 2026-11-15 修的：此前它们在
+> 干净 checkout 上硬 assert 失败，把「没构建」报成了「回归」。
+
+### 10.5 红了该信几分
+
+- **`hf_compose` / `hf_validate` 失败**：信。纯数据变换，没有环境依赖，
+  失败就是 spec 或代码的问题。
+- **`hf_tts` 失败**：先看 provider。`say` 缺语音、HTTP endpoint 不通都会失败，
+  与代码无关；`xmedia doctor` 会分别报出来。
+- **`hf_asr` 失败**：几乎总是缺 provider（whisper.cpp / faster-whisper），
+  不是 bug。缺的时候会列出每一条素材的失败原因。
+- **`hf_studio_smoke` 偶发 `TimeoutError`**：已知（两个测试各起一个服务，
+  并行时抢 CPU）。用 `-j1` 串行跑。
+- **烘焙相关失败且报「找不到 html_bake」**：构建问题，不是被测代码问题。

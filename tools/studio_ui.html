@@ -741,7 +741,7 @@
       <button class="mini" id="tl-range-clear" title="清除区间（Esc）">✕</button>
     </span>
     <span class="sp"></span>
-    <span class="hint">5 轨 · 缩略图与波形按 spec 确定性生成</span>
+    <span class="hint">5 轨 · 缩略图取真实帧 · 波形取真实峰值</span>
   </div>
   <div id="timeline"><div class="tl-scroll" id="tl-scroll">
     <div class="tl-grid" id="tl-grid"></div></div></div>
@@ -1465,6 +1465,54 @@ function waveSVG(seed, w, h, dual) {
          '" preserveAspectRatio="none" fill="#49d985" opacity=".92">' +
          paths + "</svg>";
 }
+/* 真实峰值波形：peaks 是 [0..1] 的数组，按柱高画。
+   与 waveSVG 的区别是它反映素材里真实的声音——有没有说话、在哪炸了一下，
+   一眼能看出来。示意波形（hashSeed）只在没有音轨时兜底。 */
+function peaksSVG(peaks, w, h, dual) {
+  var n = peaks.length;
+  if (!n) return "";
+  var bw = w / n;
+  var bars = "";
+  for (var i = 0; i < n; i++) {
+    var a = Math.max(0.02, peaks[i]);
+    var x = (i * bw).toFixed(1);
+    var bh = (a * h * 0.46).toFixed(1);
+    var y1 = (h * 0.5 - bh).toFixed(1);
+    bars += '<rect x="' + x + '" y="' + y1 + '" width="' +
+            Math.max(1, bw * 0.72).toFixed(1) + '" height="' +
+            (bh * 2).toFixed(1) + '" rx="0.5"/>';
+  }
+  return '<svg viewBox="0 0 ' + Math.max(8, Math.round(w)) + " " + h +
+         '" preserveAspectRatio="none" fill="#49d985" opacity=".92">' +
+         bars + "</svg>";
+}
+
+/* 拉真实峰值：成功则替换该块的波形；无音轨/失败则保留示意波形。 */
+var waveCache = {};
+function loadWaveForClip(holder, src, w, h, dual, start, dur) {
+  if (!src || !holder) return;
+  var key = src + "|" + Math.round(w) + "|" + (start || 0).toFixed(3) +
+            "|" + (dur || 0).toFixed(3);
+  holder.setAttribute("data-wave-key", key);
+  function apply(svg) {
+    if (!svg) return;
+    // 不能直接用 holder 引用：renderTimeline 会 grid.innerHTML="" 整块重建，
+    // 异步回来时旧节点已脱离文档（isConnected=false），渲染就丢了。
+    // 按 key 在**当前** DOM 里重新查找，才是这次渲染的那一格。
+    var live = document.querySelector(
+      '.wave[data-wave-key="' + CSS.escape(key) + '"]');
+    if (live) live.innerHTML = svg;
+  }
+  if (waveCache[key] !== undefined) { apply(waveCache[key]); return; }
+  var url = "/api/waveform?path=" + encodeURIComponent(src) +
+            "&n=48&s=" + (start || 0).toFixed(3) + "&d=" + (dur || 0).toFixed(3);
+  fetch(url).then(function (r) { return r.json(); }).then(function (res) {
+    var svg = (res && res.ok && res.peaks) ? peaksSVG(res.peaks, w, h, dual) : "";
+    waveCache[key] = svg;
+    apply(svg);
+  }).catch(function () { waveCache[key] = ""; });
+}
+
 /* 程序化 filmstrip：按场景 bg / 类型铺连续"画面帧"，零外部依赖。 */
 function stripHTML(sc, idx, wpx) {
   var spec = (state.spec.scenes || [])[idx] || {};
@@ -1950,14 +1998,18 @@ function renderTimeline() {
         b.style.left = (a.start * tlPPS) + "px";
         b.style.width = w + "px";
         var nm = a.src.split("/").pop();
+        var wh = td.kind === "narration" ? 32 : 26;
         b.innerHTML = '<div class="cap">' + nm +
           '<span class="dur">v' + a.vol.toFixed(1) + "</span></div>" +
-          '<div class="wave">' + waveSVG(hashSeed(a.src), w,
-            td.kind === "narration" ? 32 : 26,
+          '<div class="wave">' + waveSVG(hashSeed(a.src), w, wh,
             td.kind === "narration") + "</div>";
         b.title = a.src + " · " + (a.dur || 0).toFixed(2) + "s";
         b.onclick = function () { seekTo(a.start + 0.01); };
         lane.appendChild(b);
+        // 真实峰值是异步来的（ffmpeg 抽一次，之后走服务端缓存）。
+        // 拿到就替换示意波形；没有音轨则保持原样。
+        loadWaveForClip(b.querySelector(".wave"), a.src, w, wh,
+                        td.kind === "narration", a.media_start || 0, a.dur || 0);
       });
     }
   });

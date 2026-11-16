@@ -41,7 +41,12 @@ def top_rms(a, b, w=640, rows=90, step=2):
 
 def main():
     bake = xmedia.bake_bin()
-    assert bake, "html_bake 未构建（make html_bake）"
+    if not bake:
+        # 干净 clone 上 ctest 会注册本用例但 html_bake 还没构建（或 CEF 关）。
+        # 跳过要说得明白：这是"没构建"，不是"通过了"。
+        print("hf_split_scene_smoke: SKIP — html_bake 未构建"
+              "（cmake --build build --target html_bake）")
+        return 0
     with tempfile.TemporaryDirectory(prefix="hf_split_scene_") as tmp:
         src = os.path.join(tmp, "src.mp4")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",

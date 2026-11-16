@@ -26,7 +26,7 @@
 > | `tsan`（**ThreadSanitizer**） | ✅ 543/543，**0 data race** |
 > | `capi`（C ABI） | ✅ 770/770 |
 > | `qt`（Qt 6 宿主） | ✅ 625/625 |
-> | `check_invariants.py` | ✅ 全规则通过（**540 文件**；C23 列宽棘轮 **2**） |
+> | `check_invariants.py` | ✅ 全规则通过（**670 文件**；C23 列宽棘轮 **2**） |
 > | `clang-format --dry-run --Werror` | ✅ 533 文件零 diff |
 > | `cpplint --repository=.` | ✅ 166 个 `.cc` 零错误（2026-10-26 补上 `base/logging.cc` 缺的 `<utility>`） |
 > | `extract_constants.py --selftest` | ✅ 24 个移植常量与 docs/05 表 7 一致 |
@@ -77,7 +77,6 @@
 | — | [管线多源改造设计](docs/管线多源改造设计.md) | **多源轴的设计与沿革**：`GetStream(source_id, type)` 取代"第 N 路"接口、每源 A/V 偏移、次源 sink 与文本腿、docs/14 阶段 0–4 的接线顺序 |
 | — | [TOOLS.md](docs/TOOLS.md) | **`tools/` 逐文件说明**（44 个受版本控制的文件）：门禁、行为验收、度量、生成器各自管什么，什么时候该跑哪个，以及全目录通用的退出码约定（0 通过 / 1 被测物有问题 / 2 无从判断） |
 | — | [EXAMPLES.md](docs/EXAMPLES.md) | **`examples/` 逐文件说明**：6 个可执行目标各自的构建开关与行数、为什么两个头文件留在 `examples/` 而不是库里、压在这个目录上的 C30 与 300 行度量 |
-| — | [LEARNING-media.md](docs/LEARNING-media.md) | **`media/` 入门学习指南**：按一帧数据生命周期的 9 站阅读路线、10 段值得模仿的写法、8 处陷阱（含绕过 FFmpeg 隔离区入口），附双轴审查报告、复核记录与「刻意保留 vs 静默漂移」的判别方法 |
 
 ---
 
@@ -278,30 +277,30 @@ int main() {
 xmedia-kit/
 ├── LICENSE                  ✅ BSD-3-Clause + 4 节第三方/衍生说明
 ├── .clang-format            ✅   .gitignore ✅（补 __pycache__/ *.pyc）
-├── .clang-tidy              ⬜ STYLE.md §8 有完整配置内容，文件本身不存在
-├── .editorconfig            ⬜
+├── .clang-tidy              ✅ 167 行（此前登记为「文件本身不存在」，实测存在）
+├── .editorconfig            ✅ 40 行（同上）
 ├── STYLE.md · VERSION.txt(0.1.0) · CMakeLists.txt · CMakePresets.json ✅
-├── .github/workflows/ci.yml ✅ 16 个 job（含 format / clang-tidy / cpplint / corpus /
+├── .github/workflows/ci.yml ✅ 23 个 job（含 format / clang-tidy / cpplint / corpus /
 │                               soak / fuzz-smoke / windows-msvc 等）；e2e-linux 仍 if:false
 ├── cmake/                   ✅ 10 个：XmediaOptions · XmediaCompilerFlags · XmediaThirdParty
 │                               FindFFmpeg · FindSDL2 · FindLibyuv · XmediaCheckInvariants
 │                               BuildConfig.h.in · Version.h.in · XmediaSanitizers
 │                            ⬜ FindLinuxMediaDeps(M12，已顺延) · xmedia.map(R18)
-├── base/                    ✅ 44 文件 / 3,987 行
+├── base/                    ✅ 44 文件 / 4,156 行
 │   ├── functional/ memory/ time/ synchronization/ task/ threading/ types/ test/
 │   └── ⬜ containers/ files/ strings/ · feature_list.h
 ├── media/
-│   ├── base/                ✅ 64 文件 / 6,882 行（值类型 + 接口头）
-│   ├── ffmpeg/              ✅ 44 文件 / 6,559 行 —— **全项目唯一链接 libav\* 的层**
+│   ├── base/                ✅ 81 文件 / 10,270 行（值类型 + 接口头）
+│   ├── ffmpeg/              ✅ 77 文件 / 12,228 行 —— **全项目唯一链接 libav\* 的层**
 │   │                            （由 `platform/ffmpeg` 整体迁入）
-│   ├── filters/             ✅ 44 文件 / 10,064 行（decoder_stream · pipeline_impl
+│   ├── filters/             ✅ 67 文件 / 13,125 行（decoder_stream · pipeline_impl
 │   │                            + pipeline_impl_host · null 双 sink ·
 │   │                            renderer_impl + renderer_impl_controls ·
 │   │                            audio_renderer_algorithm 等）
 │   │   └── legacy/          ✅ 6 文件 —— LGPL-2.1 隔离区：
 │   │                            video_frame_compositor · av_sync_controller · clock
 │   │                            + LICENSE.LGPL-2.1 + README.md（准入规则）
-│   ├── transcode/           ✅ 18 文件 / 3,484 行（转码 E1–E5：编解码器层 · 滤镜 ·
+│   ├── transcode/           ✅ 32 文件 / 5,927 行（转码 E1–E5：编解码器层 · 滤镜 ·
 │   │                            拼接 · remux · 异步任务）
 │   └── renderers/           ✅ DefaultRendererFactory
 ├── player/
@@ -313,15 +312,15 @@ xmedia-kit/
 │   ├── hwaccel/             ✅ VideoToolbox / VAAPI / D3D11 的 hw spec 头
 │   └── linux/               ⬜ M12 已顺延；开关在 platform/CMakeLists.txt 里是
 │                               有意的 FATAL_ERROR（见 docs/archive/09）
-├── tests/                   ✅ 136 文件 / 30,667 行 · 868 用例（`macos-sdl2-werror`）
-│                               unit/ 107 个 .cc · support/ 夹具 · fuzz/ 2 个目标
+├── tests/                   ✅ 165 源文件 / 37,346 行 · 1,035 个 ctest 目标
+│                               unit/ 149 个 .cc · support/ 夹具 · fuzz/ 2 个目标
 │                            ⬜ contract/ integration/ golden/ e2e/ stress/ bench/
-├── tools/                   ✅ `tools/*.py` 10,005 行（22 个脚本）
-│                               全目录 44 个受控文件；check_invariants.py（C1–C30 / 540 文件）
-│                               extract_constants.py · gen_options.py · sim_wsola.py
+├── tools/                   ✅ `tools/*.py` 14,437 行（30 个脚本）+ 8 个 C++ + 2 个 HTML
+│                               全目录 58 个受控文件；check_invariants.py（C1–C31 / 670 文件）
 │                               inspect/ → xmedia-inspect（probe · decode · sync）
+│                               hf_* / xmedia* → AI 视频管线本体（见 docs/TOOLS.md §10）
 │                            ⬜ golden_record.py · golden_diff.py · verify_e2e.py
-├── examples/                ✅ 11 个可执行目标 / 3,029 行 .cc + 2 个宿主样板头
+├── examples/                ✅ 14 个可执行目标 / 4,555 行 .cc + 2 个宿主样板头
 │                               （headless 156 · play_sdl2 161 · pull_frames 246 ·
 │                                play_glfw 352 · play_egl 288 · doc_snippets 241
 │                                —— 最后一个是 COOKBOOK 代码块的编译烟测，不是
@@ -337,12 +336,34 @@ xmedia-kit/
                              COOKBOOK · TROUBLESHOOTING · EXTENDING ·
                              PERFORMANCE ·
                              CHANGELOG · TOOLS（tools/ 逐文件）· EXAMPLES
-                             （examples/ 逐文件）· LEARNING-media（media/ 入门）
+                             （examples/ 逐文件）
                              + archive/（Linux 方案归档）
 ```
 
-合计：**540 个 `.h`/`.cc`** —— **55,427 行实现（含 examples/bench）+ 30,667 行测试**，
-`tools/*.py` **10,005 行**。逐项进度以 [docs/PROGRESS.md](docs/PROGRESS.md) 为准。
+合计：**667 个源文件**（`.cc`/`.h`/`.cpp`/`.hpp`）—— **80,524 行实现
+（含 `examples/` 与 `bench/`）+ 37,346 行测试**，`tools/*.py` **14,437 行
+（30 个脚本）**。逐项进度以 [docs/PROGRESS.md](docs/PROGRESS.md) 为准。
+
+> **这些数字会漂移，别照抄。** 本节此前记的是 540 文件 / 55,427 行，在
+> 2026-10-10 → 11-15 之间涨了 45%，没人回头改——文档里的静态数字只要没有
+> 复算命令，就一定会过期。要重新报数跑这一段（只用标准库）：
+>
+> ```bash
+> python3 - <<'PY'
+> import subprocess
+> f = subprocess.run(["git","ls-files"],capture_output=True,text=True).stdout.split()
+> src = [x for x in f if x.endswith(('.cc','.h','.cpp','.hpp'))]
+> def L(xs):
+>     n = 0
+>     for x in xs:
+>         try: n += sum(1 for _ in open(x,'rb'))
+>         except OSError: pass
+>     return n
+> t = [x for x in src if x.startswith(('tests/','bench/'))]
+> print(len(src), "源文件;", L([x for x in src if x not in t]), "实现行;", L(t), "测试行")
+> print(len([x for x in f if x.startswith('tools/') and x.endswith('.py')]), "个 .py")
+> PY
+> ```
 
 > **路径变更通知（ /）**：①  `video_frame_compositor.{h,cc}`、
 > `av_sync_controller.{h,cc}`、`clock.{h,cc}` 移入 `media/filters/legacy/`（LGPL-2.1 隔离），

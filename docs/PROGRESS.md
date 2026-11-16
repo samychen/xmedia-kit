@@ -15,7 +15,16 @@
 
 **M0–M11 ✅ · Phase 0/1/2/4 ✅（多数）· Phase 3 解码侧 ✅、显示侧 GPU 上屏 ✅（非零拷贝）、真零拷贝 ⬜ · Phase 5 转码代码全落地 + 编码链路实测（硬件加速本体待其他机器）+ `xmedia-inspect transcode` 生产入口 ✅ · macOS 窗口播放器 ✅ · Qt 播放器骨架 ✅（时间线改为真实 `MediaInfo`）· Qt 门面已库化 ✅ · Qt 目标已进 CI ✅ · CI 风格门禁全绿 · 管线原生多源 ✅ · M15 C ABI ✅ · M13 SDK 文档七份 + apidocs 门禁 + 微基准 10 项 + e2e/渲染 CPU 机器判据 + 新鲜度门禁（比库也比源码）✅（剩 golden 基线录制、conan/vcpkg 实跑、soak 48h，均环境阻塞）**
 
-最后更新：**2026-10-31**
+最后更新：**2026-11-15**
+
+> **2026-11-15 复检**（`docs/PROJECT-REVIEW.md` 有完整取证）：
+> ① 更正两处**假绿**——M12「✅ 约 3800 行」与 M11「`play_native`/`play_embed` ✅」，
+> 两者对应的目录/文件在整部 git 历史里从未存在；② 选项数 10 → **11**；
+> ③ `check_invariants` 曾一度 10 条违规（C1×4 / C5×2 / C23×2 / C25×2），
+> 现已清零，本轮同时恢复了被误删的 fuzz targets。
+> ④ 本文档只覆盖播放器 SDK 那条线；**AI 视频管线**（`tools/hf_*` + `html_bake`
+> + Studio + MCP，近两周 6,600+ 行增量）的记录在
+> [HF_COMPOSE.md](HF_COMPOSE.md) 与 [PROJECT-REVIEW.md](PROJECT-REVIEW.md)。
 
 ---
 
@@ -26,12 +35,12 @@
 - **M8 管线与播放器**：`pipeline_impl` / `player_impl` / `state_machine` / `event_hub` / `seek` / `buffer_controller` / `diagnostics` —— ✅（SDK 头冻结，方法除转码外全部落地）
 - **M9 缓冲与 seek**：三级 HWM / 精确 seek / `RetryDataSource` / `LiveDataSource` / `UrlRewriteInterceptor` —— ✅
 - **M10 验收基座**：`platform/null` / `synthetic_demuxer` / golden 基线工具 —— ✅
-- **M11 窗口播放器**：macOS 窗口播放器（SDL2）✅；Linux 原生播放器（`play_native` / `play_embed`）✅
-- **M12 Linux 平台层**：`gl` / `window` / `audio` / `zero_copy` dmabuf / dlopen loader —— ✅（约 3800 行）
+- **M11 窗口播放器**：macOS 窗口播放器（SDL2，`examples/play_sdl2`）✅；Linux 出画由 `platform/sdl2` 后端交付（`examples/play_sdl2` / `play_glfw` / `play_egl`）✅。**「Linux 原生播放器 `play_native` / `play_embed`」不存在**——这两个文件在整部 git 历史里从未有过，此前写成 ✅ 是错的（2026-11-15 更正）
+- **M12 Linux 平台层**：⬜ **已顺延，未启动**。`platform/linux/` 目录不存在，`platform/CMakeLists.txt` 对 `XMEDIA_ENABLE_LINUX_NATIVE` 是**有意的 `FATAL_ERROR`**，方案见 [archive/Linux平台实现方案.md](archive/Linux平台实现方案.md)。此前这里写「✅（约 3800 行）」与代码不符，2026-11-15 更正
 - **M15 C ABI**：`player/public/c/xmedia_c.h` 真通用门面（60 导出函数 + 门禁）—— ✅
 - **管线原生多源（docs/14）**：`CompositeDemuxer` 聚合 N 源 / 每源一对渲染腿 / 时钟多轴 —— ✅
 - **CI 风格门禁**：`check_invariants` / `clang-format` / `cpplint` / `check_binary_freshness` 全绿；`macos-player` 已修 `buildPresets.targets` 截断陷阱（只编 `play_sdl2` 漏掉 `player_unittests`，CI 长期隐形红）。
-- **选项面**：构建注册表内 **10 个 key 全部有下游读取者（死选项 0）**——4 个 buffer key 与 `nodisp`/`enable-accurate-seek` 都是先写读取者再注册回来的；`volume`（2026-10-26 补）把 ijk 的 0..100 换算进 `audio.startup_volume`，而该字段现在真的被 `PlayerImpl` 的构造函数读取（此前只有校验、无人读，见 §3）；仍未接线的只是 DRAFT `.inc` 里的 spec key，见 [TODO](TODO.md) §2。
+- **选项面**：构建注册表内 **11 个 key 全部有下游读取者（死选项 0）**——4 个 buffer key 与 `nodisp`/`enable-accurate-seek` 都是先写读取者再注册回来的；`volume`（2026-10-26 补）把 ijk 的 0..100 换算进 `audio.startup_volume`，而该字段现在真的被 `PlayerImpl` 的构造函数读取（此前只有校验、无人读，见 §3）；仍未接线的只是 DRAFT `.inc` 里的 spec key，见 [TODO](TODO.md) §2。
 
 ---
 

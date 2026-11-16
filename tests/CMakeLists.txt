@@ -308,6 +308,14 @@ if(XMEDIA_ENABLE_FFMPEG)
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_studio_smoke.py")
     set_tests_properties(hf_studio_smoke PROPERTIES TIMEOUT 120)
 
+    # ---- gallery：示例库每个 spec 走 compose + validate。纯 Python，不需要
+    # 烘焙二进制，所以和 hf_tts/hf_ai 同处（不随 html_bake 一起消失）——
+    # 示例库烂掉 = 生态门面烂掉，这条该在最普通的构建里就守着。
+    add_test(NAME gallery_smoke
+        COMMAND ${XMEDIA_PYTHON3}
+            "${CMAKE_SOURCE_DIR}/tests/unit/gallery_smoke.py")
+    set_tests_properties(gallery_smoke PROPERTIES TIMEOUT 180 RUN_SERIAL true)
+
     # ---- hf_ai：ASR 分段字幕 / 素材导入 / Agent 规则 / MCP stdio /
     # Ask AI HTTP 闭环冒烟（临时端口自起自停，不依赖 8120 常驻服务）。
     add_test(NAME hf_ai_smoke
@@ -315,27 +323,34 @@ if(XMEDIA_ENABLE_FFMPEG)
             "${CMAKE_SOURCE_DIR}/tests/unit/hf_ai_smoke.py")
     set_tests_properties(hf_ai_smoke PROPERTIES TIMEOUT 240)
 
-    # ---- hf_video_scene：视频素材元素全链冒烟（FFmpeg 原生解码合成 +
-    # 帧推进 + 帧精度，RUN_SERIAL 串行——CEF 烘焙重负载）。
-    add_test(NAME hf_video_scene_smoke
-        COMMAND ${XMEDIA_PYTHON3}
-            "${CMAKE_SOURCE_DIR}/tests/unit/hf_video_scene_smoke.py")
-    set_tests_properties(hf_video_scene_smoke PROPERTIES TIMEOUT 300
-        RUN_SERIAL true)
 
-    # ---- hf_split_scene：时间轴片段切割的渲染侧闭环（video_from →
-    # data-media-start → 烘焙帧对位；RUN_SERIAL 同 CEF 重负载）。
-    add_test(NAME hf_split_scene_smoke
-        COMMAND ${XMEDIA_PYTHON3}
-            "${CMAKE_SOURCE_DIR}/tests/unit/hf_split_scene_smoke.py")
-    set_tests_properties(hf_split_scene_smoke PROPERTIES TIMEOUT 300
-        RUN_SERIAL true)
+    # ---- 以下三条要真的烘焙，因此只在 html_bake 目标存在时注册。
+    # 条件与上面的 html_bake_smoke 一致：CEF 关掉时 html_bake 不存在，
+    # 注册了也只会红——而且是"找不到二进制"这种与被测代码无关的红。
+    if(TARGET html_bake)
+      # 视频素材元素全链（FFmpeg 原生解码合成 + 帧推进 + 帧精度，
+      # RUN_SERIAL 串行——CEF 烘焙重负载）。
+      add_test(NAME hf_video_scene_smoke
+          COMMAND ${XMEDIA_PYTHON3}
+              "${CMAKE_SOURCE_DIR}/tests/unit/hf_video_scene_smoke.py")
+      set_tests_properties(hf_video_scene_smoke PROPERTIES TIMEOUT 300
+          RUN_SERIAL true)
 
-    # ---- xmedia CLI：doctor + init + render 一条命令全链冒烟。
-    add_test(NAME xmedia_cli_smoke
-        COMMAND ${XMEDIA_PYTHON3}
-            "${CMAKE_SOURCE_DIR}/tests/unit/xmedia_cli_smoke.py")
-    set_tests_properties(xmedia_cli_smoke PROPERTIES TIMEOUT 300 RUN_SERIAL true)
+      # 时间轴片段切割的渲染侧闭环（video_from → data-media-start →
+      # 烘焙帧对位；RUN_SERIAL 同 CEF 重负载）。
+      add_test(NAME hf_split_scene_smoke
+          COMMAND ${XMEDIA_PYTHON3}
+              "${CMAKE_SOURCE_DIR}/tests/unit/hf_split_scene_smoke.py")
+      set_tests_properties(hf_split_scene_smoke PROPERTIES TIMEOUT 300
+          RUN_SERIAL true)
+
+      # xmedia CLI：doctor + init + render 一条命令全链。
+      add_test(NAME xmedia_cli_smoke
+          COMMAND ${XMEDIA_PYTHON3}
+              "${CMAKE_SOURCE_DIR}/tests/unit/xmedia_cli_smoke.py")
+      set_tests_properties(xmedia_cli_smoke PROPERTIES TIMEOUT 300
+          RUN_SERIAL true)
+    endif()
   endif()
 
   # ---- lottie：时钟映射单测（渲染路径经 html_bake_smoke 覆盖）。
@@ -361,4 +376,50 @@ if(XMEDIA_ENABLE_FFMPEG)
   target_include_directories(player_ffmpeg_unittests SYSTEM PRIVATE
       ${FFmpeg_INCLUDE_DIRS})
 endif()
+endif()
+
+# ---- fuzz targets (Phase 4.5 / G8) -----------------------------------------
+# The harness (fuzz_demuxer.cc) is shared by two drivers: the libFuzzer binary
+# (coverage-guided, for CI on Linux and long local runs -- needs a clang with
+# the libFuzzer runtime, feature-tested below) and a standalone deterministic
+# mutator driver (fixed-seed mutations over the seed corpus, no runtime
+# dependency, runs under the asan/tsan presets like any test). Corpus seeds
+# are real containers under fuzz/seeds/ and grow in-repo.
+if(XMEDIA_BUILD_FUZZ AND XMEDIA_ENABLE_FFMPEG)
+  include(CheckCXXSourceCompiles)
+  set(CMAKE_REQUIRED_FLAGS "-fsanitize=fuzzer")
+  check_cxx_source_compiles("int main(){return 0;}"
+      XMEDIA_HAVE_LIBFUZZER_RUNTIME)
+  unset(CMAKE_REQUIRED_FLAGS)
+
+  add_executable(xmedia_fuzz_demuxer fuzz/fuzz_demuxer.cc)
+  target_include_directories(xmedia_fuzz_demuxer PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+  target_link_libraries(xmedia_fuzz_demuxer PRIVATE xmedia::ffmpeg)
+  target_compile_definitions(xmedia_fuzz_demuxer PRIVATE
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+  xmedia_configure_target(xmedia_fuzz_demuxer)
+
+  # The harness has no main(); the two drivers link it separately. The
+  # libFuzzer binary may be EXCLUDE_FROM_ALL (no runtime on this host), so the
+  # standalone compiles the source itself rather than sharing an object.
+  add_executable(xmedia_fuzz_demuxer_standalone
+      fuzz/fuzz_standalone_main.cc fuzz/fuzz_demuxer.cc)
+  target_include_directories(xmedia_fuzz_demuxer_standalone PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+  target_link_libraries(xmedia_fuzz_demuxer_standalone PRIVATE
+      xmedia::ffmpeg)
+  target_compile_definitions(xmedia_fuzz_demuxer_standalone PRIVATE
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata"
+      XMEDIA_SEEDS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fuzz/seeds")
+  xmedia_configure_target(xmedia_fuzz_demuxer_standalone)
+
+  if(XMEDIA_HAVE_LIBFUZZER_RUNTIME)
+    target_compile_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
+    target_link_options(xmedia_fuzz_demuxer PRIVATE -fsanitize=fuzzer)
+  else()
+    message(STATUS "libFuzzer runtime unavailable; building the standalone "
+                   "fuzz driver only (CI Linux has the runtime)")
+    set_target_properties(xmedia_fuzz_demuxer PROPERTIES EXCLUDE_FROM_ALL ON)
+  endif()
 endif()

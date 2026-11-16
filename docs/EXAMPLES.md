@@ -1,9 +1,18 @@
 # EXAMPLES · `examples/` 逐文件说明
 
-> 更新：**2026-10-26**。15 个受版本控制的文件，**11 个可执行目标**：10 个是给人读的
-> 例子（顶层 5 个宿主例子 + `base/` 下 5 个基础库教学 demo），第 11 个
-> （`doc_snippets`）是 [COOKBOOK.md](COOKBOOK.md) 里代码块的可编译形式，它不是 demo
-> 而是一道门禁，所以放在 §6 单独说。
+> 更新：**2026-11-15**。16 个受版本控制的文件（含 4 个 `html_bake*` 与
+> 2 个 CMakeLists），**12 个可执行目标**：
+>
+> - **顶层 6 个**宿主例子：`headless` / `play_sdl2` / `play_glfw` / `play_egl` /
+>   `pull_frames` / `html_bake`
+> - **`base/` 下 5 个**基础库教学 demo：`memory` / `functional` / `task` /
+>   `threading` / `synchronization`
+> - **第 12 个**（`doc_snippets`）是 [COOKBOOK.md](COOKBOOK.md) 里代码块的
+>   可编译形式，它不是 demo 而是一道门禁，所以放在 §6 单独说
+>
+> `html_bake` 也不是教学例子：它是 **AI 视频管线的渲染器**（`xmedia render`
+> 的最后一步），放在这里是因为它同时演示了 `xmedia::cef` + `GlElementComposer`
+> + `xmedia::transcode` 的组合用法，见 §5b。
 >
 > `base/` 那 5 个 demo 是 2026-10-24 加入的（`memory` / `functional` / `task` /
 > `threading` / `synchronization`）：`base/` 是宿主唯一会直接照抄的一层，所以它
@@ -28,9 +37,14 @@
 | `play_glfw.cc` | `play_glfw` | `XMEDIA_ENABLE_GLFW` **且**找到 glfw3 | 352 |
 | `play_egl.cc` | `play_egl` | `XMEDIA_ENABLE_EGL` **且** `xmedia::platform_egl` 存在（仅 Linux） | 288 |
 | `pull_frames.cc` | `pull_frames` | `XMEDIA_ENABLE_FFMPEG` | 246 |
+| `html_bake.cc` | `html_bake` | `XMEDIA_ENABLE_FFMPEG` **且** `XMEDIA_HAS_CEF` **且** `platform_glfw` | 895 |
+| `html_bake_args.cc` | （编入 `html_bake`） | 同上 | 88 |
+| `html_bake_video_layer.cc` | （编入 `html_bake`） | 同上 | 197 |
 | `doc_snippets/cookbook_smoke.cc` | `doc_snippets` | `XMEDIA_ENABLE_FFMPEG` | 241 |
-| `sdl2_demo.h` | （头文件，被 `play_sdl2` 用） | — | 390 |
+| `sdl2_demo.h` | （头文件，被 `play_sdl2` 用） | — | 392 |
 | `scene_demo.h` | （头文件，被 GL 宿主例子用） | — | 237 |
+| `html_bake_args.h` | （头文件，被 `html_bake` 用） | — | 50 |
+| `html_bake_video_layer.h` | （头文件，被 `html_bake` 用） | — | 70 |
 | `base/CMakeLists.txt` | — | — | 46 |
 | `base/memory/memory_demo.cc` | `memory_demo` | 无（纯 base） | 186 |
 | `base/functional/functional_demo.cc` | `functional_demo` | 无（纯 base） | 303 |
@@ -125,6 +139,41 @@ surface** 让例子自包含、不依赖窗口系统。
   工作**。
 
 退出码 0 = 抓到了请求的帧数。
+
+## 5b. `html_bake*.{cc,h}` — HTML → 视频离线烘焙（AI 管线的渲染器）
+
+这个目标严格说不是「教怎么用 SDK 的例子」，而是 **AI 视频管线的交付物**：
+`xmedia render` 的最后一步就是它。放在 `examples/` 是因为它同时演示了
+`xmedia::cef` + `GlElementComposer` + `xmedia::transcode` 三者的组合用法。
+
+管线：CEF OSR（VirtualTime bake 时钟）→ 每输出帧 `RequestVtStep` → `OnPaint`
+帧进 `GlElementComposer`（元素拆纹理：`data-*` 元素各自成为场景层，`data-z`
+排序）→ `GlScene` 合成 → 读回 BGRA → 转 I420 → `FFmpegVideoEncoder` →
+`FFmpegEncodeMuxer` → 容器。
+
+**为什么 VirtualTime 而不是墙钟**：墙钟驱动下动画时序依赖真实时间流逝，帧
+间隔抖动会进输出；VT 每步精确前进一帧间隔，文档时刻 `t = 帧序号 × (1000/fps)`，
+输出确定性可复现。这是「同一个 spec 两次导出逐帧一致」的基础。
+
+拆成三个 TU（C1 文件长度的实缝，2026-11-15）：
+
+| TU | 内容 | 为什么能拆 |
+|---|---|---|
+| `html_bake.cc` | `main()`：CEF 生命周期、VT 时钟、元素合成、chunk 循环、编码封装 | 剩下的是管线本身 |
+| `html_bake_args.cc` | argv 解析 | 纯数据变换，不碰 GL/CEF/编码器 |
+| `html_bake_video_layer.cc` | `<video>` 原生层：建层 + 逐帧喂帧 | 与前三者**不共享状态**，输入是「元素快照 + 画布尺寸」 |
+
+**`<video>` 为什么需要独立层**：CEF OSR 的 `OnPaint` 不把 `<video>` 合成进光栅
+（实测冻结在同一帧），页面里的 `video` 只是元数据。像素必须由 FFmpeg 直接解码、
+经 `GlScene` 独立层送出，垫在元素光栅之下（`z=-1`）。这一层还要跟场景容器的
+`opacity` 与 `clip-path` 走——不跟的话，视频场景之间的转场在成片里就是硬切
+（页面光栅淡出了，画面原地不动，观感是「转场没反应」）。
+
+**已知边界**：元素出生效窗的首帧可能仍缺该元素（CEF 对 visibility 恢复的重绘
+惰性，隐藏方向精确）；平铺光栅裁切对重叠元素透底，非重叠布局是精确前提。
+
+判据：`ctest html_bake_smoke`（冒烟）、`hf_video_scene_smoke`（视频层帧精度）、
+`hf_split_scene_smoke`（切割对位 + 交叉淡化）。
 
 ## 6. `doc_snippets/cookbook_smoke.cc` — 文档的可编译形式
 

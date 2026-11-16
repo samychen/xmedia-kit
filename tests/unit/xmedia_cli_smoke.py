@@ -18,6 +18,16 @@ def run(args, **kw):
 
 
 def main():
+    # 本用例要跑通 render（含烘焙）。没有 html_bake 时先跳过：doctor 会因此
+    # 报 7/8，那是正确的环境判定，不该被当成回归。干净 clone 上首次
+    # ctest 就是这个状态。
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import xmedia  # noqa: E402
+    if not xmedia.bake_bin():
+        print("xmedia_cli_smoke: SKIP — html_bake 未构建"
+              "（cmake --build build --target html_bake）")
+        return 0
+
     # doctor：全 PASS 才算环境就绪
     proc = run(["doctor"])
     assert proc.returncode == 0, f"doctor 未全过：\n{proc.stdout[-600:]}"

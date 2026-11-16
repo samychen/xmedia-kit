@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -126,6 +127,15 @@ def main():
         assert "function capSegments(" in ui and \
             "captions.segments" in ui and "function capTrackSub(" in ui, \
             "字幕轨未读取全局字幕段（ASR 后轨道会空白）"
+        # 波形必须是真实峰值：hashSeed 那条只是兜底。以前只有示意波形，
+        # 形状好看但与素材里的声音无关——时间轴上唯一能看出"这段有没有
+        # 说话"的信息因此完全失真。
+        assert "function peaksSVG(" in ui and \
+            "function loadWaveForClip(" in ui and \
+            "/api/waveform" in ui, \
+            "时间轴波形未接真实峰值（仍是哈希示意波形）"
+        assert "waveSVG(hashSeed(a.src)" in ui, \
+            "真实峰值缺失时要有加载态兜底，不能留空"
         # 时间轴区间：选区外压暗、选区内原色；I / O 打点、两端把手可拖、
         # 区间播放收在 out 点（预览驱动侧 setRange）。
         for el in ('id="tl-range-mode"', 'id="tl-range-box"',
@@ -281,6 +291,7 @@ def main():
 
     sys.path.insert(0, TOOLS)
     import hf_studio as studio_mod
+    import xmedia as xmedia_mod
 
     with tempfile.TemporaryDirectory(prefix="hf_studio_srv_") as tmp:
         spec = {
@@ -310,6 +321,7 @@ def main():
             st = json.load(r)
         assert st["spec_path"] == spec_path and st["errors"] == 0, st["findings"]
         assert st["width"] == 1080 and st["height"] == 1920, st
+
 
         with urllib.request.urlopen(base + "/preview", timeout=30) as r:
             prev = r.read().decode("utf-8")
@@ -359,6 +371,29 @@ def main():
         assert tts_result["generated"] >= 2, tts_result
         narr = tts_result["spec"]["scenes"][0]["narration"]
         assert narr and "scene-0-" in narr, narr
+
+        # /api/waveform：时间轴波形的真实峰值。旁白是固定 wav，峰值必须是
+        # 一条随内容变化的曲线（全 0 = 抽取失败，常量 = 取样没生效）。
+        q = urllib.parse.urlencode({"path": narr, "n": 16, "s": 0, "d": 2})
+        with urllib.request.urlopen(base + "/api/waveform?" + q,
+                                    timeout=60) as r:
+            wv = json.load(r)
+        assert wv["ok"] and wv["peaks"], f"波形抽取失败：{wv}"
+        assert len(wv["peaks"]) == 16, wv
+        assert all(0.0 <= p <= 1.0 for p in wv["peaks"]), wv
+        assert len(set(wv["peaks"])) > 3, \
+            f"波形是常量（抽取没生效）：{wv['peaks']}"
+        assert max(wv["peaks"]) > 0.05, f"波形全静音：{wv['peaks']}"
+
+        # 窗口裁剪：从 0.5s 起取同样的 16 格，数组必须与"从头取"不同
+        # （相同说明 -ss/-to 没生效，等于整段素材缩到窗口里）。
+        q2 = urllib.parse.urlencode({"path": narr, "n": 16, "s": 0.5, "d": 1.0})
+        with urllib.request.urlopen(base + "/api/waveform?" + q2,
+                                    timeout=60) as r:
+            wv2 = json.load(r)
+        assert wv2["ok"] and wv2["peaks"], f"窗口波形抽取失败：{wv2}"
+        assert wv2["peaks"] != wv["peaks"], \
+            "窗口裁剪未生效（0.5s 起的结果与从头取完全相同）"
         with urllib.request.urlopen(base + "/" + narr, timeout=30) as r:
             assert r.status == 200 and int(r.headers.get("Content-Length", 0)) > 0, \
                 "音频路由失败"
@@ -383,7 +418,13 @@ def main():
         assert any(studio_mod.ROOT_ASSET_PREFIX in s for s in audio_srcs), \
             "内置 SFX 的绝对路径未映射为可服务 URL"
 
-        # 烘焙闭环（参数由 spec 自动推导）：rc 0 + 产物存在
+        # 烘焙闭环（参数由 spec 自动推导）：rc 0 + 产物存在。
+        # 没有 html_bake 时这一段跳过——干净 clone / CEF 关掉的构建里
+        # 它本来就不存在，那不是本测试要证明的东西（注入与预览链路已
+        # 在上面验完）。跳过要打印原因，不能静默当通过。
+        if xmedia_mod.bake_bin() is None:
+            print("hf_studio_smoke: 烘焙段 SKIP — html_bake 未构建")
+            return
         req = urllib.request.Request(base + "/api/bake", data=b"{}",
                                      headers={"Content-Type": "application/json"},
                                      method="POST")

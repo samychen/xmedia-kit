@@ -69,7 +69,14 @@ add_subdirectory(base)
 # CEF 子进程契约：macOS 上 POST_BUILD 组装 .app bundle（共享函数），ctest 从
 # bundle 内启动。
 if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_HAS_CEF AND TARGET xmedia::platform_glfw)
-  add_executable(html_bake html_bake.cc ${CMAKE_SOURCE_DIR}/media/transcode/video_element_source.cc)
+  # html_bake_video_layer.cc 是 <video> 原生层的实现（建层 / 逐帧喂帧），
+  # 从 html_bake.cc 拆出——那部分与 CEF 生命周期、VT 时钟、元素拆纹理、
+  # 编码封装不共享状态，拆开让主文件回到可控长度。
+  add_executable(html_bake
+      html_bake.cc
+      html_bake_args.cc
+      html_bake_video_layer.cc
+      ${CMAKE_SOURCE_DIR}/media/transcode/video_element_source.cc)
   target_link_libraries(html_bake PRIVATE xmedia::xmedia-kit
       xmedia::platform_glfw xmedia::cef xmedia::transcode
       $<$<BOOL:${XMEDIA_HAS_LOTTIE}>:xmedia::lottie>)

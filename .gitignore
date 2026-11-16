@@ -59,3 +59,9 @@ gallery/voice/
 
 # WorkBuddy 的项目记忆与会话数据（本地工作状态，不是源码）
 .workbuddy/
+
+# Studio 的预览缓存：缩略图帧（__thumbs__/<sha1>/N.jpg）与波形峰值
+# （__thumbs__/wave_<sha1>.json）都写在 spec 目录下，随时可重算。
+# 跑测试时 spec 可能指向 tests/testdata，缓存就会落进源码树——那是产物
+# 不是素材，不该出现在 git status 里。
+__thumbs__/

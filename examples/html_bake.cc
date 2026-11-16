@@ -43,6 +43,8 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "examples/html_bake_args.h"  // CLI 参数（拆自本文件）
+#include "examples/html_bake_video_layer.h"  // <video> 原生层（拆自本文件）
 #include "media/base/video_frame.h"
 #include "media/cef/cef_app.h"
 #include "media/cef/cef_layer_source.h"
@@ -96,96 +98,6 @@ namespace {
 using namespace xmedia;  // NOLINT -- an example, not the SDK.
 using namespace xmedia::media;  // NOLINT
 
-struct Args {
-  std::string url;
-  std::string out = "html_bake_out.mkv";
-  double seconds = 1.0;
-  int fps = 10;
-  int width = 320;
-  int height = 240;
-  std::string codec = "mjpeg";
-  // bake 时钟（MC html_bake_clock 对齐）：virtual_time = VT 步进；
-  // seek = 页面 window.seek(t_ms) 契约（MC 默认）；live = 墙钟。
-  std::string clock = "virtual_time";
-  // 分块数：时间线均分为 N 窗，每窗独立烘焙（VT 从 0 快进到窗起点——
-  // 合成确定性使任意边界成为可能，无 keyframe 对齐约束），Concat 无损
-  // 拼接。1 = 单块直通。
-  int chunks = 1;
-  // 页面数据注入（window.update 契约）：首帧后注入一次。
-  std::string data_json;
-  // Lottie 叠加层：路径 + 绘制 z（默认垫在 HTML 元素之下）。
-  std::string lottie_path;
-  int lottie_z = -1;
-  double lottie_speed = 1.0;
-  int lottie_loop = 1;
-};
-
-Args ParseArgs(int argc, char** argv) {
-  Args a;
-  for (int i = 1; i < argc; ++i) {
-    const std::string v = i + 1 < argc ? argv[i + 1] : "";
-    if (std::strcmp(argv[i], "--url") == 0 && !v.empty()) {
-      a.url = v;
-      ++i;
-    } else if (std::strcmp(argv[i], "--out") == 0 && !v.empty()) {
-      a.out = v;
-      ++i;
-    } else if (std::strcmp(argv[i], "--seconds") == 0) {
-      a.seconds = std::atof(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--fps") == 0) {
-      a.fps = std::atoi(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--width") == 0) {
-      a.width = std::atoi(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--height") == 0) {
-      a.height = std::atoi(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--codec") == 0 && !v.empty()) {
-      a.codec = v;
-      ++i;
-    } else if (std::strcmp(argv[i], "--clock") == 0 && !v.empty()) {
-      a.clock = v;  // virtual_time | seek | live
-      ++i;
-    } else if (std::strcmp(argv[i], "--chunks") == 0) {
-      a.chunks = std::max(1, std::atoi(v.c_str()));
-      ++i;
-    } else if (std::strcmp(argv[i], "--data") == 0 && !v.empty()) {
-      a.data_json = v;
-      ++i;
-    } else if (std::strcmp(argv[i], "--lottie") == 0 && !v.empty()) {
-      a.lottie_path = v;
-      ++i;
-    } else if (std::strcmp(argv[i], "--lottie-z") == 0) {
-      a.lottie_z = std::atoi(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--lottie-speed") == 0) {
-      a.lottie_speed = std::atof(v.c_str());
-      ++i;
-    } else if (std::strcmp(argv[i], "--lottie-loop") == 0) {
-      a.lottie_loop = std::atoi(v.c_str());
-      ++i;
-    } else {
-      // 未知参数显式告警（如 --hight 拼写错——静默忽略会让画布落到默认值）。
-      std::fprintf(stderr, "html_bake: unknown argument '%s' (ignored)\n",
-                   argv[i]);
-    }
-  }
-  // 相对 --url → file:// 绝对 URL：CEF 需要完整 URL 才能加载，且页面内
-  // 相对子资源（音频等）按 URL 目录解析——裸相对路径整页黑。
-  if (!a.url.empty() && !a.url.starts_with("http://") &&
-      !a.url.starts_with("https://") && !a.url.starts_with("file://")) {
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-      const std::string path =
-          a.url[0] == '/' ? a.url : std::string(cwd) + "/" + a.url;
-      a.url = "file://" + path;
-    }
-  }
-  return a;
-}
-
 // 等到 OSR 发布了新帧（VT 步进的确定性产出）：caller-thread pump 模式下
 // 主线程自己驱动 CEF——Pump 处理 UI 任务（含 VT credit 消费与 OnPaint
 // 投递），pump 线程模式下这由 facade 的后台线程做。超时返回 false——
@@ -221,7 +133,8 @@ int main(int argc, char** argv) {
       return CefExecuteProcess(main_args, app.get(), nullptr);
     }
   }
-  const Args args = ParseArgs(argc, argv);
+  examples::BakeArgs args;
+  examples::ParseBakeArgs(argc, argv, &args);
   if (args.url.empty()) {
     std::fprintf(stderr, "usage: html_bake --url <file:///...> --out <path> "
                          "[--seconds s] [--fps n] [--width w] [--height h] "
@@ -497,74 +410,19 @@ int main(int argc, char** argv) {
 
   // 视频元素原生层：<video> 的像素由 FFmpeg 解码直供（CEF OSR 不合成
   // video 到光栅——实测冻结），层垫在元素光栅之下（z=-1）、场景背景
-  // 透明让视频透出，文字浮于其上。
-  struct VideoElementLayer {
-    examples::VideoElementSource src;
-    GlScene::LayerId layer = GlScene::kNoLayer;
-    double start_ms = 0;
-    double dur_ms = -1;
-    // 源内起点（data-media-start）：片段切割出的后段从源视频该时刻继续。
-    double from_ms = 0;
-    // 元素 id：逐帧用它在快照里取渲染态（不透明度 / 裁剪矩形）。
-    std::string id;
-  };
-  std::vector<VideoElementLayer> video_layers;
+  // 透明让视频透出，文字浮于其上。建层与逐帧喂帧都在
+  // examples/html_bake_video_layer.{h,cc}——那一层与 CEF 生命周期、VT
+  // 时钟、元素拆纹理、编码封装不共享状态，拆出去是文件长度的实缝。
+  std::vector<examples::VideoElementLayer> video_layers;
   if (!synthetic && has_video_scene) {
-    const auto entries = layer.SnapshotElements().entries();
+    // 相对 src 按契约页目录解析；页面用 file:// 打开时目录就在 URL 里。
     const std::string page_dir_v =
         args.url.rfind("file://", 0) == 0
             ? args.url.substr(7, args.url.find_last_of('/') - 7)
             : std::string();
-    for (const auto& e : entries) {
-      if (!e.is_media || !e.has_src) {
-        continue;
-      }
-      const std::string vext = [&] {
-        const auto dot = e.src.find_last_of('.');
-        return dot == std::string::npos ? std::string()
-                                        : e.src.substr(dot);
-      }();
-      static const char* kVideoExts[] = {".mp4", ".webm", ".mov", ".mkv",
-                                         ".m4v"};
-      bool is_video_ext = false;
-      for (const char* ve : kVideoExts) {
-        if (vext == ve) {
-          is_video_ext = true;
-          break;
-        }
-      }
-      if (!is_video_ext) {
-        continue;
-      }
-      std::string vpath = e.src.rfind("file://", 0) == 0
-                              ? e.src.substr(7)
-                              : (e.src.rfind("/", 0) == 0
-                                     ? e.src
-                                     : page_dir_v + "/" + e.src);
-      VideoElementLayer vl;
-      if (!vl.src.Open(vpath)) {
-        std::fprintf(stderr, "html_bake: 视频元素打开失败 %s\n",
-                     vpath.c_str());
-        continue;
-      }
-      vl.start_ms = static_cast<double>(e.start_ms);
-      vl.dur_ms = static_cast<double>(e.duration_ms);
-      vl.from_ms = static_cast<double>(e.media_start_ms);
-      vl.id = e.id;  // 逐帧按 id 取回渲染态（opacity / clip）
-      vl.layer = scene->AddVideoLayer(e.has_z ? e.z : -1);
-      if (vl.layer != GlScene::kNoLayer) {
-        scene->SetLayerRect(vl.layer, e.x / static_cast<float>(args.width),
-                            e.y / static_cast<float>(args.height),
-                            e.w / static_cast<float>(args.width),
-                            e.h / static_cast<float>(args.height));
-        scene->SetLayerVisible(vl.layer, false);
-        video_layers.push_back(std::move(vl));
-      }
-    }
-    if (!video_layers.empty()) {
-      std::fprintf(stderr, "html_bake: 视频元素原生层 %zu 个\n",
-                   video_layers.size());
-    }
+    video_layers = examples::BuildVideoLayers(
+        scene.get(), layer.SnapshotElements().entries(), page_dir_v,
+        args.width, args.height);
   }
 
   // 产物来源锚点（provenance）：MP4 容器 metadata 记录工具名 + HTML
@@ -698,93 +556,10 @@ int main(int argc, char** argv) {
                         ? synthetic_entries
                         : layer.SnapshotElements().entries();
     composer.Sync(*scene, frame.get(), elements, t_ms);
-    // 视频元素原生层：FFmpeg 解码当前时刻帧 → kARGB 上传（行拷贝进
-    // 64 字节对齐平面）；窗外隐藏。
-    for (auto& vl : video_layers) {
-      // 渲染态：入场 / 转场动画动的是场景容器的 opacity 与 clip-path，
-      // 而原生视频层直接按矩形出帧。不跟着这两个量走，视频场景之间的
-      // 转场（尤其是切割出来的接缝）在成片里就是硬切——页面光栅淡出
-      // 了，画面却原地不动，看上去"转场没反应"。
-      const HtmlElementMetaEntry* meta = nullptr;
-      for (const auto& e : elements) {
-        if (e.id == vl.id) {
-          meta = &e;
-          break;
-        }
-      }
-      const double local = (t_ms - vl.start_ms) / 1000.0;
-      const bool active =
-          local >= 0 && (vl.dur_ms < 0 || local * 1000 < vl.dur_ms);
-      float alpha =
-          (meta != nullptr && meta->has_opacity)
-              ? static_cast<float>(meta->opacity)
-              : 1.f;
-      // 淡到看不见就整层跳过：既省一次解码，也避免 alpha≈0 的层仍占
-      // 一次混合。
-      if (!active || alpha <= 0.002f) {
-        scene->SetLayerVisible(vl.layer, false);
-        continue;
-      }
-      scene->SetLayerOpacity(vl.layer, alpha);
-      if (meta != nullptr && meta->w > 0.f && meta->h > 0.f) {
-        // 可见矩形 = 元素矩形 ∩ 祖先 clip-path ∩ 画布。源内取样矩形按
-        // 同样的交集裁，而不是把整幅画面挤进交集——擦除 / 滑出是裁切，
-        // 压缩会变成变形。
-        const float cw = static_cast<float>(args.width);
-        const float ch = static_cast<float>(args.height);
-        float vx0 = std::max(meta->x, 0.f);
-        float vy0 = std::max(meta->y, 0.f);
-        float vx1 = std::min(meta->x + meta->w, cw);
-        float vy1 = std::min(meta->y + meta->h, ch);
-        if (meta->has_clip) {
-          vx0 = std::max(vx0, meta->clip_x);
-          vy0 = std::max(vy0, meta->clip_y);
-          vx1 = std::min(vx1, meta->clip_x + meta->clip_w);
-          vy1 = std::min(vy1, meta->clip_y + meta->clip_h);
-        }
-        const float vw = vx1 - vx0;
-        const float vh = vy1 - vy0;
-        if (vw <= 0.5f || vh <= 0.5f) {
-          scene->SetLayerVisible(vl.layer, false);  // 已完全移出 / 裁空
-          continue;
-        }
-        scene->SetLayerRect(vl.layer, vx0 / cw, vy0 / ch, vw / cw, vh / ch);
-        float sx = std::min(std::max((vx0 - meta->x) / meta->w, 0.f), 1.f);
-        float sy = std::min(std::max((vy0 - meta->y) / meta->h, 0.f), 1.f);
-        const float sw = std::min(vw / meta->w, 1.f - sx);
-        const float sh = std::min(vh / meta->h, 1.f - sy);
-        if (sw > 0.f && sh > 0.f) {
-          scene->SetLayerSourceRect(vl.layer, sx, sy, sw, sh);
-        }
-      }
-      // 源内起点：切割出的后段（data-media-start > 0）从源视频该时刻
-      // 继续播；超出源时长时钉在末帧，避免 EOS 后整层变黑。
-      double src_sec = local + vl.from_ms / 1000.0;
-      const double src_dur = vl.src.duration();
-      if (src_dur > 0 && src_sec > src_dur) {
-        src_sec = src_dur;
-      }
-      if (vl.src.FrameAt(src_sec)) {
-        auto vf = VideoFrame::CreateBlackFrame(
-            VideoFormat::kARGB, Size{vl.src.width(), vl.src.height()},
-            Size{vl.src.width(), vl.src.height()}, Rational{1, 1},
-            xmedia::base::Milliseconds(0),
-            xmedia::base::Milliseconds(33), 0);
-        const size_t sstride = static_cast<size_t>(vl.src.width()) * 4;
-        auto span = vf->mutable_data(VideoFrame::kYPlane);
-        const auto& bgra = vl.src.bgra();
-        for (int ry = 0; ry < vl.src.height(); ++ry) {
-          std::memcpy(span.data() + static_cast<size_t>(ry) *
-                                        vf->stride(VideoFrame::kYPlane),
-                      bgra.data() + static_cast<size_t>(ry) * sstride,
-                      sstride);
-        }
-        scene->Upload(vl.layer, *vf);
-        scene->SetLayerVisible(vl.layer, true);
-      } else {
-        scene->SetLayerVisible(vl.layer, false);
-      }
-    }
+    // 视频元素原生层：FFmpeg 解码当前时刻帧 → kARGB 上传；窗外隐藏。
+    // 渲染态（不透明度 / 交集裁剪）与源内起点也在那一层里处理。
+    examples::UpdateVideoLayers(scene.get(), &video_layers, elements, t_ms,
+                                args.width, args.height);
 #if defined(XMEDIA_HAS_LOTTIE) && XMEDIA_HAS_LOTTIE
     if (lottie_anim && lottie_layer != GlScene::kNoLayer) {
       auto lf = lottie_anim->RenderAtMs(t_ms);

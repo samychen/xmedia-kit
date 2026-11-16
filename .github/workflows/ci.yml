@@ -994,6 +994,21 @@ jobs:
         run: python3 tests/unit/hf_studio_smoke.py
       - name: gallery 示例库 compose+validate
         run: python3 tests/unit/gallery_smoke.py
+      # hf_ai 走临时端口自起自停，不依赖常驻服务，也不需要烘焙二进制
+      # （ASR 走 SRT 降级、Agent 走规则引擎）。它覆盖 ASR 字幕裁剪/导入
+      # 确定性/MCP stdio/Ask AI HTTP 闭环，是这条线上最该进 CI 的一条。
+      - name: hf_ai 冒烟（ASR/导入/Agent/MCP/HTTP）
+        run: python3 tests/unit/hf_ai_smoke.py
+      # 以下三条要真的烘焙，本 job 不构建 html_bake（CEF distro 太重）。
+      # 没有二进制时它们打印 SKIP 并以 0 退出——这是有意的：把"没构建"
+      # 说清楚，而不是让 job 在一条与被测代码无关的红上停住。烘焙侧的
+      # 闭环由 ctest 在 CEF 全开的机器上守（hf_video_scene/hf_split_scene/
+      # xmedia_cli 三条只在 TARGET html_bake 时注册）。
+      - name: hf_video_scene / hf_split_scene / xmedia_cli（无烘焙则跳过）
+        run: |
+          python3 tests/unit/hf_video_scene_smoke.py
+          python3 tests/unit/hf_split_scene_smoke.py
+          python3 tests/unit/xmedia_cli_smoke.py
       - name: schema 版本门
         run: |
           python3 - <<'PY'

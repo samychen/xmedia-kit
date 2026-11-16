@@ -8,7 +8,22 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GALLERY = os.path.join(ROOT, "gallery")
-specs = sorted(glob.glob(os.path.join(GALLERY, "*.json")))
+# 只认「可运行的 spec」：gallery/ 里还躺着 xmedia render 的产物——
+# *.html_elements.json（元素 sidecar）与 *.narrated.json（TTS 之后的中
+# 间 spec）。它们也是 .json，但没有 scenes，当成 spec 喂给 hf_compose
+# 会以 "spec.scenes 不能为空" 失败，而且失败原因看不出是通配错了。
+# 以前这里是裸 *.json 通配：干净 checkout 能过，本地跑过一次 render 就红。
+#
+# 判据是「不是产物」而不是「文件名在白名单里」，这样新增示例不必改测试。
+_PRODUCT_SUFFIXES = (".html_elements.json", ".narrated.json")
+
+
+def _is_product(path):
+    return any(path.endswith(sfx) for sfx in _PRODUCT_SUFFIXES)
+
+
+specs = [p for p in sorted(glob.glob(os.path.join(GALLERY, "*.json")))
+         if not _is_product(p)]
 assert len(specs) >= 3, f"示例库 spec 少于 3 个：{specs}"
 
 for spec in specs:

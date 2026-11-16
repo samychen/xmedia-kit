@@ -12,6 +12,9 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CLI = os.path.join(ROOT, "tools", "xmedia.py")
 
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import xmedia  # noqa: E402
+
 
 def run(args):
     proc = subprocess.run([sys.executable, CLI] + args,
@@ -27,6 +30,11 @@ def frame(path):
 
 
 def main():
+    if not xmedia.bake_bin():
+        # 没有烘焙二进制时 render 会明确失败；这里提前说清楚是"没构建"。
+        print("hf_video_scene_smoke: SKIP — html_bake 未构建"
+              "（cmake --build build --target html_bake）")
+        return 0
     with tempfile.TemporaryDirectory(prefix="hf_video_scene_") as tmp:
         src = os.path.join(tmp, "src.webm")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
