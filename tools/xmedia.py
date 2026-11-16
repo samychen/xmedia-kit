@@ -562,6 +562,87 @@ def _launch_fetch_url(url):
     return "\n".join(parts[:14])
 
 
+def _brand_dir():
+    return os.path.expanduser(os.environ.get(
+        "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+
+
+def cmd_brand(args):
+    """品牌套件：色板/字体色/音色/片尾署名的持久化与注入 spec。"""
+    d = _brand_dir()
+    if args.action == "list":
+        if not os.path.isdir(d):
+            print("xmedia: 无已保存品牌（先 brand save）")
+            return
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".json"):
+                print(" ", f[:-5])
+        return
+    if args.action == "save":
+        os.makedirs(d, exist_ok=True)
+        brand = {"name": args.name,
+                 "background": args.background or "#0a0a1a",
+                 "palette": [args.palette1 or "#1a1a2e",
+                             args.palette2 or "#16213e",
+                             args.palette3 or "#0f3460"],
+                 "text_color": args.text or "#f0f0f5",
+                 "voice": args.voice or "Tingting",
+                 "outro_text": args.outro or "",
+                 "logo_text": args.logo or ""}
+        path = os.path.join(d, args.name + ".json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(brand, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        print(f"xmedia: 品牌「{args.name}」已保存 {path}")
+        return
+    if args.action == "show":
+        path = os.path.join(d, args.name + ".json")
+        if not os.path.exists(path):
+            print(f"xmedia: 品牌「{args.name}」不存在（brand list 查看）",
+                  file=sys.stderr)
+            sys.exit(1)
+        print(open(path, encoding="utf-8").read())
+        return
+    # apply
+    path = os.path.join(d, args.name + ".json")
+    if not os.path.exists(path):
+        print(f"xmedia: 品牌「{args.name}」不存在（brand list 查看）",
+              file=sys.stderr)
+        sys.exit(1)
+    brand = json.load(open(path, encoding="utf-8"))
+    if not os.path.exists(args.spec):
+        print(f"xmedia: spec 不存在 {args.spec}", file=sys.stderr)
+        sys.exit(1)
+    spec = json.load(open(args.spec, encoding="utf-8"))
+    palette = brand.get("palette", [])
+    text = brand.get("text_color", "")
+    n = 0
+    for i, sc in enumerate(spec.get("scenes", [])):
+        if not sc.get("video"):
+            if palette:
+                sc["bg"] = palette[i % len(palette)]
+            if text:
+                sc.setdefault("color", text)
+            n += 1
+    if spec.get("background"):
+        spec["background"] = brand.get("background", spec["background"])
+    if brand.get("voice"):
+        spec.setdefault("tts", {})["voice"] = brand["voice"]
+    out_scenes = [sc for sc in spec.get("scenes", [])
+                  if sc.get("type") == "outro"]
+    for sc in out_scenes:
+        if brand.get("outro_text"):
+            sc["text"] = brand["outro_text"]
+        if brand.get("logo_text") and "subtitle" in sc:
+            sc["subtitle"] = brand["logo_text"]
+    with open(args.spec, "w", encoding="utf-8") as f:
+        json.dump(spec, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    print(f"xmedia: 品牌「{args.name}」已应用 {args.spec}"
+          f"（{n} 个场景换色，outro 署名 "
+          f"「{brand.get('outro_text') or '未设置'}」）")
+
+
 def cmd_launch(args):
     """四段式 launch 视频 spec（对齐 HF first-video：Hook/Proof/Turn/CTA）。"""
     missing = [k for k, v in (("hook", args.hook), ("proof", args.proof),
@@ -729,6 +810,19 @@ def main():
     p.add_argument("--voice", default="Tingting", help="TTS 音色")
     p.add_argument("--out", required=True, help="spec JSON 输出路径")
     p.set_defaults(fn=cmd_launch)
+    p = sub.add_parser("brand", help="品牌套件：save/list/show/apply")
+    p.add_argument("action", choices=["save", "list", "show", "apply"])
+    p.add_argument("name", nargs="?", help="品牌名")
+    p.add_argument("--spec", help="apply 目标 spec JSON")
+    p.add_argument("--background", help="全局背景色")
+    p.add_argument("--palette1", help="场景色 1")
+    p.add_argument("--palette2", help="场景色 2")
+    p.add_argument("--palette3", help="场景色 3")
+    p.add_argument("--text", help="文字色")
+    p.add_argument("--voice", help="TTS 音色")
+    p.add_argument("--outro", help="片尾文案")
+    p.add_argument("--logo", help="片尾署名")
+    p.set_defaults(fn=cmd_brand)
     sub.add_parser("docs", help="生成文档站 docs-site/index.html").set_defaults(
         fn=cmd_docs)
 

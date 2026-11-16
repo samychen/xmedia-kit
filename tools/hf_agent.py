@@ -237,6 +237,42 @@ def handle(message, spec, spec_dir=""):
             "--format 16:9 或 1:1 / --voice 音色。生成后直接 "
             "xmedia render 出片。", mode="help")
 
+    # 0b. 品牌套件（brand kit）：~/.xmedia/brands/<名>.json 注入当前 spec。
+    m = re.search(r"应用品牌\s*[:：]?\s*([\w\-]+)", msg)
+    if m:
+        import json as _json
+        bpath = os.path.expanduser(os.environ.get(
+            "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+        fpath = os.path.join(bpath, m.group(1) + ".json")
+        if not os.path.exists(fpath):
+            names = sorted(f[:-5] for f in os.listdir(bpath)
+                           if f.endswith(".json")) if os.path.isdir(bpath) else []
+            return out(f"品牌「{m.group(1)}」不存在。已保存的品牌："
+                       + ("、".join(names) or "（无）——先跑 xmedia brand save"),
+                       mode="help")
+        brand = _json.load(open(fpath, encoding="utf-8"))
+        palette = brand.get("palette", [])
+        text = brand.get("text_color", "")
+        for i, sc in enumerate(base.get("scenes", [])):
+            if not sc.get("video"):
+                if palette:
+                    sc["bg"] = palette[i % len(palette)]
+                if text:
+                    sc.setdefault("color", text)
+        if base.get("background"):
+            base["background"] = brand.get("background", base["background"])
+        if brand.get("voice"):
+            base.setdefault("tts", {})["voice"] = brand["voice"]
+        for sc in base.get("scenes", []):
+            if sc.get("type") == "outro":
+                if brand.get("outro_text"):
+                    sc["text"] = brand["outro_text"]
+                if brand.get("logo_text") and "subtitle" in sc:
+                    sc["subtitle"] = brand["logo_text"]
+        return out(f"品牌「{m.group(1)}」已应用（色板 {len(palette)} 色、"
+                   f"文字 {text or '不变'}、音色 "
+                   f"{brand.get('voice') or '不变'}）", base)
+
     # 1. 素材导入（含「字幕」「片尾卡」组合意图）
     #    只把「像路径」的片段当路径；没有路径时给出引导而不是抛「不存在」。
     if re.search(r"导入|import", msg, re.I):

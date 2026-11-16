@@ -73,6 +73,28 @@ python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告�
 
 单步命令（等价透传）：`xmedia tts/compose/validate/studio/sfx`。
 
+**launch 四段式发布视频**（对齐 HF first-video：Hook → Proof → Turn → CTA）：
+
+```bash
+python3 tools/xmedia.py launch \
+  --hook "还在手写视频脚本？" \
+  --proof "1036|回归测试全部通过" \
+  --turn "确定性管线，同 spec 同画面" \
+  --cta "立即试试" \
+  --url https://你的网站 --out launch/launch.json
+# 产物直接 xmedia render launch/launch.json --out launch.mp4
+```
+
+**品牌套件**（brand kit，存储 `~/.xmedia/brands/<名>.json`，Studio 内说
+「应用品牌 <名>」同样生效）：
+
+```bash
+python3 tools/xmedia.py brand save acme --palette1 "#10101e" \
+  --palette2 "#182138" --text "#e8ecff" --voice "Tingting" \
+  --outro "由 ACME 出品" --logo "ACME"
+python3 tools/xmedia.py brand apply acme --spec launch/launch.json
+```
+
 手动分步（与统一 CLI 等价）：
 
 ```bash
