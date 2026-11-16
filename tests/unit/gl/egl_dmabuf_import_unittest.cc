@@ -160,10 +160,10 @@ struct DumbBuffer {
     if (ioctl(drm_fd, DRM_IOCTL_MODE_MAP_DUMB, &map) != 0) {
       return false;
     }
-    void* base = mmap(nullptr,
-                      static_cast<size_t>(pitch) * (height + height / 2),
-                      PROT_READ | PROT_WRITE, MAP_SHARED, drm_fd,
-                      static_cast<off_t>(map.offset));
+    void* base =
+        mmap(nullptr, static_cast<size_t>(pitch) * (height + height / 2),
+             PROT_READ | PROT_WRITE, MAP_SHARED, drm_fd,
+             static_cast<off_t>(map.offset));
     if (base == MAP_FAILED) {
       return false;
     }
@@ -259,9 +259,9 @@ struct EglTestGl {
   // presenter: the presenter owns the NativeGLContext it is given, so the
   // shared instance cannot hand its own wrapper over more than once.
   std::unique_ptr<media::EglGLContext> TakeNativeContextCopy() {
-    return std::make_unique<media::EglGLContext>(
-        static_cast<void*>(display), static_cast<void*>(surface),
-        static_cast<void*>(context));
+    return std::make_unique<media::EglGLContext>(static_cast<void*>(display),
+                                                 static_cast<void*>(surface),
+                                                 static_cast<void*>(context));
   }
 };
 
@@ -296,9 +296,10 @@ EglTestGl* SharedEglTestGl(std::string* why) {
       std::vector<EGLDeviceEXT> devices(static_cast<size_t>(count));
       query_devices(count, devices.data(), &count);
       for (EGLDeviceEXT device : devices) {
-        display = get_platform_display(EGL_PLATFORM_DEVICE_EXT, device, nullptr);
-        if (display != EGL_NO_DISPLAY && eglInitialize(display, nullptr,
-                                                       nullptr)) {
+        display =
+            get_platform_display(EGL_PLATFORM_DEVICE_EXT, device, nullptr);
+        if (display != EGL_NO_DISPLAY &&
+            eglInitialize(display, nullptr, nullptr)) {
           break;
         }
         display = EGL_NO_DISPLAY;
@@ -307,17 +308,26 @@ EglTestGl* SharedEglTestGl(std::string* why) {
   }
   if (display == EGL_NO_DISPLAY) {
     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (display == EGL_NO_DISPLAY || !eglInitialize(display, nullptr, nullptr)) {
+    if (display == EGL_NO_DISPLAY ||
+        !eglInitialize(display, nullptr, nullptr)) {
       *why = "no EGL display on this host";
       return nullptr;
     }
   }
   gl.display = display;
 
-  const EGLint config_attrs[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-                                 EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
-                                 EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8,
-                                 EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8,
+  const EGLint config_attrs[] = {EGL_SURFACE_TYPE,
+                                 EGL_PBUFFER_BIT,
+                                 EGL_RENDERABLE_TYPE,
+                                 EGL_OPENGL_BIT,
+                                 EGL_RED_SIZE,
+                                 8,
+                                 EGL_GREEN_SIZE,
+                                 8,
+                                 EGL_BLUE_SIZE,
+                                 8,
+                                 EGL_ALPHA_SIZE,
+                                 8,
                                  EGL_NONE};
   EGLConfig config = nullptr;
   EGLint configs = 0;
@@ -333,8 +343,10 @@ EglTestGl* SharedEglTestGl(std::string* why) {
     *why = "eglCreatePbufferSurface failed";
     return nullptr;
   }
-  const EGLint context_attrs[] = {EGL_CONTEXT_MAJOR_VERSION, 3,
-                                  EGL_CONTEXT_MINOR_VERSION, 3,
+  const EGLint context_attrs[] = {EGL_CONTEXT_MAJOR_VERSION,
+                                  3,
+                                  EGL_CONTEXT_MINOR_VERSION,
+                                  3,
                                   EGL_CONTEXT_OPENGL_PROFILE_MASK,
                                   EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
                                   EGL_NONE};
@@ -361,7 +373,9 @@ EglTestGl* SharedEglTestGl(std::string* why) {
 // their own (the contract-matrix frames are hand-built and own nothing).
 // WrapNativeBuffer CHECKs that the callback exists -- a missing one would
 // leak the backing it was supposed to free.
-base::OnceClosure ReleaseNoop() { return base::BindOnce([]() {}); }
+base::OnceClosure ReleaseNoop() {
+  return base::BindOnce([]() {});
+}
 
 // Whether the driver's desktop GL actually accepts an EGLImage bind. Measured
 // ONCE, on a real dumb-buffer dmabuf, with the production importer: on Mesa
@@ -383,44 +397,53 @@ bool ImportBindCapability(std::string* why) {
   EglTestGl* gl = SharedEglTestGl(&probe_why);
   if (!gl) {
     cached = 0;
-    if (why) *why = probe_why;
+    if (why)
+      *why = probe_why;
     return false;
   }
   static int drm_fd = OpenDrmNode();
   if (drm_fd < 0) {
     cached = 0;
-    if (why) *why = "no usable /dev/dri node for the probe";
+    if (why)
+      *why = "no usable /dev/dri node for the probe";
     return false;
   }
   DumbBuffer probe;
   if (!probe.Create(drm_fd, kWindowSize, kWindowSize) || !probe.Fill(16, 235)) {
     cached = 0;
-    if (why) *why = "the probe's dumb buffer could not be produced";
+    if (why)
+      *why = "the probe's dumb buffer could not be produced";
     return false;
   }
   auto frame = MakeDmabufFrame(probe, VideoFormat::kNV12);
   if (!frame) {
     cached = 0;
-    if (why) *why = "the probe frame could not be built";
+    if (why)
+      *why = "the probe frame could not be built";
     return false;
   }
   auto importer = platform::hwimport::CreateHwTextureImporter();
   if (!importer) {
     cached = 0;
-    if (why) *why = "no importer in this build";
+    if (why)
+      *why = "no importer in this build";
     return false;
   }
   gl->MakeCurrent();
   using GenTexturesFn = void (*)(int, unsigned int*);
   using BindTextureFn = void (*)(unsigned int, unsigned int);
   using DeleteTexturesFn = void (*)(int, const unsigned int*);
-  auto gen = reinterpret_cast<GenTexturesFn>(eglGetProcAddress("glGenTextures"));
-  auto bind = reinterpret_cast<BindTextureFn>(eglGetProcAddress("glBindTexture"));
-  auto del = reinterpret_cast<DeleteTexturesFn>(eglGetProcAddress("glDeleteTextures"));
+  auto gen =
+      reinterpret_cast<GenTexturesFn>(eglGetProcAddress("glGenTextures"));
+  auto bind =
+      reinterpret_cast<BindTextureFn>(eglGetProcAddress("glBindTexture"));
+  auto del =
+      reinterpret_cast<DeleteTexturesFn>(eglGetProcAddress("glDeleteTextures"));
   unsigned int tex = 0;
   if (!gen || !bind || !del) {
     cached = 0;
-    if (why) *why = "GL texture entry points not resolvable";
+    if (why)
+      *why = "GL texture entry points not resolvable";
     return false;
   }
   gen(1, &tex);
@@ -436,8 +459,9 @@ bool ImportBindCapability(std::string* why) {
   gl->ReleaseCurrent();
   cached = ok ? 1 : 0;
   if (!ok && why) {
-    *why = "the driver refused the EGLImage bind (measured once; NVIDIA "
-           "proprietary GL rejects fds from foreign allocators)";
+    *why =
+        "the driver refused the EGLImage bind (measured once; NVIDIA "
+        "proprietary GL rejects fds from foreign allocators)";
   }
   return ok;
 }
@@ -692,16 +716,15 @@ TEST_F(EglDmabufImportTest, BothRoutesDrawTheSameColour) {
     GTEST_SKIP() << why;
   }
   auto gpu = MakeDmabufFrame(buffer_, VideoFormat::kNV12);
-  auto cpu = test::MakeSolidFrame(VideoFormat::kNV12, kWindowSize,
-                                  kWindowSize, test::kWhiteLuma,
-                                  test::kNeutralChroma, test::kNeutralChroma);
+  auto cpu = test::MakeSolidFrame(VideoFormat::kNV12, kWindowSize, kWindowSize,
+                                  test::kWhiteLuma, test::kNeutralChroma,
+                                  test::kNeutralChroma);
   ASSERT_TRUE(gpu);
   ASSERT_TRUE(cpu);
   std::string cap_why;
   if (!ImportBindCapability(&cap_why)) {
     GTEST_SKIP() << cap_why;
   }
-
 
   ASSERT_TRUE(gl_->MakeCurrent());
   ASSERT_TRUE(presenter_->Compose(*gpu));
@@ -742,7 +765,6 @@ TEST_F(EglDmabufImportTest, AFrameWithoutDmabufPlumbingIsRefused) {
       << "no derivation, no readback path: refusing is the contract";
 }
 
-
 // The OTHER half of the contract, and the half every Linux host can verify:
 // when the driver refuses the bind, the layer must fall back to the explicit
 // readback and report kCpuSync -- never a black frame, never a kHwZeroCopy
@@ -773,8 +795,7 @@ TEST_F(EglDmabufImportTest, ARefusedBindFallsBackToTheReadbackRoute) {
       base::BindRepeating([]() -> base::scoped_refptr<VideoFrame> {
         return test::MakeSolidFrame(VideoFormat::kNV12, kWindowSize,
                                     kWindowSize, test::kWhiteLuma,
-                                    test::kNeutralChroma,
-                                    test::kNeutralChroma);
+                                    test::kNeutralChroma, test::kNeutralChroma);
       }));
   ASSERT_TRUE(frame);
   buffer_.dmabuf_fd = -1;

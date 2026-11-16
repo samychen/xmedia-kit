@@ -10,10 +10,10 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
-#include "media/ffmpeg/hw_device_probe.h"
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/color_space_bridge.h"
 #include "media/ffmpeg/compat.h"
+#include "media/ffmpeg/hw_device_probe.h"
 #include "media/ffmpeg/hw_frame_readback.h"
 #if defined(XMEDIA_ENABLE_VAAPI)
 #include <libavutil/hwcontext_vaapi.h>
@@ -113,8 +113,8 @@ bool FFmpegHwVideoDecoder::InitializeDevice() {
   if (ctx_->device_ready) {
     return true;
   }
-  const AVHWDeviceType type = static_cast<AVHWDeviceType>(
-      ff::DeviceTypeFromName(spec_.device_type));
+  const AVHWDeviceType type =
+      static_cast<AVHWDeviceType>(ff::DeviceTypeFromName(spec_.device_type));
   if (type == AV_HWDEVICE_TYPE_NONE) {
     LOG(WARNING) << "FFmpegHwVideoDecoder: this FFmpeg build has no '"
                  << spec_.device_type << "' hw device type";
@@ -287,11 +287,11 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
     std::unique_ptr<media::NvdecFrameInfo> nvdec_info;
     if (spec_.handle_kind == media::NativeHandleKind::kNvdecFrame) {
 #if defined(XMEDIA_ENABLE_NVDEC)
-      auto *hw_dev =
-          reinterpret_cast<AVHWDeviceContext *>(codec_ctx->hw_device_ctx->data);
-      auto *cuda_dev = hw_dev->hwctx
-                           ? reinterpret_cast<AVCUDADeviceContext *>(hw_dev->hwctx)
-                           : nullptr;
+      auto* hw_dev =
+          reinterpret_cast<AVHWDeviceContext*>(codec_ctx->hw_device_ctx->data);
+      auto* cuda_dev =
+          hw_dev->hwctx ? reinterpret_cast<AVCUDADeviceContext*>(hw_dev->hwctx)
+                        : nullptr;
       if (cuda_dev && cuda_dev->cuda_ctx) {
         nvdec_info = std::make_unique<media::NvdecFrameInfo>();
         nvdec_info->cuda_ctx = cuda_dev->cuda_ctx;
@@ -428,8 +428,8 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
           std::move(derive.cleanup), held_for_release);
     }
     auto out = media::VideoFrame::WrapNativeBuffer(
-        handle, format_hint, size, size, sar, timestamp,
-        duration, current_serial_, std::move(release),
+        handle, format_hint, size, size, sar, timestamp, duration,
+        current_serial_, std::move(release),
         base::BindRepeating(
             [](std::shared_ptr<AVFrame> hw_frame, media::Rational sar,
                base::TimeDelta timestamp, base::TimeDelta duration,

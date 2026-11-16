@@ -51,16 +51,17 @@ namespace {
 
 constexpr int kWindowSize = 64;
 
-constexpr const char *kTestFile =
-    XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
+constexpr const char* kTestFile = XMEDIA_TESTDATA_DIR "/small_h264_aac_3s.mp4";
 
 // One decoded NVDEC frame plus everything needed to keep it alive: the AVFrame
 // clone (release_cb frees it, which returns the plane memory to the NVDEC
 // pool) and the CPU reference of the SAME frame for the byte comparison.
 struct NvdecFrame {
   base::scoped_refptr<VideoFrame> frame;
-  std::unique_ptr<AVFrame, void (*)(AVFrame *)> cpu_reference{
-      nullptr, [](AVFrame *f) { av_frame_free(&f); }};
+  std::unique_ptr<AVFrame, void (*)(AVFrame*)> cpu_reference{
+      nullptr, [](AVFrame* f) {
+        av_frame_free(&f);
+      }};
   int width{0};
   int height{0};
 };
@@ -68,25 +69,26 @@ struct NvdecFrame {
 // Decodes the first video frame of |input| through NVDEC. Returns an empty
 // result with |why| filled when this host cannot (no CUDA device, no NVDEC
 // decoder, no file) -- the caller turns that into a skip, not a failure.
-std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
-                                                  std::string *why) {
-  AVFormatContext *fmt = nullptr;
+std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string& input,
+                                                  std::string* why) {
+  AVFormatContext* fmt = nullptr;
   if (avformat_open_input(&fmt, input.c_str(), nullptr, nullptr) < 0) {
     *why = "the test file could not be opened";
     return nullptr;
   }
   avformat_find_stream_info(fmt, nullptr);
-  const int vs = av_find_best_stream(fmt, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+  const int vs =
+      av_find_best_stream(fmt, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
   if (vs < 0) {
     *why = "the test file has no video stream";
     avformat_close_input(&fmt);
     return nullptr;
   }
-  AVStream *st = fmt->streams[vs];
-  const AVCodec *codec = avcodec_find_decoder(st->codecpar->codec_id);
-  AVCodecContext *cc = avcodec_alloc_context3(codec);
+  AVStream* st = fmt->streams[vs];
+  const AVCodec* codec = avcodec_find_decoder(st->codecpar->codec_id);
+  AVCodecContext* cc = avcodec_alloc_context3(codec);
   avcodec_parameters_to_context(cc, st->codecpar);
-  AVBufferRef *hwdev = nullptr;
+  AVBufferRef* hwdev = nullptr;
   if (av_hwdevice_ctx_create(&hwdev, AV_HWDEVICE_TYPE_CUDA, nullptr, nullptr,
                              0) < 0) {
     *why = "no CUDA device for NVDEC";
@@ -94,8 +96,7 @@ std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
     avformat_close_input(&fmt);
     return nullptr;
   }
-  auto *cuda_dev =
-      reinterpret_cast<AVCUDADeviceContext *>(hwdev->data);
+  auto* cuda_dev = reinterpret_cast<AVCUDADeviceContext*>(hwdev->data);
   if (!cuda_dev || !cuda_dev->cuda_ctx) {
     *why = "the CUDA hwdevice has no context";
     av_buffer_unref(&hwdev);
@@ -111,8 +112,8 @@ std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
     return nullptr;
   }
 
-  AVPacket *pkt = av_packet_alloc();
-  AVFrame *frm = av_frame_alloc();
+  AVPacket* pkt = av_packet_alloc();
+  AVFrame* frm = av_frame_alloc();
   bool got = false;
   while (!got && av_read_frame(fmt, pkt) >= 0) {
     if (pkt->stream_index == vs && avcodec_send_packet(cc, pkt) == 0) {
@@ -141,7 +142,7 @@ std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
   out->height = frm->height;
   // The CPU reference of the SAME frame, read back before anything else
   // touches the surface.
-  AVFrame *sw = av_frame_alloc();
+  AVFrame* sw = av_frame_alloc();
   if (av_hwframe_transfer_data(sw, frm, 0) < 0) {
     *why = "the explicit readback failed";
     av_frame_free(&sw);
@@ -158,9 +159,8 @@ std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
   NativeHandle handle;
   handle.kind = NativeHandleKind::kNvdecFrame;
   handle.id = frm->data[0];
-  auto *hw_dev = reinterpret_cast<AVHWDeviceContext *>(hwdev->data);
-  auto *ctx_holder =
-      reinterpret_cast<AVCUDADeviceContext *>(hw_dev->hwctx);
+  auto* hw_dev = reinterpret_cast<AVHWDeviceContext*>(hwdev->data);
+  auto* ctx_holder = reinterpret_cast<AVCUDADeviceContext*>(hw_dev->hwctx);
   auto info = std::make_unique<NvdecFrameInfo>();
   info->cuda_ctx = ctx_holder->cuda_ctx;
   info->luma = reinterpret_cast<uintptr_t>(frm->data[0]);
@@ -174,7 +174,7 @@ std::unique_ptr<NvdecFrame> DecodeFirstNvdecFrame(const std::string &input,
       handle, VideoFormat::kNV12, size, size, Rational{1, 1}, base::TimeDelta(),
       base::TimeDelta(), 0,
       base::BindOnce(
-          [](AVFrame *f) {
+          [](AVFrame* f) {
             if (f) {
               av_frame_free(&f);
             }
@@ -230,7 +230,7 @@ class NvdecInteropTest : public ::testing::Test {
   // Binds a fresh texture, asks the production importer to import plane
   // |index| into it, and hands the texture back for byte comparisons.
   unsigned int ImportPlane(int index) {
-    auto &gl = presenter_->api()->context();
+    auto& gl = presenter_->api()->context();
     unsigned int tex = 0;
     gl.GenTextures(1, &tex);
     gl.BindTexture(GL_TEXTURE_2D, tex);
@@ -270,16 +270,17 @@ TEST_F(NvdecInteropTest, AnNvdecFrameReportsTheZeroCopyRoute) {
 TEST_F(NvdecInteropTest, ImportedLumaMatchesTheExplicitReadback) {
   const unsigned int tex = ImportPlane(0);
   ASSERT_NE(tex, 0u) << "the importer refused a frame it claims it can place";
-  auto &gl = presenter_->api()->context();
+  auto& gl = presenter_->api()->context();
   gl.BindTexture(GL_TEXTURE_2D, tex);
   std::vector<uint8_t> gl_luma(static_cast<size_t>(decoded_->width) *
                                decoded_->height);
   gl.GetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, gl_luma.data());
-  const AVFrame *ref = decoded_->cpu_reference.get();
+  const AVFrame* ref = decoded_->cpu_reference.get();
   int diffs = 0;
   for (int y = 0; y < decoded_->height; ++y) {
     for (int x = 0; x < decoded_->width; ++x) {
-      if (gl_luma[y * decoded_->width + x] != ref->data[0][y * ref->linesize[0] + x]) {
+      if (gl_luma[y * decoded_->width + x] !=
+          ref->data[0][y * ref->linesize[0] + x]) {
         ++diffs;
       }
     }
@@ -294,13 +295,13 @@ TEST_F(NvdecInteropTest, ImportedLumaMatchesTheExplicitReadback) {
 TEST_F(NvdecInteropTest, ImportedChromaMatchesTheExplicitReadback) {
   const unsigned int tex = ImportPlane(1);
   ASSERT_NE(tex, 0u) << "the importer refused a frame it claims it can place";
-  auto &gl = presenter_->api()->context();
+  auto& gl = presenter_->api()->context();
   gl.BindTexture(GL_TEXTURE_2D, tex);
   const int cw = decoded_->width / 2;
   const int ch = decoded_->height / 2;
   std::vector<uint8_t> gl_chroma(static_cast<size_t>(cw) * ch * 2);
   gl.GetTexImage(GL_TEXTURE_2D, 0, GL_RG, GL_UNSIGNED_BYTE, gl_chroma.data());
-  const AVFrame *ref = decoded_->cpu_reference.get();
+  const AVFrame* ref = decoded_->cpu_reference.get();
   int diffs = 0;
   for (int y = 0; y < ch; ++y) {
     for (int x = 0; x < cw; ++x) {

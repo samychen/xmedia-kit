@@ -6,8 +6,8 @@
 
 // The CUDA driver API, and its GL-interop half. Vendor SDK headers in
 // platform/, same standing as the EGL ones the dmabuf importer includes.
-#include <cuda.h>
 #include <KHR/khrplatform.h>
+#include <cuda.h>
 
 #include <EGL/egl.h>
 
@@ -44,38 +44,45 @@ void LogOnce(const char* reason) {
 // anyway.
 const char* CudaResultName(CUresult r) {
   switch (r) {
-    case CUDA_SUCCESS: return "ok";
-    case CUDA_ERROR_INVALID_VALUE: return "invalid-value";
-    case CUDA_ERROR_INVALID_HANDLE: return "invalid-handle";
-    case CUDA_ERROR_NOT_INITIALIZED: return "not-initialized";
-    case CUDA_ERROR_INVALID_CONTEXT: return "invalid-context";
-    case CUDA_ERROR_MAP_FAILED: return "map-failed";
-    case CUDA_ERROR_NOT_MAPPED: return "not-mapped";
-    default: return "cuda-error";
+  case CUDA_SUCCESS:
+    return "ok";
+  case CUDA_ERROR_INVALID_VALUE:
+    return "invalid-value";
+  case CUDA_ERROR_INVALID_HANDLE:
+    return "invalid-handle";
+  case CUDA_ERROR_NOT_INITIALIZED:
+    return "not-initialized";
+  case CUDA_ERROR_INVALID_CONTEXT:
+    return "invalid-context";
+  case CUDA_ERROR_MAP_FAILED:
+    return "map-failed";
+  case CUDA_ERROR_NOT_MAPPED:
+    return "not-mapped";
+  default:
+    return "cuda-error";
   }
 }
 
 // The driver-API GL interop entry point. cudaGL.h declares it, but not every
 // CUDA header install exposes the driver-API spelling; declare it by hand
 // with the exact ABI the driver exports.
-extern "C" CUresult cuGraphicsGLRegisterImage(CUgraphicsResource *, GLuint,
+extern "C" CUresult cuGraphicsGLRegisterImage(CUgraphicsResource*, GLuint,
                                               GLenum, unsigned);
-
 
 // Core GL entry points, resolved the same way the glad table is filled: via
 // the dispatch the current context belongs to (glvnd answers these on every
 // desktop stack; see the EGL importer's comment for why an unresolvable one
 // disqualifies the backend rather than being skipped).
 using GlGetErrorFn = unsigned int (*)(void);
-using GlGetIntegervFn = void (*)(unsigned int, int *);
+using GlGetIntegervFn = void (*)(unsigned int, int*);
 GlGetErrorFn gl_get_error_fn() {
-  static const GlGetErrorFn fn = reinterpret_cast<GlGetErrorFn>(
-      eglGetProcAddress("glGetError"));
+  static const GlGetErrorFn fn =
+      reinterpret_cast<GlGetErrorFn>(eglGetProcAddress("glGetError"));
   return fn;
 }
 GlGetIntegervFn gl_get_integerv_fn() {
-  static const GlGetIntegervFn fn = reinterpret_cast<GlGetIntegervFn>(
-      eglGetProcAddress("glGetIntegerv"));
+  static const GlGetIntegervFn fn =
+      reinterpret_cast<GlGetIntegervFn>(eglGetProcAddress("glGetIntegerv"));
   return fn;
 }
 
@@ -109,7 +116,9 @@ class CudaGlImporter final : public media::GlHwTextureImporter {
   std::array<RegisteredTexture, 2> registered_{};
 };
 
-unsigned int CudaGlImporter::target() const { return GL_TEXTURE_2D; }
+unsigned int CudaGlImporter::target() const {
+  return GL_TEXTURE_2D;
+}
 
 bool CudaGlImporter::CanImport(const media::VideoFrame& frame) const {
   // NVDEC NV12 with its plumbing attached, the one shape this backend can
@@ -118,15 +127,17 @@ bool CudaGlImporter::CanImport(const media::VideoFrame& frame) const {
   // one the importer needs beyond the pointer.
   return frame.format() == media::VideoFormat::kNV12 &&
          frame.nvdec_info() != nullptr && frame.nvdec_info()->luma != 0 &&
-         frame.nvdec_info()->chroma != 0 && frame.nvdec_info()->cuda_ctx != nullptr;
+         frame.nvdec_info()->chroma != 0 &&
+         frame.nvdec_info()->cuda_ctx != nullptr;
   // DELIBERATELY NO CONTEXT CHECK HERE, same as the CGL backend: the sink
   // asks this before the first frame's context is current. ImportPlane() is
   // where the context must exist, and it is the one that checks.
 }
 
-RegisteredTexture* CudaGlImporter::EnsureRegistered(
-    const media::NvdecFrameInfo& info, int index,
-    const media::PlaneUploadLayout& layout, const char** error) {
+RegisteredTexture*
+CudaGlImporter::EnsureRegistered(const media::NvdecFrameInfo& info, int index,
+                                 const media::PlaneUploadLayout& layout,
+                                 const char** error) {
   RegisteredTexture& entry = registered_[index];
   if (entry.texture == layout.texture_name && entry.width == layout.width &&
       entry.height == layout.height && entry.resource != nullptr) {
@@ -146,8 +157,8 @@ RegisteredTexture* CudaGlImporter::EnsureRegistered(
   // byte per luma texel, two bytes per chroma texel.
   const GLenum internal = index == 0 ? GL_R8 : GL_RG8;
   using TexStorageFn = void (*)(unsigned int, int, unsigned int, int, int);
-  static TexStorageFn tex_storage = reinterpret_cast<TexStorageFn>(
-      eglGetProcAddress("glTexStorage2D"));
+  static TexStorageFn tex_storage =
+      reinterpret_cast<TexStorageFn>(eglGetProcAddress("glTexStorage2D"));
   if (!tex_storage) {
     *error = "glTexStorage2D not resolvable";
     return nullptr;
@@ -159,9 +170,9 @@ RegisteredTexture* CudaGlImporter::EnsureRegistered(
   }
 
   CUgraphicsResource resource = nullptr;
-  const CUresult rc = cuGraphicsGLRegisterImage(
-      &resource, layout.texture_name, GL_TEXTURE_2D,
-      CU_GRAPHICS_REGISTER_FLAGS_NONE);
+  const CUresult rc =
+      cuGraphicsGLRegisterImage(&resource, layout.texture_name, GL_TEXTURE_2D,
+                                CU_GRAPHICS_REGISTER_FLAGS_NONE);
   if (rc != CUDA_SUCCESS) {
     *error = CudaResultName(rc);
     return nullptr;
@@ -199,9 +210,8 @@ bool CudaGlImporter::ImportPlane(const media::VideoFrame& frame, int index,
   const int32_t src_stride =
       index == 0 ? info->luma_stride : info->chroma_stride;
   const int copy_height = index == 0 ? layout.height : layout.height;
-  const size_t copy_width = static_cast<size_t>(index == 0
-                                                    ? layout.width
-                                                    : layout.width * 2);
+  const size_t copy_width =
+      static_cast<size_t>(index == 0 ? layout.width : layout.width * 2);
   if (src == 0 || src_stride <= 0) {
     LogOnce("the frame's plane plumbing is empty");
     return false;
@@ -216,7 +226,7 @@ bool CudaGlImporter::ImportPlane(const media::VideoFrame& frame, int index,
   // the same measurement proved the interop copy content-correct from the
   // primary context for the planes of a decoder context on the same GPU.
   CUresult push_rc = cuCtxPushCurrent(
-      static_cast<CUcontext>(const_cast<void *>(info->cuda_ctx)));
+      static_cast<CUcontext>(const_cast<void*>(info->cuda_ctx)));
   if (push_rc != CUDA_SUCCESS) {
     CUdevice device = 0;
     CUcontext primary = nullptr;

@@ -29,17 +29,15 @@ int ProbeResultFor(const std::string& key, AVHWDeviceType type,
     return it->second;
   }
   AVBufferRef* device_ref = nullptr;
-  const int ret =
-      av_hwdevice_ctx_create(&device_ref, type,
-                             device_name.empty() ? nullptr : device_name.c_str(),
-                             nullptr, 0);
+  const int ret = av_hwdevice_ctx_create(
+      &device_ref, type, device_name.empty() ? nullptr : device_name.c_str(),
+      nullptr, 0);
   if (ret < 0) {
     if (device_ref) {
       av_buffer_unref(&device_ref);
     }
     cache[key] = kAbsent;
-    LOG(INFO) << "hw device probe: '" << key
-              << "' cannot open on this host ("
+    LOG(INFO) << "hw device probe: '" << key << "' cannot open on this host ("
               << AvErrorString(ret) << "); hardware specs will decline";
     return kAbsent;
   }
@@ -76,11 +74,20 @@ bool BuildHasHwCodecForDevice(const std::string& codec_name,
   }
   if (!av_codec) {
     switch (codec) {
-      case media::VideoCodec::kH264: av_codec = avcodec_find_decoder(AV_CODEC_ID_H264); break;
-      case media::VideoCodec::kHevc: av_codec = avcodec_find_decoder(AV_CODEC_ID_HEVC); break;
-      case media::VideoCodec::kVp9: av_codec = avcodec_find_decoder(AV_CODEC_ID_VP9); break;
-      case media::VideoCodec::kMpeg2Video: av_codec = avcodec_find_decoder(AV_CODEC_ID_MPEG2VIDEO); break;
-      default: break;
+    case media::VideoCodec::kH264:
+      av_codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+      break;
+    case media::VideoCodec::kHevc:
+      av_codec = avcodec_find_decoder(AV_CODEC_ID_HEVC);
+      break;
+    case media::VideoCodec::kVp9:
+      av_codec = avcodec_find_decoder(AV_CODEC_ID_VP9);
+      break;
+    case media::VideoCodec::kMpeg2Video:
+      av_codec = avcodec_find_decoder(AV_CODEC_ID_MPEG2VIDEO);
+      break;
+    default:
+      break;
     }
   }
   if (!av_codec) {

@@ -4,9 +4,9 @@
 
 #include "player/video_decoder_defaults.h"
 
-#include "xmedia-kit/BuildConfig.h"
 #include "base/memory/scoped_refptr.h"
 #include "media/ffmpeg/ffmpeg_hw_decoder_factory.h"
+#include "xmedia-kit/BuildConfig.h"
 #if XMEDIA_ENABLE_D3D11
 #include "platform/hwaccel/d3d11_hw_spec.h"
 #endif
@@ -51,8 +51,9 @@ DefaultHardwareVideoDecoderFactories(
   // and NVDEC on a VA-equipped host is harmless -- the config gate declines
   // what the VA device would have taken first anyway).
   {
-    out.push_back(base::MakeRefCounted<media::ffmpeg::FFmpegHwVideoDecoderFactory>(
-        platform::hwaccel::NvdecHwSpec(), video_runner, allowed_codecs));
+    out.push_back(
+        base::MakeRefCounted<media::ffmpeg::FFmpegHwVideoDecoderFactory>(
+            platform::hwaccel::NvdecHwSpec(), video_runner, allowed_codecs));
   }
 #endif
 #if XMEDIA_ENABLE_D3D11
