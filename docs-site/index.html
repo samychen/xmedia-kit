@@ -496,7 +496,7 @@
         <div class="feature"><span class="num">08</span><h3>C++ 媒体基座</h3>
           <p>播放、解码、硬解、转码与 GL 渲染复用同一套 xmedia-kit 内核。</p></div>
       </div>
-      <div class="stats"><div class="stat"><b>4</b><span>REPRODUCIBLE WORKS</span></div><div class="stat"><b>14</b><span>SCENES IN SPECS</span></div><div class="stat"><b>7</b><span>CUSTOM TEMPLATES</span></div><div class="stat"><b>3×</b><span>PROVENANCE ANCHORS</span></div></div>
+      <div class="stats"><div class="stat"><b>4</b><span>REPRODUCIBLE WORKS</span></div><div class="stat"><b>14</b><span>SCENES IN SPECS</span></div><div class="stat"><b>19</b><span>CUSTOM TEMPLATES</span></div><div class="stat"><b>3×</b><span>PROVENANCE ANCHORS</span></div></div>
     </section>
 
     <section class="block" id="docs">
@@ -511,6 +511,45 @@
 <p>Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 MP4。</p>
 <p>三步管线，同 spec 两次生成逐字节一致（确定性）。</p>
 <p>返回：<a href="https://github.com/samychen/xmedia-kit/tree/main/README.md">README</a> ｜ 相关：<a href="https://github.com/samychen/xmedia-kit/blob/main/docs/EXAMPLES.md">EXAMPLES</a> ｜ <a href="https://github.com/samychen/xmedia-kit/blob/main/docs/COOKBOOK.md">COOKBOOK</a></p>
+<h3 id='确定性边界-2026-11-17-取证'>确定性边界（2026-11-17 取证）</h3>
+<p>管线各层的确定性实测结论——<b>输入侧确定，呈现层有已知限制</b>：</p>
+<table><tr><th>层</th><th>确定性</th><th>依据</th></tr><tr><td>hf_tts（say 离线）</td><td>✓ 幂等</td><td>同文本复用缓存产物，不重生成</td></tr><tr><td>hf_compose（spec → HTML）</td><td>✓ 逐字节</td><td>同 spec 两次 compose 的 HTML md5 一致（canonical sha256 锚定）</td></tr><tr><td>音频混音</td><td>✓ 帧级</td><td>双烘 <code>-map 0:a -f md5</code> 一致</td></tr><tr><td>页面 GSAP 时间线</td><td>✓ 逐 seek</td><td>seekDone 回执探针：<code>tl.time()</code> 每帧 = 请求 t + 1ms（seek 脚本的 <code>totalTime(t+1e-3)</code> 设计值），两支烘焙完全一致</td></tr><tr><td>视频像素</td><td>⚠ 逐帧 md5 有 5–18/165 差异帧</td><td>见下</td></tr></table>
+<p><b>视频像素差异的根因</b>：macOS OSR 走 software compositor（<code>disable-gpu</code>），</p>
+<p>partial raster 下<b>内容变化帧</b>（字幕点亮/场景进出/动画）触发整层重光栅，</p>
+<p>OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块（黑块边界即 tile 边界）。</p>
+<p>取证排除了其它假设：seek 在飞门控的丢弃从未触发（探针实测）；GSAP 时间线</p>
+<p>状态两支逐 seek 一致；无动画 spec 同样出现（差异与动画无关）；compose 产物</p>
+<p>逐字节一致（差异不在输入）。<code>--disable-partial-raster</code> +</p>
+<p><code>--run-all-compositor-stages-before-draw</code> 开关无效（software path 不吃）。</p>
+<p>尝试过并回退的修复（各自引入新问题，保持回退态等待专项）：</p>
+<p>"同 t 反复 Invalidate 到光栅 hash 稳定"（治好黑块但差异帧反增）、</p>
+<p>"在飞 seek 暂存补发"、"烘焙默认切 VT 时钟"（VT 另有退出挂起 +</p>
+<p>pre-apply ack miss 问题，不可用）。</p>
+<p>影响面与对策：差异帧是黑 tile 级（PSNR 19–31），<b>视觉上偶发可见</b>，</p>
+<p>发布级交付前应抽帧目检（渲染验证三件套）；同 spec 复烤不保证逐字节一致。</p>
+<p>专项方向：CEF software compositor 的 tile 光栅完成度门控（需要</p>
+<p>OnPaint 之外的完整性信号），或 VT 时钟的退出/ack 修复后切默认。</p>
+<h3 id='vt-时钟专项侦察-2026-11-17-未合入'>VT 时钟专项侦察（2026-11-17，未合入）</h3>
+<p><code>--clock virtual_time</code> 对 HF 契约页<b>从未可用</b>（架构事实 + 三层黑盒），</p>
+<p>实验性修复均已回退，此处留档供专项续作：</p>
+<p>1. <b>时间线缺口</b>：<code>TickBakeClock</code> 的 VT 分支只发 VT 步进，从不 dispatch</p>
+<p><code>MakeSeekScript</code>——HF 契约页的 paused GSAP 注册表不被虚拟时钟推进</p>
+<p>（GSAP ticker 走真实墙钟），页面停在 bootstrap，整段输出纯背景。</p>
+<p>修法（已验证可行）：VT 分支合体 dispatch seek JS——TLTRACE 探针实测</p>
+<p>165/165 seek 执行且 <code>tl.time()</code> 逐帧精确。</p>
+<p>2. <b>管线层级与预算</b>：seek JS 执行 ≠ 画面更新。renderer 全管线</p>
+<p>（JS → style recalc → paint → commit → raster → activate）各层需要</p>
+<p>VT 预算；同拍 BeginFrame 合成到的是旧样式快照（画面卡 bootstrap）。</p>
+<p>补一个步进后内容出现但 raster 未完成（tile 黑块）——正确修法是</p>
+<p><b>加大单步 budget</b>（40ms 的 mix 对齐值不够）而非逐层补步进</p>
+<p>（补步进会被 VT 状态机的 credit/C2 重试交互打乱，实测 303≠495）。</p>
+<p>3. <b>启动竞态（未解）</b>：<code>CreateBrowserSync</code> 后立即 arm VT（DevTools</p>
+<p><code>setVirtualTimePolicy</code>），间歇性 ~50% 概率 budgetExpired 从不到达</p>
+<p>（0 次 expire）→ 页面 load 不完成 → <code>no first frame in 15s</code>；成功</p>
+<p>实例间行为也不同（首帧后 pre-apply ack 全丢/烘完退出挂起/正常退出</p>
+<p>三种）。load-end 兜底 Invalidate+BeginFrame 无效（OnLoadEnd 本身没到）。</p>
+<p>疑点：DevTools agent 就绪前 <code>ExecuteDevToolsMethod</code> 静默丢弃。</p>
+<p>需要对齐 MC 上游 VT 实现或 CEF 升级后重估。</p>
 <h2 id='快速上手'>快速上手</h2>
 <p><b>统一 CLI</b>（推荐，所有能力的入口；详细子命令 <code>xmedia --help</code>）：</p>
 <pre><code class="bash">python3 tools/xmedia.py init my-proj          # 脚手架：可运行示例 spec
@@ -519,6 +558,34 @@ python3 tools/xmedia.py render my-proj/demo.json --out my-proj/demo.mp4
                                              # validate→bake（参数全自动推导）
 python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告）</code></pre>
 <p>单步命令（等价透传）：<code>xmedia tts/compose/validate/studio/sfx</code>。</p>
+<p><b>能力对齐 HF Studio 的评估结论</b>（2026-11-17 对齐任务链）：</p>
+<ul>
+<li><b>云渲染（deploy/cloud、Lambda/Cloud Run）</b>：评估暂不实现——本仓库</li>
+<li>定位是本地确定性引擎（单机烘焙 + 硬件加速真零拷贝路径），云渲染是</li>
+<li>新基建（队列/存储/计费/隔离），依赖真实多租户需求再立项；4K 本地</li>
+<li>烘焙已有压力测试覆盖。</li>
+<li><b>HDR / Motion Blur / VFX chain（data-vfx-chain）</b>：评估暂不实现——</li>
+<li>shader transitions 已覆盖大部分视觉过渡；HDR 编码管线与 per-pixel</li>
+<li>效果链属于渲染核心扩展，待渲染确定性专项收尾后评估。</li>
+<li><b>HeyGen 生态绑定项</b>（Avatar presenter / HeyGen Video 1 / HeyGen</li>
+<li>Voice / Share for review 云评审）：明确不做——依赖 HeyGen 账号体系</li>
+<li>与云服务，与本仓库本地/开源定位冲突。替代路径：口型播报可接开源</li>
+<li>TTS+口型方案；评审分享用产物文件 + 常规渠道。</li>
+</ul>
+<p><b>launch 四段式发布视频</b>（对齐 HF first-video：Hook → Proof → Turn → CTA）：</p>
+<pre><code class="bash">python3 tools/xmedia.py launch \
+  --hook "还在手写视频脚本？" \
+  --proof "1036|回归测试全部通过" \
+  --turn "确定性管线，同 spec 同画面" \
+  --cta "立即试试" \
+  --url https://你的网站 --out launch/launch.json
+# 产物直接 xmedia render launch/launch.json --out launch.mp4</code></pre>
+<p><b>品牌套件</b>（brand kit，存储 <code>~/.xmedia/brands/<名>.json</code>，Studio 内说</p>
+<p>「应用品牌 <名>」同样生效）：</p>
+<pre><code class="bash">python3 tools/xmedia.py brand save acme --palette1 "#10101e" \
+  --palette2 "#182138" --text "#e8ecff" --voice "Tingting" \
+  --outro "由 ACME 出品" --logo "ACME"
+python3 tools/xmedia.py brand apply acme --spec launch/launch.json</code></pre>
 <p>手动分步（与统一 CLI 等价）：</p>
 <pre><code class="bash"># 1. 写 spec JSON（agent 或人类填空）
 cat &gt; my_video.json &lt;&lt;'EOF'
@@ -851,6 +918,31 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <p><code>POST /api/agent</code> → 服务端 <code>tools/hf_agent.py</code> → 写回 spec → 重组 →</p>
 <p><code>refresh()</code> 让预览、时间轴、属性面板同步更新。快捷按钮覆盖片尾卡、竖屏、</p>
 <p>字幕开关、旁白、ASR、导入素材、导出。</p>
+<p><b>两种后端</b>（面板顶栏 <code>→ agent</code> / <code>→ 规则引擎</code> 切换）：</p>
+<ul>
+<li><b>规则引擎</b>（默认）：<code>POST /api/agent</code>，预置指令即时生效。</li>
+<li><b>本地 agent</b>：<code>POST /api/agent/chat</code>，子进程驱动本机 agent CLI</li>
+<li>（探测顺序 claude -p → codex exec；claude 用 <code>--output-format json</code></li>
+<li>取 <code>result</code> 字段，<code>is_error</code> 上报）。LLM 自主理解任意表述并多步执行</li>
+<li>（读 schema 文档 → 改 spec → 重跑 compose），spec 被改时服务端重载</li>
+<li>并重组。对话历史持久化到 <code><spec 目录>/chat.jsonl</code>（最近 5 轮作为</li>
+<li>上下文注入下一次请求）。CLI 未安装或模型不可用时错误如实呈现</li>
+<li>（含 <code>claude --model</code> 指引），不影响规则引擎模式。</li>
+</ul>
+<p><b>Pending edits 批量队列</b>：输入区「+ 暂存」把多次编辑攒进队列</p>
+<p>（输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」</p>
+<p>逐条顺序执行（任一条失败即停、失败条放回队首保留余项），全部结束</p>
+<p>统一重组一次——预览/时间轴/属性面板只刷一次。</p>
+<p><b>项目模型与每轮撤销</b>：spec 每次变更前快照压栈（持久化</p>
+<p><code><spec 目录>/project.json</code>，上限 20 轮：{ts, message, backend,</p>
+<p>spec_before}）；Ask AI 的 spec 变更轮回复气泡带「↩ 撤销最近一轮」</p>
+<p>按钮——恢复该轮之前的状态并丢弃其后所有轮（时间线一致性），</p>
+<p><code>POST /api/project/undo</code>；<code>/api/state</code> 携带 runs 列表。</p>
+<p><b>导出面板</b>：顶栏「导出 MP4」打开 Export 面板——画质（540p/720p/</p>
+<p>1080p/项目尺寸，按画幅比例等比缩放、偶数对齐）× 格式（MP4/WebM/MOV，</p>
+<p>html_bake 按扩展名定封装）× 帧率（24/30/60）；后台子进程渲染 +</p>
+<p>进度条 + 取消渲染（terminate + <code>cancelled</code> 标记，前端区分取消与失败）；</p>
+<p>产物命名对齐 HF：<code><项目> <YYYY-MM-DD HH.MM>.<ext></code>，保存在 spec 目录。</p>
 <p><code>hf_agent.handle()</code> 两级设计：</p>
 <p>1. <b>本地规则引擎</b>（零配置、确定性）：<code>导入 <目录|文件></code> / <code>加片尾卡</code> /</p>
 <p><code>删除第 N 个场景</code> / <code>第 N 个场景文字改成 X</code> / <code>改成竖屏</code> /</p>
