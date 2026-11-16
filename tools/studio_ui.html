@@ -453,6 +453,34 @@
                       border-radius: 12px; background: var(--panel2);
                       color: var(--dim); border: 1px solid var(--line); }
   #ask-quick button:hover { color: var(--ink); border-color: var(--acc); }
+  /* Pending edits 暂存条：多次编辑攒一批一次应用（对齐 HF 的
+     Pending video edits——单发会打断 agent 编辑节奏）。 */
+  #ask-pending { flex: none; display: none; flex-direction: column;
+                 border-top: 1px solid var(--line);
+                 max-height: 132px; overflow: hidden; }
+  #ask-pending.has { display: flex; }
+  #ask-pending-head { flex: none; display: flex; align-items: center;
+                      gap: 8px; padding: 6px 12px; font-size: 10.5px;
+                      color: var(--dim); }
+  #ask-pending-head b { color: var(--acc); }
+  #ask-pending-head .sp { flex: 1; }
+  #ask-pending-head button { font-size: 10.5px; padding: 3px 9px;
+                             border-radius: 12px; background: var(--panel2);
+                             color: var(--dim); border: 1px solid var(--line); }
+  #ask-pending-head button.acc { color: var(--acc); border-color: var(--acc); }
+  #ask-pending-head button:hover:not(:disabled) { color: var(--ink); }
+  #ask-pending-head button:disabled { opacity: .45; }
+  #ask-pending-rows { flex: 1; overflow: auto; padding: 0 12px 7px;
+                      display: flex; flex-direction: column; gap: 4px; }
+  .ask-pend-row { display: flex; align-items: center; gap: 7px;
+                  font-size: 11px; padding: 4px 8px; border-radius: 7px;
+                  background: var(--panel2); border: 1px solid var(--line); }
+  .ask-pend-row .n { flex: none; color: var(--dim); font-size: 10px; }
+  .ask-pend-row .t { flex: 1; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+  .ask-pend-row button { flex: none; background: none; border: 0;
+                         color: var(--dim); font-size: 13px; padding: 0 2px; }
+  .ask-pend-row button:hover { color: var(--err); }
   #ask-form { flex: none; display: flex; gap: 8px; padding: 9px 12px;
               border-top: 1px solid var(--line); }
   #ask-input { flex: 1; min-width: 0; background: var(--panel2);
@@ -849,9 +877,21 @@
     <button data-open="import">导入素材</button>
     <button data-msg="导出 MP4">导出</button>
   </div>
+  <div id="ask-pending">
+    <div id="ask-pending-head">
+      <span>待应用编辑 <b id="ask-pending-n">0</b></span>
+      <span class="sp"></span>
+      <button id="ask-pending-clear" type="button">清空</button>
+      <button id="ask-pending-apply" class="acc" type="button"
+              disabled>批量应用</button>
+    </div>
+    <div id="ask-pending-rows"></div>
+  </div>
   <form id="ask-form">
     <input id="ask-input" autocomplete="off" spellcheck="false"
            placeholder="用一句话描述要改什么…">
+    <button class="btn" id="ask-stage" type="button"
+            title="不立即发送，攒进待应用队列（可多条一次应用）">+ 暂存</button>
     <button class="btn acc" id="ask-send" type="submit">发送</button>
   </form>
 </div>
@@ -2503,15 +2543,11 @@ function askOpen(on) {
   $("ask-panel").classList.toggle("open", !!on);
   if (on) { askModeLabel(); $("ask-input").focus(); }
 }
-function askSend(msg) {
-  msg = String(msg || "").trim();
-  if (!msg || askBusy) return;
-  askAdd(msg, "user");
-  $("ask-input").value = "";
-  askBusy = true;
-  $("ask-send").disabled = true;
+function askRun(msg) {
+  /* 单条编辑请求：调 /api/agent 并渲染回复/导入/ASR/导出任务，
+     不做 refresh——调用方决定何时统一重组（批量结束时一次）。 */
   var pending = askAdd("处理中…", "bot");
-  api("/api/agent", { message: msg }).then(function (r) {
+  return api("/api/agent", { message: msg }).then(function (r) {
     pending.textContent = r.reply || "已完成";
     pending.className = "ask-msg bot " + (r.error ? "err" : "ok");
     log("Ask AI [" + (r.mode || "rule") + "]：" +
@@ -2533,19 +2569,113 @@ function askSend(msg) {
                j.rc === 0 ? "ok" : "err");
       });
     }
-    return refresh(false);   // 服务端已写回 spec 并重组
-  }).then(function () {
-    askModeLabel();
+    return r;
   }).catch(function (e) {
     pending.textContent = "请求失败：" + e.message;
     pending.className = "ask-msg bot err";
     log("Ask AI 失败：" + e.message, "err");
+    throw e;
+  });
+}
+function askSend(msg) {
+  msg = String(msg || "").trim();
+  if (!msg || askBusy) return;
+  askAdd(msg, "user");
+  $("ask-input").value = "";
+  askBusy = true;
+  $("ask-send").disabled = true;
+  askRun(msg).then(function () {
+    return refresh(false);   // 服务端已写回 spec 并重组
+  }).then(function () {
+    askModeLabel();
+  }).catch(function () {
+    /* askRun 已渲染错误气泡；此处只需复位。 */
   }).then(function () {
     askBusy = false;
     $("ask-send").disabled = false;
     $("ask-input").focus();
   });
 }
+/* ---------------- Pending edits 暂存队列 ---------------- */
+/* 多次编辑攒一批一次应用（对齐 HF Pending video edits）：逐条走本地
+   规则引擎（顺序应用、任一条失败即停并保留余项），全部结束后统一
+   refresh 一次——预览/时间轴/属性面板只重组一次。 */
+var pendingEdits = [], pendingBusy = false;
+function pendingRender() {
+  var box = $("ask-pending"), rows = $("ask-pending-rows");
+  box.classList.toggle("has", pendingEdits.length > 0);
+  $("ask-pending-n").textContent = pendingEdits.length;
+  rows.innerHTML = "";
+  pendingEdits.forEach(function (t, i) {
+    var row = document.createElement("div");
+    row.className = "ask-pend-row";
+    var n = document.createElement("span");
+    n.className = "n"; n.textContent = (i + 1) + ".";
+    var tx = document.createElement("span");
+    tx.className = "t"; tx.textContent = t; tx.title = t;
+    var del = document.createElement("button");
+    del.type = "button"; del.textContent = "×";
+    del.title = "移除这条"; del.setAttribute("aria-label", "移除");
+    del.onclick = function () {
+      pendingEdits.splice(i, 1); pendingRender();
+    };
+    row.appendChild(n); row.appendChild(tx); row.appendChild(del);
+    rows.appendChild(row);
+  });
+  var apply = $("ask-pending-apply");
+  apply.disabled = pendingEdits.length === 0 || pendingBusy;
+  apply.textContent = pendingBusy ? "应用中…" :
+      "批量应用" + (pendingEdits.length ? " " + pendingEdits.length : "");
+  $("ask-pending-clear").disabled = pendingEdits.length === 0 || pendingBusy;
+}
+function askStage(msg) {
+  msg = String(msg || "").trim();
+  if (!msg) return;
+  pendingEdits.push(msg);
+  $("ask-input").value = "";
+  pendingRender();
+  $("ask-input").focus();
+}
+function askApplyPending() {
+  if (pendingBusy || pendingEdits.length === 0) return;
+  pendingBusy = true;
+  askBusy = true;
+  $("ask-send").disabled = true;
+  pendingRender();
+  var done = 0, failed = -1;
+  var next = function () {
+    if (done >= pendingEdits.length || failed >= 0) {
+      if (failed >= 0) {
+        askAdd("批量应用在第 " + (failed + 1) + " 条失败，已应用 " +
+               done + " 条；剩余 " + pendingEdits.length +
+               " 条保留在队列", "bot", "err");
+      } else {
+        askAdd("批量应用完成：" + done + " 条", "bot", "ok");
+        pendingEdits = [];
+      }
+      pendingBusy = false; askBusy = false;
+      $("ask-send").disabled = false;
+      pendingRender();
+      return refresh(false).then(function () { askModeLabel(); });
+    }
+    var msg = pendingEdits.shift();
+    askAdd(msg, "user");
+    return askRun(msg).then(function () {
+      ++done;
+      return next();
+    }).catch(function () {
+      pendingEdits.unshift(msg);   // 失败条放回队首，保留现场
+      failed = done;
+      return next();
+    });
+  };
+  return next();
+}
+$("ask-stage").onclick = function () { askStage($("ask-input").value); };
+$("ask-pending-clear").onclick = function () {
+  pendingEdits = []; pendingRender();
+};
+$("ask-pending-apply").onclick = askApplyPending;
 $("ask-fab").onclick = function () {
   askOpen(!$("ask-panel").classList.contains("open"));
 };
