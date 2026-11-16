@@ -1251,8 +1251,60 @@ class StudioServer:
         """外部（Agent / import / LLM）产出的 spec 统一走校验 → 写回 → 重组。"""
         import hf_agent
         hf_agent.validate_spec(spec, self._spec_root())
+        self._record_run()
         self._write_spec(spec)
         return self._compose()
+
+    PROJECT_RUNS_MAX = 20
+
+    def _project_path(self):
+        return os.path.join(self._spec_root(), "project.json")
+
+    def _load_runs(self):
+        try:
+            with open(self._project_path(), encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and isinstance(data.get("runs"), list):
+                return data["runs"]
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+        return []
+
+    def _save_runs(self, runs):
+        data = {"name": os.path.splitext(os.path.basename(
+                    self.spec_path or "project"))[0],
+                "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "runs": runs}
+        try:
+            with open(self._project_path(), "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+        except OSError:
+            pass
+
+    def _record_run(self, message="", backend="rule"):
+        """spec 变更前记录快照（run 栈）：{ts, message, backend,
+        spec_before}。持久化到 <spec 根>/project.json，上限 20 轮。"""
+        runs = self._load_runs()
+        runs.append({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                     "message": str(message)[:200],
+                     "backend": backend,
+                     "spec_before": self.current_spec})
+        del runs[:-self.PROJECT_RUNS_MAX]
+        self._save_runs(runs)
+
+    def _undo_run(self, idx):
+        """撤销第 idx 轮（0-based）：恢复该轮之前的状态，丢弃该轮及之后
+        的所有轮（时间线一致性）。"""
+        runs = self._load_runs()
+        if not (0 <= idx < len(runs)):
+            raise RuntimeError(f"run {idx} 不存在（共 {len(runs)} 轮）")
+        run = runs[idx]
+        spec_before = run.get("spec_before")
+        if not isinstance(spec_before, dict) or not spec_before.get("scenes"):
+            raise RuntimeError(f"run {idx} 没有可恢复的快照")
+        runs = runs[:idx]
+        self._save_runs(runs)
+        return self._apply_spec(spec_before)
 
     def _run_tts(self):
         if self.spec_path is None:
@@ -1578,6 +1630,7 @@ class StudioServer:
         spec_mtime_before = (os.path.getmtime(spec_path)
                              if spec_path and os.path.exists(spec_path)
                              else 0)
+        self._record_run(message, cli)   # agent 改文件前压快照
         try:
             proc = subprocess.run(probe["cmd"] + [prompt],
                                   capture_output=True, text=True,
@@ -1671,6 +1724,10 @@ def make_handler(server_ref):
                             "agent": {"llm": bool(os.environ.get(
                                 "XMEDIA_LLM_ENDPOINT")), "mcp": True,
                                 "cli": srv._agent_probe()["cli"]},
+                            "runs": [{"idx": i, "ts": r.get("ts", ""),
+                                      "message": r.get("message", ""),
+                                      "backend": r.get("backend", "")}
+                                     for i, r in enumerate(srv._load_runs())],
                             "import": {
                                 "last_dir": srv.last_import_dir,
                                 "spec_dir": srv._spec_root(),
@@ -1782,6 +1839,9 @@ def make_handler(server_ref):
                         "fps": body.get("fps")})})
                 elif path == "/api/bake/cancel":
                     self._json(srv._cancel_bake())
+                elif path == "/api/project/undo":
+                    self._json({"composed": srv._undo_run(
+                        int(body.get("run", -1)))})
                 elif path == "/api/asr":
                     import hf_asr
                     media = os.path.expanduser(str(

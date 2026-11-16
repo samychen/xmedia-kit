@@ -437,6 +437,11 @@
                  border: 1px solid var(--line); border-radius: 10px;
                  font-size: 10.5px; padding: 3px 8px; }
   #ask-backend:hover { border-color: var(--acc); }
+  .ask-undo { margin-top: 5px; font-size: 10.5px; padding: 3px 10px;
+              border-radius: 11px; background: var(--panel2);
+              color: var(--acc); border: 1px solid var(--line); }
+  .ask-undo:hover:not(:disabled) { border-color: var(--acc); }
+  .ask-undo:disabled { opacity: .5; }
   #ask-close { background: none; border: 0; color: var(--dim);
                font-size: 16px; line-height: 1; padding: 2px 4px; }
   #ask-close:hover { color: var(--ink); }
@@ -2872,6 +2877,28 @@ function askRun(msg) {
   return api(url, { message: msg }).then(function (r) {
     pending.textContent = r.reply || "已完成";
     pending.className = "ask-msg bot " + (r.error ? "err" : "ok");
+    if (!r.error && (r.spec || r.spec_updated)) {
+      /* spec 变更轮：附 Undo 按钮（撤销该轮及其后的全部编辑）。 */
+      var undo = document.createElement("button");
+      undo.className = "ask-undo"; undo.type = "button";
+      undo.textContent = "↩ 撤销最近一轮";
+      undo.onclick = function () {
+        undo.disabled = true;
+        api("/api/project/undo",
+            { run: Math.max(0, (state.runs || []).length - 1) })
+          .then(function () {
+            undo.textContent = "已撤销";
+            log("已撤销该轮编辑（之后的轮次一并撤销）", "ok");
+          })
+          .catch(function (e) {
+            undo.textContent = "撤销失败"; undo.disabled = false;
+            log("撤销失败：" + e.message, "err");
+          })
+          .then(function () { return refresh(false); });
+      };
+      pending.appendChild(document.createElement("br"));
+      pending.appendChild(undo);
+    }
     log("Ask AI [" + (r.mode || "rule") + "]：" +
         (r.reply || "") + (r.error ? "（" + r.error + "）" : ""),
         r.error ? "err" : "ok");
