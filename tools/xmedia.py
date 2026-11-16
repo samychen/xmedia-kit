@@ -529,6 +529,100 @@ def cmd_init(args):
           f"  下一步：xmedia render {spec_path} --out {args.dir}/demo.mp4")
 
 
+LAUNCH_SLOT_BG = {
+    "hook": "#1a1a2e", "proof": "#16213e",
+    "turn": "#0f3460", "cta": "#1a1a2e",
+}
+
+
+def _launch_fetch_url(url):
+    """尽力抓取网站文本（<title> + 正文标签内文字）；失败返回空串。"""
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "xmedia-launch/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read(256 * 1024).decode("utf-8", "replace")
+    except (OSError, ValueError):
+        return ""
+    title = re.search(r"<title[^>]*>([^<]*)</title>", html, re.I)
+    parts = [t.strip() for t in (title.group(1) if title else "").split()]
+    # 正文：剥掉 <script>/<style> 后抽常见容器标签内的文字。
+    body = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html,
+                  flags=re.I | re.S)
+    for tag in ("h1", "h2", "p", "li"):
+        for m in re.finditer(rf"<{tag}[^>]*>(.*?)</{tag}>", body,
+                             re.I | re.S):
+            txt = re.sub(r"<[^>]+>", " ", m.group(1))
+            txt = re.sub(r"\s+", " ", txt).strip()
+            if 12 <= len(txt) <= 160:
+                parts.append(txt)
+        if len(parts) >= 14:
+            break
+    return "\n".join(parts[:14])
+
+
+def cmd_launch(args):
+    """四段式 launch 视频 spec（对齐 HF first-video：Hook/Proof/Turn/CTA）。"""
+    missing = [k for k, v in (("hook", args.hook), ("proof", args.proof),
+                              ("turn", args.turn), ("cta", args.cta))
+               if not v]
+    if missing:
+        print("xmedia: 缺少 slot 文本：--" + " --".join(missing), file=sys.stderr)
+        sys.exit(1)
+    # --url 尽力读取网站文案作补充素材；读不到就用 --idea 或纯 slot 文本。
+    site_text = ""
+    if args.url:
+        site_text = _launch_fetch_url(args.url)
+        print(f"xmedia: 网站 {'已读取' if site_text else '读取失败（仅用 slot 文本）'}: "
+              f"{args.url}")
+    idea = (args.idea or site_text.split("\n")[0] if site_text
+            else (args.idea or ""))
+    idea = idea or (site_text.split("\n")[0] if site_text else "")
+    if args.format == "9:16":
+        w, h = 1080, 1920
+    elif args.format == "1:1":
+        w, h = 1080, 1080
+    else:
+        w, h = 1920, 1080
+    scenes = [
+        {"type": "title", "text": args.hook, "subtitle": idea,
+         "bg": LAUNCH_SLOT_BG["hook"], "animation": "fade_in_up"},
+        {"type": "stats", "value": args.proof.split("|")[0].strip(),
+         "description": args.proof.split("|")[1].strip()
+         if "|" in args.proof else "已验证",
+         "bg": LAUNCH_SLOT_BG["proof"], "animation": "scale_in"},
+        {"type": "quote", "text": args.turn,
+         "bg": LAUNCH_SLOT_BG["turn"], "animation": "fade_in_up"},
+        {"type": "outro", "text": args.cta, "duration": 2.5,
+         "bg": LAUNCH_SLOT_BG["cta"]},
+    ]
+    if site_text and args.include_site:
+        scenes.insert(3, {"type": "list", "text": "来自网站",
+                          "items": [x.strip()[:38] for x in
+                                    site_text.split("\n")[:3] if x.strip()],
+                          "bg": "#16213e", "animation": "scale_in"})
+    spec = {
+        "composition": {"id": args.name, "format": args.format,
+                        "fps": args.fps, "width": w, "height": h},
+        "background": "#0a0a1a",
+        "tts": {"provider": "say", "voice": args.voice, "rate": 200},
+        "scenes": scenes,
+    }
+    if args.url:
+        spec["launch_url"] = args.url
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(spec, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    print(f"xmedia: launch spec 就绪 {args.out}\n"
+          f"  四段：Hook「{args.hook[:24]}」→ Proof → Turn → CTA「{args.cta[:24]}」\n"
+          f"  下一步：xmedia render {args.out} --out "
+          f"{os.path.splitext(args.out)[0]}.mp4\n"
+          f"  或微调后：xmedia studio {os.path.splitext(args.out)[0]}.html "
+          f"--serve --spec {args.out}")
+
+
 def cmd_sfx(args):
     """再生成 assets/sfx 音效（与仓库 README 的命令一致）。"""
     sfx_dir = root("assets", "sfx")
@@ -617,6 +711,24 @@ def main():
     p.set_defaults(fn=cmd_init)
     sub.add_parser("sfx", help="再生成 assets/sfx 音效").set_defaults(
         fn=cmd_sfx)
+    p = sub.add_parser("launch",
+                       help="四段式 launch 视频 spec（Hook/Proof/Turn/CTA）")
+    p.add_argument("--hook", required=True, help="钩子：一句话抓注意力")
+    p.add_argument("--proof", required=True,
+                   help="证明：数据/里程碑，用「值|说明」给出")
+    p.add_argument("--turn", required=True, help="转折：差异化主张")
+    p.add_argument("--cta", required=True, help="行动号召：片尾文案")
+    p.add_argument("--url", help="产品网站：尽力读取文案作补充素材")
+    p.add_argument("--idea", help="一句话想法（作副标题；默认取网站首行）")
+    p.add_argument("--include-site", action="store_true",
+                   help="把网站文案要点插入为 list 场景")
+    p.add_argument("--name", default="launch", help="合成 id（默认 launch）")
+    p.add_argument("--format", default="9:16",
+                   choices=["9:16", "16:9", "1:1"])
+    p.add_argument("--fps", type=int, default=30)
+    p.add_argument("--voice", default="Tingting", help="TTS 音色")
+    p.add_argument("--out", required=True, help="spec JSON 输出路径")
+    p.set_defaults(fn=cmd_launch)
     sub.add_parser("docs", help="生成文档站 docs-site/index.html").set_defaults(
         fn=cmd_docs)
 

@@ -221,6 +221,22 @@ def handle(message, spec, spec_dir=""):
             payload["args"] = args or {}
         return payload
 
+    # 0. Launch 向导引导（对齐 HF first-video 的四段式卡片）：CLI 落地，
+    #    聊天内给模板让用户复制填写。
+    if re.search(r"launch|四段|hook.*proof|发布视频向导", msg, re.I):
+        return out(
+            "四段式 launch 向导（对齐 HF first-video：Hook → Proof → "
+            "Turn → CTA）。复制下面命令填写后运行，然后在 Studio 打开：\n\n"
+            "python3 tools/xmedia.py launch \\\n"
+            "  --hook \"一句话钩子\" \\\n"
+            "  --proof \"数据|说明\" \\\n"
+            "  --turn \"差异化主张\" \\\n"
+            "  --cta \"行动号召\" \\\n"
+            "  --url https://你的网站 --out <目录>/launch.json\n\n"
+            "可选：--idea 副标题 / --include-site 网站要点入 list 场景 / "
+            "--format 16:9 或 1:1 / --voice 音色。生成后直接 "
+            "xmedia render 出片。", mode="help")
+
     # 1. 素材导入（含「字幕」「片尾卡」组合意图）
     #    只把「像路径」的片段当路径；没有路径时给出引导而不是抛「不存在」。
     if re.search(r"导入|import", msg, re.I):
