@@ -1164,17 +1164,35 @@ class StudioServer:
             return hf_compose.FORMAT_PRESETS[fmt]
         return (int(comp.get("width", 1080)), int(comp.get("height", 1920)))
 
-    def _start_bake(self):
+    def _start_bake(self, opts=None):
+        opts = opts or {}
         if self.job and self.job["proc"].poll() is None:
             raise RuntimeError("已有导出任务在跑")
         import hf_compose
         spec = self.current_spec or {}
         w, h = self._dims(spec)
-        fps = int(spec.get("composition", {}).get("fps", 30))
+        fps = int(opts.get("fps") or spec.get("composition", {}).get("fps", 30))
+        fps = min(max(fps, 12), 60)
+        # 质量档：540p/720p/1080p/项目尺寸——按画幅比例等比缩放（偶数对齐，
+        # 编码器要求）；非法值回退项目尺寸。
+        quality = str(opts.get("quality") or "project")
+        targets = {"540p": 540, "720p": 720, "1080p": 1080}
+        if quality in targets:
+            short = min(w, h)
+            if short > 0:
+                scale = targets[quality] / short
+                w = max(2, int(w * scale) // 2 * 2)
+                h = max(2, int(h * scale) // 2 * 2)
+        fmt = str(opts.get("fmt") or "mp4").lower()
+        if fmt not in ("mp4", "webm", "mov"):
+            fmt = "mp4"
         total = parse_total(self.current_html, parse_scenes(self.current_html))
         stem = self.spec_path and os.path.splitext(
             os.path.basename(self.spec_path))[0].replace(".narrated", "") or "out"
-        out = os.path.join(os.path.dirname(self.contract_path), stem + ".mp4")
+        # 产物命名对齐 HF Export：<项目> <日期 时间>.<ext>
+        stamp = time.strftime("%Y-%m-%d %H.%M")
+        out = os.path.join(os.path.dirname(self.contract_path),
+                           f"{stem} {stamp}.{fmt}")
         url = "file://" + urllib.parse.quote(self.contract_path)
         # 烘焙二进制由 xmedia 统一探测（build/bin → build/<preset>/bin）。
         # 以前这里硬编码 build/bin/html_bake.app：干净 clone 首次构建后
@@ -1200,6 +1218,14 @@ class StudioServer:
         self.job_seq += 1
         return self.job["id"]
 
+    def _cancel_bake(self):
+        """终止进行中的导出（Export 面板的取消渲染）。"""
+        if not self.job or self.job["proc"].poll() is not None:
+            raise RuntimeError("无进行中的导出任务")
+        self.job["cancelled"] = True
+        self.job["proc"].terminate()
+        return {"cancelled": True}
+
     def _job_status(self, job_id):
         if not self.job or self.job["id"] != job_id:
             raise RuntimeError("无此任务")
@@ -1213,6 +1239,7 @@ class StudioServer:
             if m:
                 self.job["out"] = m.group(1)
         return {"running": running, "rc": self.job.get("rc", -1),
+                "cancelled": bool(self.job.get("cancelled")),
                 "out": self.job["out"], "elapsed": time.time() - self.job["start"],
                 "tail": self.job["tail"]}
 
@@ -1749,7 +1776,12 @@ def make_handler(server_ref):
                 elif path == "/api/bake":
                     if srv.current_spec is None:
                         raise RuntimeError("未绑定 spec")
-                    self._json({"job": srv._start_bake()})
+                    self._json({"job": srv._start_bake({
+                        "quality": body.get("quality"),
+                        "fmt": body.get("fmt"),
+                        "fps": body.get("fps")})})
+                elif path == "/api/bake/cancel":
+                    self._json(srv._cancel_bake())
                 elif path == "/api/asr":
                     import hf_asr
                     media = os.path.expanduser(str(

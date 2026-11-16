@@ -507,7 +507,43 @@
                background: var(--panel); border: 1px solid var(--line2);
                border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
                overflow: hidden; }
-  #imp-panel.open { display: flex; }
+  /* 导出面板（对齐 HF Export：质量×格式×帧率 + 后台渲染 + 取消）。 */
+  #exp-panel { position: fixed; z-index: 81; left: 50%; top: 50%;
+               transform: translate(-50%, -50%); width: 400px;
+               max-width: calc(100vw - 32px);
+               display: none; flex-direction: column;
+               background: var(--panel); border: 1px solid var(--line2);
+               border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
+               overflow: hidden; }
+  #exp-panel.open { display: flex; }
+  #exp-head { flex: none; display: flex; align-items: center; gap: 10px;
+              padding: 13px 16px; border-bottom: 1px solid var(--line);
+              background: linear-gradient(115deg, rgba(62,207,142,.12),
+                                          rgba(109,139,255,.05)); }
+  #exp-head .t { font-size: 13.5px; font-weight: 600; }
+  #exp-head .sp { flex: 1; }
+  #exp-x { background: none; border: 0; color: var(--dim);
+           font-size: 19px; line-height: 1; padding: 2px 6px; }
+  #exp-x:hover { color: var(--ink); }
+  .exp-body { padding: 14px 16px 16px; display: flex;
+              flex-direction: column; gap: 12px; }
+  .exp-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .exp-row label { flex: none; width: 52px; color: var(--dim); }
+  .exp-row select { flex: 1; background: var(--panel2); color: var(--ink);
+                    border: 1px solid var(--line); border-radius: 7px;
+                    padding: 6px 8px; font-size: 12px; outline: none; }
+  .exp-row select:focus { border-color: var(--acc); }
+  .exp-dim { font-size: 11px; color: var(--dim); line-height: 1.5; }
+  #exp-progress { display: none; font-size: 11.5px; color: var(--dim);
+                  background: var(--panel2); border: 1px solid var(--line);
+                  border-radius: 8px; padding: 8px 10px; line-height: 1.6; }
+  #exp-progress.on { display: block; }
+  #exp-progress .bar { height: 4px; border-radius: 2px; margin-top: 6px;
+                       background: var(--panel3); overflow: hidden; }
+  #exp-progress .bar i { display: block; height: 100%; width: 0%;
+                         background: var(--acc); transition: width .4s; }
+  #exp-foot { flex: none; display: flex; gap: 8px; justify-content: flex-end;
+              padding: 0 16px 14px; }
   #imp-head { flex: none; display: flex; align-items: center; gap: 11px;
               padding: 14px 16px; border-bottom: 1px solid var(--line);
               background: linear-gradient(115deg, rgba(109,139,255,.13),
@@ -858,6 +894,50 @@
     <button class="btn" id="imp-undo" type="button" title="把时间轴恢复到上一次导入之前">撤销导入</button>
     <button class="btn" id="imp-cancel" type="button">取消</button>
     <button class="btn acc" id="imp-go" type="button">导入到时间轴</button>
+  </div>
+</div>
+
+<div id="exp-panel" role="dialog" aria-label="导出视频">
+  <div id="exp-head">
+    <span class="t">导出视频</span>
+    <span class="sp"></span>
+    <button id="exp-x" title="关闭">×</button>
+  </div>
+  <div class="exp-body">
+    <div class="exp-row">
+      <label for="exp-quality">画质</label>
+      <select id="exp-quality">
+        <option value="540p">540p（快）</option>
+        <option value="720p">720p</option>
+        <option value="1080p">1080p</option>
+        <option value="project" selected>项目尺寸</option>
+      </select>
+    </div>
+    <div class="exp-row">
+      <label for="exp-fmt">格式</label>
+      <select id="exp-fmt">
+        <option value="mp4" selected>MP4（推荐）</option>
+        <option value="webm">WebM</option>
+        <option value="mov">MOV</option>
+      </select>
+    </div>
+    <div class="exp-row">
+      <label for="exp-fps">帧率</label>
+      <select id="exp-fps">
+        <option value="24">24</option>
+        <option value="30" selected>30</option>
+        <option value="60">60</option>
+      </select>
+    </div>
+    <div class="exp-dim" id="exp-dim"></div>
+    <div id="exp-progress">
+      <span id="exp-progress-text">准备中…</span>
+      <div class="bar"><i id="exp-bar"></i></div>
+    </div>
+  </div>
+  <div id="exp-foot">
+    <button class="btn" id="exp-cancel" type="button" disabled>取消渲染</button>
+    <button class="btn acc" id="exp-go" type="button">渲染</button>
   </div>
 </div>
 
@@ -2304,22 +2384,83 @@ $("btn-tts").onclick = function () {
   });
 };
 $("btn-bake").onclick = function () {
-  $("btn-bake").disabled = true;
-  $("job").innerHTML = '<span class="spin"></span> 导出中';
-  log("导出开始（参数由 spec 自动推导：" + state.width + "×" + state.height +
-      " / " + state.duration.toFixed(1) + "s / " + fps() + "fps）");
-  api("/api/bake", {}).then(function (r) { return pollJob(r.job); })
+  expOpen(true);
+};
+/* ---------------- 导出面板（对齐 HF Export） ---------------- */
+var expJob = -1, expPolling = false;
+function expOpen(on) {
+  $("exp-panel").classList.toggle("open", !!on);
+  if (on) {
+    $("exp-dim").textContent = "项目尺寸 " + state.width + "×" +
+        state.height + " · 总时长 " + (state.duration || 0).toFixed(1) +
+        "s · 产物保存到 spec 所在目录";
+  }
+}
+function expSetBusy(busy) {
+  $("exp-go").disabled = busy;
+  $("exp-cancel").disabled = !busy;
+  $("exp-progress").classList.toggle("on", busy);
+  if (!busy) $("exp-bar").style.width = "0%";
+}
+function expPoll(id) {
+  return api("/api/job?id=" + id).then(function (j) {
+    if (!expPolling) return j;   // 用户取消后停止刷新 UI
+    var total = Math.max(0.5, state.duration || 0.5);
+    var frac = Math.min(0.97, j.elapsed / (total * 4));
+    $("exp-bar").style.width = (frac * 100).toFixed(0) + "%";
+    $("exp-progress-text").textContent = "渲染中 " +
+        j.elapsed.toFixed(0) + "s（" + (j.out || "").split("/").pop() + "）";
+    if (j.running) {
+      return new Promise(function (res) {
+        setTimeout(res, 700);
+      }).then(function () { return expPoll(id); });
+    }
+    return j;
+  });
+}
+$("exp-x").onclick = function () { expOpen(false); };
+$("exp-cancel").onclick = function () {
+  expPolling = false;
+  api("/api/bake/cancel", {}).then(function () {
+    log("导出已取消", "err");
+  }).catch(function (e) {
+    log("取消失败：" + e.message, "err");
+  }).then(function () {
+    expSetBusy(false);
+    $("exp-progress-text").textContent = "已取消";
+    $("exp-progress").classList.add("on");
+  });
+};
+$("exp-go").onclick = function () {
+  var quality = $("exp-quality").value;
+  var fmt = $("exp-fmt").value;
+  var fps = parseInt($("exp-fps").value, 10);
+  expSetBusy(true);
+  expPolling = true;
+  $("exp-progress-text").textContent = "准备中…";
+  log("导出开始：" + quality + " / " + fmt + " / " + fps + "fps");
+  api("/api/bake", { quality: quality, fmt: fmt, fps: fps })
+    .then(function (r) { expJob = r.job; return expPoll(r.job); })
     .then(function (j) {
-      $("btn-bake").disabled = false; $("job").textContent = "";
-      if (j.rc === 0) {
+      expSetBusy(false);
+      $("exp-bar").style.width = "100%";
+      if (j.cancelled) {
+        $("exp-progress-text").textContent = "已取消";
+      } else if (j.rc === 0) {
+        $("exp-progress-text").textContent = "导出完成：" + j.out;
         log("导出完成：" + j.out, "ok");
-        log("验源：ffprobe -show_format " + j.out + " | grep comment", "ok");
+        log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment",
+            "ok");
       } else {
+        $("exp-progress-text").textContent = "导出失败 rc=" + j.rc;
         log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
       }
+      expPolling = false;
     })
     .catch(function (e) {
-      $("btn-bake").disabled = false; $("job").textContent = "";
+      expSetBusy(false);
+      expPolling = false;
+      $("exp-progress-text").textContent = "导出失败：" + e.message;
       log("导出失败：" + e.message, "err");
     });
 };
