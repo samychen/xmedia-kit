@@ -34,12 +34,7 @@
 
 #include <gtest/gtest.h>
 
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/hwcontext.h>
-#include <libavutil/hwcontext_cuda.h>
-}
+#include "media/ffmpeg/hw_interop_ffmpeg.h"  // C4 隔离：libav 头经转发
 
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
