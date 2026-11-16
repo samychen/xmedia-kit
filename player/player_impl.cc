@@ -70,7 +70,8 @@ PlayerImpl::PlayerImpl(const PlayerConfig& config, std::unique_ptr<Deps> deps)
     if (config_.video.decoder_preference !=
         media::DecoderPreference::kSoftware) {
       auto hw = DefaultHardwareVideoDecoderFactories(
-          video_thread_.task_runner(), config_.video.hw_codecs);
+          video_thread_.task_runner(), config_.video.hw_codecs,
+          config_.render.prefer_dmabuf_zero_copy);
       deps_->video_decoder_factories.insert(
           deps_->video_decoder_factories.end(), hw.begin(), hw.end());
     }

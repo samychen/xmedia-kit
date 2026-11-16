@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <span>
 #include <string>
 
@@ -71,6 +72,8 @@ XMEDIA_MEDIA_EXPORT int VideoFormatPlaneCount(VideoFormat format);
 //   kD3D11Texture    id = ID3D11Texture2D*, subresource = SRV slice.
 //   kCVPixelBuffer   id = CVPixelBufferRef,           importable to MTLTexture
 //                    (or IOSurface-backed GL texture).
+//   kNvdecFrame      id = CUdeviceptr of the NV12 luma plane; the chroma plane
+//                    and strides travel in NvdecFrameInfo (see below).
 //
 // |id| stays owned by the frame's producer-side backing (typically an FFmpeg
 // hw frame); it is only valid while this VideoFrame is alive. media/base
@@ -81,9 +84,55 @@ enum class NativeHandleKind {
   kVaapiSurface,
   kD3D11Texture,
   kCVPixelBuffer,
+  kNvdecFrame,
 };
 
 XMEDIA_MEDIA_EXPORT const char* GetNativeHandleKindName(NativeHandleKind kind);
+
+// One plane of a dmabuf-backed frame, in the vocabulary EGL's
+// EGL_LINUX_DMA_BUF_EXT import attributes need: a prime fd, the bytes per row
+// and the bytes from the start of the whole buffer. The fd is owned by the
+// producer-side backing (the FFmpeg VAAPI adapter derived it from a VA
+// surface) and is valid only while this VideoFrame is alive -- same lifetime
+// rule as NativeHandle::id, see WrapNativeBuffer().
+struct XMEDIA_MEDIA_EXPORT DmaBufPlane {
+  int fd{-1};
+  uint32_t stride{0};   // bytes per row of this plane.
+  uint32_t offset{0};   // bytes from the start of the backing buffer.
+};
+
+// The per-frame dmabuf plumbing a Linux hardware frame carries when its
+// producer derived the plane handles -- plain data on purpose, because the
+// reader is the platform EGL importer (platform/hwimport), which must not see
+// a libav or VA type (invariants C4/C5). |fourcc| is the DRM fourcc of the
+// WHOLE buffer (NV12 etc.); the per-plane fourcc an EGLImage import needs
+// (R8, GR88) is derived by the consumer from the frame's VideoFormat, which
+// the decoder set as the same layout hint it always carries. A modifier of 0
+// with |has_modifier| false means "linear / unknown", which is what
+// vaAcquireBufferHandle reports; the importer then omits the modifier
+// attributes instead of passing a wrong one.
+struct XMEDIA_MEDIA_EXPORT DmaBufFrameInfo {
+  uint32_t fourcc{0};
+  int plane_count{0};
+  bool has_modifier{false};
+  uint64_t modifier{0};
+  DmaBufPlane planes[4];
+};
+
+// The NVIDIA frame plumbing, in the same plain-data spirit as
+// DmaBufFrameInfo: the reader is the platform CUDA-GL importer, which must not
+// see a CUDA or libav type (invariants C4/C5). |cuda_ctx| is the CUcontext the
+// decoder's hwdevice created -- the importer pushes it while it works, because
+// the device pointers below belong to it. All pointers stay valid only while
+// this VideoFrame is alive (the frame's release callback frees the NVDEC
+// pool's memory), same lifetime rule as NativeHandle::id.
+struct XMEDIA_MEDIA_EXPORT NvdecFrameInfo {
+  const void* cuda_ctx{nullptr};
+  uintptr_t luma{0};           // CUdeviceptr of the NV12 luma plane.
+  uintptr_t chroma{0};         // CUdeviceptr of the NV12 chroma plane.
+  int32_t luma_stride{0};      // bytes per row, the decoder's linesize.
+  int32_t chroma_stride{0};
+};
 
 struct XMEDIA_MEDIA_EXPORT NativeHandle {
   NativeHandleKind kind{NativeHandleKind::kNone};
@@ -215,6 +264,31 @@ class XMEDIA_MEDIA_EXPORT VideoFrame
   // dmabuf adapters that predate the kind tag.
   NativeHandle native_handle() const { return native_handle_; }
 
+  // The dmabuf plumbing a Linux hardware frame carries when its producer
+  // derived per-plane prime fds from the native handle (the FFmpeg VAAPI
+  // adapter). Null when the producer did not derive them -- a host without
+  // derivation falls back to the explicit readback below, which is the
+  // documented degradation. The pointee is owned by this frame.
+  const DmaBufFrameInfo* dmabuf_info() const { return dmabuf_info_.get(); }
+
+  // Producer-side attach, same validity window as mutable_data(): the decoder
+  // calls it before the frame is first published, and callers treat the frame
+  // as immutable afterwards. Attaching also re-tags storage from kStorageOpaque
+  // to kStorageDmaBufs, which is what the tag means. Passing null is a no-op
+  // (a producer that derived nothing simply does not call this).
+  void set_dmabuf_info(std::unique_ptr<DmaBufFrameInfo> info);
+
+  // The NVIDIA plumbing a hardware frame carries when the producer decoded
+  // with NVDEC (see NvdecFrameInfo). Null when absent; the pointee is owned by
+  // this frame. Attaching does NOT change the storage tag: the tag stays
+  // kStorageOpaque because the import route (CUDA-GL interop) is a different
+  // one from the dmabuf route and the GL layer only needs to know the planes
+  // are unreadable -- which kStorageOpaque already means.
+  const NvdecFrameInfo* nvdec_info() const { return nvdec_info_.get(); }
+
+  // Producer-side attach, same validity window as set_dmabuf_info().
+  void set_nvdec_info(std::unique_ptr<NvdecFrameInfo> info);
+
   // Adapter escape hatch for platform code (FFmpeg / dmabuf). See
   // DecoderBuffer::storage_as() for the rationale; no RTTI involved.
   const void* opaque_handle() const { return opaque_handle_; }
@@ -244,6 +318,13 @@ class XMEDIA_MEDIA_EXPORT VideoFrame
   std::array<int32_t, kMaxPlanes> strides_{0, 0, 0, 0};
   std::array<size_t, kMaxPlanes> allocated_sizes_{0, 0, 0, 0};
   const void* opaque_handle_{nullptr};
+  // Dmabuf plumbing attached by the producer (see dmabuf_info()). Unique to
+  // this frame: two references cloned from one wrap share the native handle
+  // by value, but the derived fds are released with THIS frame's release
+  // callback, so the info object must not be shared with another frame.
+  std::unique_ptr<DmaBufFrameInfo> dmabuf_info_;
+  // NVIDIA frame plumbing attached by the producer (see nvdec_info()).
+  std::unique_ptr<NvdecFrameInfo> nvdec_info_;
   void* allocation_{nullptr};  // Owned backing store when storage is owned.
   NativeHandle native_handle_;
   VideoColorSpace color_space_;

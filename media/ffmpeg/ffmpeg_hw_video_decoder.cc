@@ -10,10 +10,19 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
+#include "media/ffmpeg/hw_device_probe.h"
 #include "media/ffmpeg/av_packet_storage.h"
 #include "media/ffmpeg/color_space_bridge.h"
 #include "media/ffmpeg/compat.h"
 #include "media/ffmpeg/hw_frame_readback.h"
+#if defined(XMEDIA_ENABLE_VAAPI)
+#include <libavutil/hwcontext_vaapi.h>
+
+#include "media/ffmpeg/vaapi_dmabuf_adapter.h"
+#endif
+#if defined(XMEDIA_ENABLE_NVDEC)
+#include <libavutil/hwcontext_cuda.h>
+#endif
 
 namespace xmedia::media::ffmpeg {
 namespace {
@@ -24,17 +33,6 @@ namespace ff = ::xmedia::media::ffmpeg;
 // version-specific enum switch lands here. Returns AV_HWDEVICE_TYPE_NONE when
 // the FFmpeg build does not know the name (which Initialize reports as an
 // actionable status, and the fallback chain absorbs).
-AVHWDeviceType DeviceTypeFromName(const std::string& name) {
-  AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
-  while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
-    const char* type_name = av_hwdevice_get_type_name(type);
-    if (type_name && name == type_name) {
-      return type;
-    }
-  }
-  return AV_HWDEVICE_TYPE_NONE;
-}
-
 media::VideoFormat LayoutHintFromSwFormat(AVPixelFormat sw_format) {
   switch (sw_format) {
   case AV_PIX_FMT_NV12:
@@ -115,7 +113,8 @@ bool FFmpegHwVideoDecoder::InitializeDevice() {
   if (ctx_->device_ready) {
     return true;
   }
-  const AVHWDeviceType type = DeviceTypeFromName(spec_.device_type);
+  const AVHWDeviceType type = static_cast<AVHWDeviceType>(
+      ff::DeviceTypeFromName(spec_.device_type));
   if (type == AV_HWDEVICE_TYPE_NONE) {
     LOG(WARNING) << "FFmpegHwVideoDecoder: this FFmpeg build has no '"
                  << spec_.device_type << "' hw device type";
@@ -280,6 +279,40 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
 
     media::NativeHandle handle;
     handle.kind = spec_.handle_kind;
+    // The NVIDIA frame plumbing, captured before av_frame_unref zeroes the
+    // frame: both NV12 plane pointers, their strides, and the CUcontext the
+    // planes belong to. Owned by the frame (the AVFrame clone held by
+    // release_cb keeps the NVDEC pool allocation alive); the display side
+    // imports the planes into GL and needs none of it afterwards.
+    std::unique_ptr<media::NvdecFrameInfo> nvdec_info;
+    if (spec_.handle_kind == media::NativeHandleKind::kNvdecFrame) {
+#if defined(XMEDIA_ENABLE_NVDEC)
+      auto *hw_dev =
+          reinterpret_cast<AVHWDeviceContext *>(codec_ctx->hw_device_ctx->data);
+      auto *cuda_dev = hw_dev->hwctx
+                           ? reinterpret_cast<AVCUDADeviceContext *>(hw_dev->hwctx)
+                           : nullptr;
+      if (cuda_dev && cuda_dev->cuda_ctx) {
+        nvdec_info = std::make_unique<media::NvdecFrameInfo>();
+        nvdec_info->cuda_ctx = cuda_dev->cuda_ctx;
+        nvdec_info->luma = reinterpret_cast<uintptr_t>(frame->data[0]);
+        nvdec_info->chroma = reinterpret_cast<uintptr_t>(frame->data[1]);
+        nvdec_info->luma_stride = frame->linesize[0];
+        nvdec_info->chroma_stride = frame->linesize[1];
+      }
+#endif
+      if (!nvdec_info) {
+        // No plumbing to publish (CUDA headers absent from this build, or
+        // the device context not yet open): decline cleanly rather than
+        // hand the display side a frame it cannot name.
+        av_frame_unref(frame);
+        return false;
+      }
+      handle.id = frame->data[0];
+      handle.subresource = 0;
+      // Falls through to the wrap below -- the switch only maps the kinds
+      // that fit in one data slot.
+    }
     switch (spec_.handle_kind) {
     case media::NativeHandleKind::kCVPixelBuffer:
     case media::NativeHandleKind::kVaapiSurface:
@@ -293,6 +326,11 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
       handle.id = frame->data[3];
       handle.subresource =
           static_cast<int>(reinterpret_cast<intptr_t>(frame->data[4]));
+      break;
+    case media::NativeHandleKind::kNvdecFrame:
+      // Handled above: the plumbing needs both planes and the CUcontext, so
+      // it is captured in one place before av_frame_unref. The outer switch
+      // exists for the kinds that fit in one data slot.
       break;
     case media::NativeHandleKind::kNone:
       av_frame_unref(frame);
@@ -323,6 +361,29 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
     const media::VideoColorSpace cs = ColorSpaceFromAvFrame(frame, config_);
     // Captured before the frame is unref'd: av_frame_unref zeroes these.
     const media::Size size{frame->width, frame->height};
+    const media::VideoFormat format_hint = LayoutHintFromSwFormat(sw_format);
+
+    // The producer half of the Linux zero-copy path: walk the VA surface to
+    // per-plane prime fds while the AVFrame still holds it. The derived
+    // handles ride on the frame; the display side either imports them with no
+    // copy or falls back to the readback below, and a driver that declines
+    // the derivation degrades to exactly the behavior this decoder had
+    // before the derivation existed.
+    ff::VaapiDmabufDerive derive;
+#if defined(XMEDIA_ENABLE_VAAPI)
+    if (spec_.derive_dmabufs &&
+        spec_.handle_kind == media::NativeHandleKind::kVaapiSurface &&
+        codec_ctx->hw_device_ctx) {
+      auto* device =
+          reinterpret_cast<AVHWDeviceContext*>(codec_ctx->hw_device_ctx->data);
+      if (device->type == AV_HWDEVICE_TYPE_VAAPI) {
+        auto* va = reinterpret_cast<AVVAAPIDeviceContext*>(device->hwctx);
+        derive = ff::DeriveVaapiDmabufs(
+            va->display, reinterpret_cast<uintptr_t>(frame->data[3]),
+            frame->width, frame->height, format_hint);
+      }
+    }
+#endif
 
     // Two independent references to the hw frame: one dies with the display
     // frame (release_cb), one backs the readback path (to_i420_cb). The
@@ -344,16 +405,31 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
       }
       return false;
     }
+    // The dmabuf handles are released BEFORE the surface reference: the
+    // AVFrame holds the frames context, which holds the device context the
+    // VADisplay belongs to, so the display is alive for as long as the
+    // cleanup needs it. Reversing the two would free the display under the
+    // cleanup -- the one ordering rule of this merge.
+    base::OnceClosure release = base::BindOnce(
+        [](AVFrame* f) {
+          if (f) {
+            av_frame_free(&f);
+          }
+        },
+        held_for_release);
+    if (derive.info) {
+      release = base::BindOnce(
+          [](base::OnceClosure dmabuf_cleanup, AVFrame* f) {
+            std::move(dmabuf_cleanup).Run();
+            if (f) {
+              av_frame_free(&f);
+            }
+          },
+          std::move(derive.cleanup), held_for_release);
+    }
     auto out = media::VideoFrame::WrapNativeBuffer(
-        handle, LayoutHintFromSwFormat(sw_format), size, size, sar, timestamp,
-        duration, current_serial_,
-        base::BindOnce(
-            [](AVFrame* f) {
-              if (f) {
-                av_frame_free(&f);
-              }
-            },
-            held_for_release),
+        handle, format_hint, size, size, sar, timestamp,
+        duration, current_serial_, std::move(release),
         base::BindRepeating(
             [](std::shared_ptr<AVFrame> hw_frame, media::Rational sar,
                base::TimeDelta timestamp, base::TimeDelta duration,
@@ -369,6 +445,12 @@ bool FFmpegHwVideoDecoder::DecodeAvailableFrames() {
       // reference here or it leaks on every wrap failure.
       av_frame_free(&held_for_release);
       return false;
+    }
+    if (derive.info) {
+      out->set_dmabuf_info(std::move(derive.info));
+    }
+    if (nvdec_info) {
+      out->set_nvdec_info(std::move(nvdec_info));
     }
     out->set_color_space(cs);
     // Same hand-off as the software path: hardware decode changes where the

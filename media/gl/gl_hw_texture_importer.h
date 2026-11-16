@@ -25,6 +25,12 @@ struct XMEDIA_MEDIA_EXPORT PlaneUploadLayout {
   // The plane's own size, which for chroma is half the coded size.
   int width{0};
   int height{0};
+  // The GL name of the texture the caller BOUND for this plane, or 0 when the
+  // backend can discover it from the current binding (the CUDA-GL importer
+  // reads GL_TEXTURE_BINDING_2D; existing backends ignore it). Zero is the
+  // default so the field is additive: no existing backend or call site
+  // changes shape.
+  unsigned int texture_name{0};
 };
 
 // The seam between the GL video path and a host's GPU-interop API.

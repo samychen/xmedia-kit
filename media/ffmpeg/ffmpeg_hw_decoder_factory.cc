@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "media/base/decoder_config.h"
+#include "media/ffmpeg/hw_device_probe.h"
 
 namespace xmedia::media::ffmpeg {
 
@@ -57,6 +58,25 @@ FFmpegHwVideoDecoderFactory::CreateVideoDecoder(
     LOG(INFO) << "[decoder-factory] '" << spec_.display_name
               << "' declined config (codec=" << GetVideoCodecName(config.codec)
               << ", profile=" << config.profile << ")";
+    return nullptr;
+  }
+  // Build gate: the hwaccels an FFmpeg build ships are a build-time fact; a
+  // spec advertising a codec the build cannot place would otherwise fail at
+  // OpenCodec ("unsupported-codec") and be counted as a fallback.
+  if (spec_.verify_build_hwaccel &&
+      !BuildHasHwCodecForDevice(config.codec_name, config.codec,
+                                spec_.device_type)) {
+    LOG(INFO) << "[decoder-factory] '" << spec_.display_name
+              << "' declined: this FFmpeg build has no " << spec_.device_type
+              << " hwaccel for " << GetVideoCodecName(config.codec);
+    return nullptr;
+  }
+  // Host gate: a spec that knows this host has no usable device declines
+  // BEFORE a decoder is built, so the absent-hardware case is negotiation and
+  // never reaches the fallback counter. The probe is cached per process.
+  if (spec_.device_available && !spec_.device_available()) {
+    LOG(INFO) << "[decoder-factory] '" << spec_.display_name
+              << "' declined: no usable device on this host";
     return nullptr;
   }
   for (const media::VideoCodec codec : spec_.codecs) {

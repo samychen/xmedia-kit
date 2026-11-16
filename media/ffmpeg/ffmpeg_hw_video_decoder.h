@@ -57,6 +57,31 @@ struct FFmpegHwDecoderSpec {
   // Declining here is the "not me" that chain already knows how to act on;
   // by the time the first packet fails, it has no candidate left to try.
   std::function<bool(const media::VideoDecoderConfig& config)> config_supported;
+
+  // Per-host device gate, consulted by the factory BEFORE a decoder is built:
+  // "this host has no such device" is negotiation ("not me"), not a
+  // failed-open that the fallback counter would surface as noise on every
+  // file. Implementations live with the specs (platform/hwaccel), which call
+  // media/ffmpeg's ProbeHwDevice. Empty = no probe; the factory then builds
+  // the decoder and a missing device surfaces at Initialize as today -- the
+  // behavior the spec-less factory tests pin.
+  std::function<bool()> device_available;
+
+  // Whether the factory should ALSO verify this avcodec build actually ships
+  // the (codec, device_type) hwaccel before building a decoder. True for the
+  // Linux specs (vaapi / nvdec), whose codec lists are hand-written while the
+  // hwaccels a pinned FFmpeg build ships are a build-time fact; false by
+  // default so specs whose tests run on hosts without their hwaccel (the
+  // VideoToolbox factory suites run on Linux too) keep their semantics.
+  bool verify_build_hwaccel{false};
+
+  // Whether this device should publish dmabuf plane handles alongside the
+  // native handle (the Linux EGL import path consumes them; see
+  // vaapi_dmabuf_adapter.h). Default false: only the VAAPI spec turns it on,
+  // and even then a driver that refuses the derivation degrades to the
+  // explicit readback instead of failing the stream. The player wires this
+  // to RenderConfig::prefer_dmabuf_zero_copy.
+  bool derive_dmabufs{false};
 };
 
 // Hardware video decoding through libavcodec's hwaccel API:

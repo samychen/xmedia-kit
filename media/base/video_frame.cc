@@ -93,6 +93,8 @@ const char* GetNativeHandleKindName(NativeHandleKind kind) {
     return "d3d11-texture";
   case NativeHandleKind::kCVPixelBuffer:
     return "cvpixelbuffer";
+  case NativeHandleKind::kNvdecFrame:
+    return "nvdec-frame";
   }
   return "invalid";
 }
@@ -191,10 +193,33 @@ std::string VideoFrame::AsDebugString() const {
     out += " handle=";
     out += GetNativeHandleKindName(native_handle_.kind);
   }
+  if (dmabuf_info_ && dmabuf_info_->plane_count > 0) {
+    out += " dmabuf=" + std::to_string(dmabuf_info_->plane_count) + "p";
+  }
   if (color_space_.IsSpecified()) {
     out += " cs=" + color_space_.AsDebugString();
   }
   return out;
+}
+
+void VideoFrame::set_dmabuf_info(std::unique_ptr<DmaBufFrameInfo> info) {
+  if (!info) {
+    return;
+  }
+  // The tag follows the plumbing: a frame whose planes are prime fds is a
+  // dmabuf frame, whatever WrapNativeBuffer defaulted the storage to. Both
+  // tags answer the same questions -- IsMappable() false, visible_data()
+  // empty -- because planes_ is null on every native-buffer frame; the
+  // distinct tag exists so a consumer CAN tell the two import routes apart.
+  storage_type_ = StorageType::kStorageDmaBufs;
+  dmabuf_info_ = std::move(info);
+}
+
+void VideoFrame::set_nvdec_info(std::unique_ptr<NvdecFrameInfo> info) {
+  if (!info) {
+    return;
+  }
+  nvdec_info_ = std::move(info);
 }
 
 // static

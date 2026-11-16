@@ -169,6 +169,15 @@ if(XMEDIA_ENABLE_GLFW)
     target_link_libraries(gl_unittests PRIVATE
         "-framework CoreVideo" "-framework IOSurface" "-framework CoreFoundation")
   endif()
+  if(UNIX AND NOT APPLE)
+    # egl_dmabuf_import_unittest.cc drives the production EGL importer over an
+    # EGL context of its own: it needs the EGL SDK headers and the EglGLContext
+    # adapter from the EGL backend target, both gated like the importer itself.
+    find_package(EGL QUIET)
+    if(EGL_FOUND AND XMEDIA_ENABLE_EGL)
+      target_link_libraries(gl_unittests PRIVATE EGL::EGL xmedia::platform_egl)
+    endif()
+  endif()
 endif()
 
 # ---- media + curl: the libcurl HTTP(S) data source, opt-in with the
@@ -182,6 +191,29 @@ if(XMEDIA_ENABLE_CURL)
       SOURCES ${XMEDIA_MEDIA_CURL_UNITTEST_SOURCES}
       DEPS xmedia::curl xmedia::media_test_support
            xmedia::base_test_support)
+endif()
+
+# ---- NVIDIA NVDEC end-to-end: real decode, real interop, real bytes. Built
+# only where all three SDKs exist (Linux + GLFW context + FFmpeg with NVDEC);
+# the suites themselves skip when the host has no CUDA device, so a capable
+# machine gets red-on-regression while CI without a GPU skips with reasons.
+if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_ENABLE_GLFW AND UNIX AND NOT APPLE)
+  file(GLOB XMEDIA_GL_CUDA_UNITTEST_SOURCES CONFIGURE_DEPENDS
+      "${CMAKE_CURRENT_SOURCE_DIR}/unit/gl_cuda/*.cc")
+  xmedia_add_unittest(cuda_nvdec_unittests
+      SOURCES ${XMEDIA_GL_CUDA_UNITTEST_SOURCES}
+              # GlTestWindow lives in unit/gl/ (globbed into gl_unittests);
+              # this suite needs the same helper, named explicitly here.
+              "${CMAKE_CURRENT_SOURCE_DIR}/unit/gl/gl_test_context.cc"
+      DEPS xmedia::ffmpeg xmedia::platform_glfw xmedia::platform_hwimport)
+  target_compile_definitions(cuda_nvdec_unittests PRIVATE
+      XMEDIA_TESTDATA_DIR="${CMAKE_SOURCE_DIR}/tests/testdata")
+  target_include_directories(cuda_nvdec_unittests SYSTEM PRIVATE
+      ${FFmpeg_INCLUDE_DIRS})
+  if(XMEDIA_CUDA_INCLUDE_DIR)
+    target_include_directories(cuda_nvdec_unittests PRIVATE
+        "${XMEDIA_CUDA_INCLUDE_DIR}")
+  endif()
 endif()
 
 # ---- media + FFmpeg: real containers, labelled needs-ffmpeg so the

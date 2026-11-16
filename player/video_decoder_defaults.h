@@ -22,10 +22,17 @@ namespace xmedia {
 // tail without any error. A missing device or unsupported profile fails at
 // decoder Initialize() and DecoderStream falls back -- the same chain that
 // already handles host-injected factories.
+//
+// |prefer_dmabuf_zero_copy| is RenderConfig::prefer_dmabuf_zero_copy: it
+// decides whether the hardware specs publish dmabuf plane handles for the
+// display-side EGL import (Linux VAAPI). False keeps the hardware decode but
+// leaves every frame on the explicit-readback path -- the pre-zero-copy
+// behavior, selectable per config instead of per build.
 std::vector<base::scoped_refptr<media::VideoDecoderFactory>>
 DefaultHardwareVideoDecoderFactories(
     const base::scoped_refptr<base::SequencedTaskRunner>& video_runner,
-    media::HwCodecMask allowed_codecs);
+    media::HwCodecMask allowed_codecs,
+    bool prefer_dmabuf_zero_copy = true);
 
 }  // namespace xmedia
 

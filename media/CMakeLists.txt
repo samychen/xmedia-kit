@@ -76,6 +76,50 @@ if(XMEDIA_ENABLE_FFMPEG)
       PRIVATE FFmpeg::avformat FFmpeg::avcodec FFmpeg::avutil
               FFmpeg::swscale FFmpeg::swresample FFmpeg::avfilter)
   target_compile_definitions(xmedia_ffmpeg PRIVATE XMEDIA_ENABLE_FFMPEG=1)
+  # The VAAPI half of the Linux hardware path: the decoder-side dmabuf adapter
+  # (vaapi_dmabuf_adapter.cc, in the glob above) needs libva headers and lib,
+  # and the same flag turns on the VAAPI spec in the player's decoder-defaults
+  # list and the VAAPI encoder spec in the transcode factory. Degradation
+  # follows the Libyuv pattern: option on + SDK missing is a status message
+  # and a build without the adapter, never a configure failure.
+  if(XMEDIA_ENABLE_VAAPI)
+    find_path(XMEDIA_VA_INCLUDE_DIR NAMES va/va.h)
+    find_library(XMEDIA_VA_LIBRARY NAMES va)
+    if(XMEDIA_VA_INCLUDE_DIR AND XMEDIA_VA_LIBRARY)
+      target_include_directories(xmedia_ffmpeg PRIVATE
+          "${XMEDIA_VA_INCLUDE_DIR}")
+      target_link_libraries(xmedia_ffmpeg PRIVATE "${XMEDIA_VA_LIBRARY}")
+      target_compile_definitions(xmedia_ffmpeg PRIVATE XMEDIA_ENABLE_VAAPI=1)
+      message(STATUS "VAAPI dmabuf adapter enabled (libva "
+          "${XMEDIA_VA_LIBRARY})")
+    else()
+      message(STATUS "XMEDIA_ENABLE_VAAPI=ON but libva not found; the Linux "
+          "VAAPI decoder/encoder specs and the dmabuf adapter stay compiled "
+          "out (install libva-dev)")
+    endif()
+  endif()
+  if(XMEDIA_ENABLE_NVDEC)
+    # CUDA toolkit headers only: the decoder publishes CUdeviceptrs and the
+    # CUcontext pointer value -- the interop itself lives in platform/hwimport
+    # (which links the driver library directly). libavutil's hwcontext_cuda
+    # does the CUDA work inside FFmpeg.
+    find_path(XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR cuda.h
+        HINTS /usr/local/cuda/include /opt/cuda/include
+        NO_DEFAULT_PATH)
+    if(NOT XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR)
+      find_path(XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR cuda.h)
+    endif()
+    if(XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR)
+      target_include_directories(xmedia_ffmpeg PRIVATE
+          "${XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR}")
+      target_compile_definitions(xmedia_ffmpeg PRIVATE XMEDIA_ENABLE_NVDEC=1)
+      message(STATUS "NVDEC frame plumbing enabled (CUDA headers "
+          "${XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR})")
+    else()
+      message(STATUS "XMEDIA_ENABLE_NVDEC=ON but CUDA toolkit headers not "
+          "found; the NVDEC spec stays compiled out")
+    endif()
+  endif()
   # Optional SIMD fast paths for video_convert.cc; when absent the module
   # compiles to a sws_scale-only fallback and nothing else changes.
   find_package(Libyuv QUIET)
@@ -111,6 +155,13 @@ if(XMEDIA_ENABLE_FFMPEG)
   # The FFmpeg::* libraries themselves stay PRIVATE to xmedia_ffmpeg, so this
   # target still links no vendor library of its own.
   target_link_libraries(xmedia_transcode PUBLIC xmedia::ffmpeg)
+  # The VAAPI encoder spec in video_encoder_factory.{h,cc} is name-strings
+  # only (no VA SDK header), so it needs the flag and not the library: with
+  # XMEDIA_ENABLE_VAAPI on, the h264_vaapi/hevc_vaapi factories join the
+  # selection list and Initialize() honestly fails where no VA device exists.
+  if(XMEDIA_ENABLE_VAAPI AND XMEDIA_VA_INCLUDE_DIR AND XMEDIA_VA_LIBRARY)
+    target_compile_definitions(xmedia_transcode PRIVATE XMEDIA_ENABLE_VAAPI=1)
+  endif()
   # The transcode .cc files name libav* headers, exactly as the media/ffmpeg/
   # ones do -- include isolation was given up on purpose (D11 chose link
   # isolation plus directory isolation). What must not happen is a SECOND

@@ -103,8 +103,26 @@
     {
       "name": "linux-native",
       "inherits": "default",
+      "displayName": "Linux native GL backends (GLFW window sink + EGL importer)",
       "cacheVariables": {
         "XMEDIA_ENABLE_LINUX_NATIVE": "ON",
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_ENABLE_GLFW": "ON",
+        "XMEDIA_ENABLE_EGL": "ON",
+        "XMEDIA_ENABLE_SDL2": "OFF"
+      }
+    },
+    {
+      "name": "linux-zero-copy",
+      "inherits": "default",
+      "displayName": "Linux real-machine zero-copy: VAAPI + NVDEC decode, dmabuf/CUDA-GL import",
+      "cacheVariables": {
+        "XMEDIA_ENABLE_LINUX_NATIVE": "ON",
+        "XMEDIA_ENABLE_FFMPEG": "ON",
+        "XMEDIA_ENABLE_GLFW": "ON",
+        "XMEDIA_ENABLE_EGL": "ON",
+        "XMEDIA_ENABLE_VAAPI": "ON",
+        "XMEDIA_ENABLE_NVDEC": "ON",
         "XMEDIA_ENABLE_SDL2": "OFF"
       }
     },
@@ -218,6 +236,10 @@
     {
       "name": "linux-native",
       "configurePreset": "linux-native"
+    },
+    {
+      "name": "linux-zero-copy",
+      "configurePreset": "linux-zero-copy"
     },
     {
       "name": "linux-all",

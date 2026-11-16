@@ -26,6 +26,7 @@ else()
   option(XMEDIA_ENABLE_VIDEOTOOLBOX "Build the VideoToolbox hw decoder factory" OFF)
 endif()
 option(XMEDIA_ENABLE_VAAPI  "Build the VAAPI hw decoder factory"   OFF)
+option(XMEDIA_ENABLE_NVDEC  "Build the NVDEC hw decoder factory"   OFF)
 option(XMEDIA_ENABLE_D3D11  "Build the D3D11 hw decoder factory"   OFF)
 
 option(XMEDIA_BUILD_TESTS    "Build unit/contract/integration tests" ${XMEDIA_IS_TOP_LEVEL})

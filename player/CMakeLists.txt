@@ -26,6 +26,18 @@ if(XMEDIA_ENABLE_CURL)
   target_link_libraries(xmedia_player PUBLIC xmedia::curl)
 endif()
 target_compile_definitions(xmedia_player PRIVATE XMEDIA_PLAYER_IMPLEMENTATION=1)
+# The VAAPI spec header (platform/hwaccel/vaapi_hw_spec.h) joins the decoder
+# list only under the same flag media/ffmpeg compiled its adapter with -- the
+# two halves of the feature must exist together or not at all.
+if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_ENABLE_VAAPI AND XMEDIA_VA_INCLUDE_DIR
+    AND XMEDIA_VA_LIBRARY)
+  target_compile_definitions(xmedia_player PRIVATE XMEDIA_ENABLE_VAAPI=1)
+endif()
+# Same pairing for the NVDEC spec: the flag exists exactly when the CUDA
+# headers exist, so the decoder list and the frame plumbing agree.
+if(XMEDIA_ENABLE_FFMPEG AND XMEDIA_ENABLE_NVDEC AND XMEDIA_CUDA_TOOLKIT_INCLUDE_DIR)
+  target_compile_definitions(xmedia_player PRIVATE XMEDIA_ENABLE_NVDEC=1)
+endif()
 xmedia_configure_target(xmedia_player)
 
 add_library(xmedia-kit INTERFACE)

@@ -27,6 +27,21 @@ add_library(xmedia::platform_hwimport ALIAS xmedia_platform_hwimport)
 target_include_directories(xmedia_platform_hwimport PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
 target_link_libraries(xmedia_platform_hwimport PUBLIC xmedia::media)
+# EGL is probed once for the whole directory: the Linux dmabuf importer
+# (below) and the EGL sink backend need the same SDK, and two probes would let
+# the two backends disagree about whether it exists.
+if(UNIX AND NOT APPLE)
+  find_package(EGL QUIET)
+  # The CUDA half of the chain: headers from the toolkit (cuda.h +
+  # cuda_gl_interop.h) and the driver library linked DIRECTLY -- dlopening
+  # libcuda here would create a second driver instance whose context handles
+  # are invalid for the one libavutil initialized (measured:
+  # CUDA_ERROR_INVALID_CONTEXT for every handle on driver 580).
+  find_path(XMEDIA_CUDA_INCLUDE_DIR cuda.h
+      HINTS /usr/local/cuda/include /opt/cuda/include)
+  find_library(XMEDIA_CUDA_DRIVER_LIBRARY cuda
+      HINTS /usr/lib/x86_64-linux-gnu /usr/local/cuda/lib64)
+endif()
 if(APPLE)
   target_sources(xmedia_platform_hwimport PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/cgl_iosurface_importer.cc")
@@ -35,6 +50,52 @@ if(APPLE)
   target_link_libraries(xmedia_platform_hwimport PRIVATE
       "-framework OpenGL" "-framework CoreVideo" "-framework IOSurface"
       "-framework CoreFoundation")
+elseif(UNIX AND NOT APPLE)
+  # The Linux half of the zero-copy path: a CHAIN of import backends, built
+  # from whatever SDKs this host has. Each backend's CanImport only claims the
+  # frame shape its producer publishes, so the chain is routing, not guesswork.
+  # glad's include root is needed for the GL enumerants target() returns -- the
+  # constants must come from the same table the drawing code reads, never be
+  # spelled a second time here.
+  target_include_directories(xmedia_platform_hwimport PRIVATE
+      "${CMAKE_SOURCE_DIR}/render/gl/third_party/glad/include")
+  set(_xmedia_import_backends "")
+  if(EGL_FOUND)
+    target_sources(xmedia_platform_hwimport PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/egl_dmabuf_importer.cc")
+    target_link_libraries(xmedia_platform_hwimport PRIVATE EGL::EGL)
+    list(APPEND _xmedia_import_backends "egl-dmabuf")
+  endif()
+  if(XMEDIA_CUDA_INCLUDE_DIR AND XMEDIA_CUDA_DRIVER_LIBRARY)
+    target_sources(xmedia_platform_hwimport PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/cuda_gl_importer.cc")
+    target_include_directories(xmedia_platform_hwimport PRIVATE
+        "${XMEDIA_CUDA_INCLUDE_DIR}")
+    target_link_libraries(xmedia_platform_hwimport PRIVATE
+        "${XMEDIA_CUDA_DRIVER_LIBRARY}")
+    list(APPEND _xmedia_import_backends "cuda-gl")
+  endif()
+  if(_xmedia_import_backends)
+    target_sources(xmedia_platform_hwimport PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/hwimport/linux_hw_importer.cc")
+    if(EGL_FOUND)
+      target_compile_definitions(xmedia_platform_hwimport PRIVATE
+          XMEDIA_ENABLE_EGL_IMPORT=1)
+    endif()
+    if(XMEDIA_CUDA_INCLUDE_DIR AND XMEDIA_CUDA_DRIVER_LIBRARY)
+      target_compile_definitions(xmedia_platform_hwimport PRIVATE
+          XMEDIA_ENABLE_CUDA_IMPORT=1)
+    endif()
+    # The factory's Linux branch only exists when at least one backend does;
+    # this flag is what switches it on (hw_importer_factory.cc).
+    target_compile_definitions(xmedia_platform_hwimport PRIVATE
+        XMEDIA_ENABLE_LINUX_IMPORT=1)
+    message(STATUS "Linux hw import chain enabled: "
+        "${_xmedia_import_backends} (zero-copy display path)")
+  else()
+    message(STATUS "No EGL and no CUDA SDK -- Linux display-side zero-copy "
+        "compiled out; hardware frames stay readback-only")
+  endif()
 endif()
 xmedia_configure_target(xmedia_platform_hwimport)
 
@@ -101,11 +162,14 @@ endif()
 
 # EGL backend: OPTIONAL. Same adaptation role as the others; the host owns the
 # EGLDisplay/EGLSurface/EGLContext. Enable with -DXMEDIA_ENABLE_EGL=ON; skipped
-# if EGL is not installed.
+# if EGL is not installed. The find_package already ran above (shared with the
+# dmabuf importer), so this block only re-checks the result.
 option(XMEDIA_ENABLE_EGL "Build the EGL GL backend" OFF)
 if(XMEDIA_ENABLE_EGL)
-  find_package(EGL QUIET)
-  if(EGL_FOUND)
+  if(NOT EGL_FOUND)
+    message(WARNING
+        "XMEDIA_ENABLE_EGL=ON but EGL not found; EGL backend skipped")
+  else()
     file(GLOB XMEDIA_EGL_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/egl/*.cc")
     add_library(xmedia_platform_egl ${XMEDIA_EGL_SOURCES})
@@ -117,9 +181,6 @@ if(XMEDIA_ENABLE_EGL)
     target_link_libraries(xmedia_platform_egl
         PRIVATE xmedia::platform_hwimport)
     xmedia_configure_target(xmedia_platform_egl)
-  else()
-    message(WARNING
-        "XMEDIA_ENABLE_EGL=ON but EGL not found; EGL backend skipped")
   endif()
 endif()
 
@@ -159,7 +220,14 @@ if(XMEDIA_ENABLE_QT)
 endif()
 
 if(XMEDIA_ENABLE_LINUX_NATIVE)
-  message(FATAL_ERROR "XMEDIA_ENABLE_LINUX_NATIVE is scheduled for milestone M12")
+  # The Linux-native backends ARE the GLFW/EGL targets above (play_glfw /
+  # play_egl are their example consumers), so this option now means "those two
+  # are on" and no longer needs its own directory or its own fatal error. The
+  # message the M12 work replaced said "scheduled for milestone M12"; keeping
+  # a fatal error pointing at a delivered milestone made the linux-native
+  # preset -- the one configuration a real Linux machine configures -- fail
+  # at configure time forever.
+  set(XMEDIA_LINUX_NATIVE_SUMMARY "GLFW/EGL backends are the Linux-native path")
 endif()
 # The FFmpeg adapter target used to live here. It moved to media/ffmpeg/:
 # FFmpeg is not a platform backend but a portable framework, and the
