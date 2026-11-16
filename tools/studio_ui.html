@@ -433,6 +433,10 @@
   #ask-head .t { font-size: 12px; font-weight: 600; }
   #ask-head .m { font-size: 10.5px; color: var(--dim); }
   #ask-head .sp { flex: 1; }
+  #ask-backend { background: var(--panel2); color: var(--acc);
+                 border: 1px solid var(--line); border-radius: 10px;
+                 font-size: 10.5px; padding: 3px 8px; }
+  #ask-backend:hover { border-color: var(--acc); }
   #ask-close { background: none; border: 0; color: var(--dim);
                font-size: 16px; line-height: 1; padding: 2px 4px; }
   #ask-close:hover { color: var(--ink); }
@@ -865,6 +869,8 @@
     <span class="t">Ask AI</span>
     <span class="m" id="ask-mode">本地规则引擎</span>
     <span class="sp"></span>
+    <button id="ask-backend" type="button"
+            title="切换编辑后端：规则引擎（预置指令）或本地 agent（子进程 LLM，可自主改文件）">规则引擎</button>
     <button id="ask-close" title="关闭">×</button>
   </div>
   <div id="ask-msgs"></div>
@@ -2527,6 +2533,7 @@ refresh().then(function () {
 /* 服务端持有 LLM 密钥与 ASR/导入能力；浏览器只发一句话，收到新 spec 后
    走和手动编辑完全相同的 refresh() 流程，预览、时间轴、属性面板同步更新。 */
 var askBusy = false;
+var askBackend = "rule";   /* "rule" = 本地规则引擎；"agent" = 子进程 LLM */
 function askAdd(text, who, cls) {
   var box = $("ask-msgs"), el = document.createElement("div");
   el.className = "ask-msg " + who + (cls ? " " + cls : "");
@@ -2537,17 +2544,30 @@ function askAdd(text, who, cls) {
 }
 function askModeLabel() {
   var m = state.agent || {};
-  $("ask-mode").textContent = m.llm ? "LLM + 本地规则" : "本地规则引擎";
+  var b = $("ask-backend");
+  if (askBackend === "agent") {
+    $("ask-mode").textContent = m.cli ? "本地 agent：" + m.cli :
+                                        "本地 agent（未检测到 CLI）";
+    b.textContent = "→ 规则引擎";
+  } else {
+    $("ask-mode").textContent = m.cli ? "本地规则引擎 · agent 可用" :
+                                        "本地规则引擎";
+    b.textContent = "→ agent";
+  }
+  b.disabled = false;
 }
+var askBackend = "rule";
 function askOpen(on) {
   $("ask-panel").classList.toggle("open", !!on);
   if (on) { askModeLabel(); $("ask-input").focus(); }
 }
 function askRun(msg) {
-  /* 单条编辑请求：调 /api/agent 并渲染回复/导入/ASR/导出任务，
-     不做 refresh——调用方决定何时统一重组（批量结束时一次）。 */
+  /* 单条编辑请求：按当前后端走 /api/agent（规则引擎）或
+     /api/agent/chat（本地 agent 子进程），并渲染回复/导入/ASR/导出
+     任务，不做 refresh——调用方决定何时统一重组（批量结束时一次）。 */
   var pending = askAdd("处理中…", "bot");
-  return api("/api/agent", { message: msg }).then(function (r) {
+  var url = askBackend === "agent" ? "/api/agent/chat" : "/api/agent";
+  return api(url, { message: msg }).then(function (r) {
     pending.textContent = r.reply || "已完成";
     pending.className = "ask-msg bot " + (r.error ? "err" : "ok");
     log("Ask AI [" + (r.mode || "rule") + "]：" +
@@ -2671,6 +2691,14 @@ function askApplyPending() {
   };
   return next();
 }
+$("ask-backend").onclick = function () {
+  askBackend = askBackend === "agent" ? "rule" : "agent";
+  askModeLabel();
+  askAdd(askBackend === "agent"
+      ? "已切换到 agent 模式：本地 LLM 子进程自主改 spec/重跑 compose"
+          + "（每次请求可能耗时数分钟）"
+      : "已切换到规则引擎模式：预置指令即时生效", "bot");
+};
 $("ask-stage").onclick = function () { askStage($("ask-input").value); };
 $("ask-pending-clear").onclick = function () {
   pendingEdits = []; pendingRender();

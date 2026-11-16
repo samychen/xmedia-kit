@@ -18,6 +18,7 @@
 import argparse
 import copy
 import hashlib
+import shutil
 import json
 import os
 import re
@@ -1466,6 +1467,144 @@ class StudioServer:
                 out["reply"] += f"（动作执行失败：{emsg}）"
         return out
 
+    AGENT_CHAT_TIMEOUT_S = 600
+    AGENT_HISTORY_ROUNDS = 5
+
+    @staticmethod
+    def _agent_probe():
+        """本地 agent CLI 探测：优先 claude（非交互 -p），备选 codex exec。"""
+        for name, cmd in (("claude", ["claude", "-p", "--output-format",
+                                      "json"]),
+                          ("codex", ["codex", "exec"])):
+            path = shutil.which(name)
+            if path:
+                return {"cli": name, "cmd": cmd, "path": path}
+        return {"cli": None}
+
+    def _chat_history_tail(self):
+        path = os.path.join(self._spec_root(), "chat.jsonl")
+        rounds = []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            rounds.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            pass
+        except OSError:
+            pass
+        return rounds[-self.AGENT_HISTORY_ROUNDS:]
+
+    def _chat_log(self, message, reply, backend):
+        """对话历史持久化：<spec 根>/chat.jsonl 逐行追加（失败不阻塞）。"""
+        path = os.path.join(self._spec_root(), "chat.jsonl")
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(
+                    {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                     "backend": backend, "user": message,
+                     "assistant": reply}, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
+
+    def _run_agent_chat(self, message):
+        """agent 模式：子进程驱动本地 agent CLI（真会话，能改项目文件）。
+
+        与规则引擎模式（_run_agent）的区别：LLM 自主理解任意表述并执行
+        多步操作（读文档 → 改 spec → 重跑 compose），不限于预置指令。
+        历史持久化到 <spec 根>/chat.jsonl；spec 被改时重载并重组契约页。
+        """
+        probe = self._agent_probe()
+        if not probe["cli"]:
+            return {"agent": "none", "mode": "help",
+                    "reply": "本机未检测到可用的 agent CLI（claude / codex）。\n"
+                             "接入方式二选一：\n"
+                             "1. 安装 Claude Code 后重启 Studio（本模式以\n"
+                             "   claude -p 子进程驱动，可自主改文件）\n"
+                             "2. 外部 agent + skill 驱动：仓库内\n"
+                             "   .agents/skills/xmedia-ai-video/SKILL.md\n"
+                             "   （xmedia CLI 全能力，脱离 Studio 也可用）\n"
+                             "3. 继续用「规则引擎」模式改 spec（本页预置指令）"}
+        spec_path = self.spec_path or ""
+        root = self._spec_root()
+        history = self._chat_history_tail()
+        hist_txt = "\n".join(
+            f"[{r.get('backend', '?')}] 用户: {str(r.get('user', ''))[:120]}"
+            f"\n助手: {str(r.get('assistant', ''))[:200]}"
+            for r in history) or "（无）"
+        prompt = (
+            "你在 xmedia-kit Studio 的 agent 模式里帮用户编辑视频。\n"
+            f"- spec JSON 路径: {spec_path}\n"
+            f"- spec 所在目录: {root}\n"
+            "- 仓库根: /Users/samychen/Develop/avbase\n"
+            "- schema 文档: /Users/samychen/Develop/avbase/docs/HF_COMPOSE.md"
+            "（改 spec 前先读它的 schema 段）\n"
+            f"- 改完 spec 后运行: python3 /Users/samychen/Develop/avbase/"
+            f"tools/xmedia.py compose {spec_path} -o {self.contract_path}"
+            "（重新生成契约页）\n"
+            "- 只改 spec 与契约页相关文件，不要动渲染引擎代码。\n"
+            "- 回复用中文，简短说明做了什么改动。\n\n"
+            f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
+        cli = probe["cli"]
+        spec_mtime_before = (os.path.getmtime(spec_path)
+                             if spec_path and os.path.exists(spec_path)
+                             else 0)
+        try:
+            proc = subprocess.run(probe["cmd"] + [prompt],
+                                  capture_output=True, text=True,
+                                  timeout=self.AGENT_CHAT_TIMEOUT_S,
+                                  cwd=root or ".")
+        except subprocess.TimeoutExpired:
+            self._chat_log(message, "（agent 运行超时）", cli)
+            return {"agent": cli, "mode": "agent",
+                    "reply": f"agent 运行超时（{self.AGENT_CHAT_TIMEOUT_S}s "
+                             "上限），任务可能仍在后台继续",
+                    "error": "timeout"}
+        reply_raw = (proc.stdout or "").strip()
+        reply, is_error, parsed = reply_raw, False, False
+        if cli == "claude":
+            # --output-format json：取 result 字段（text 模式的 stdout 尾部
+            # 会被 SessionEnd hook 噪音污染，实测）。stdout 可能混有噪音行
+            # ——整体与逐行都试一遍，取第一个含 result 的 JSON 对象。
+            payload = None
+            for cand in [reply_raw] + reply_raw.splitlines():
+                try:
+                    obj = json.loads(cand)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                if isinstance(obj, dict) and "result" in obj:
+                    payload = obj
+                    break
+            if payload is not None:
+                reply = str(payload.get("result") or "")
+                is_error = bool(payload.get("is_error"))
+                parsed = True
+        if proc.returncode != 0 and not parsed:
+            # 非零退出且没有可解析的回复才视为失败——本机 hook 配置
+            # （SessionEnd 钩子被取消）会让 claude -p 以 exit 1 结束，
+            # 但 stdout 仍携带有效 result JSON。
+            return {"agent": cli, "mode": "agent",
+                    "reply": (proc.stderr or reply_raw)[-600:]
+                              or "agent 非零退出",
+                    "error": f"exit {proc.returncode}"}
+        spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
+                        os.path.getmtime(spec_path) > spec_mtime_before)
+        out = {"agent": cli, "mode": "agent",
+               "reply": reply[-1500:] or "（agent 无输出）",
+               "spec_updated": spec_changed}
+        if is_error:
+            out["error"] = ("agent 上报错误（回复文本是 CLI 的错误说明，"
+                            "常见为 CLI 配置的模型不可用：claude --model "
+                            "换可用模型）")
+        if spec_changed:
+            self.current_spec = self._load_spec()
+            out["composed"] = self._compose()
+            out["spec"] = self.current_spec
+        self._chat_log(message, reply, cli)
+        return out
+
 
 def make_handler(server_ref):
     class Handler(BaseHTTPRequestHandler):
@@ -1503,7 +1642,8 @@ def make_handler(server_ref):
                             "width": w, "height": h,
                             "errors": errors,
                             "agent": {"llm": bool(os.environ.get(
-                                "XMEDIA_LLM_ENDPOINT")), "mcp": True},
+                                "XMEDIA_LLM_ENDPOINT")), "mcp": True,
+                                "cli": srv._agent_probe()["cli"]},
                             "import": {
                                 "last_dir": srv.last_import_dir,
                                 "spec_dir": srv._spec_root(),
@@ -1631,6 +1771,9 @@ def make_handler(server_ref):
                     self._json(srv._undo_import())
                 elif path == "/api/agent":
                     self._json(srv._run_agent(str(body.get("message") or "")))
+                elif path == "/api/agent/chat":
+                    self._json(srv._run_agent_chat(
+                        str(body.get("message") or "")))
                 else:
                     self._json({"error": "unknown endpoint"}, 404)
             except (RuntimeError, ValueError, OSError, KeyError) as e:
