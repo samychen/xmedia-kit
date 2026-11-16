@@ -4,6 +4,8 @@
 
 #include "media/base/video_color_space.h"
 
+#include <climits>
+#include <cstdint>
 #include <string>
 
 namespace xmedia::media {

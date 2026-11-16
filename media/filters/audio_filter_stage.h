@@ -12,6 +12,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "media/base/audio_buffer.h"
 #include "media/media_export.h"
+#include <functional>
 
 namespace xmedia::media {
 

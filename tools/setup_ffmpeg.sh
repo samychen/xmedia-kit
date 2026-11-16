@@ -156,6 +156,8 @@ dep_git_url() {
     libvpx)   echo "https://github.com/webmproject/libvpx.git" ;;
     srt)      echo "https://github.com/Haivision/srt.git" ;;
     libyuv)   echo "https://github.com/lemenkov/libyuv.git" ;;
+    zimg)     echo "https://github.com/sekrit-twc/zimg.git" ;;
+    ffnvcodec) echo "https://github.com/FFmpeg/nv-codec-headers.git" ;;
   esac
 }
 dep_tag() {
@@ -169,6 +171,8 @@ dep_tag() {
     libvpx)   echo "v1.15.0" ;;
     srt)      echo "v1.5.3" ;;
     libyuv)   echo "" ;;  # no release tags; HEAD snapshot
+    zimg)     echo "release-3.0.5" ;;
+    ffnvcodec) echo "n12.2.72.0" ;;
   esac
 }
 dep_commit() {
@@ -182,13 +186,15 @@ dep_commit() {
     libvpx)   echo "5a65405dde363f5c50b568cf85bd7d6d874ce145" ;;
     srt)      echo "09f35c0f1743e23f514cb41444504a7faeacf89e" ;;
     libyuv)   echo "aa6cedb39c87910b4c28e5c71c2121fc45fd234b" ;;
+    zimg)     echo "e5b0de6bebbcbc66732ed5afaafef6b2c7dfef87" ;;
+    ffnvcodec) echo "c69278340ab1d5559c7d7bf0edf615dc33ddbba7" ;;
   esac
 }
 
 # Normalize + validate XMEDIA_FFMPEG_DEPS into dependency-safe order, with the
 # implicit requirements pulled in explicitly (a notice beats a mystery link
 # error 20 minutes in).
-SUPPORTED_DEPS=" openssl mbedtls x264 fdk-aac opus librtmp srt libyuv libvpx "
+SUPPORTED_DEPS=" openssl mbedtls x264 fdk-aac opus librtmp srt libyuv libvpx zimg ffnvcodec "
 REQUESTED_DEPS="$(echo "${XMEDIA_FFMPEG_DEPS:-}" | tr ',+' '  ')"
 # What the caller actually asked for, BEFORE the implicit requirements below
 # add anything. The distinction matters for FFmpeg's own TLS backend: mbedtls
@@ -201,7 +207,7 @@ DEPS=""
 for dep in ${REQUESTED_DEPS}; do
   case "${SUPPORTED_DEPS}" in
     *" ${dep} "*) ;;
-    *) echo "error: unsupported XMEDIA_FFMPEG_DEPS entry '${dep}' (supported: openssl mbedtls x264 fdk-aac opus librtmp srt libyuv)" >&2
+    *) echo "error: unsupported XMEDIA_FFMPEG_DEPS entry '${dep}' (supported: openssl mbedtls x264 fdk-aac opus librtmp srt libyuv zimg)" >&2
        exit 1 ;;
   esac
   case " ${DEPS} " in
@@ -229,7 +235,7 @@ if [ -n "${DEPS}" ]; then
   # Canonical build order: TLS backends first (srt/librtmp compile against
   # them), then codecs, then the protocol stacks that consume them.
   ORDERED=""
-  for dep in openssl mbedtls x264 fdk-aac opus librtmp srt libyuv; do
+  for dep in openssl mbedtls x264 fdk-aac opus librtmp srt libyuv zimg ffnvcodec; do
     case " ${DEPS} " in
       *" ${dep} "*) ORDERED="${ORDERED} ${dep}" ;;
     esac
@@ -331,6 +337,16 @@ build_dep() {  # <name>
            --disable-examples --disable-tools --disable-docs \
            --enable-vp9-encoder --enable-vp8-encoder \
         && make -j"${JOBS}" && make install) ;;
+    zimg)
+      # Static + PIC: FFmpeg's zscale/tonemap filters need zimg >= 2.7, and
+      # the shared-FFmpeg build links it into a shared object.
+      (cd "${dest}" && CXXFLAGS="-fPIC" ./configure --prefix="${PREFIX}" \
+           --disable-shared --enable-static \
+        && make -j"${JOBS}" && make install) ;;
+    ffnvcodec)
+      # Header-only: installs the NVDEC/NVENC entry-point headers plus the
+      # ffnvcodec.pc FFmpeg's configure probes. No library, nothing to link.
+      (cd "${dest}" && make PREFIX="${PREFIX}" install) ;;
     librtmp)
       # Only the static library is wanted: the default target also links the
       # rtmpdump CLI, which drags in more than FFmpeg needs.
@@ -421,6 +437,13 @@ esac
 case " ${DEPS} " in
   *" srt "*)     FF_EXTRA_FLAGS="${FF_EXTRA_FLAGS} --enable-libsrt --enable-protocol=libsrt" ;;
 esac
+case " ${DEPS} " in
+  # zimg is a C++ library; FFmpeg's configure test links with the C compiler,
+  # so a STATIC libzimg needs libstdc++ and libm named explicitly (FFmpeg's
+  # add_extralibs accumulates across repeated --extra-libs). Harmless with a
+  # shared system zimg, which carries its own DT_NEEDED entries.
+  *" zimg "*)    FF_EXTRA_FLAGS="${FF_EXTRA_FLAGS} --extra-libs=-lstdc++ --extra-libs=-lm" ;;
+esac
 
 # ------------------------------------------------------------------- ffmpeg --
 mkdir -p "${DOWNLOADS}"
@@ -490,12 +513,16 @@ hwaccel_flags() {
       echo "--enable-videotoolbox --enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox"
       ;;
     *)
-      # Linux would be --enable-vaapi + --enable-hwaccel=h264_vaapi,... and
-      # Windows --enable-d3d11va. Neither is added: CI has no GPU to decode
-      # on, and an interop backend for them is not built either (see
-      # platform/hwimport), so enabling the hwaccel alone would only make the
-      # pipeline read those frames back -- correct, and strictly slower.
-      echo ""
+      # Linux: NVDEC (the cuda hwaccel) only when the caller built the
+      # ffnvcodec headers into this prefix; the decoded frames reach GL
+      # through the CUDA-GL interop importer (platform/hwimport). VAAPI stays
+      # off in this pinned build: the VA driver is a host-side fact and the
+      # vaapi flags would silently decode nothing on machines without one.
+      case " ${DEPS} " in
+        *" ffnvcodec "*)
+          echo "--enable-ffnvcodec --enable-cuda --enable-nvdec --enable-hwaccel=h264_nvdec,hevc_nvdec,vp9_nvdec" ;;
+        *) echo "" ;;
+      esac
       ;;
   esac
 }

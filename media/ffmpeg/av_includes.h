@@ -119,7 +119,14 @@ inline const uint8_t* xmedia_stream_side_data(const AVStream* stream,
   *size = side_data->size;
   return side_data->data;
 #else
-  return av_stream_get_side_data(stream, type, size);
+  // FFmpeg 4.x: av_stream_get_side_data takes a non-const stream and an
+  // int* size; newer versions moved the size to unsigned. Copy through a
+  // local int and keep the wrapper's size_t contract.
+  int side_size = 0;
+  const uint8_t* data = av_stream_get_side_data(
+      const_cast<AVStream*>(stream), type, &side_size);
+  *size = static_cast<size_t>(side_size);
+  return data;
 #endif
 }
 

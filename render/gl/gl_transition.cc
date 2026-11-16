@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <string>
 
 #include "render/gl/gl_shaders.h"

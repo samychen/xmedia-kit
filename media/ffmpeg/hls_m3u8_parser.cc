@@ -237,6 +237,16 @@ std::optional<int64_t> ParseIsoDateTimeMs(std::string_view text) {
   return seconds * 1000 + millis;
 }
 
+// GCC 11's maybe-uninitialized analysis cannot connect the has_value()
+// guards below to the operator* reads through the loop's optional state
+// machine, and -O2 turns the false positive into an error. The optionals
+// are assigned before every guarded read, which GCC 12's libstdc++ rework
+// makes visible again (PR c++/97064); this suppression is scoped to the
+// parser function so a real uninitialized read elsewhere still fires.
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 12
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
                                                const std::string& base_url) {
   Playlist playlist;
@@ -465,5 +475,8 @@ base::expected<Playlist, MediaError> ParseM3U8(std::string_view text,
   }
   return playlist;
 }
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 12
+#pragma GCC diagnostic pop
+#endif
 
 }  // namespace xmedia::media::hls

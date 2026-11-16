@@ -13,6 +13,7 @@
 #include "media/base/render_perf_stats.h"
 #include "media/base/video_frame.h"
 #include "media/media_export.h"
+#include <functional>
 
 namespace xmedia::media {
 

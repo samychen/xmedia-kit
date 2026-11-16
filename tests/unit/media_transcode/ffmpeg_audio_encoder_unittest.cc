@@ -18,6 +18,7 @@
 #include "media/base/encoded_packet.h"
 #include "media/base/media_log.h"
 #include "media/ffmpeg/av_includes.h"
+#include <cstring>
 
 namespace xmedia::media {
 namespace {

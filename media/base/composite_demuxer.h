@@ -59,6 +59,12 @@ class XMEDIA_MEDIA_EXPORT CompositeDemuxer : public Demuxer,
                                              public Demuxer::Host {
  public:
   using Source = CompositeDemuxerSource;
+  // GCC 11 refuses the two-base-path lookup of the nested name -- `Host` is
+  // reachable through both `Demuxer` and `Demuxer::Host`, and the two hits
+  // (the class and its injected-class-name) are different declarations that
+  // denote the same type, which the standard calls ambiguous. One alias in
+  // this scope makes the first lookup hit here and settles it.
+  using Host = Demuxer::Host;
 
   explicit CompositeDemuxer(std::vector<Source> sources);
   ~CompositeDemuxer() override;

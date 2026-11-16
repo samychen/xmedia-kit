@@ -25,6 +25,7 @@
 #include "media/transcode/ffmpeg_audio_encoder.h"
 #include "media/transcode/ffmpeg_encode_muxer.h"
 #include "media/transcode/ffmpeg_video_encoder.h"
+#include <cstring>
 
 namespace xmedia::media {
 namespace {

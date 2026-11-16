@@ -29,6 +29,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include <functional>
 
 namespace xmedia::base {
 
