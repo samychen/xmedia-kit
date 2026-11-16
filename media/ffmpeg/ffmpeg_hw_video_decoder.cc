@@ -17,9 +17,11 @@
 #include "media/ffmpeg/hw_frame_readback.h"
 #if defined(XMEDIA_ENABLE_VAAPI)
 #include <libavutil/hwcontext_vaapi.h>
-
-#include "media/ffmpeg/vaapi_dmabuf_adapter.h"
 #endif
+// Unconditional: |VaapiDmabufDerive| is declared outside the #if above so
+// the non-VA attach points compile; on non-VA builds both members stay null
+// and the derivation is skipped (the adapter guards its own VA parts).
+#include "media/ffmpeg/vaapi_dmabuf_adapter.h"
 #if defined(XMEDIA_ENABLE_NVDEC)
 #include <libavutil/hwcontext_cuda.h>
 #endif

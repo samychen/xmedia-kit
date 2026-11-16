@@ -110,6 +110,6 @@ VaapiDmabufDerive DeriveVaapiDmabufs(VADisplay display, uintptr_t surface_id,
   return result;
 }
 
-#endif  // XMEDIA_ENABLE_VAAPI
-
 }  // namespace xmedia::media::ffmpeg
+
+#endif  // XMEDIA_ENABLE_VAAPI

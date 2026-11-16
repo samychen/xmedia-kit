@@ -34,8 +34,16 @@
 // display object and only passes the pointer through. va_drmcommon.h carries
 // VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME, the mem type the buffer-handle
 // acquisition asks for.
+//
+// The result struct is defined unconditionally: the hw decoder declares a
+// local of it outside its own #if and attaches it to the wrapped frame, so
+// non-VA builds need the type to exist (with both members always null --
+// the attach points then degrade to no-ops). Only the VA-touching parts are
+// guarded.
+#if defined(XMEDIA_ENABLE_VAAPI)
 #include <va/va.h>
 #include <va/va_drmcommon.h>
+#endif
 
 namespace xmedia::media::ffmpeg {
 
@@ -53,6 +61,7 @@ struct VaapiDmabufDerive {
   base::OnceClosure cleanup;
 };
 
+#if defined(XMEDIA_ENABLE_VAAPI)
 // Derives the dmabuf plane handles of |surface_id| on |display|.
 // |format| is the same layout hint the decoder puts on the VideoFrame
 // (kNV12 today; 10-bit layouts are declined here and stay readback-only,
@@ -61,6 +70,7 @@ struct VaapiDmabufDerive {
 VaapiDmabufDerive DeriveVaapiDmabufs(VADisplay display, uintptr_t surface_id,
                                      int width, int height,
                                      VideoFormat format);
+#endif  // XMEDIA_ENABLE_VAAPI
 
 }  // namespace xmedia::media::ffmpeg
 
