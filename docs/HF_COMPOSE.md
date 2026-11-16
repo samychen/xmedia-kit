@@ -35,6 +35,30 @@ pre-apply ack miss 问题，不可用）。
 专项方向：CEF software compositor 的 tile 光栅完成度门控（需要
 OnPaint 之外的完整性信号），或 VT 时钟的退出/ack 修复后切默认。
 
+### VT 时钟专项侦察（2026-11-17，未合入）
+
+`--clock virtual_time` 对 HF 契约页**从未可用**（架构事实 + 三层黑盒），
+实验性修复均已回退，此处留档供专项续作：
+
+1. **时间线缺口**：`TickBakeClock` 的 VT 分支只发 VT 步进，从不 dispatch
+   `MakeSeekScript`——HF 契约页的 paused GSAP 注册表不被虚拟时钟推进
+   （GSAP ticker 走真实墙钟），页面停在 bootstrap，整段输出纯背景。
+   修法（已验证可行）：VT 分支合体 dispatch seek JS——TLTRACE 探针实测
+   165/165 seek 执行且 `tl.time()` 逐帧精确。
+2. **管线层级与预算**：seek JS 执行 ≠ 画面更新。renderer 全管线
+   （JS → style recalc → paint → commit → raster → activate）各层需要
+   VT 预算；同拍 BeginFrame 合成到的是旧样式快照（画面卡 bootstrap）。
+   补一个步进后内容出现但 raster 未完成（tile 黑块）——正确修法是
+   **加大单步 budget**（40ms 的 mix 对齐值不够）而非逐层补步进
+   （补步进会被 VT 状态机的 credit/C2 重试交互打乱，实测 303≠495）。
+3. **启动竞态（未解）**：`CreateBrowserSync` 后立即 arm VT（DevTools
+   `setVirtualTimePolicy`），间歇性 ~50% 概率 budgetExpired 从不到达
+   （0 次 expire）→ 页面 load 不完成 → `no first frame in 15s`；成功
+   实例间行为也不同（首帧后 pre-apply ack 全丢/烘完退出挂起/正常退出
+   三种）。load-end 兜底 Invalidate+BeginFrame 无效（OnLoadEnd 本身没到）。
+   疑点：DevTools agent 就绪前 `ExecuteDevToolsMethod` 静默丢弃。
+   需要对齐 MC 上游 VT 实现或 CEF 升级后重估。
+
 ## 快速上手
 
 **统一 CLI**（推荐，所有能力的入口；详细子命令 `xmedia --help`）：
