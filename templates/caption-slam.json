@@ -1,0 +1,11 @@
+{
+ "name": "caption-slam",
+ "description": "大字标题卡：Kinetic Slam 风巨字冲击",
+ "slots": [
+  "text",
+  "tag"
+ ],
+ "css": "#tpl-caption-slam { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #10101c; } #tpl-caption-slam .cs-text { font-size: 130px; font-weight: 900; color: #ffffff; text-align: center; line-height: 1.05; text-transform: uppercase; padding: 0 6%; text-shadow: 8px 8px 0 rgba(109, 139, 255, 0.35); } #tpl-caption-slam .cs-tag { font-size: 26px; color: #6d8bff; letter-spacing: 8px; margin-top: 34px; text-transform: uppercase; }",
+ "body": "<div class=\"cs-text\">{{text}}</div><div class=\"cs-tag\">{{tag}}</div>",
+ "sfx": "pop"
+}

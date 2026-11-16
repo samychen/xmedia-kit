@@ -1,0 +1,13 @@
+{
+ "name": "code-terminal",
+ "description": "终端模拟器：黑底等宽字 + 提示符",
+ "slots": [
+  "prompt",
+  "line1",
+  "line2",
+  "line3"
+ ],
+ "css": "#tpl-code-terminal { position: absolute; inset: 10% 9%; background: #0d0d12; border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.12); font-family: 'SF Mono', Menlo, monospace; overflow: hidden; } #tpl-code-terminal .ct-bar { height: 52px; background: #1c1c24; display: flex; align-items: center; padding: 0 22px; gap: 10px; } #tpl-code-terminal .ct-dot { width: 16px; height: 16px; border-radius: 50%; } #tpl-code-terminal .ct-body { padding: 34px 38px; font-size: 32px; line-height: 1.75; color: #3ecf8e; } #tpl-code-terminal .ct-prompt { color: #6d8bff; }",
+ "body": "<div class=\"ct-bar\"><div class=\"ct-dot\" style=\"background:#ff5f57\"></div><div class=\"ct-dot\" style=\"background:#febc2e\"></div><div class=\"ct-dot\" style=\"background:#28c840\"></div></div><div class=\"ct-body\"><span class=\"ct-prompt\">{{prompt}}</span><br>{{line1}}<br>{{line2}}<br>{{line3}}</div>",
+ "sfx": "whoosh"
+}

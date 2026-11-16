@@ -1,0 +1,14 @@
+{
+ "name": "pricing-card",
+ "description": "定价卡：价格 + 三条特性",
+ "slots": [
+  "plan",
+  "price",
+  "f1",
+  "f2",
+  "f3"
+ ],
+ "css": "#tpl-pricing-card { position: absolute; inset: 7% 16%; background: rgba(16, 16, 28, 0.85); border: 1px solid rgba(109, 139, 255, 0.4); border-radius: 22px; display: flex; flex-direction: column; justify-content: center; padding: 0 8%; } #tpl-pricing-card .pc-plan { font-size: 32px; color: #9aa4c8; letter-spacing: 5px; text-transform: uppercase; } #tpl-pricing-card .pc-price { font-size: 130px; font-weight: 900; color: #ffffff; margin: 14px 0 30px; } #tpl-pricing-card .pc-f { font-size: 30px; color: #c8d4ff; margin: 12px 0; padding-left: 34px; position: relative; } #tpl-pricing-card .pc-f::before { content: \"✓\"; position: absolute; left: 0; color: #3ecf8e; }",
+ "body": "<div class=\"pc-plan\">{{plan}}</div><div class=\"pc-price\">{{price}}</div><div class=\"pc-f\">{{f1}}</div><div class=\"pc-f\">{{f2}}</div><div class=\"pc-f\">{{f3}}</div>",
+ "sfx": "ding"
+}

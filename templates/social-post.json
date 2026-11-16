@@ -1,0 +1,13 @@
+{
+ "name": "social-post",
+ "description": "社交帖子卡：头像 + 用户名 + 文案",
+ "slots": [
+  "user",
+  "handle",
+  "text",
+  "meta"
+ ],
+ "css": "#tpl-social-post { position: absolute; inset: 12% 10%; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 6%; backdrop-filter: blur(6px); } #tpl-social-post .sp-head { display: flex; align-items: center; gap: 22px; } #tpl-social-post .sp-avatar { width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(140deg, #6d8bff, #3ecf8e); flex: none; } #tpl-social-post .sp-user { font-size: 38px; font-weight: 700; color: #ffffff; } #tpl-social-post .sp-handle { font-size: 26px; color: #9aa4c8; } #tpl-social-post .sp-text { font-size: 40px; line-height: 1.45; color: #e8ecff; margin-top: 34px; } #tpl-social-post .sp-meta { font-size: 24px; color: #9aa4c8; margin-top: 30px; }",
+ "body": "<div class=\"sp-head\"><div class=\"sp-avatar\"></div><div><div class=\"sp-user\">{{user}}</div><div class=\"sp-handle\">{{handle}}</div></div></div><div class=\"sp-text\">{{text}}</div><div class=\"sp-meta\">{{meta}}</div>",
+ "sfx": "pop"
+}

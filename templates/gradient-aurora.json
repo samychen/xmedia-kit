@@ -1,0 +1,11 @@
+{
+ "name": "gradient-aurora",
+ "description": "极光渐变底 + 居中大字",
+ "slots": [
+  "text",
+  "sub"
+ ],
+ "css": "#tpl-gradient-aurora { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #0a0a1a, #16213e 45%, #0f3460 80%, #1a1a2e); } #tpl-gradient-aurora .ga-text { font-size: 110px; font-weight: 800; background: linear-gradient(90deg, #6d8bff, #3ecf8e, #8b6dff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-align: center; padding: 0 7%; } #tpl-gradient-aurora .ga-sub { font-size: 30px; color: #9aa4c8; margin-top: 34px; }",
+ "body": "<div class=\"ga-text\">{{text}}</div><div class=\"ga-sub\">{{sub}}</div>",
+ "sfx": "whoosh"
+}

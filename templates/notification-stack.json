@@ -1,0 +1,12 @@
+{
+ "name": "notification-stack",
+ "description": "通知堆叠：macOS 通知风三条叠放",
+ "slots": [
+  "n1",
+  "n2",
+  "n3"
+ ],
+ "css": "#tpl-notification-stack { position: absolute; inset: 0; background: linear-gradient(160deg, #1a1a2e, #0a0a1a); display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 0 10%; } #tpl-notification-stack .ns-item { background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 18px; padding: 26px 32px; font-size: 32px; color: #e8ecff; backdrop-filter: blur(8px); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.4); } #tpl-notification-stack .ns-item:nth-child(2) { transform: translateX(26px); } #tpl-notification-stack .ns-item:nth-child(3) { transform: translateX(52px); }",
+ "body": "<div class=\"ns-item\">{{n1}}</div><div class=\"ns-item\">{{n2}}</div><div class=\"ns-item\">{{n3}}</div>",
+ "sfx": "pop"
+}

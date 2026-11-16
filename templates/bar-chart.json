@@ -1,0 +1,14 @@
+{
+ "name": "bar-chart",
+ "description": "条形图：4 根数据条 + 标签",
+ "slots": [
+  "heading",
+  "b1",
+  "v1",
+  "v2",
+  "v3"
+ ],
+ "css": "#tpl-bar-chart { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 9%; background: #0a0a1a; } #tpl-bar-chart .bc-heading { font-size: 52px; font-weight: 700; color: #ffffff; margin-bottom: 50px; } #tpl-bar-chart .bc-row { display: flex; align-items: center; margin: 18px 0; } #tpl-bar-chart .bc-bar { height: 44px; border-radius: 6px; background: linear-gradient(90deg, #6d8bff, #8b6dff); margin-right: 24px; flex: none; min-width: 12%; max-width: 70%; } #tpl-bar-chart .bc-label { font-size: 28px; color: #c8d4ff; }",
+ "body": "<div class=\"bc-heading\">{{heading}}</div><div class=\"bc-row\"><div class=\"bc-bar\" style=\"width: 72%\"></div><div class=\"bc-label\">{{b1}}</div></div><div class=\"bc-row\"><div class=\"bc-bar\" style=\"width: 48%\"></div><div class=\"bc-label\">{{v1}}</div></div><div class=\"bc-row\"><div class=\"bc-bar\" style=\"width: 88%\"></div><div class=\"bc-label\">{{v2}}</div></div><div class=\"bc-row\"><div class=\"bc-bar\" style=\"width: 34%\"></div><div class=\"bc-label\">{{v3}}</div></div>",
+ "sfx": "success"
+}

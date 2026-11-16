@@ -1,0 +1,12 @@
+{
+ "name": "date-badge",
+ "description": "日期徽章：发布日期/倒计时日居中",
+ "slots": [
+  "badge",
+  "title",
+  "subtitle"
+ ],
+ "css": "#tpl-date-badge { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a1a; } #tpl-date-badge .db-badge { padding: 16px 44px; border-radius: 999px; border: 2px solid #6d8bff; color: #6d8bff; font-size: 30px; letter-spacing: 6px; } #tpl-date-badge .db-title { font-size: 96px; font-weight: 800; color: #ffffff; margin-top: 44px; text-align: center; padding: 0 8%; } #tpl-date-badge .db-sub { font-size: 28px; color: #9aa4c8; margin-top: 24px; }",
+ "body": "<div class=\"db-badge\">{{badge}}</div><div class=\"db-title\">{{title}}</div><div class=\"db-sub\">{{subtitle}}</div>",
+ "sfx": "ding"
+}

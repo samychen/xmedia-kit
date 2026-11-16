@@ -1,0 +1,13 @@
+{
+ "name": "compare-split",
+ "description": "左右对比：Before/After 双栏对照",
+ "slots": [
+  "left-title",
+  "left-text",
+  "right-title",
+  "right-text"
+ ],
+ "css": "#tpl-compare-split { position: absolute; inset: 0; display: flex; } #tpl-compare-split .cp-side { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 7%; } #tpl-compare-split .cp-left { background: #14141f; } #tpl-compare-split .cp-right { background: #101a2e; } #tpl-compare-split .cp-title { font-size: 40px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; } #tpl-compare-split .cp-left .cp-title { color: #9aa4c8; } #tpl-compare-split .cp-right .cp-title { color: #3ecf8e; } #tpl-compare-split .cp-text { font-size: 44px; line-height: 1.4; color: #ffffff; margin-top: 26px; }",
+ "body": "<div class=\"cp-side cp-left\"><div class=\"cp-title\">{{left-title}}</div><div class=\"cp-text\">{{left-text}}</div></div><div class=\"cp-side cp-right\"><div class=\"cp-title\">{{right-title}}</div><div class=\"cp-text\">{{right-text}}</div></div>",
+ "sfx": "whoosh"
+}

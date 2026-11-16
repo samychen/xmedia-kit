@@ -1,0 +1,11 @@
+{
+ "name": "progress-ring",
+ "description": "进度环：conic 圆环 + 百分比标注",
+ "slots": [
+  "percent",
+  "label"
+ ],
+ "css": "#tpl-progress-ring { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at center, #131325, #0a0a1a 75%); } #tpl-progress-ring .pr-ring { width: 420px; height: 420px; border-radius: 50%; background: conic-gradient(#6d8bff calc(var(--p, 0) * 1%), rgba(109, 139, 255, 0.15) 0); display: grid; place-items: center; } #tpl-progress-ring .pr-inner { width: 360px; height: 360px; border-radius: 50%; background: #0a0a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; } #tpl-progress-ring .pr-pct { font-size: 110px; font-weight: 900; color: #ffffff; } #tpl-progress-ring .pr-label { font-size: 30px; color: #9aa4c8; margin-top: 12px; }",
+ "body": "<div class=\"pr-ring\" style=\"--p: {{percent}}\"><div class=\"pr-inner\"><div class=\"pr-pct\">{{percent}}%</div><div class=\"pr-label\">{{label}}</div></div></div>",
+ "sfx": "success"
+}
