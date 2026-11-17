@@ -144,12 +144,13 @@ void MediaCefApp::OnBeforeCommandLineProcessing(
   // 配，每次启动弹"Chromium Safe Storage"密码框。use-mock-keychain 用
   // 固定密钥替代。
   command_line->AppendSwitch("use-mock-keychain");
-  // OSR software rendering: GPU subprocess on macOS outside .app bundle
-  // SIGSEGV (framework Resources unresolvable from bare executable).
-  // OnPaint still fires via the software compositor — the CefOsFrame
-  // BGRA path doesn't need GPU textures.
-  command_line->AppendSwitch("disable-gpu");
-  command_line->AppendSwitch("disable-gpu-compositing");
+  // GPU 合成开启（2026-11-18 实验转正）：历史上的 "GPU subprocess
+  // SIGSEGV (bare executable)" 已过时——html_bake.app 现在带完整
+  // Helper.app 结构，GPU 子进程实测正常（烘焙 165 帧无崩溃）。GPU 合成
+  // 还根治了 software compositor 的 tile 缺失（烘焙黑块：内容变化帧整层
+  // 重光栅时 OnPaint 抓到未完成 tile——双烘逐帧 md5 从 12-18 差异帧降到
+  // 2，中段动画帧全一致）。OSR 的 OnPaint BGRA 回读路径在 GPU 合成下
+  // 仍然工作。
 }
 
 void MediaCefApp::OnScheduleMessagePumpWork(int64_t delay_ms) {

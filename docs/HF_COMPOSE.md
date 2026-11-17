@@ -1,13 +1,15 @@
 # xmedia-kit AI 视频生成管线
 
 Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 MP4。
-三步管线，同 spec 两次生成逐字节一致（确定性）。
+三步管线，确定性管线（同 spec 双烘逐帧 md5 差异仅启动区 2 帧——
+2026-11-18 起 GPU 合成根治了 software compositor 的 tile 缺失，见
+「确定性边界」）。
 
 返回：[README](../README.md) ｜ 相关：[EXAMPLES](EXAMPLES.md) ｜ [COOKBOOK](COOKBOOK.md)
 
-### 确定性边界（2026-11-17 取证）
+### 确定性边界（2026-11-17 取证 / 2026-11-18 GPU 合成更新）
 
-管线各层的确定性实测结论——**输入侧确定，呈现层有已知限制**：
+管线各层的确定性实测结论——**输入侧确定，呈现层经 GPU 合成已收敛**：
 
 | 层 | 确定性 | 依据 |
 |---|---|---|
@@ -15,25 +17,24 @@ Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 
 | hf_compose（spec → HTML） | ✓ 逐字节 | 同 spec 两次 compose 的 HTML md5 一致（canonical sha256 锚定） |
 | 音频混音 | ✓ 帧级 | 双烘 `-map 0:a -f md5` 一致 |
 | 页面 GSAP 时间线 | ✓ 逐 seek | seekDone 回执探针：`tl.time()` 每帧 = 请求 t + 1ms（seek 脚本的 `totalTime(t+1e-3)` 设计值），两支烘焙完全一致 |
-| 视频像素 | ⚠ 逐帧 md5 有 5–18/165 差异帧 | 见下 |
+| 视频像素 | ✓ GPU 合成下双烘 diff 2/165（仅启动区竞态） | 2026-11-18 见下 |
 
-**视频像素差异的根因**：macOS OSR 走 software compositor（`disable-gpu`），
-partial raster 下**内容变化帧**（字幕点亮/场景进出/动画）触发整层重光栅，
-OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块（黑块边界即 tile 边界）。
-取证排除了其它假设：seek 在飞门控的丢弃从未触发（探针实测）；GSAP 时间线
-状态两支逐 seek 一致；无动画 spec 同样出现（差异与动画无关）；compose 产物
-逐字节一致（差异不在输入）。`--disable-partial-raster` +
-`--run-all-compositor-stages-before-draw` 开关无效（software path 不吃）。
+**视频像素差异的根因（已根治）**：曾经 macOS OSR 走 software compositor
+（`disable-gpu`，历史注释称 GPU 子进程在 bundle 外 SIGSEGV——**已过时**：
+html_bake.app 现在带完整 Helper.app 结构，GPU 子进程实测正常）。software
+compositor 的 partial raster 下，**内容变化帧**（字幕点亮/场景进出/动画）
+触发整层重光栅，OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块。
 
-尝试过并回退的修复（各自引入新问题，保持回退态等待专项）：
-"同 t 反复 Invalidate 到光栅 hash 稳定"（治好黑块但差异帧反增）、
-"在飞 seek 暂存补发"、"烘焙默认切 VT 时钟"（VT 另有退出挂起 +
-pre-apply ack miss 问题，不可用）。
+**修复（2026-11-18）**：`cef_app.cc` 移除 `disable-gpu` +
+`disable-gpu-compositing`，启用 GPU 合成——实测 165 帧烘焙无崩溃、
+双烘逐帧 md5 差异从 12–18 帧降到 **2 帧（仅启动区竞态，中段动画帧全
+一致）**，tile 缺失消失。OSR 的 OnPaint BGRA 回读路径在 GPU 合成下正常。
+取证记录（software 时代的假设已被推翻）：seek 在飞门控丢弃未触发、
+GSAP 时间线逐 seek 一致、无动画 spec 同样出现（差异与动画无关）、
+compose 产物逐字节一致——差异确实只在呈现层，呈现层换 GPU 后问题消失。
 
-影响面与对策：差异帧是黑 tile 级（PSNR 19–31），**视觉上偶发可见**，
-发布级交付前应抽帧目检（渲染验证三件套）；同 spec 复烤不保证逐字节一致。
-专项方向：CEF software compositor 的 tile 光栅完成度门控（需要
-OnPaint 之外的完整性信号），或 VT 时钟的退出/ack 修复后切默认。
+遗留：启动区 2 帧差异（首帧 paint 与采集脚本注入的竞态家族，
+量级远小于此前，仍属已知边界）。
 
 ### VT 时钟专项侦察（2026-11-17，未合入）
 

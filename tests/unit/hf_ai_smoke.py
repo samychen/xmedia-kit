@@ -262,6 +262,18 @@ def check_split_math(ui):
     if not node:
         print("  （跳过切割数学断言：未安装 node）")
         return
+    # 分片源（M5 ESM）用现代 JS 语法——老 node（<13）解析会失败；ci 的
+    # node 是新的，本机 PATH 可能指到 /usr/local/bin 的 v12。版本不足
+    # 时跳过（与未安装同语义），不把环境问题误报为功能回归。
+    try:
+        ver = int(subprocess.run([node, "--version"], capture_output=True,
+                                 text=True, timeout=15).stdout.strip()[1:].split(".")[0])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        ver = 0
+    if ver < 13:
+        print(f"  （跳过切割数学断言：node {node} 版本过旧 v{ver}，"
+              "需要 ≥13 跑 ESM 分片语法）")
+        return
     fn = extract_fn(ui, "splitSceneData")
     script = fn + r"""
 function eq(a, b, m) {
