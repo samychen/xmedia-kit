@@ -366,10 +366,27 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     caption_html = render_caption_html(
         caption, _norm_caption_segments(caption_segments, dur), idx)
 
+    # 场景级 image（brand-kits logo 入包的模板层支持）：
+    #   image: {src, mode}，mode = "backdrop"（铺满置底，文本浮上）|
+    #   "corner"（角标水印，logo 常态）。src 走 esc() 转义；位置/大小
+    #   由 CSS 侧 .scene-image-* 控制，不影响既有产物（无 image 字段
+    #   时 zero-tag，产物逐字节不变）。
+    image = scene.get("image") or {}
+    image_tag = ""
+    if isinstance(image, str):
+        image = {"src": image}
+    if image.get("src"):
+        isrc = esc(str(image["src"]))
+        imode = image.get("mode") or "backdrop"
+        if imode not in ("backdrop", "corner"):
+            imode = "backdrop"
+        image_tag = (f'  <img class="scene-image scene-image-{imode}"'
+                     f' src="{isrc}" alt="">\n')
+
     html = f'''  <div id="{scene_id}" class="clip scene scene-{typ}"
        data-start="{start_sec}" data-duration="{dur}" data-track-index="{idx}"
        data-bg="{bg}">
-{video_tag}{inner}
+{image_tag}{video_tag}{inner}
 {caption_html}  </div>
 '''
     return html, dur
@@ -690,6 +707,15 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
   .scene-video {{
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; visibility: hidden;
+  }}
+  .scene-image {{
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0;
+  }}
+  .scene-image-corner {{
+    inset: auto; width: auto; height: auto; object-fit: contain;
+    right: 4%; bottom: 5%; max-width: 18%; max-height: 12%;
+    opacity: .92;
   }}
   .scene > :not(.scene-video) {{
     position: relative; z-index: 1;

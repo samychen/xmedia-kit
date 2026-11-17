@@ -53,6 +53,16 @@
       <div class="sc-list" id="script-words"
            style="line-height:2;padding:10px;font-size:12.5px"></div>
     </div>
+    <div class="left-panel" id="sb-panel" style="display:none">
+      <div class="comp-card">
+        <div class="comp-name">Storyboard 逐镜审阅</div>
+        <div class="comp-meta" id="sb-count"></div>
+      </div>
+      <div class="sb-list" id="sb-list"></div>
+      <div class="left-foot">
+        <span>逐镜看帧审节奏 ·「改这镜」定位编辑</span>
+      </div>
+    </div>
     <div class="left-panel" id="source-panel" style="display:none">
       <textarea id="spec" spellcheck="false"></textarea>
     </div>
@@ -60,6 +70,8 @@
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
         <input type="checkbox" id="sfx" checked> 音效 SFX</label>
       <span style="flex:1"></span>
+      <button class="btn" id="btn-storyboard" type="button"
+              aria-label="打开逐镜审阅" title="逐镜审阅：每镜连拍帧+时机，改哪镜点哪镜">Storyboard</button>
       <span>Ctrl/⌘ + ↵ 重组</span>
     </div>
   </aside>

@@ -8,6 +8,7 @@ import { log, $ } from "../shared/dom.js";
 import { fps } from "../shared/time.js";
 import { rangeClamp, rangeOpen } from "../timeline/range.js";
 import { renderTimeline } from "../timeline/render.js";
+import { storyboardIsOpen, storyboardRender } from "./storyboard.js";
 
 /* ---------------- 校验 / 状态 ---------------- */
 export function renderFindings(f) {
@@ -55,6 +56,7 @@ export function refresh(keepSpec) {
     $("dims").textContent = s.width + "×" + s.height + " · " +
         (comp.fps || 30) + "fps";
     fitPreview(); renderSceneList(); renderTimeline(); renderInspector();
+    if (storyboardIsOpen()) storyboardRender();
     renderFindings(s.findings);
     pendingSeek = lastTime;
     pendingApplied = false;

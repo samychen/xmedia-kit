@@ -77,7 +77,27 @@ try {
   await page.screenshot({ path: join(outDir, "e2e-05-import.png") });
   await page.mouse.click(10, 10); // dialog ::backdrop 点击关闭
 
-  // 5. /api/state 可用
+  // 5. Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版）
+  await page.click("#btn-storyboard");
+  await page.waitForTimeout(300);
+  const sbCards = await page.locator("#sb-list .sb-card").count();
+  const apiSceneCount = await page.evaluate(async () => {
+    const st = await (await fetch("/api/state")).json();
+    return (st.scenes || []).length;
+  });
+  if (sbCards !== apiSceneCount) fail(`storyboard 卡数 ${sbCards} ≠ 场景数 ${apiSceneCount}`);
+  else ok(`storyboard 逐镜卡 ${sbCards} 张（与 /api/state 一致）`);
+  await page.screenshot({ path: join(outDir, "e2e-06-storyboard.png") });
+  await page.locator("#sb-list .sb-card .sb-edit").first().click();
+  await page.waitForTimeout(300);
+  const sbHidden = await page.locator("#sb-panel")
+    .evaluate((el) => el.style.display === "none");
+  if (!sbHidden) fail("「改这镜」后 storyboard 面板未收起");
+  else if (!(await page.locator(".sc-card.sel").count()))
+    fail("「改这镜」后场景卡未选中");
+  else ok("「改这镜」定位链（面板收起 + 场景选中）");
+
+  // 6. /api/state 可用
   const state = await page.evaluate(async () => {
     const r = await fetch("/api/state");
     return r.json();

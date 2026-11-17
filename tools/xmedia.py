@@ -608,6 +608,33 @@ def cmd_brand(args):
             print(f"  字体   {', '.join(brand['fonts'])}")
         if brand["logo_image_url"]:
             print(f"  logo   {brand['logo_image_url']}")
+        logo_local = ""
+        if brand["logo_image_url"] and brand["logo_image_url"].startswith(
+                ("http://", "https://")):
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    brand["logo_image_url"],
+                    headers={"User-Agent": "Mozilla/5.0 (xmedia-kit brand scan)"})
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    data = r.read(4_000_000)
+                ext = os.path.splitext(
+                    urllib.parse.urlparse(brand["logo_image_url"]).path)[1] \
+                    or ".png"
+                assets = os.path.join(_brand_dir(), "assets")
+                os.makedirs(assets, exist_ok=True)
+                dest = os.path.join(assets, args.name + "-logo" + ext)
+                with open(dest, "wb") as f:
+                    f.write(data)
+                logo_local = os.path.relpath(dest, _brand_dir())
+                brand["logo_image"] = logo_local
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(brand, f, ensure_ascii=False, indent=1)
+                    f.write("\n")
+            except Exception as e:
+                print(f"  logo 下载失败（保留 URL）：{e}", file=sys.stderr)
+        if logo_local:
+            print(f"  logo   {brand['logo_image_url']} → {logo_local}")
         print(f"  已保存 {path} —— brand apply {args.name} --spec <spec> 生效")
         return
     if args.action == "save":
@@ -620,7 +647,19 @@ def cmd_brand(args):
                  "text_color": args.text or "#f0f0f5",
                  "voice": args.voice or "Tingting",
                  "outro_text": args.outro or "",
-                 "logo_text": args.logo or ""}
+                 "logo_text": args.logo or "",
+                 "font_family": args.font_family or ""}
+        if args.logo_image:
+            if not os.path.isfile(args.logo_image):
+                print(f"xmedia: logo 图片不存在 {args.logo_image}",
+                      file=sys.stderr)
+                sys.exit(1)
+            assets = os.path.join(d, "assets")
+            os.makedirs(assets, exist_ok=True)
+            ext = os.path.splitext(args.logo_image)[1] or ".png"
+            dest = os.path.join(assets, args.name + "-logo" + ext)
+            shutil.copyfile(args.logo_image, dest)
+            brand["logo_image"] = os.path.relpath(dest, d)
         path = os.path.join(d, args.name + ".json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(brand, f, ensure_ascii=False, indent=1)
@@ -649,6 +688,7 @@ def cmd_brand(args):
     palette = brand.get("palette", [])
     text = brand.get("text_color", "")
     n = 0
+    n_logo = 0
     for i, sc in enumerate(spec.get("scenes", [])):
         if not sc.get("video"):
             if palette:
@@ -660,6 +700,19 @@ def cmd_brand(args):
         spec["background"] = brand.get("background", spec["background"])
     if brand.get("voice"):
         spec.setdefault("tts", {})["voice"] = brand["voice"]
+    # logo 图片入包：brand 的 logo_image（相对品牌文件，或 URL 已下载到
+    # 品牌目录）注入每个无图场景——backdrop 模式铺满置底，corner 角标
+    # 水印由 --logo-mode 控制（默认 corner，logo 常态）。
+    logo_rel = brand.get("logo_image")
+    if logo_rel:
+        mode = "corner" if not getattr(args, "logo_mode", None) or \
+            args.logo_mode == "corner" else "backdrop"
+        for sc in spec.get("scenes", []):
+            if not sc.get("image") and not sc.get("video"):
+                sc["image"] = {"src": logo_rel, "mode": mode}
+                n_logo += 1
+        if brand.get("font_family"):
+            spec.setdefault("fonts", {})["body"] = brand["font_family"]
     out_scenes = [sc for sc in spec.get("scenes", [])
                   if sc.get("type") == "outro"]
     for sc in out_scenes:
@@ -671,7 +724,7 @@ def cmd_brand(args):
         json.dump(spec, f, ensure_ascii=False, indent=1)
         f.write("\n")
     print(f"xmedia: 品牌「{args.name}」已应用 {args.spec}"
-          f"（{n} 个场景换色，outro 署名 "
+          f"（{n} 个场景换色，logo 图 {n_logo} 处，outro 署名 "
           f"「{brand.get('outro_text') or '未设置'}」）")
 
 
@@ -1010,6 +1063,8 @@ def main():
     p.add_argument("action", choices=["save", "list", "show", "apply", "scan"])
     p.add_argument("name", nargs="?", help="品牌名")
     p.add_argument("--spec", help="apply 目标 spec JSON")
+    p.add_argument("--logo-mode", choices=["corner", "backdrop"],
+                   help="logo 图注入模式（默认 corner 角标；backdrop 铺满置底）")
     p.add_argument("--url", help="scan：要读取的网站（读色板/字体/站点名）")
     p.add_argument("--background", help="全局背景色")
     p.add_argument("--palette1", help="场景色 1")
@@ -1019,6 +1074,8 @@ def main():
     p.add_argument("--voice", help="TTS 音色")
     p.add_argument("--outro", help="片尾文案")
     p.add_argument("--logo", help="片尾署名")
+    p.add_argument("--logo-image", help="logo 图片文件（复制进品牌 assets，apply 时注入场景）")
+    p.add_argument("--font-family", help="正文字体族（apply 时写 spec.fonts.body）")
     p.set_defaults(fn=cmd_brand)
     sub.add_parser("docs", help="生成文档站 docs-site/index.html").set_defaults(
         fn=cmd_docs)

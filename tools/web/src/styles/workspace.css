@@ -48,3 +48,35 @@
                font-size: 11px; color: var(--dim); display: flex;
                align-items: center; gap: 7px; }
 
+
+/* ---------- Storyboard 逐镜审阅（first-video "Approve the storyboard" 本地版） ---------- */
+  #sb-panel { display: none; flex-direction: column; }
+  #sb-panel[style*="flex"] { display: flex; }
+  .sb-list { flex: 1; overflow: auto; padding: 10px;
+             display: flex; flex-direction: column; gap: 12px; }
+  .sb-card { border: 1px solid var(--line); border-radius: 10px;
+             background: var(--panel2); overflow: hidden; }
+  .sb-card.sel { border-color: var(--acc);
+                 background: rgba(109, 139, 255, .10); }
+  .sb-head { display: flex; align-items: center; gap: 8px;
+             padding: 8px 10px 0; font-variant-numeric: tabular-nums; }
+  .sb-tc { font: 11px ui-monospace, Menlo, monospace; color: var(--dim); }
+  .sb-type { margin-left: auto; font-size: 10.5px; color: var(--dim);
+             text-transform: uppercase; letter-spacing: .8px; }
+  .sb-shot { position: relative; margin: 8px 10px; border-radius: 6px;
+             aspect-ratio: 16 / 9; overflow: hidden;
+             display: grid; grid-template-columns: 1fr 1fr;
+             grid-template-rows: 1fr 1fr; gap: 2px;
+             min-height: 96px; }
+  .sb-shot img { width: 100%; height: 100%; object-fit: cover; }
+  .sb-shot.flat { display: flex; align-items: center; justify-content: center;
+                  padding: 12px; }
+  .sb-flat-text { color: rgba(255, 255, 255, .88); font-size: 13px;
+                  line-height: 1.5; text-align: center;
+                  overflow: hidden; display: -webkit-box;
+                  -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .sb-foot { display: flex; align-items: center; gap: 8px;
+             padding: 0 10px 10px; }
+  .sb-text { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim);
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sb-empty { padding: 24px; text-align: center; color: var(--dim); }

@@ -8,6 +8,7 @@ import { fps } from "./shared/time.js";
 import { clearRange, pushRange, rangeOpen, syncRangeUI } from "./timeline/range.js";
 import { fitTimeline, zoomTimeline, zoomToScene } from "./timeline/render.js";
 import { splitAtPlayhead } from "./timeline/trim.js";
+import { storyboardIsOpen, storyboardOpen, storyboardRender } from "./panels/storyboard.js";
 
 /* ---------------- 交互绑定 ---------------- */
 $("btn-play").innerHTML = ICON.play;
@@ -119,6 +120,7 @@ $("tab-scenes").onclick = function () {
   $("scenes-panel").style.display = "flex";
   $("script-panel").style.display = "none";
   $("source-panel").style.display = "none";
+  $("sb-panel").style.display = "none";
 };
 $("tab-script").onclick = function () {
   $("tab-script").classList.add("active");
@@ -126,6 +128,7 @@ $("tab-script").onclick = function () {
   $("tab-source").classList.remove("active");
   $("script-panel").style.display = "flex";
   $("scenes-panel").style.display = "none";
+  $("sb-panel").style.display = "none";
   $("source-panel").style.display = "none";
   scriptRender();
 };
@@ -136,4 +139,16 @@ $("tab-source").onclick = function () {
   $("source-panel").style.display = "flex";
   $("scenes-panel").style.display = "none";
   $("script-panel").style.display = "none";
+  $("sb-panel").style.display = "none";
+};
+/* Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版） */
+$("btn-storyboard").onclick = function () {
+  // 与三个 tab 互斥：打开 storyboard 收起其它面板
+  $("tab-scenes").classList.remove("active");
+  $("tab-script").classList.remove("active");
+  $("tab-source").classList.remove("active");
+  $("scenes-panel").style.display = "none";
+  $("script-panel").style.display = "none";
+  $("source-panel").style.display = "none";
+  storyboardOpen(true);
 };

@@ -741,6 +741,17 @@ def inject(html, for_http=False, mix_url="", external_files=None):
 STUDIO_UI_PATH = os.path.join(TOOLS_DIR, "studio_ui.html")
 
 
+# ffmpeg/ffprobe 子进程的环境净化：托管运行时（及部分 IDE）会注入
+# LD_LIBRARY_PATH 指向自带库，与系统 ffmpeg 的插件依赖
+# （rubberband/zimg 等的 GLIBCXX 版本）冲突——实测抽帧/波形全数失败。
+# 统一剥掉该变量再 spawn（THUMB/waveform/bake 探测共用）。
+def _ff_env():
+    env = os.environ.copy()
+    env.pop("LD_LIBRARY_PATH", None)
+    return env
+
+
+
 def studio_ui():
     try:
         with open(STUDIO_UI_PATH, "r", encoding="utf-8") as f:
@@ -885,7 +896,8 @@ class StudioServer:
                     ["ffprobe", "-v", "error", "-show_entries",
                      "format=duration", "-of",
                      "default=nokey=1:noprint_wrappers=1", full],
-                    capture_output=True, text=True, timeout=30)
+                    capture_output=True, text=True, timeout=30,
+                    env=_ff_env())
                 src_dur = float(out.stdout.strip() or 0)
             except Exception:
                 src_dur = 0.0
@@ -903,7 +915,7 @@ class StudioServer:
                          "-vf",
                          "scale={}:{}:force_original_aspect_ratio=increase,"
                          "crop={}:{}".format(w, h, w, h), jp],
-                        capture_output=True, timeout=30)
+                        capture_output=True, timeout=30, env=_ff_env())
                 except Exception:
                     pass
                 if os.path.isfile(jp):
@@ -1005,7 +1017,8 @@ class StudioServer:
             cmd += ["-to", "{:.3f}".format(start + dur)]
         cmd += ["-"]
         try:
-            proc = subprocess.run(cmd, capture_output=True, timeout=120)
+            proc = subprocess.run(cmd, capture_output=True, timeout=120,
+                                  env=_ff_env())
         except (OSError, subprocess.SubprocessError):
             return None
         if proc.returncode != 0 or not proc.stdout:
