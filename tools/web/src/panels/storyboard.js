@@ -13,11 +13,18 @@
 
 import { $ } from "../shared/dom.js";
 import { escHtml } from "../shared/dom.js";
+import { api } from "../shared/api-client.js";
 import { selectScene } from "./scenes.js";
 import { seekTo } from "../preview/driver.js";
 import { loadThumbsForClip, mk } from "../timeline/model.js";
 
 let sbOpen = false;
+/* 无 video 场景的真实帧：html_bake 低分辨率全段烘焙 → 场景中点抽帧
+ * （服务端 /api/sb-frames，契约页 mtime 失效，URL 自带版本号——重组合
+ * 成后浏览器缓存自然失效）。每次 render 都拉（服务端命中缓存很快）。 */
+function sbFrames() {
+  return api("/api/sb-frames");
+}
 
 function sceneMedia(sc) {
   var v = sc.video;
@@ -73,7 +80,8 @@ export function storyboardRender() {
         '<span class="sb-type">' + escHtml(sc.type || "text") + "</span>";
     card.appendChild(head);
 
-    // 画面：视频场景连拍网格；无视频用背景色块+文案预览
+    // 画面：视频场景连拍网格；无视频场景用服务端渲染的真实帧
+    // （色块+文案兜底），拿到即替换。
     var media = sceneMedia(sc);
     var shot = mk("div", "sb-shot" + (media ? "" : " flat"));
     shot.style.background = media ? "" : bg;
@@ -85,6 +93,26 @@ export function storyboardRender() {
       shot.appendChild(txt);
     }
     card.appendChild(shot);
+    if (!media) {
+      (function (shotEl, i) {
+        sbFrames().then(function (data) {
+          var url = data && data.urls ? data.urls[i] : null;
+          if (!url) return;
+          var img = new Image();
+          img.onload = function () {
+            if (shotEl.isConnected && !shotEl.querySelector("img")) {
+              shotEl.textContent = "";   // 清掉色块+文字兜底
+              shotEl.style.background = "";
+              img.style.width = "100%";
+              img.style.height = "100%";
+              img.style.objectFit = "cover";
+              shotEl.appendChild(img);
+            }
+          };
+          img.src = url;
+        }).catch(function () { /* 帧渲染失败保持色块兜底 */ });
+      })(shot, i);
+    }
 
     var foot = mk("div", "sb-foot");
     foot.innerHTML =

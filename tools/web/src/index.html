@@ -24,6 +24,7 @@
     <div class="tabs">
       <button class="tab active" id="tab-scenes">场景</button>
       <button class="tab" id="tab-script">脚本</button>
+      <button class="tab" id="tab-storyboard">分镜</button>
       <button class="tab" id="tab-source">源码 JSON</button>
     </div>
     <div class="left-panel" id="scenes-panel">
@@ -60,7 +61,7 @@
       </div>
       <div class="sb-list" id="sb-list"></div>
       <div class="left-foot">
-        <span>逐镜看帧审节奏 ·「改这镜」定位编辑</span>
+        <span>逐镜真实帧 ·「改这镜」定位编辑</span>
       </div>
     </div>
     <div class="left-panel" id="source-panel" style="display:none">
@@ -70,8 +71,6 @@
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
         <input type="checkbox" id="sfx" checked> 音效 SFX</label>
       <span style="flex:1"></span>
-      <button class="btn" id="btn-storyboard" type="button"
-              aria-label="打开逐镜审阅" title="逐镜审阅：每镜连拍帧+时机，改哪镜点哪镜">Storyboard</button>
       <span>Ctrl/⌘ + ↵ 重组</span>
     </div>
   </aside>

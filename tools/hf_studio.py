@@ -1278,6 +1278,54 @@ class StudioServer:
         return {"notes": notes, "spec": out.get("spec", spec),
                 "composed": out.get("composed")}
 
+    def _sb_frames(self):
+        """Storyboard 逐镜真实帧：低分辨率全段一次烘焙（fps=1）→ 按
+        场景中点抽帧。缓存 = <thumbs>/sb/（契约页 mtime 失效）。"""
+        import xmedia
+        bake = xmedia.bake_bin()
+        if not bake:
+            raise RuntimeError(
+                "找不到 html_bake——先构建（cmake --build build --target "
+                "html_bake）")
+        cache = os.path.join(self._thumbs_dir(), "sb")
+        os.makedirs(cache, exist_ok=True)
+        marker = os.path.join(cache, "done.json")
+        html_mtime = os.path.getmtime(self.contract_path)
+        if os.path.exists(marker):
+            try:
+                data = json.load(open(marker, encoding="utf-8"))
+                if data.get("html_mtime") == html_mtime:
+                    return data
+            except (OSError, json.JSONDecodeError, ValueError):
+                pass
+        spec = self.current_spec or {}
+        w, h = self._dims(spec)
+        scale = 480.0 / max(1, max(w, h))
+        bw = max(2, int(w * scale) // 2 * 2)
+        bh = max(2, int(h * scale) // 2 * 2)
+        total = parse_total(self.current_html, parse_scenes(self.current_html))
+        sb_mp4 = os.path.join(cache, "sb.mp4")
+        url = "file://" + urllib.parse.quote(self.contract_path)
+        proc = subprocess.run(
+            [bake, "--url", url, "--out", sb_mp4,
+             "--seconds", f"{total:.2f}", "--fps", "1",
+             "--width", str(bw), "--height", str(bh), "--clock", "seek"],
+            capture_output=True, text=True, timeout=900)
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or proc.stdout or "")[-300:])
+        urls = []
+        for i, meta in enumerate(parse_scenes(self.current_html)):
+            mid = (meta.get("start") or 0) + (meta.get("dur") or 3) / 2
+            jpg = os.path.join(cache, f"s{i}.jpg")
+            p2 = subprocess.run(
+                ["ffmpeg", "-y", "-ss", f"{mid:.2f}", "-i", sb_mp4,
+                 "-frames:v", "1", jpg], capture_output=True, timeout=60)
+            urls.append(f"/api/sb-frame/{i}" if p2.returncode == 0 else None)
+        data = {"html_mtime": html_mtime, "urls": urls, "w": bw, "h": bh}
+        with open(marker, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        return data
+
     def _cancel_bake(self):
         """终止进行中的导出（Export 面板的取消渲染）。"""
         if not self.job or self.job["proc"].poll() is not None:
@@ -1816,6 +1864,11 @@ def make_handler(server_ref):
                     self._json(srv._job_status(int(q["id"][0])))
                 except (RuntimeError, KeyError, ValueError) as e:
                     self._json({"error": str(e)}, 400)
+            elif path == "/api/sb-frames":
+                self._json(srv._sb_frames())
+            elif path.startswith("/api/sb-frame/"):
+                self._serve_sb_frame(
+                    path[len("/api/sb-frame/"):])
             elif path == "/api/thumbs":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(
                     self.path).query)
@@ -1972,6 +2025,20 @@ def make_handler(server_ref):
                 self.wfile.write(chunk)
             except (BrokenPipeError, ConnectionResetError):
                 pass
+
+        def _serve_sb_frame(self, idx):
+            srv = server_ref
+            idx_s = re.fullmatch(r"\d+", idx or "")
+            if not idx_s:
+                self._send(404, "not found", "text/plain")
+                return
+            jpg = os.path.join(srv._thumbs_dir(), "sb",
+                                  f"s{idx}.jpg")
+            if not os.path.isfile(jpg):
+                self._send(404, "not found", "text/plain")
+                return
+            with open(jpg, "rb") as f:
+                self._send(200, f.read(), "image/jpeg")
 
         def _serve_thumb(self, path):
             srv = server_ref

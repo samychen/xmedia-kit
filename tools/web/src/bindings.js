@@ -113,42 +113,22 @@ $("btn-log").onclick = function () {
   el.classList.toggle("open");
   this.classList.toggle("on", el.classList.contains("open"));
 };
-$("tab-scenes").onclick = function () {
-  $("tab-scenes").classList.add("active");
-  $("tab-script").classList.remove("active");
-  $("tab-source").classList.remove("active");
-  $("scenes-panel").style.display = "flex";
-  $("script-panel").style.display = "none";
-  $("source-panel").style.display = "none";
-  $("sb-panel").style.display = "none";
+/* 左栏四面板统一切换（场景/脚本/分镜/源码）：tab 高亮 + 面板互斥。 */
+function switchLeftPanel(name) {
+  var tabs = { scenes: "tab-scenes", script: "tab-script",
+               storyboard: "tab-storyboard", source: "tab-source" };
+  var panels = { scenes: "scenes-panel", script: "script-panel",
+                 storyboard: "sb-panel", source: "source-panel" };
+  for (var k in tabs) {
+    $(tabs[k]).classList.toggle("active", k === name);
+    $(panels[k]).style.display = k === name ? "flex" : "none";
+  }
+  if (name === "script") scriptRender();
+  if (name === "storyboard") storyboardOpen(true);
+}
+$("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
+$("tab-script").onclick = function () { switchLeftPanel("script"); };
+$("tab-storyboard").onclick = function () {
+  switchLeftPanel("storyboard");
 };
-$("tab-script").onclick = function () {
-  $("tab-script").classList.add("active");
-  $("tab-scenes").classList.remove("active");
-  $("tab-source").classList.remove("active");
-  $("script-panel").style.display = "flex";
-  $("scenes-panel").style.display = "none";
-  $("sb-panel").style.display = "none";
-  $("source-panel").style.display = "none";
-  scriptRender();
-};
-$("tab-source").onclick = function () {
-  $("tab-source").classList.add("active");
-  $("tab-scenes").classList.remove("active");
-  $("tab-script").classList.remove("active");
-  $("source-panel").style.display = "flex";
-  $("scenes-panel").style.display = "none";
-  $("script-panel").style.display = "none";
-  $("sb-panel").style.display = "none";
-};
-/* Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版） */
-$("btn-storyboard").onclick = function () {
-  // 与三个 tab 互斥：打开 storyboard 收起其它面板
-  $("tab-scenes").classList.remove("active");
-  $("tab-script").classList.remove("active");
-  $("tab-source").classList.remove("active");
-  $("scenes-panel").style.display = "none";
-  $("script-panel").style.display = "none";
-  $("source-panel").style.display = "none";
-  storyboardOpen(true);
-};
+$("tab-source").onclick = function () { switchLeftPanel("source"); };
