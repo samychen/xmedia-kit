@@ -30,6 +30,15 @@ export function askOpen(on) {
   $("ask-panel").classList.toggle("open", !!on);
   if (on) { askModeLabel(); $("ask-input").focus(); }
 }
+/* chat 主界面化：页面加载即展开对话面板；本机 agent CLI 可用时默认
+   agent 后端（HF Studio 的 chat 主界面形态——对话驱动一切）。首次
+   refresh() 完成后 askModeLabel 会按实际 CLI 状态再刷新一次标签。 */
+(function askBoot() {
+  if ((state.agent || {}).cli) {
+    askBackend = "agent";
+  }
+  askOpen(true);
+})();
 export function askRun(msg) {
   /* 单条编辑请求：按当前后端走 /api/agent（规则引擎）或
      /api/agent/chat（本地 agent 子进程），并渲染回复/导入/ASR/导出

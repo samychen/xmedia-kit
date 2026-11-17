@@ -765,15 +765,21 @@ class StudioServer:
     """本地 Studio 服务：预览、重组、TTS、烘焙。仅绑定 127.0.0.1。"""
 
     def __init__(self, contract_path, spec_path, port, no_sfx=False):
-        self.contract_path = os.path.abspath(contract_path)
+        # contract_path 为 None = Home 模式（项目管理页起步，点开项目时
+        # 经 open_project 重绑）。
+        self.contract_path = (os.path.abspath(contract_path)
+                              if contract_path else None)
         self.spec_path = os.path.abspath(spec_path) if spec_path else None
-        self.spec_dir = os.path.dirname(self.contract_path) or "."
+        self.spec_dir = (os.path.dirname(self.contract_path)
+                         if self.contract_path else ".")
         self.port = port
         self.no_sfx = no_sfx
         self.job = None
         self.job_seq = 0
-        with open(self.contract_path, "r", encoding="utf-8") as f:
-            self.current_html = f.read()
+        self.current_html = ""
+        if self.contract_path:
+            with open(self.contract_path, "r", encoding="utf-8") as f:
+                self.current_html = f.read()
         self.current_spec = self._load_spec()
         self._mix_key = None
         self._mix_bytes = None
@@ -1326,6 +1332,96 @@ class StudioServer:
             json.dump(data, f, ensure_ascii=False)
         return data
 
+    def _projects_root(self):
+        """Home 模式的项目根：每个项目 = <root>/<名>/（spec.json +
+        contract.html + chat.jsonl…）。"""
+        return os.path.expanduser(os.environ.get(
+            "XMEDIA_STUDIO_PROJECTS", "~/.xmedia/projects"))
+
+    def _projects_list(self):
+        root = self._projects_root()
+        out = []
+        if not os.path.isdir(root):
+            return out
+        for name in sorted(os.listdir(root)):
+            spec_file = os.path.join(root, name, "spec.json")
+            if not os.path.isfile(spec_file):
+                continue
+            try:
+                spec = json.load(open(spec_file, encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, ValueError):
+                continue
+            sb = spec.get("storyboard") or {}
+            out.append({"name": name,
+                        "arc": sb.get("arc", ""),
+                        "message": (sb.get("message")
+                                    or (spec.get("scenes") or [{}])[0]
+                                    .get("text", ""))[:60],
+                        "scenes": len(spec.get("scenes") or []),
+                        "updated": time.strftime(
+                            "%Y-%m-%d %H:%M",
+                            time.localtime(os.path.getmtime(spec_file)))})
+        return out
+
+    def open_project(self, name):
+        """Home → 编辑视图：重绑到项目目录的契约页/spec（单用户本地
+        服务，直接重绑实例状态可接受）。"""
+        d = os.path.join(self._projects_root(), name)
+        html = os.path.join(d, "contract.html")
+        spec = os.path.join(d, "spec.json")
+        if not (re.fullmatch(r"[\w\-]+", name or "")
+                and os.path.isfile(html) and os.path.isfile(spec)):
+            raise RuntimeError(f"项目 {name} 不存在")
+        self.contract_path = html
+        self.spec_path = spec
+        self.spec_dir = d
+        with open(html, "r", encoding="utf-8") as f:
+            self.current_html = f.read()
+        self.current_spec = self._load_spec()
+        self._register_spec_paths(self.current_spec)
+        self._mix_key = None
+
+    def _project_create(self, body):
+        """一句话新建项目：Arc 叙事计划 → 骨架 spec → 契约页 → 可编辑。"""
+        import hf_storyboard
+        import hf_compose
+        import hf_validate
+        name = str(body.get("name") or "").strip()
+        arc = str(body.get("arc") or "launch")
+        message = str(body.get("message") or "").strip()
+        if not re.fullmatch(r"[\w\-]+", name):
+            raise RuntimeError("项目名只能是字母/数字/下划线/连字符")
+        if arc not in hf_storyboard.ARCS:
+            raise RuntimeError(f"未知 Arc「{arc}」")
+        if not message:
+            raise RuntimeError("缺 message（一句话论点）")
+        d = os.path.join(self._projects_root(), name)
+        if os.path.isdir(d):
+            raise RuntimeError(f"项目 {name} 已存在")
+        os.makedirs(d, exist_ok=True)
+        spec = hf_storyboard.build(
+            arc, message, audience=str(body.get("audience") or ""),
+            mood=str(body.get("mood") or ""),
+            fmt=str(body.get("format") or "9:16"),
+            fps=int(body.get("fps") or 30),
+            voice=str(body.get("voice") or "Tingting"))
+        spec["composition"]["id"] = name
+        spec_file = os.path.join(d, "spec.json")
+        with open(spec_file, "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        # 手动绑定（open_project 要求契约页已生成，而这里正是要生成它）
+        self.contract_path = os.path.join(d, "contract.html")
+        self.spec_path = spec_file
+        self.spec_dir = d
+        self.current_spec = spec
+        self._register_spec_paths(spec)
+        self._compose()   # 写项目目录的 contract.html
+        findings, errors, _, _ = hf_validate.validate(self.current_html)
+        return {"name": name, "url": "/project/" + name,
+                "scenes": len(spec.get("scenes") or []),
+                "errors": errors}
+
     def _cancel_bake(self):
         """终止进行中的导出（Export 面板的取消渲染）。"""
         if not self.job or self.job["proc"].poll() is not None:
@@ -1817,7 +1913,24 @@ def make_handler(server_ref):
             path = urllib.parse.urlparse(self.path).path
             srv = server_ref
             if path == "/":
+                # Home 模式（--home 启动，未绑契约页）= 项目管理页；
+                # 直接指定契约页启动 = 编辑视图（旧行为兼容）。
+                if not srv.contract_path:
+                    self._send(200, home_html(srv._projects_list()),
+                               "text/html; charset=utf-8")
+                else:
+                    self._send(200, studio_ui(), "text/html; charset=utf-8")
+            elif path.startswith("/project/"):
+                name = urllib.parse.unquote(
+                    path[len("/project/"):]).strip("/")
+                try:
+                    srv.open_project(name)
+                except RuntimeError as e:
+                    self._send(404, str(e), "text/plain")
+                    return
                 self._send(200, studio_ui(), "text/html; charset=utf-8")
+            elif path == "/api/projects":
+                self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
                 import hf_validate
                 findings, errors, _, _ = hf_validate.validate(srv.current_html)
@@ -1940,6 +2053,8 @@ def make_handler(server_ref):
                 elif path == "/api/reference/video/clear":
                     srv.ref_video = None
                     self._json({"cleared": True})
+                elif path == "/api/project/create":
+                    self._json(srv._project_create(body))
                 elif path == "/api/tts":
                     srv.current_spec = body["spec"]
                     srv._write_spec(srv.current_spec)
@@ -2147,10 +2262,108 @@ def make_handler(server_ref):
     return Handler
 
 
-def serve(contract_path, spec_path, port, no_sfx):
-    contract_path = os.path.abspath(contract_path)
-    spec_dir = os.path.dirname(contract_path) or "."
-    if spec_path is None:
+def home_html(projects):
+    """Home 页（项目管理）：一句话新建 + 项目卡片网格。
+    独立小页面（不进 web 构建），风格对齐 studio tokens。"""
+    cards = "".join(
+        f'<a class="pj" href="/project/{p["name"]}">'
+        f'<div class="pj-name">{p["name"]}</div>'
+        f'<div class="pj-meta">{p["scenes"]} 场景'
+        + (f' · {p["arc"]}' if p["arc"] else "")
+        + f' · {p["updated"]}</div>'
+        f'<div class="pj-msg">{p["message"]}</div></a>'
+        for p in projects)
+    arc_opts = "".join(
+        f'<option value="{a["id"]}">{a["label"]}</option>'
+        for a in __import__("hf_storyboard").arcs())
+    return f"""<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xmedia Studio — 项目</title>
+<style>
+:root {{ --bg:#0b0b11; --panel:#14141c; --panel2:#1b1b25; --line:#282838;
+        --line2:#37374a; --ink:#e9e9f2; --dim:#8b8ba0; --acc:#6d8bff;
+        --acc2:#8b6dff; --ok:#3ecf8e; }}
+* {{ box-sizing: border-box }}
+body {{ margin:0; background:var(--bg); color:var(--ink);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif }}
+.wrap {{ max-width: 860px; margin: 0 auto; padding: 40px 20px }}
+h1 {{ font-size: 22px; margin: 0 0 4px }}
+.sub {{ color: var(--dim); font-size: 12.5px; margin-bottom: 30px }}
+.new {{ background: var(--panel); border: 1px solid var(--line2);
+       border-radius: 14px; padding: 20px; margin-bottom: 34px }}
+.new textarea {{ width: 100%; min-height: 64px; background: var(--panel2);
+                 color: var(--ink); border: 1px solid var(--line);
+                 border-radius: 8px; padding: 10px 12px; font: inherit;
+                 resize: vertical; outline: none }}
+.new textarea:focus {{ border-color: var(--acc) }}
+.new .row {{ display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap }}
+.new select, .new input {{ background: var(--panel2); color: var(--ink);
+                           border: 1px solid var(--line); border-radius: 8px;
+                           padding: 8px 10px; font: inherit; outline: none }}
+.new .go {{ background: linear-gradient(135deg,var(--acc),var(--acc2));
+            border: 0; color: #0d1122; font-weight: 600; border-radius: 8px;
+            padding: 8px 18px; }}
+#msg {{ margin-top: 12px; font-size: 12.5px; color: var(--dim);
+        white-space: pre-wrap }}
+.pjs {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+        gap: 14px }}
+.pj {{ display: block; background: var(--panel); border: 1px solid var(--line2);
+       border-radius: 12px; padding: 14px 16px; text-decoration: none;
+       color: var(--ink) }}
+.pj:hover {{ border-color: var(--acc) }}
+.pj-name {{ font-weight: 600; font-size: 14px }}
+.pj-meta {{ font-size: 11px; color: var(--dim); margin: 6px 0 }}
+.pj-msg {{ font-size: 12px; color: var(--dim); overflow: hidden;
+           text-overflow: ellipsis; white-space: nowrap }}
+.empty {{ color: var(--dim); font-size: 13px }}
+</style></head><body><div class="wrap">
+<h1>xmedia Studio</h1>
+<div class="sub">一句话建项目 → 分镜审阅 → 导出 MP4（全部本地、确定性管线）</div>
+<div class="new">
+  <textarea id="message" placeholder="一句话说你要做什么视频，例如：把切片发布从半天缩短到一分钟「切片工作流」"></textarea>
+  <div class="row">
+    <select id="arc">{arc_opts}</select>
+    <input id="audience" placeholder="受众（可选）">
+    <input id="mood" placeholder="音乐/能量（可选）">
+    <input id="name" placeholder="项目名（可选，默认自动）">
+    <button class="go" id="create">创建项目</button>
+  </div>
+  <div id="msg"></div>
+</div>
+<h2 style="font-size:15px">项目</h2>
+<div class="pjs">{cards or '<div class="empty">还没有项目——上面一句话创建第一个</div>'}</div>
+</div>
+<script>
+document.getElementById("create").onclick = function () {{
+  var body = {{ message: document.getElementById("message").value,
+               arc: document.getElementById("arc").value,
+               audience: document.getElementById("audience").value,
+               mood: document.getElementById("mood").value,
+               name: document.getElementById("name").value }};
+  var msg = document.getElementById("msg");
+  msg.textContent = "创建中…";
+  fetch("/api/project/create", {{ method: "POST",
+    headers: {{ "Content-Type": "application/json" }},
+    body: JSON.stringify(body) }})
+    .then(function (r) {{ return r.json(); }})
+    .then(function (r) {{
+      if (r.error) {{ msg.textContent = "失败：" + r.error; return; }}
+      location.href = r.url;
+    }})
+    .catch(function (e) {{ msg.textContent = "失败：" + e.message; }});
+}};
+</script></body></html>"""
+
+
+def serve(contract_path, spec_path, port, no_sfx, home=False):
+    contract_path = os.path.abspath(contract_path) if contract_path else None
+    if contract_path is None:
+        # Home 模式：项目管理页起步，open_project 在点开项目时重绑。
+        srv = StudioServer(None, None, port, no_sfx)
+    else:
+        spec_dir = os.path.dirname(contract_path) or "."
+    if spec_path is None and contract_path is not None:
         # 契约页生成器注释携带 spec 文件名（hf_compose 写入）——自动发现
         m = re.search(r'spec:([^|]+)\|', _read_head(contract_path))
         if m:
@@ -2158,16 +2371,24 @@ def serve(contract_path, spec_path, port, no_sfx):
                                      m.group(1).strip())
             if os.path.isfile(candidate):
                 spec_path = candidate
-    srv = StudioServer(contract_path, spec_path, port, no_sfx)
+    if contract_path is None:
+        # Home 模式：上面那段自动发现跳过，spec 维持 None。
+        srv = StudioServer(None, None, port, no_sfx)
+    else:
+        srv = StudioServer(contract_path, spec_path, port, no_sfx)
 
     class PassThrough(ThreadingHTTPServer):
         daemon_threads = True
 
     httpd = PassThrough(("127.0.0.1", port), make_handler(srv))
     port = httpd.server_address[1]
-    print(f"xmedia Studio: http://127.0.0.1:{port}  "
-          f"(contract: {os.path.basename(contract_path)}, "
-          f"spec: {srv.spec_path or '未绑定——只读预览'})  Ctrl+C 退出")
+    if contract_path:
+        print(f"xmedia Studio: http://127.0.0.1:{port}  "
+              f"(contract: {os.path.basename(contract_path)}, "
+              f"spec: {srv.spec_path or '未绑定——只读预览'})  Ctrl+C 退出")
+    else:
+        print(f"xmedia Studio (Home): http://127.0.0.1:{port}  "
+              "Ctrl+C 退出")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -2183,12 +2404,18 @@ def _read_head(path, limit=4096):
 def main():
     parser = argparse.ArgumentParser(
         description="xmedia Studio：契约 HTML 预览注入 / 本地 Studio 服务")
-    parser.add_argument("html", help="契约 HTML（hf_compose 产出或过校验的手写页）")
+    parser.add_argument("html", nargs="?", default=None,
+                        help="契约 HTML（hf_compose 产出或过校验的手写页）；"
+                             "--home 模式可省略")
     parser.add_argument("-o", "--output", default=None,
                         help="注入模式：输出 studio HTML（默认 <stem>.studio.html）")
     parser.add_argument("--serve", action="store_true",
                         help="启动本地 Studio 服务（浏览器 UI：编辑 spec → "
                              "热重组 → TTS → 导出）")
+    parser.add_argument("--home", action="store_true",
+                        help="Home 模式：项目管理页起步（一句话新建项目 → "
+                             "叙事 Arc 骨架 → 进编辑）；项目存 "
+                             "~/.xmedia/projects/")
     parser.add_argument("--spec", default=None,
                         help="服务模式：绑定的 spec JSON 路径（缺省从契约页"
                              "生成器注释自动发现；无则只读预览）")
@@ -2198,6 +2425,14 @@ def main():
     args = parser.parse_args()
 
     if args.serve:
+        if args.home:
+            if args.html:
+                print("xmedia: --home 与契约页互斥（项目页直接给路径）",
+                      file=sys.stderr)
+                return 2
+            sys.exit(serve(None, None, args.port, args.no_sfx, home=True))
+        if not args.html:
+            parser.error("缺少契约 HTML（或用 --home 进项目管理模式）")
         sys.exit(serve(args.html, args.spec, args.port, args.no_sfx))
 
     src = os.path.abspath(args.html)
