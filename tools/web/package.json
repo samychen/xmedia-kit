@@ -1,0 +1,38 @@
+{
+  "name": "@xmedia/studio-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "xmedia Studio 前端源码（确定性拼接构建，产物覆盖 tools/studio_ui.html，单文件自包含）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "fresh": "node scripts/check-freshness.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.js\" \"tests/**/*.mjs\" && stylelint \"src/styles/**/*.css\" --quiet",
+    "lint:report": "stylelint \"src/styles/**/*.css\"",
+    "fmt": "prettier --write .",
+    "test": "vitest run",
+    "e2e": "node tests/e2e/run.mjs",
+    "gate": "npm run typecheck && npm run lint && npm run test && npm run build && npm run fresh",
+    "mwg:scan": "modern-web-guidance legacy-scan src || true"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^26.6.6",
+    "eslint": "^9.39.0",
+    "playwright": "^1.65.0",
+    "prettier": "^3.6.0",
+    "stylelint": "^16.25.0",
+    "stylelint-config-standard": "^39.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^7.3.8",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^3.2.0",
+    "zod": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

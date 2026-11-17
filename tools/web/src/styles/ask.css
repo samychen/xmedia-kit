@@ -1,0 +1,91 @@
+  /* ---------- Ask AI（自然语言 → spec → 热重组） ---------- */
+  #ask-fab { position: fixed; right: 18px; bottom: 18px; z-index: 60;
+             display: flex; align-items: center; gap: 8px;
+             padding: 9px 15px; border-radius: 22px;
+             border: 1px solid var(--line2);
+             background: linear-gradient(135deg, var(--acc), var(--acc2));
+             color: #0d1122; font-size: 12px; font-weight: 600;
+             box-shadow: 0 6px 22px rgba(0, 0, 0, .45); }
+  #ask-fab:hover { filter: brightness(1.08); }
+  #ask-fab .dot { width: 7px; height: 7px; border-radius: 50%;
+                  background: #0d1122; opacity: .65; }
+  #ask-panel { position: fixed; right: 18px; bottom: 64px; z-index: 61;
+               width: 372px; max-height: min(500px, 76vh); display: none;
+               flex-direction: column; background: var(--panel);
+               border: 1px solid var(--line2); border-radius: 12px;
+               box-shadow: 0 12px 40px rgba(0, 0, 0, .55); overflow: hidden; }
+  #ask-panel.open { display: flex; }
+  #ask-head { height: 38px; flex: none; display: flex; align-items: center;
+              gap: 8px; padding: 0 12px; background: var(--panel2);
+              border-bottom: 1px solid var(--line); }
+  #ask-head .t { font-size: 12px; font-weight: 600; }
+  #ask-head .m { font-size: 10.5px; color: var(--dim); }
+  #ask-head .sp { flex: 1; }
+  #ask-backend { background: var(--panel2); color: var(--acc);
+                 border: 1px solid var(--line); border-radius: 10px;
+                 font-size: 10.5px; padding: 3px 8px; }
+  #ask-backend:hover { border-color: var(--acc); }
+  .ask-undo { margin-top: 5px; font-size: 10.5px; padding: 3px 10px;
+              border-radius: 11px; background: var(--panel2);
+              color: var(--acc); border: 1px solid var(--line); }
+  .ask-undo:hover:not(:disabled) { border-color: var(--acc); }
+  .ask-undo:disabled { opacity: .5; }
+  #ask-close { background: none; border: 0; color: var(--dim);
+               font-size: 16px; line-height: 1; padding: 2px 4px; }
+  #ask-close:hover { color: var(--ink); }
+  #ask-msgs { flex: 1; overflow: auto; padding: 10px 12px;
+              display: flex; flex-direction: column; gap: 8px; }
+  .ask-msg { max-width: 94%; padding: 7px 10px; border-radius: 9px;
+             font-size: 12px; line-height: 1.55; white-space: pre-wrap;
+             word-break: break-word; }
+  .ask-msg.user { align-self: flex-end; background: rgba(109, 139, 255, .18);
+                  border: 1px solid var(--line2); }
+  .ask-msg.bot { align-self: flex-start; background: var(--panel2);
+                 border: 1px solid var(--line); }
+  .ask-msg.bot.ok { border-color: rgba(62, 207, 142, .5); }
+  .ask-msg.bot.err { border-color: var(--err); color: #ffb3bc; }
+  #ask-quick { flex: none; display: flex; flex-wrap: wrap; gap: 5px;
+               padding: 7px 12px; border-top: 1px solid var(--line); }
+  #ask-quick button { font-size: 10.5px; padding: 3px 8px;
+                      border-radius: 12px; background: var(--panel2);
+                      color: var(--dim); border: 1px solid var(--line); }
+  #ask-quick button:hover { color: var(--ink); border-color: var(--acc); }
+  /* Pending edits 暂存条：多次编辑攒一批一次应用（对齐 HF 的
+     Pending video edits——单发会打断 agent 编辑节奏）。 */
+  #ask-pending { flex: none; display: none; flex-direction: column;
+                 border-top: 1px solid var(--line);
+                 max-height: 132px; overflow: hidden; }
+  #ask-pending.has { display: flex; }
+  #ask-pending-head { flex: none; display: flex; align-items: center;
+                      gap: 8px; padding: 6px 12px; font-size: 10.5px;
+                      color: var(--dim); }
+  #ask-pending-head b { color: var(--acc); }
+  #ask-pending-head .sp { flex: 1; }
+  #ask-pending-head button { font-size: 10.5px; padding: 3px 9px;
+                             border-radius: 12px; background: var(--panel2);
+                             color: var(--dim); border: 1px solid var(--line); }
+  #ask-pending-head button.acc { color: var(--acc); border-color: var(--acc); }
+  #ask-pending-head button:hover:not(:disabled) { color: var(--ink); }
+  #ask-pending-head button:disabled { opacity: .45; }
+  #ask-pending-rows { flex: 1; overflow: auto; padding: 0 12px 7px;
+                      display: flex; flex-direction: column; gap: 4px; }
+  .ask-pend-row { display: flex; align-items: center; gap: 7px;
+                  font-size: 11px; padding: 4px 8px; border-radius: 7px;
+                  background: var(--panel2); border: 1px solid var(--line); }
+  .ask-pend-row .n { flex: none; color: var(--dim); font-size: 10px; }
+  .ask-pend-row .t { flex: 1; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+  .ask-pend-row button { flex: none; background: none; border: 0;
+                         color: var(--dim); font-size: 13px; padding: 0 2px; }
+  .ask-pend-row button:hover { color: var(--err); }
+  #ask-form { flex: none; display: flex; gap: 8px; padding: 9px 12px;
+              border-top: 1px solid var(--line); }
+  #ask-input { flex: 1; min-width: 0; background: var(--panel2);
+               color: var(--ink); border: 1px solid var(--line);
+               border-radius: 7px; padding: 7px 9px; font-size: 12px;
+               outline: none; }
+  #ask-input:focus { border-color: var(--acc); }
+  #ask-send { flex: none; padding: 6px 13px; }
+  #ask-send:disabled { opacity: .45; cursor: default; }
+  #btn-import svg { vertical-align: -2px; margin-right: 3px; }
+

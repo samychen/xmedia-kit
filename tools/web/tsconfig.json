@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    /* 渐进收紧：M3 以行为零变化为先，strict 在 M5 前分文件开启 */
+    "strict": false,
+    "noImplicitAny": false,
+    "allowJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": { "@web/*": ["src/*"] }
+  },
+  "include": ["src/**/*.ts", "tests/unit/**/*.ts", "scripts/**/*.mjs"]
+}

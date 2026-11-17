@@ -1,0 +1,33 @@
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI",
+         sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  .btn { background: var(--panel2); color: var(--ink); border: 1px
+         solid var(--line); border-radius: 7px; padding: 6px 12px;
+         font-size: 12px; white-space: nowrap; }
+  .btn:hover { background: var(--panel3); border-color: var(--line2); }
+  .btn.acc { background: linear-gradient(135deg, var(--acc), var(--acc2));
+             border: 0; color: #0d1122; font-weight: 600; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.on { border-color: var(--acc); color: #b9c7ff;
+            background: rgba(109, 139, 255, .14); }
+  .panel-h { height: 34px; flex: none; display: flex; align-items: center;
+             gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line);
+             font-size: 10.5px; letter-spacing: .9px; color: var(--dim);
+             text-transform: uppercase; background: var(--panel); }
+  .panel-h .sp { flex: 1; }
+
+
+/* prefers-reduced-motion：装饰性动效压到近零（功能性的播放头推进由
+   playhead.js 的主线程兜底形态接管，见 preview/playhead.js）。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

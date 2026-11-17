@@ -1,0 +1,124 @@
+import { $ } from "../shared/dom.js";
+import { askAdd, askModeLabel, askOpen, askRun, askSend } from "./ask.js";
+import { impOpen } from "../panels/import.js";
+import { refresh } from "../panels/status.js";
+
+/* ---------------- Pending edits 暂存队列 ---------------- */
+/* 多次编辑攒一批一次应用（对齐 HF Pending video edits）：逐条走本地
+   规则引擎（顺序应用、任一条失败即停并保留余项），全部结束后统一
+   refresh 一次——预览/时间轴/属性面板只重组一次。 */
+export var pendingEdits = [], pendingBusy = false;
+export function pendingRender() {
+  var box = $("ask-pending"), rows = $("ask-pending-rows");
+  box.classList.toggle("has", pendingEdits.length > 0);
+  $("ask-pending-n").textContent = pendingEdits.length;
+  rows.innerHTML = "";
+  pendingEdits.forEach(function (t, i) {
+    var row = document.createElement("div");
+    row.className = "ask-pend-row";
+    var n = document.createElement("span");
+    n.className = "n"; n.textContent = (i + 1) + ".";
+    var tx = document.createElement("span");
+    tx.className = "t"; tx.textContent = t; tx.title = t;
+    var del = document.createElement("button");
+    del.type = "button"; del.textContent = "×";
+    del.title = "移除这条"; del.setAttribute("aria-label", "移除");
+    del.onclick = function () {
+      pendingEdits.splice(i, 1); pendingRender();
+    };
+    row.appendChild(n); row.appendChild(tx); row.appendChild(del);
+    rows.appendChild(row);
+  });
+  var apply = $("ask-pending-apply");
+  apply.disabled = pendingEdits.length === 0 || pendingBusy;
+  apply.textContent = pendingBusy ? "应用中…" :
+      "批量应用" + (pendingEdits.length ? " " + pendingEdits.length : "");
+  $("ask-pending-clear").disabled = pendingEdits.length === 0 || pendingBusy;
+}
+export function askStage(msg) {
+  msg = String(msg || "").trim();
+  if (!msg) return;
+  pendingEdits.push(msg);
+  $("ask-input").value = "";
+  pendingRender();
+  $("ask-input").focus();
+}
+export function askApplyPending() {
+  if (pendingBusy || pendingEdits.length === 0) return;
+  pendingBusy = true;
+  askBusy = true;
+  $("ask-send").disabled = true;
+  pendingRender();
+  var done = 0, failed = -1;
+  var next = function () {
+    if (done >= pendingEdits.length || failed >= 0) {
+      if (failed >= 0) {
+        askAdd("批量应用在第 " + (failed + 1) + " 条失败，已应用 " +
+               done + " 条；剩余 " + pendingEdits.length +
+               " 条保留在队列", "bot", "err");
+      } else {
+        askAdd("批量应用完成：" + done + " 条", "bot", "ok");
+        pendingEdits = [];
+      }
+      pendingBusy = false; askBusy = false;
+      $("ask-send").disabled = false;
+      pendingRender();
+      return refresh(false).then(function () { askModeLabel(); });
+    }
+    var msg = pendingEdits.shift();
+    askAdd(msg, "user");
+    return askRun(msg).then(function () {
+      ++done;
+      return next();
+    }).catch(function () {
+      pendingEdits.unshift(msg);   // 失败条放回队首，保留现场
+      failed = done;
+      return next();
+    });
+  };
+  return next();
+}
+$("ask-backend").onclick = function () {
+  askBackend = askBackend === "agent" ? "rule" : "agent";
+  askModeLabel();
+  askAdd(askBackend === "agent"
+      ? "已切换到 agent 模式：本地 LLM 子进程自主改 spec/重跑 compose"
+          + "（每次请求可能耗时数分钟）"
+      : "已切换到规则引擎模式：预置指令即时生效", "bot");
+};
+$("ask-stage").onclick = function () { askStage($("ask-input").value); };
+$("ask-pending-clear").onclick = function () {
+  pendingEdits = []; pendingRender();
+};
+$("ask-pending-apply").onclick = askApplyPending;
+$("ask-fab").onclick = function () {
+  askOpen(!$("ask-panel").classList.contains("open"));
+};
+$("ask-close").onclick = function () { askOpen(false); };
+$("ask-form").addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  askSend($("ask-input").value);
+});
+[].forEach.call(document.querySelectorAll("#ask-quick button"), function (b) {
+  b.onclick = function () {
+    if (b.getAttribute("data-open") === "import") {
+      askOpen(false); impOpen(true); return;
+    }
+    askSend(b.getAttribute("data-msg"));
+  };
+});
+document.addEventListener("keydown", function (ev) {
+  var tag = (ev.target.tagName || "").toLowerCase();
+  if ((ev.metaKey || ev.ctrlKey) && ev.code === "KeyK") {
+    ev.preventDefault();
+    askOpen(!$("ask-panel").classList.contains("open"));
+  } else if (ev.code === "Escape") {
+    if ($("imp-panel").classList.contains("open")) {
+      ev.preventDefault(); impOpen(false);
+    } else if ($("ask-panel").classList.contains("open") &&
+               tag !== "input" && tag !== "textarea") {
+      askOpen(false);
+    }
+  }
+});
+askAdd("我可以直接改这个合成。试试「加一个片尾卡」「导入 ~/Downloads 并加字幕和片尾卡」，或点「导入素材」用面板选文件。", "bot");

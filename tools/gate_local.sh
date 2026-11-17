@@ -491,9 +491,22 @@ job_tsan()    { gate_preset tsan    "--test-dir build/tsan --output-on-failure";
 job_ubsan()   { gate_preset ubsan   "--test-dir build/ubsan --output-on-failure"; }
 job_coverage(){ gate_preset coverage "--test-dir build/coverage --output-on-failure"; }
 
+# --- Studio web frontend (M3): source fragments -> deterministic concat build.
+# npm ci only on a cold tree; gate = typecheck + eslint + vitest + build +
+# byte-identical freshness vs the committed tools/studio_ui.html.
+job_web() {
+  need node || { echo "node not found"; return 2; }
+  need npm || { echo "npm not found"; return 2; }
+  (
+    cd tools/web || exit 1
+    [ -d node_modules ] || npm ci --no-audit --no-fund || exit 1
+    npm run gate
+  ) || return 1
+}
+
 # --- Dispatch ----------------------------------------------------------------
-ALL_JOBS="inv fmt lint tidy commentcov apicompat bench e2ecpu macos capi qt core ffmpeg e2e asan tsan ubsan coverage"
-DEFAULT_JOBS="inv fmt commentcov apicompat macos capi"
+ALL_JOBS="inv fmt lint tidy commentcov apicompat web bench e2ecpu macos capi qt core ffmpeg e2e asan tsan ubsan coverage"
+DEFAULT_JOBS="inv fmt commentcov apicompat web macos capi"
 
 if [ "${1:-}" = "--list" ]; then
   echo "Job -> CI job (see .github/workflows/ci.yml):"
@@ -503,6 +516,7 @@ if [ "${1:-}" = "--list" ]; then
   echo "  tidy    check-clang-tidy (clang-tidy 18, PCH off scratch db)"
   echo "  commentcov comment_comment_coverage (V9 player/public four-question coverage; python3, no deps)"
   echo "  apicompat apicompat (V10 API-surface diff vs tools/api_baseline.json; python3, no deps)"
+  echo "  web     Studio web frontend (tools/web: typecheck+eslint+vitest+build+freshness; node 20.19+, npm ci on cold tree)"
   echo "  bench    bench (M13 self-contained micro-benchmarks; xmedia::base + xmedia::player, no FFmpeg, no Google Benchmark)"
   echo "  e2ecpu   e2e-cpu (M13 end-to-end CPU per media second; needs headless + ffmpeg CLI, ~1 min)"
   echo "  macos   macos-player (macos-sdl2)"

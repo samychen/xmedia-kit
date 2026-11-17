@@ -1,0 +1,33 @@
+  /* ---------- 传输条 ---------- */
+  .transport { height: 54px; flex: none; display: flex; align-items: center;
+               gap: 8px; padding: 0 14px; border-top: 1px solid var(--line);
+               background: var(--panel); }
+  .tbtn { width: 30px; height: 30px; flex: none; display: flex;
+          align-items: center; justify-content: center; border-radius: 6px;
+          border: 1px solid transparent; background: transparent;
+          color: var(--dim); padding: 0; }
+  .tbtn:hover { background: var(--panel3); color: var(--ink); }
+  .tbtn.primary { width: 34px; height: 34px; color: var(--ink);
+                  background: var(--panel3); border-color: var(--line2); }
+  .tbtn.on { color: #b9c7ff; background: rgba(109, 139, 255, .16); }
+  #scrub { flex: 1; min-width: 60px; height: 4px; accent-color: var(--acc);
+           cursor: pointer; }
+  .tc { font: 11.5px ui-monospace, Menlo, monospace; color: var(--ink);
+        white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tc .dim { color: var(--dim); }
+  .rate { background: var(--panel2); color: var(--ink); border: 1px
+          solid var(--line); border-radius: 6px; padding: 3px 5px;
+          font-size: 11px; height: 25px; }
+  #vol { width: 64px; height: 4px; flex: none; accent-color: var(--acc);
+         cursor: pointer; }
+  #audio-hint { font-size: 10.5px; color: #ffb454; white-space: nowrap;
+                cursor: pointer; }
+  #audio-hint:empty { display: none; }
+  #findings { flex: none; max-height: 84px; overflow: auto; padding: 6px 14px;
+              border-top: 1px solid var(--line); background: var(--panel); }
+  #findings:empty { display: none; }
+  #findings .f { font-size: 11.5px; padding: 1px 0; }
+  #findings .f.err { color: var(--err); }
+  #findings .f.warn { color: var(--warn); }
+  #findings .f.info { color: var(--dim); }
+

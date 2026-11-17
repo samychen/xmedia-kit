@@ -1,0 +1,124 @@
+  /* ---------- 导入本地素材（目录零拷贝 / 文件选择器） ---------- */
+/* imp/exp 面板为原生 <dialog>（M5 组件化）：showModal + ::backdrop 取代
+   手写 mask/z-index 层——焦点圈定、Esc、backdrop 全部由平台承担。 */
+  #imp-panel { position: fixed; z-index: 81; left: 50%; top: 50%;
+               transform: translate(-50%, -50%); width: 568px; margin: 0;
+               padding: 0; color: inherit;
+               max-width: calc(100vw - 32px); max-height: min(760px, 88vh);
+               flex-direction: column;
+               background: var(--panel); border: 1px solid var(--line2);
+               border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
+               overflow: hidden; }
+  #imp-panel:not([open]) { display: none; }
+  #imp-panel[open] { display: flex; }
+  #imp-panel::backdrop { background: rgba(6, 6, 12, .62);
+                         backdrop-filter: blur(5px); }
+  /* 导出面板（对齐 HF Export：质量×格式×帧率 + 后台渲染 + 取消）。
+     show() 非模态：保持"开着导出面板仍可看预览"的既有行为。 */
+  #exp-panel { position: fixed; z-index: 81; left: 50%; top: 50%;
+               transform: translate(-50%, -50%); width: 400px; margin: 0;
+               padding: 0; color: inherit;
+               max-width: calc(100vw - 32px);
+               flex-direction: column;
+               background: var(--panel); border: 1px solid var(--line2);
+               border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
+               overflow: hidden; }
+  #exp-panel:not([open]) { display: none; }
+  #exp-panel[open] { display: flex; }
+  #exp-head { flex: none; display: flex; align-items: center; gap: 10px;
+              padding: 13px 16px; border-bottom: 1px solid var(--line);
+              background: linear-gradient(115deg, rgba(62,207,142,.12),
+                                          rgba(109,139,255,.05)); }
+  #exp-head .t { font-size: 13.5px; font-weight: 600; }
+  #exp-head .sp { flex: 1; }
+  #exp-x { background: none; border: 0; color: var(--dim);
+           font-size: 19px; line-height: 1; padding: 2px 6px; }
+  #exp-x:hover { color: var(--ink); }
+  .exp-body { padding: 14px 16px 16px; display: flex;
+              flex-direction: column; gap: 12px; }
+  .exp-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .exp-row label { flex: none; width: 52px; color: var(--dim); }
+  .exp-row select { flex: 1; background: var(--panel2); color: var(--ink);
+                    border: 1px solid var(--line); border-radius: 7px;
+                    padding: 6px 8px; font-size: 12px; outline: none; }
+  .exp-row select:focus { border-color: var(--acc); }
+  .exp-dim { font-size: 11px; color: var(--dim); line-height: 1.5; }
+  #exp-progress { display: none; font-size: 11.5px; color: var(--dim);
+                  background: var(--panel2); border: 1px solid var(--line);
+                  border-radius: 8px; padding: 8px 10px; line-height: 1.6; }
+  #exp-progress.on { display: block; }
+  #exp-progress .bar { height: 4px; border-radius: 2px; margin-top: 6px;
+                       background: var(--panel3); overflow: hidden; }
+  #exp-progress .bar i { display: block; height: 100%; width: 0%;
+                         background: var(--acc); transition: width .4s; }
+  #exp-foot { flex: none; display: flex; gap: 8px; justify-content: flex-end;
+              padding: 0 16px 14px; }
+  #imp-head { flex: none; display: flex; align-items: center; gap: 11px;
+              padding: 14px 16px; border-bottom: 1px solid var(--line);
+              background: linear-gradient(115deg, rgba(109,139,255,.13),
+                                          rgba(139,109,255,.04)); }
+  #imp-head .ic { width: 32px; height: 32px; flex: none; border-radius: 9px;
+                  display: grid; place-items: center;
+                  background: rgba(109,139,255,.18); color: #b9c7ff; }
+  #imp-head .t { font-size: 13.5px; font-weight: 600; }
+  #imp-head .s { font-size: 10.5px; color: var(--dim); margin-top: 2px; }
+  #imp-head .sp { flex: 1; }
+  #imp-x { background: none; border: 0; color: var(--dim);
+           font-size: 19px; line-height: 1; padding: 2px 6px; }
+  #imp-x:hover { color: var(--ink); }
+  .imp-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 18px; }
+  .imp-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px;
+              background: var(--panel2); border: 1px solid var(--line); }
+  .imp-tabs button { flex: 1; padding: 7px 0; font-size: 11.5px; border: 0;
+                     border-radius: 7px; background: none; color: var(--dim); }
+  .imp-tabs button.on { background: var(--panel3); color: var(--ink);
+                        box-shadow: 0 1px 6px rgba(0,0,0,.28); }
+  .imp-sec { margin-top: 14px; }
+  .imp-label { display: block; font-size: 11px; color: var(--dim);
+               margin-bottom: 6px; }
+  .imp-input, .imp-select { width: 100%; background: var(--panel2);
+      color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+      padding: 9px 10px; font-size: 12px; outline: none; }
+  .imp-input:focus, .imp-select:focus { border-color: var(--acc); }
+  .imp-input::placeholder { color: #63637a; }
+  .imp-note { font-size: 10.5px; color: var(--dim); line-height: 1.65;
+              margin-top: 8px; }
+  .imp-quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .imp-quick button { font-size: 10.5px; padding: 4px 9px; border-radius: 12px;
+      border: 1px solid var(--line); background: var(--panel2); color: var(--dim); }
+  .imp-quick button:hover { color: var(--ink); border-color: var(--acc); }
+  #imp-drop { border: 1.5px dashed var(--line2); border-radius: 11px;
+      padding: 22px 14px; text-align: center; background: var(--panel2);
+      color: var(--dim); font-size: 11px; cursor: pointer;
+      transition: border-color .15s, background .15s; }
+  #imp-drop:hover, #imp-drop.over { border-color: var(--acc);
+      background: rgba(109,139,255,.08); color: var(--ink); }
+  #imp-drop .big { font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+  #imp-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+               max-height: 108px; overflow: auto; }
+  .imp-chip { font-size: 10.5px; padding: 4px 6px 4px 9px; border-radius: 12px;
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--panel3); border: 1px solid var(--line2); color: var(--ink); }
+  .imp-chip .x { border: 0; background: transparent; color: var(--dim);
+      font: inherit; line-height: 1; padding: 0 2px; cursor: pointer; }
+  .imp-chip .x:hover { color: #ff6b6b; }
+  .imp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+              margin-top: 16px; }
+  .imp-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .imp-opt { display: flex; align-items: center; gap: 7px; font-size: 11.5px;
+      color: var(--ink); padding: 8px 9px; border: 1px solid var(--line);
+      border-radius: 8px; background: var(--panel2); cursor: pointer; }
+  .imp-opt input { accent-color: var(--acc); margin: 0; }
+  #imp-status { flex: none; display: none; max-height: 132px; overflow: auto;
+      padding: 10px 16px; border-top: 1px solid var(--line);
+      background: var(--panel2); font: 11px/1.65 ui-monospace, Menlo, monospace;
+      color: var(--dim); white-space: pre-wrap; }
+  #imp-status.show { display: block; }
+  #imp-status.ok { color: var(--ok); }
+  #imp-status.err { color: var(--err); }
+  #imp-foot { flex: none; display: flex; align-items: center; gap: 8px;
+      padding: 11px 16px; border-top: 1px solid var(--line);
+      background: var(--panel); }
+  #imp-foot .hint { flex: 1; font-size: 10.5px; color: var(--dim);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #imp-go { min-width: 122px; }

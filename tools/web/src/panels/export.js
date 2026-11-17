@@ -1,0 +1,95 @@
+import { api } from "../shared/api-client.js";
+import { log, $ } from "../shared/dom.js";
+import { fps } from "../shared/time.js";
+
+/* ---------------- 导出面板（对齐 HF Export） ---------------- */
+export var expJob = -1, expPolling = false;
+export function expOpen(on) {
+  var panel = $("exp-panel");
+  panel.classList.toggle("open", !!on);
+  if (on) {
+    if (!panel.open) panel.show();   // 非模态：保持可同时看预览的既有行为
+    $("exp-dim").textContent = "项目尺寸 " + state.width + "×" +
+        state.height + " · 总时长 " + (state.duration || 0).toFixed(1) +
+        "s · 产物保存到 spec 所在目录";
+  } else if (panel.open) {
+    panel.close();
+  }
+}
+export function expSetBusy(busy) {
+  $("exp-go").disabled = busy;
+  $("exp-cancel").disabled = !busy;
+  $("exp-progress").classList.toggle("on", busy);
+  if (!busy) $("exp-bar").style.width = "0%";
+}
+export function expPoll(id) {
+  return api("/api/job?id=" + id).then(function (j) {
+    if (!expPolling) return j;   // 用户取消后停止刷新 UI
+    var total = Math.max(0.5, state.duration || 0.5);
+    var frac = Math.min(0.97, j.elapsed / (total * 4));
+    $("exp-bar").style.width = (frac * 100).toFixed(0) + "%";
+    $("exp-progress-text").textContent = "渲染中 " +
+        j.elapsed.toFixed(0) + "s（" + (j.out || "").split("/").pop() + "）";
+    if (j.running) {
+      return new Promise(function (res) {
+        setTimeout(res, 700);
+      }).then(function () { return expPoll(id); });
+    }
+    return j;
+  });
+}
+$("exp-x").onclick = function () { expOpen(false); };
+$("exp-cancel").onclick = function () {
+  expPolling = false;
+  api("/api/bake/cancel", {}).then(function () {
+    log("导出已取消", "err");
+  }).catch(function (e) {
+    log("取消失败：" + e.message, "err");
+  }).then(function () {
+    expSetBusy(false);
+    $("exp-progress-text").textContent = "已取消";
+    $("exp-progress").classList.add("on");
+  });
+};
+$("exp-go").onclick = function () {
+  var quality = $("exp-quality").value;
+  var fmt = $("exp-fmt").value;
+  var fps = parseInt($("exp-fps").value, 10);
+  expSetBusy(true);
+  expPolling = true;
+  $("exp-progress-text").textContent = "准备中…";
+  log("导出开始：" + quality + " / " + fmt + " / " + fps + "fps");
+  api("/api/bake", { quality: quality, fmt: fmt, fps: fps })
+    .then(function (r) { expJob = r.job; return expPoll(r.job); })
+    .then(function (j) {
+      expSetBusy(false);
+      $("exp-bar").style.width = "100%";
+      if (j.cancelled) {
+        $("exp-progress-text").textContent = "已取消";
+      } else if (j.rc === 0) {
+        $("exp-progress-text").textContent = "导出完成：" + j.out;
+        log("导出完成：" + j.out, "ok");
+        log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment",
+            "ok");
+      } else {
+        $("exp-progress-text").textContent = "导出失败 rc=" + j.rc;
+        log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
+      }
+      expPolling = false;
+    })
+    .catch(function (e) {
+      expSetBusy(false);
+      expPolling = false;
+      $("exp-progress-text").textContent = "导出失败：" + e.message;
+      log("导出失败：" + e.message, "err");
+    });
+};
+export function pollJob(id) {
+  return api("/api/job?id=" + id).then(function (j) {
+    if (j.running) {
+      $("job").textContent = "导出中 " + j.elapsed.toFixed(0) + "s";
+      return pollJob(id);
+    }
+    return j;
+  });
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xmedia-kit.local/schemas/spec.schema.json",
+  "title": "xmedia spec",
+  "description": "从 tools/hf_compose.py 的 spec 校验逻辑提取（2026-11-17）。hf_compose.py/hf_validate.py 始终是运行时权威：本 schema 只固化「error 级」约束（schema_version、scenes 非空、场景类型必须在 SUPPORTED_TYPES 或自定义模板内），其余字段（动画名、format 预设、时长拟合）在运行时是回落/拟合而非报错，故以 x-* 注记表达，不作为拒绝条件。未知场景类型会 raise，但自定义模板（templates/<name>.json）会动态扩展合法类型，因此 type 保持 string 而非 enum。",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "SUPPORTED_SCHEMA（hf_compose.py:50）。不匹配直接 ValueError 拒绝。"
+    },
+    "composition": {
+      "type": "object",
+      "description": "画布参数。id 默认 main；format 命中 FORMAT_PRESETS 时决定宽高，否则回落 width/height（默认 1920x1080）；fps 默认 30。",
+      "properties": {
+        "id": { "type": "string", "default": "main" },
+        "format": {
+          "type": "string",
+          "description": "预设：16:9|9:16|1:1|4:5（FORMAT_PRESETS）。未命中预设不报错，回落 width/height。",
+          "x-supported": ["16:9", "9:16", "1:1", "4:5"]
+        },
+        "width": { "type": "integer", "minimum": 1, "default": 1920 },
+        "height": { "type": "integer", "minimum": 1, "default": 1080 },
+        "fps": { "type": "integer", "default": 30 }
+      },
+      "additionalProperties": false
+    },
+    "background": {
+      "type": "string",
+      "default": "#000000",
+      "description": "整片背景色/值，写入页面时经 esc() 转义。"
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "非空（compose() 对空 scenes raise）。顺序即时序。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "内置类型见 x-supported；templates/<name>.json 自定义模板会动态扩展合法类型（未知类型 raise）。",
+            "x-supported": ["title", "text", "outro", "quote", "list", "stats", "comparison"]
+          },
+          "text": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "quote": { "type": "string" },
+          "author": { "type": "string" },
+          "items": { "type": "array", "items": {} },
+          "left": { "type": "string" },
+          "right": { "type": "string" },
+          "left_items": { "type": "array", "items": {} },
+          "right_items": { "type": "array", "items": {} },
+          "content": { "type": "string" },
+          "value": { "type": "string" },
+          "bg": { "type": "string", "description": "场景背景色（十六进制等 CSS 色值）。" },
+          "text_color": { "type": "string" },
+          "animation": {
+            "type": "string",
+            "description": "入场动画。未知值运行时回落 fade_in（不报错）；none = 硬切无入场。",
+            "x-supported": ["none", "fade_in", "fade_in_up", "fade_in_down", "slide_in_left", "slide_in_right", "scale_in"],
+            "default": "fade_in"
+          },
+          "transition": {
+            "type": "string",
+            "description": "场景级转场覆盖全局 transitions 段。"
+          },
+          "duration": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "秒。无 narration 时直接采用（缺省 3.0）；有 narration 时被 音频时长+padding 拟合覆盖。"
+          },
+          "padding": { "type": "number", "minimum": 0, "default": 0.5, "description": "旁白驱动时长拟合的尾部留白（秒）。" },
+          "narration": { "type": "string", "description": "旁白音频路径；存在时触发时长拟合。" },
+          "narration_volume": { "type": "number" },
+          "video": { "description": "视频素材：路径字符串或 {from: 秒} 对象形式。" },
+          "video_from": {
+            "type": "number",
+            "minimum": 0,
+            "description": "从源视频的该秒开始取帧；切割接缝按此累加（splitSceneData 同款语义）。"
+          },
+          "sfx": { "type": "string", "description": "SFX 三级选择的第一级：场景覆盖（assets/sfx/ 下的音效名）。" },
+          "captions": { "type": "object", "description": "场景级字幕（场景相对秒）。" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "transitions": {
+      "type": "object",
+      "description": "全局转场默认段；duration 默认 0.5s（重叠窗）。",
+      "properties": {
+        "duration": { "type": "number", "minimum": 0, "default": 0.5 }
+      },
+      "additionalProperties": true
+    },
+    "captions": {
+      "type": "object",
+      "description": "全局字幕轨：segments 为全时间轴绝对秒（hf_asr.py 的 captions.json 可直接填入）。",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "start": { "type": "number", "minimum": 0 },
+              "dur": { "type": "number", "minimum": 0 }
+            },
+            "required": ["text"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["scenes"]
+}

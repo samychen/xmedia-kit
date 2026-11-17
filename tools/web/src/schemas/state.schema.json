@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xmedia-kit.local/schemas/state.schema.json",
+  "title": "GET /api/state 响应",
+  "description": "从 tools/hf_studio.py 的 _api_state handler 提取（2026-11-17）。前端 handleState()/syncTransport()/renderFindings() 是消费方；服务端结构是权威。scenes/audios 由 parse_scenes/parse_audio_tracks 从契约 HTML 解析。",
+  "type": "object",
+  "required": ["spec", "spec_path", "duration", "scenes", "audios", "width", "height", "errors", "agent", "runs", "import", "findings"],
+  "properties": {
+    "spec": { "$ref": "spec.schema.json", "description": "当前加载的 spec（可能为 null：服务刚启动未加载）。" },
+    "spec_path": { "type": ["string", "null"], "description": "spec 文件路径（--spec 或导入来源）。" },
+    "duration": { "type": "number", "minimum": 0, "description": "全片总时长（秒），parse_total 从契约 HTML 解析。" },
+    "scenes": {
+      "type": "array",
+      "description": "parse_scenes 的结果：契约页面的时序场景。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": ["string", "integer"] },
+          "start": { "type": "number", "minimum": 0 },
+          "dur": { "type": "number", "minimum": 0 },
+          "type": { "type": "string" },
+          "text": { "type": "string" },
+          "has_video": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "audios": {
+      "type": "array",
+      "description": "parse_audio_tracks 的结果：旁白/SFX 音轨清单。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": ["string", "integer"] },
+          "src": { "type": "string" },
+          "start": { "type": "number" },
+          "dur": { "type": "number" },
+          "kind": { "type": "string", "description": "narration / sfx / bgm 等。" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "width": { "type": "integer", "minimum": 1 },
+    "height": { "type": "integer", "minimum": 1 },
+    "errors": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "hf_validate.validate 的 error 计数（非 0 时导出/校验红）。明细见 findings。"
+    },
+    "findings": {
+      "type": "array",
+      "description": "hf_validate 的完整 findings（error/warning/info 三级）。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "level": { "type": "string", "enum": ["error", "warning", "info"] },
+          "message": { "type": "string" }
+        },
+        "required": ["level", "message"],
+        "additionalProperties": false
+      }
+    },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "llm": { "type": "boolean", "description": "XMEDIA_LLM_ENDPOINT 已配置。" },
+        "mcp": { "type": "boolean", "const": true },
+        "cli": { "type": ["string", "null"], "description": "探测到的 agent CLI 名（claude/codex），未安装为 null。" }
+      },
+      "required": ["llm", "mcp", "cli"],
+      "additionalProperties": false
+    },
+    "runs": {
+      "type": "array",
+      "description": "历史运行（渲染/导出任务）列表。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "idx": { "type": "integer", "minimum": 0 },
+          "ts": { "type": "string" },
+          "message": { "type": "string" },
+          "backend": { "type": "string" }
+        },
+        "required": ["idx", "ts", "message", "backend"],
+        "additionalProperties": false
+      }
+    },
+    "import": {
+      "type": "object",
+      "properties": {
+        "last_dir": { "type": ["string", "null"] },
+        "spec_dir": { "type": "string" },
+        "upload_max_mb": { "type": "integer", "minimum": 1 },
+        "can_undo": { "type": "boolean" },
+        "undo_label": { "type": ["string", "null"] }
+      },
+      "required": ["last_dir", "spec_dir", "upload_max_mb", "can_undo", "undo_label"],
+      "additionalProperties": false
+    }
+  }
+}
