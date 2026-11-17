@@ -578,6 +578,38 @@ def cmd_brand(args):
             if f.endswith(".json"):
                 print(" ", f[:-5])
         return
+    if args.action == "scan":
+        if not args.name or not args.url:
+            print("xmedia: brand scan 需要 <名> --url <网站>", file=sys.stderr)
+            sys.exit(1)
+        draft = _brand_scan(args.url)
+        brand = {
+            "name": args.name,
+            "background": draft["background"],
+            "palette": draft["palette"],
+            "text_color": draft["text_color"] or "#f0f0f5",
+            "voice": args.voice or "Tingting",
+            "outro_text": "",
+            "logo_text": (draft["site_title"] or args.name)[:24],
+            "fonts": draft["fonts"],
+            "logo_image_url": draft["logo_image_url"],
+            "source_url": draft["source_url"],
+        }
+        d = _brand_dir()
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, args.name + ".json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(brand, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        print(f"xmedia: 品牌「{args.name}」扫描自 {draft['source_url']}")
+        print(f"  色板   {' '.join(brand['palette'])}"
+              f"（背景 {brand['background']}，文字 {brand['text_color']}）")
+        if brand["fonts"]:
+            print(f"  字体   {', '.join(brand['fonts'])}")
+        if brand["logo_image_url"]:
+            print(f"  logo   {brand['logo_image_url']}")
+        print(f"  已保存 {path} —— brand apply {args.name} --spec <spec> 生效")
+        return
     if args.action == "save":
         os.makedirs(d, exist_ok=True)
         brand = {"name": args.name,
@@ -641,6 +673,155 @@ def cmd_brand(args):
     print(f"xmedia: 品牌「{args.name}」已应用 {args.spec}"
           f"（{n} 个场景换色，outro 署名 "
           f"「{brand.get('outro_text') or '未设置'}」）")
+
+
+def _brand_scan(url):
+    """读网站 → 品牌草稿（色板/字体/站点名/logo 图）。
+
+    纯本地解析（对齐 HF brand-kits 的"输入网站自动读品牌"）：抓页面 +
+    至多 3 个同源样式表，统计 CSS 颜色与 font-family 频次。启发式：
+    色板取饱和度优先的高频色（互相色距过近的合并），背景取最常见浅色
+    或深色，文字色取与背景对比最大的近黑/近白。读不到就用 CLI 给的
+    默认值——扫描是草稿，brand save 的参数永远可以覆盖。
+    """
+    import urllib.request
+    import urllib.parse
+    import html as _html
+
+    def _fetch(u, timeout=10):
+        req = urllib.request.Request(
+            u, headers={"User-Agent": "Mozilla/5.0 (xmedia-kit brand scan)"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.read(2_000_000).decode("utf-8", "replace")
+
+    def _abs(u, base):
+        return urllib.parse.urljoin(base, u)
+
+    if url.startswith("file://"):
+        html_src = _fetch(url)
+        base = url
+    else:
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        html_src = _fetch(url)
+        base = url
+
+    def _tag_attr(pattern):
+        m = re.search(pattern, html_src, re.I)
+        return _html.unescape(m.group(1)).strip() if m else ""
+
+    site_title = (_tag_attr(r'<meta\s+property="og:site_name"\s+content="([^"]*)"')
+                  or _tag_attr(r"<title[^>]*>([^<]*)</title>"))
+    logo_url = (_tag_attr(r'<meta\s+property="og:image"\s+content="([^"]*)"')
+                or _tag_attr(r'<link\s+rel="apple-touch-icon"[^>]*href="([^"]*)"'))
+
+    # 同源样式表（至多 3 个，每个 ≤1MB）：外链 CSS 是颜色的大头
+    css_chunks = re.findall(r"<style[^>]*>(.*?)</style>", html_src, re.I | re.S)
+    for href in re.findall(r'<link[^>]+rel="stylesheet"[^>]*href="([^"]*)"',
+                           html_src, re.I)[:3]:
+        absu = _abs(_html.unescape(href), base)
+        if absu.startswith(("http://", "https://", "file://")):
+            try:
+                css_chunks.append(_fetch(absu)[:1_000_000])
+            except Exception:
+                pass  # 样式表读不到不影响其余启发式
+    hay = "\n".join(css_chunks) + "\n" + " ".join(
+        re.findall(r'style="([^"]*)"', html_src))
+
+    def _norm_hex(c):
+        c = c.lower()
+        if re.fullmatch(r"#[0-9a-f]{3}", c):
+            c = "#" + "".join(ch * 2 for ch in c[1:])
+        return c
+
+    def _css_color_to_hex(c):
+        c = c.strip().lower()
+        if c.startswith("#"):
+            return _norm_hex(c)
+        m = re.fullmatch(r"rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)"
+                         r"(?:[,\s/]+([0-9.]+))?\s*\)", c)
+        if not m:
+            return None
+        r_, g_, b_, a = int(m.group(1)), int(m.group(2)), int(m.group(3)), m.group(4)
+        if a is not None and float(a) < 0.1:
+            return None  # 近全透明不算色
+        return f"#{r_:02x}{g_:02x}{b_:02x}"
+
+    freq = {}
+    for raw in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", hay):
+        hx = _css_color_to_hex(raw)
+        if hx and re.fullmatch(r"#[0-9a-f]{6}", hx):
+            freq[hx] = freq.get(hx, 0) + 1
+
+    def _chan(hx):
+        return tuple(int(hx[i:i + 2], 16) for i in (1, 3, 5))
+
+    def _sat(hx):
+        r_, g_, b_ = _chan(hx)
+        return max(r_, g_, b_) - min(r_, g_, b_)
+
+    def _dist(a, b):
+        ca, cb = _chan(a), _chan(b)
+        return max(abs(x - y) for x, y in zip(ca, cb))
+
+    colors = sorted(freq.items(), key=lambda kv: (-_sat(kv[0]), -kv[1]))
+    palette, bg, text = [], None, None
+    for hx, _n in colors:
+        if len(palette) < 3 and _sat(hx) >= 24 and \
+                all(_dist(hx, p) > 32 for p in palette):
+            palette.append(hx)
+        if bg is None and (_chan(hx)[0] > 235 and _chan(hx)[1] > 235
+                           or max(_chan(hx)) < 40):
+            if freq[hx] >= 2:
+                bg = hx
+    if bg:
+        # 文字色必须与背景对比：浅底配近黑、深底配近白，且色距够大
+        light_bg = max(_chan(bg)) > 128
+        best, best_f = None, 0
+        for hx, n in freq.items():
+            ch = _chan(hx)
+            ok_polarity = (min(ch) > 200 and max(ch) > 200) if light_bg \
+                else (max(ch) < 90 and min(ch) < 90)
+            if ok_polarity and _dist(hx, bg) > 150 and n > best_f:
+                best, best_f = hx, n
+        text = best or ("#111318" if light_bg else "#f0f0f5")
+    if len(palette) < 3:
+        fallback = ["#1a1a2e", "#16213e", "#0f3460"]
+        palette += fallback[len(palette):]
+
+    fonts = []
+    for decl in re.findall(r"font-family\s*:\s*([^;}]+)", hay, re.I):
+        for fam in decl.split(","):
+            fam = fam.strip().strip("'\"").replace("!important", "").strip()
+            if fam and fam.lower() not in [f.lower() for f in fonts]:
+                fonts.append(fam)
+    fonts = fonts[:4]
+
+    return {"palette": palette, "background": bg or "#0a0a1a",
+            "text_color": text or "", "fonts": fonts,
+            "logo_image_url": _abs(logo_url, base) if logo_url else "",
+            "site_title": site_title, "source_url": url}
+
+
+def cmd_reference(args):
+    """参考视频 → 同节奏 spec 骨架（reference-video 本地弱化版）。"""
+    import hf_reference
+    try:
+        spec_path, report = hf_reference.run(
+            args.video, out=args.out or None, max_scenes=args.max_scenes,
+            threshold=args.threshold, min_shot=args.min_shot,
+            do_asr=args.asr, name=args.name or None)
+    except (RuntimeError, subprocess.TimeoutExpired) as e:
+        print(f"xmedia: {e}", file=sys.stderr)
+        sys.exit(2)
+    print(f"xmedia: {report['shots']} 镜 / {report['duration']}s"
+          f" / 缩略图 {report['thumbs']} 张"
+          f"{' / 参考字幕已生成' if report['captions'] else ''}")
+    if report["asr_note"]:
+        print(f"xmedia: ASR 跳过——{report['asr_note']}", file=sys.stderr)
+    print(f"  spec     {report['spec']}")
+    print(f"  对照表   {report['shots_json']}")
+    print("  下一步：改 spec 里的占位文案/换成自己的素材 → xmedia render")
 
 
 def cmd_launch(args):
@@ -810,10 +991,26 @@ def main():
     p.add_argument("--voice", default="Tingting", help="TTS 音色")
     p.add_argument("--out", required=True, help="spec JSON 输出路径")
     p.set_defaults(fn=cmd_launch)
-    p = sub.add_parser("brand", help="品牌套件：save/list/show/apply")
-    p.add_argument("action", choices=["save", "list", "show", "apply"])
+    p = sub.add_parser(
+        "reference",
+        help="参考视频 → 同节奏 spec 骨架（reference-video 本地弱化版）")
+    p.add_argument("video", help="参考视频文件（本地文件）")
+    p.add_argument("-o", "--out", help="输出目录（默认 reference/<视频名>/）")
+    p.add_argument("--max-scenes", type=int, default=12,
+                   help="场景数上限（默认 12）")
+    p.add_argument("--threshold", type=float, default=0.3,
+                   help="场景切换检测阈值 0-1（默认 0.3）")
+    p.add_argument("--min-shot", type=float, default=0.6,
+                   help="最短镜头秒数（默认 0.6）")
+    p.add_argument("--asr", action="store_true",
+                   help="用 hf_asr 把参考音频转成全局字幕段")
+    p.add_argument("--name", default="", help="合成 id")
+    p.set_defaults(fn=cmd_reference)
+    p = sub.add_parser("brand", help="品牌套件：save/list/show/apply/scan")
+    p.add_argument("action", choices=["save", "list", "show", "apply", "scan"])
     p.add_argument("name", nargs="?", help="品牌名")
     p.add_argument("--spec", help="apply 目标 spec JSON")
+    p.add_argument("--url", help="scan：要读取的网站（读色板/字体/站点名）")
     p.add_argument("--background", help="全局背景色")
     p.add_argument("--palette1", help="场景色 1")
     p.add_argument("--palette2", help="场景色 2")

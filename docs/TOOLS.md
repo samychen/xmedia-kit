@@ -351,13 +351,14 @@ hf_studio.py（浏览器编排）
 
 | 文件 | 行数 | 职责 | 谁调它 |
 |---|---|---|---|
-| `xmedia.py` | 631 | 统一 CLI 门面：`render/tts/compose/validate/studio/import/asr/agent/mcp/doctor/init/sfx/docs` 13 个子命令 + `bake_bin()` 探测 + `doctor` 环境自检 | 用户、`bin/xmedia.js`、测试 |
+| `xmedia.py` | 700+ | 统一 CLI 门面：`render/tts/compose/validate/studio/import/asr/agent/mcp/doctor/init/sfx/launch/reference/brand/docs` 16 个子命令 + `bake_bin()` 探测 + `doctor` 环境自检 + `brand scan` 网站读品牌 | 用户、`bin/xmedia.js`、测试 |
 | `hf_compose.py` | 791 | spec JSON → 契约 HTML。场景类型、转场重叠窗、分段字幕裁剪、自定义模板热加载、GSAP 内联 | `xmedia compose/render`、`hf_studio` |
 | `hf_validate.py` | 116 | 契约 HTML 校验（硬门，0 errors 才放行）。协议兼容 HyperFrames | `xmedia validate/render`、`hf_studio`、`gallery_smoke` |
 | `hf_tts.py` | 213 | 旁白生成。`say`（macOS 离线）/ HTTP provider 可插拔，幂等复用（text 没变不重跑） | `xmedia tts/render`、`hf_studio /api/tts` |
 | `hf_studio.py` | 1802 | Studio 本地服务：静态 UI + `/preview` 注入 + `/api/{state,recompose,tts,bake,job,asr,import,import/undo,import/upload,thumbs}` + `build_preview_mix` | `xmedia studio`、用户浏览器 |
 | `hf_asr.py` | 431 | 语音 → 分段字幕。whisper.cpp / faster-whisper 可插拔（`auto` 链合并两份失败原因），SRT/VTT 零依赖降级 | `xmedia asr/import`、`hf_studio /api/asr` |
 | `hf_import.py` | 252 | 素材目录/单文件 → spec。ffprobe 实长、确定性排序、ASR 字幕按累计起点偏移、可选片尾卡 | `xmedia import`、`hf_studio /api/import` |
+| `hf_reference.py` | 240 | 参考视频 → 同节奏 spec 骨架（HF reference-video 本地弱化版）：ffmpeg 场景检测切镜头、逐镜缩略图对照表、可选 --asr 全局字幕段 | `xmedia reference` |
 | `hf_agent.py` | 353 | 自然语言 → spec 变更（12 条中英规则 + 可选 LLM 代理）。**路径抽取有形态校验**，抽不到时回引导而不是报错 | `xmedia agent`、`hf_studio /api/agent`、MCP |
 | `xmedia_mcp.py` | 266 | stdio JSON-RPC 2.0 MCP server，11 个 tool。`import/asr/compose/validate/help` 不依赖 8120 常驻服务 | Claude/Cursor 等 MCP 客户端 |
 | `studio_ui.html` | 2746 | Studio 前端单文件（三栏 + 五轨 NLE 时间轴 + Inspector + Ask AI + 导入面板） | `hf_studio` 每请求读盘 |

@@ -15,6 +15,7 @@
     "tools/hf_asr.py",
     "tools/hf_import.py",
     "tools/hf_agent.py",
+    "tools/hf_reference.py",
     "tools/xmedia_mcp.py",
     "tools/xmedia.py",
     "tools/gsap.min.js",

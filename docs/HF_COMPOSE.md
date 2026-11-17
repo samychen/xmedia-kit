@@ -97,8 +97,8 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
 | first-video：一句话→提问→storyboard 审批→成片 | `launch` 四段式（Hook→Proof→Turn→CTA，对齐 HF first-video）+ Ask AI（一句话→提问卡→spec→预览→待应用队列） | 部分对齐：无逐镜 storyboard 确认卡；场景卡+时间轴+待应用队列已提供渲染前审阅 |
 | first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
-| reference-video：读参考视频→复刻剪辑/字幕/特效，换人换词换品牌 | 不支持 | 读片依赖 HeyGen 云理解（Pro credits）；本地替代：`hf_import` 导入参考视频作参考轨人工对齐 |
-| brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | `brand save/apply/list/show`（色板/字体色/音色/片尾署名/logo 文字）+ Studio 说「应用品牌 <名>」 | 部分：无网站扫描、无 logo/字体文件、无规则条目；URL 读色板可作后续小项 |
+| reference-video：读参考视频→复刻节奏/字幕，换人换词换品牌 | **本地弱化版已支持**：`xmedia reference <视频>`——ffmpeg 场景检测切镜头（保留剪辑节奏，最短镜并入/超限合并）、逐镜缩略图对照表、同节奏 spec 骨架、可选 --asr 全局字幕段；不复刻视觉特效/换脸（云能力，见上节） |
+| brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | **网站扫描已支持**：`brand scan <名> --url <网站>`——抓页面+同源样式表，色板按饱和度/频次启发（补足 fallback）、文字色保对比度、字体族与 og:image/站点名入库；+ `brand apply` 换色、Studio 说「应用品牌 <名>」 | 部分：logo/字体文件不入包（存 URL/名称）；无 workspace 团队共享 |
 | brand-kits：workspace 团队共享 | 不做（本地单人定位） | — |
 | 灵感 feed / remix 社区 | 不做（云社区） | — |
 | HeyGen presenter / Pro credits 读片计费 | 不做（上节"明确不做"） | — |
