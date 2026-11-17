@@ -192,6 +192,12 @@ def _extract_path(msg):
     return ""
 
 
+def _topic_of(msg):
+    """从「参考 <路径> 讲 X」之类消息里抽主题短语；抽不到返回空。"""
+    m = re.search(r"(?:讲|主题|话题|内容)\s*[:：]?\s*(.{2,40})", msg)
+    return m.group(1).strip() if m else ""
+
+
 def _int(s, default=0):
     cn = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
           "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
@@ -272,6 +278,20 @@ def handle(message, spec, spec_dir=""):
         return out(f"品牌「{m.group(1)}」已应用（色板 {len(palette)} 色、"
                    f"文字 {text or '不变'}、音色 "
                    f"{brand.get('voice') or '不变'}）", base)
+
+    # 0c. 参考视频（HF reference-video 的本地弱化版指令入口）：路径 →
+    #     action 分发，Studio 侧跑 hf_reference（镜头切割 → 同节奏 spec
+    #     骨架 + 可选 ASR），复刻剪辑节奏与结构，不复刻特效/素材。
+    m = re.search(r"参考\s*(?:视频)?\s*[:：]?\s*(\S+)", msg)
+    if m:
+        raw = m.group(1).strip("\"'“”")
+        path = os.path.expanduser(raw)
+        if not _looks_path(raw):
+            return out("请提供参考视频路径，例如「参考 ~/Movies/demo.mp4 "
+                       "讲 XX」或「参考 ./ref.mp4」", mode="help")
+        return out(f"正在分析参考视频 {path}（镜头切割 → 同节奏 spec 骨架"
+                   "，可选 ASR 字幕）…", action="reference",
+                   args={"video": path, "topic": _topic_of(msg)})
 
     # 1. 素材导入（含「字幕」「片尾卡」组合意图）
     #    只把「像路径」的片段当路径；没有路径时给出引导而不是抛「不存在」。

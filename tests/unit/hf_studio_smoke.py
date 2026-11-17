@@ -2,6 +2,7 @@
 # hf_studio 冒烟（ctest hf_studio_smoke）：契约 HTML → Studio 注入。
 # 验证 chrome/驱动注入、场景按钮、幂等原地更新、契约语义不变
 # （hf_validate 在 studio 页仍 0 errors、场景 div 原样保留）。
+import glob
 import array
 import io
 import json
@@ -97,9 +98,22 @@ def main():
         assert "syncAudio(sec, playing, !!forceSeek);" not in html, \
             "播放态逐帧同步音频已回归"
         # Studio UI 静态契约：原生画布等比缩放 + 传输条 + 嵌入预览
+        # M5 ESM 迁移后 UI = 打包产物 + 分片源两层：DOM id / 字符串字面量
+        # 在产物保留；函数定义名被 minify 改名——这类断言指向分片源
+        # （tools/web/src/**，唯一事实）。
         ui = open(os.path.join(TOOLS, "studio_ui.html"),
                   encoding="utf-8").read()
-        assert 'id="pvframe"' in ui and "transform-origin: top left" in ui, \
+        srcs = ""
+        for f in (glob.glob(os.path.join(TOOLS, "web", "src", "**", "*.js"),
+                            recursive=True)
+                  + glob.glob(os.path.join(TOOLS, "web", "src",
+                                           "**", "*.html"),
+                              recursive=True)
+                  + glob.glob(os.path.join(TOOLS, "web", "src", "**", "*.css"),
+                              recursive=True)):
+            srcs += open(f, encoding="utf-8").read() + "\n"
+        assert 'id="pvframe"' in ui and \
+            re.search(r"transform-origin:\s*top\s+left", ui), \
             "预览画布未按原生尺寸 + transform 等比缩放"
         assert "/preview?embed=1" in ui and "__mcStudioAPI" in ui, \
             "UI 未接嵌入预览协议"
@@ -107,34 +121,35 @@ def main():
                    'overlay safe-overlay', 'id="btn-loop"', 'id="tc"',
                    'id="btn-audio"', 'id="vol"', 'id="audio-hint"'):
             assert el in ui, f"预览区控件缺失：{el}"
-        assert "renderAudioBtn" in ui and "unlockPreviewAudio" in ui and \
+        assert "renderAudioBtn" in srcs and \
+            "unlockPreviewAudio" in srcs and \
             "KeyM" in ui, "声音开关 / 自动播放解锁 / M 快捷键缺失"
         # 时间轴（NLE 风格）：工具栏 / 5 轨 / 可缩放画布 / 缩略图 / 波形
         for el in ('class="tl-toolbar"', 'id="tl-grid"', 'id="tl-scroll"',
                    'id="tl-zoom-in"', 'id="tl-snap"', 'id="tl-tc"',
                    'id="tl-zoom-label"'):
             assert el in ui, f"时间轴控件缺失：{el}"
-        assert "function waveSVG(" in ui and "function stripHTML(" in ui, \
+        assert "function waveSVG(" in srcs and "function stripHTML(" in srcs, \
             "确定性波形 / filmstrip 生成缺失"
-        assert "function zoomTimeline(" in ui and "tlPPS" in ui, \
+        assert "function zoomTimeline(" in srcs and "tlPPS" in ui, \
             "时间轴按 px/s 缩放缺失"
-        assert "v-caption" in ui and "trackHead" in ui and \
+        assert "v-caption" in ui and "trackHead" in srcs and \
             "#playhead" in ui, "轨道头 / 播放头缺失"
         assert "tl-blk" not in ui and "tl-label" not in ui, \
             "旧版纯色块时间轴残留"
         # 字幕轨必须消费 spec.captions.segments（ASR / SRT 产物），只画
         # scenes[].text 会让「识别到 N 段字幕」之后字幕轨依然空白。
-        assert "function capSegments(" in ui and \
-            "captions.segments" in ui and "function capTrackSub(" in ui, \
+        assert "function capSegments(" in srcs and \
+            "captions.segments" in ui and "function capTrackSub(" in srcs, \
             "字幕轨未读取全局字幕段（ASR 后轨道会空白）"
         # 波形必须是真实峰值：hashSeed 那条只是兜底。以前只有示意波形，
         # 形状好看但与素材里的声音无关——时间轴上唯一能看出"这段有没有
         # 说话"的信息因此完全失真。
-        assert "function peaksSVG(" in ui and \
-            "function loadWaveForClip(" in ui and \
+        assert "function peaksSVG(" in srcs and \
+            "function loadWaveForClip(" in srcs and \
             "/api/waveform" in ui, \
             "时间轴波形未接真实峰值（仍是哈希示意波形）"
-        assert "waveSVG(hashSeed(a.src)" in ui, \
+        assert "waveSVG(hashSeed(a.src)" in srcs, \
             "真实峰值缺失时要有加载态兜底，不能留空"
         # 时间轴区间：选区外压暗、选区内原色；I / O 打点、两端把手可拖、
         # 区间播放收在 out 点（预览驱动侧 setRange）。
@@ -143,38 +158,39 @@ def main():
             assert el in ui, f"区间控件缺失：{el}"
         assert '"tl-dim-l"' in ui and '"tl-dim-r"' in ui and \
             "#tl-range-body" in ui, "区间压暗覆盖层缺失（选区外应变暗）"
-        assert "function startRangeDrag(" in ui and \
-            "function dragRangeHandle(" in ui and \
-            "function applyRangeGeom(" in ui and "function pushRange(" in ui, \
+        assert "function startRangeDrag(" in srcs and \
+            "function dragRangeHandle(" in srcs and \
+            "function applyRangeGeom(" in srcs and \
+            "function pushRange(" in srcs, \
             "区间拖拽 / 把手 / 推送预览缺失"
-        assert 'code === "KeyI"' in ui and 'code === "KeyO"' in ui, \
+        assert 'code === "KeyI"' in srcs and 'code === "KeyO"' in srcs, \
             "I / O 区间打点快捷键缺失"
         # 播放头流畅度：CSS transition 在合成层插值推进，播放中 JS 不写
         # transform。Safari 同源 iframe 与父页共享主线程，音轨首次 play()
         # 的解码初始化会同步阻塞父页 rAF，任何 JS 逐帧驱动都会在音效起点
         # 前顿一下（录屏实测 00:01.37 前连续 13 帧停住）。
-        assert "translate3d(" in ui and "will-change: transform" in ui, \
+        assert "translate3d(" in ui and "will-change: transform" in srcs, \
             "播放头未用 transform 推进（每帧改 left 会重排整条时间轴）"
         assert "ph.style.left" not in ui, "播放头仍在逐帧写 left"
-        assert "startPhAnim" in ui and "stopPhAnim" in ui and \
-            'ph.style.transition = "transform " + dur + "s linear"' in ui, \
+        assert "startPhAnim" in srcs and "stopPhAnim" in srcs and \
+            'ph.style.transition = "transform " + dur + "s linear"' in srcs, \
             "合成层 CSS transition 播放头缺失（主线程阻塞会卡住游标）"
-        assert "void ph.offsetWidth" in ui, \
+        assert "void ph.offsetWidth" in srcs, \
             "启动过渡前未提交起点（会与上一次过渡串联）"
-        assert "setPhTransform" in ui and "updatePlayheadMeta" in ui and \
-            "followPlayhead" in ui, \
+        assert "setPhTransform" in srcs and "updatePlayheadMeta" in srcs and \
+            "followPlayhead" in srcs, \
             "播放中的文本更新 / 立即定位 / 自动跟随未拆分"
-        assert "lastTcHtml" in ui and "lastLabel" in ui, \
+        assert "lastTcHtml" in srcs and "lastLabel" in srcs, \
             "状态文本的每帧写入未做变化检测"
-        assert "function phFrame(now)" in ui and \
-            "requestAnimationFrame(phFrame)" in ui and \
-            "updatePlayheadMeta(phVisual, total)" in ui, \
+        assert "function phFrame(now)" in srcs and \
+            "requestAnimationFrame(phFrame)" in srcs and \
+            "updatePlayheadMeta(phVisual, total)" in srcs, \
             "父页低频文本时钟缺失"
-        phframe = ui.split("function phFrame(now)")[1].split("\n}")[0]
+        phframe = srcs.split("function phFrame(now)")[1].split("\n}")[0]
         assert "updatePlayhead(phVisual" not in phframe and \
             "ph.style.transform" not in phframe, \
             "phFrame 仍在逐帧写播放头 transform（会打断合成层过渡）"
-        assert "phVisual" in ui and "phTarget" in ui, \
+        assert "phVisual" in srcs and "phTarget" in srcs, \
             "视觉时钟的当前值 / 目标值缺失"
         # 单条预混音预览：播放中途不再有元素首次 play()。Safari 的音轨
         # 解码初始化是同步的，会阻塞与父页共享的主线程，表现为第 2、3 个
@@ -455,20 +471,29 @@ def main():
                        encoding="utf-8").read()
         ui_src = open(os.path.join(TOOLS, "studio_ui.html"),
                       encoding="utf-8").read()
+        web_src = "".join(
+            open(f, encoding="utf-8").read() + "\n"
+            for f in (glob.glob(os.path.join(TOOLS, "web", "src", "**",
+                                             "*.js"), recursive=True)
+                      + glob.glob(os.path.join(TOOLS, "web", "src", "**",
+                                               "*.html"),
+                                  recursive=True)))
         for token in ("/api/agent", "/api/asr", "/api/import",
                       "_run_agent", "_run_asr", "_run_import",
                       "transcribe_with_fallback", "hf_agent.validate_spec"):
             assert token in srv_src, f"Studio 服务缺少 {token}"
         for token in ('id="ask-fab"', 'id="ask-panel"', 'id="ask-quick"',
                       "/api/agent", "function askSend", "KeyK"):
-            assert token in ui_src, f"Studio UI 缺少 {token}"
+            assert token in ui_src or token in web_src, \
+                f"Studio UI 缺少 {token}"
         # 导入素材必须有独立按钮入口，且外部素材在 HTTP 预览下不能 404。
         for token in ("/api/import/upload", "_save_uploads",
                       "EXTERNAL_ASSET_PREFIX", "MAX_UPLOAD_BYTES"):
             assert token in srv_src, f"Studio 服务缺少 {token}"
         for token in ('id="btn-import"', 'id="imp-panel"', 'id="imp-dir"',
                       'id="imp-go"', "function impRun", "/api/import/upload"):
-            assert token in ui_src, f"Studio UI 缺少 {token}"
+            assert token in ui_src or token in web_src, \
+                f"Studio UI 缺少 {token}"
 
     httpd.shutdown()
     print("hf_studio_smoke: PASS")

@@ -100,6 +100,7 @@
         <option value="3">300%</option>
       </select>
       <span class="zoom-label" id="zoom-label">—</span>
+      <button class="mini" id="btn-ref" title="参考视频对照（Show original）：与成品同播放头并排" aria-label="参考视频对照">对照</button>
       <button class="mini" id="btn-full" title="全屏预览" aria-label="全屏预览">全屏</button>
     </div>
 
@@ -112,6 +113,21 @@
         </div>
       </div>
       <div id="pv-hint">原生画布等比缩放 · Ctrl/⌘ + 滚轮缩放 · 点选画面联动</div>
+    </div>
+
+    <div id="ref-panel">
+      <div id="ref-head">
+        <span class="t">对照 · 参考视频</span>
+        <span class="sp"></span>
+        <button id="ref-close" title="关闭对照" aria-label="关闭对照">×</button>
+      </div>
+      <div id="ref-pick">
+        <input id="ref-path" spellcheck="false"
+               placeholder="参考视频路径（本地文件）…">
+        <button class="mini" id="ref-go" type="button">开启对照</button>
+      </div>
+      <video id="refvideo" controls muted playsinline></video>
+      <div id="ref-foot">同播放头：成品播到哪，参考就到哪（偏差 &gt; 0.25s 自动对齐）</div>
     </div>
 
     <div class="transport">

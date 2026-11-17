@@ -779,6 +779,7 @@ class StudioServer:
         self._mix_bytes = None
         # spec 引用的外部素材（导入 / Agent 写入）→ HTTP 预览只读白名单。
         self.external_files = set()
+        self.ref_video = None   # 双屏同钟对照的参考视频（realpath）
         self.last_import_dir = ""
         # 导入前的 spec 快照（仅留最近一次），供「撤销导入」回滚。
         self._undo_spec = None
@@ -1231,6 +1232,52 @@ class StudioServer:
         self.job_seq += 1
         return self.job["id"]
 
+    def _set_ref_video(self, path):
+        """双屏同钟对照的参考视频：登记进外部素材白名单（预览页可直接
+        以 /__xmedia_media__/<realpath> 访问）。"""
+        full = os.path.realpath(os.path.expanduser(path))
+        if not os.path.isfile(full):
+            raise RuntimeError(f"参考视频不存在：{path}")
+        self.external_files.add(full)
+        self.ref_video = full
+        return {"url": EXTERNAL_ASSET_PREFIX + full, "path": full}
+
+    def _run_reference(self, args):
+        """参考视频（HF reference-video 本地弱化版）：hf_reference 切镜头
+        → 同节奏 spec 骨架 → 主题文案填充 → 标准写回/重组链。对照表与
+        逐镜审阅走 Storyboard（连拍网格 + 改这镜定位链）。"""
+        import hf_reference
+        video = os.path.expanduser(str(args.get("video") or ""))
+        if not os.path.isfile(video):
+            raise RuntimeError(f"参考视频不存在：{video}")
+        topic = str(args.get("topic") or "")
+        try:
+            spec_path, report = hf_reference.run(
+                video, do_asr=True, name=None)
+        except (RuntimeError, subprocess.TimeoutExpired) as e:
+            raise RuntimeError(str(e))
+        with open(spec_path, encoding="utf-8") as f:
+            spec = json.load(f)
+        # 主题填充：骨架占位文案 → topic（首场景 + 中段文字场景）；
+        # ASR 字幕段保留（绝对秒语义与骨架时长同源）。
+        for i, sc in enumerate(spec.get("scenes") or []):
+            if sc.get("type") == "title" or i == 0:
+                sc["text"] = topic or sc.get("text") or "参考复刻"
+            elif sc.get("type") in ("text", "list") and topic and \
+                    not sc.get("narration"):
+                sc["text"] = topic
+        notes = [f"参考分析：{report.get('shots')} 镜 / "
+                 f"{report.get('duration')}s → 同节奏骨架",
+                 f"对照表：{report.get('shots_json')}"
+                 "（Storyboard 逐镜审阅可看连拍帧）"]
+        if report.get("captions"):
+            notes.append("ASR 字幕已挂全局 captions（Script 页签逐词改）")
+        out = self._apply_spec(spec)
+        notes.append("骨架文案是占位——逐镜改词用 Storyboard / Script 页签，"
+                     "或直接告诉我每段要说什么")
+        return {"notes": notes, "spec": out.get("spec", spec),
+                "composed": out.get("composed")}
+
     def _cancel_bake(self):
         """终止进行中的导出（Export 面板的取消渲染）。"""
         if not self.job or self.job["proc"].poll() is not None:
@@ -1544,6 +1591,8 @@ class StudioServer:
                 out["import"] = self._run_import(args)
             elif action == "asr":
                 out["asr"] = self._run_asr(args)
+            elif action == "reference":
+                out["reference"] = self._run_reference(args)
             elif action == "recompose":
                 out["composed"] = self._compose()
         except Exception as e:
@@ -1737,6 +1786,9 @@ def make_handler(server_ref):
                             "agent": {"llm": bool(os.environ.get(
                                 "XMEDIA_LLM_ENDPOINT")), "mcp": True,
                                 "cli": srv._agent_probe()["cli"]},
+                            "ref_video": (EXTERNAL_ASSET_PREFIX +
+                                          srv.ref_video)
+                                          if srv.ref_video else None,
                             "runs": [{"idx": i, "ts": r.get("ts", ""),
                                       "message": r.get("message", ""),
                                       "backend": r.get("backend", "")}
@@ -1829,6 +1881,12 @@ def make_handler(server_ref):
                     srv.current_spec = body["spec"]
                     srv._write_spec(srv.current_spec)
                     self._json(srv._compose())
+                elif path == "/api/reference/video":
+                    self._json(srv._set_ref_video(
+                        str(body.get("path") or "")))
+                elif path == "/api/reference/video/clear":
+                    srv.ref_video = None
+                    self._json({"cleared": True})
                 elif path == "/api/tts":
                     srv.current_spec = body["spec"]
                     srv._write_spec(srv.current_spec)
@@ -1988,6 +2046,34 @@ def make_handler(server_ref):
                      "text/html; charset=utf-8" if ext == ".html" else
                      "application/json" if ext == ".json" else
                      "text/plain; charset=utf-8")
+            # video/audio 的 seek 依赖 Range/206（mp4 的 moov 常在尾部，
+            # 无 Range 时 Chromium 无法定位 seek 点——Safari audio 同款
+            # 约束，参照 _serve_mix）；无 Range 头保持全量 200（旧行为）。
+            rng = self.headers.get("Range", "")
+            if rng.startswith("bytes="):
+                m = re.match(r"(\d*)-(\d*)", rng[6:].split(",")[0].strip())
+                if m:
+                    total = os.path.getsize(full)
+                    start = int(m.group(1)) if m.group(1) else 0
+                    end = (int(m.group(2)) if m.group(2)
+                           else min(total - 1, start + 1024 * 1024 - 1))
+                    end = min(end, total - 1)
+                    if start <= end and start < total:
+                        with open(full, "rb") as f:
+                            f.seek(start)
+                            chunk = f.read(end - start + 1)
+                        self.send_response(206)
+                        self.send_header("Content-Type", ctype)
+                        self.send_header("Content-Length", str(len(chunk)))
+                        self.send_header("Accept-Ranges", "bytes")
+                        self.send_header(
+                            "Content-Range", f"bytes {start}-{end}/{total}")
+                        self.end_headers()
+                        try:
+                            self.wfile.write(chunk)
+                        except (BrokenPipeError, ConnectionResetError):
+                            pass
+                        return
             with open(full, "rb") as f:
                 self._send(200, f.read(), ctype)
 

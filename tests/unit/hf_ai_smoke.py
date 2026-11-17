@@ -2,6 +2,7 @@
 # hf_ai 冒烟（ctest hf_ai_smoke）：ASR 字幕 / 素材自动导入 / Agent 规则 /
 # MCP stdio / Ask AI HTTP 闭环 / 分段字幕契约。
 # 只用标准库 + ffmpeg/ffprobe，不依赖 8120 常驻服务（临时端口自起自停）。
+import glob
 import json
 import os
 import re
@@ -205,6 +206,14 @@ def check_cli_and_ui():
     for cmd in ("import", "asr", "agent", "mcp"):
         assert cmd in out, f"CLI 缺少 {cmd} 子命令"
     ui = open(os.path.join(TOOLS, "studio_ui.html"), encoding="utf-8").read()
+    # M5 ESM：UI 逻辑迁到 tools/web/src 分片，打包后函数名被 minify 改名
+    # ——文本断言与函数抽取（check_split_math/extract_fn）都指向
+    # 「产物 + 分片源」拼接文本（分片源是唯一事实）。
+    for f in (glob.glob(os.path.join(TOOLS, "web", "src", "**", "*.js"),
+                        recursive=True)
+              + glob.glob(os.path.join(TOOLS, "web", "src", "**", "*.html"),
+                          recursive=True)):
+        ui += open(f, encoding="utf-8").read() + "\n"
     for marker in ('id="ask-fab"', 'id="ask-panel"', 'id="ask-msgs"',
                    'id="ask-quick"', 'id="ask-input"', '/api/agent',
                    'function askSend', 'KeyK',

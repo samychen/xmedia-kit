@@ -97,7 +97,7 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
 | first-video：一句话→提问→storyboard 审批→成片 | **storyboard 已支持**：Studio 左栏「Storyboard」逐镜审阅——每镜连拍帧（/api/thumbs 现有管线）+ 时机 + 文案，「改这镜」一键定位 Inspector/时间轴/预览高亮；视频场景网格、纯模板场景色块预览。+ `launch` 四段式 + Ask AI 待应用队列 | 渲染前逐镜审阅闭环完成 |
 | first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
-| reference-video：读参考视频→复刻节奏/字幕，换人换词换品牌 | **本地弱化版已支持**：`xmedia reference <视频>`——ffmpeg 场景检测切镜头（保留剪辑节奏，最短镜并入/超限合并）、逐镜缩略图对照表、同节奏 spec 骨架、可选 --asr 全局字幕段；不复刻视觉特效/换脸（云能力，见上节） |
+| reference-video：读参考视频→复刻节奏/字幕，换人换词换品牌 | **本地弱化版已支持**：`xmedia reference <视频>`——ffmpeg 场景检测切镜头（保留剪辑节奏，最短镜并入/超限合并）、逐镜缩略图对照表、同节奏 spec 骨架、可选 --asr 全局字幕段；Studio 内说「参考 <路径> 讲 X」同样触发（分析 → 同节奏骨架 → 主题填充）；预览工具条「对照」= 双屏同钟对照（参考视频与成品同播放头，偏差 > 0.25s 自动对齐，`/api/reference/video` 登记外部素材白名单 + asset 响应支持 Range/206）；不复刻视觉特效/换脸（云能力，见上节） |
 | brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | **logo 图片入包已支持**：`brand save --logo-image <文件>`（复制进品牌 assets）+ `brand scan` 自动下载 og:image + `brand apply`（`--logo-mode corner/backdrop`）注入每个无图场景（hf_compose 场景级 `image` 字段，`scene-image-corner/backdrop` CSS）；字体族经 `--font-family` 写 `spec.fonts.body`；+ 网站扫描（色板/对比文字色） | 部分：无 workspace 团队共享 |
 | brand-kits：workspace 团队共享 | 不做（本地单人定位） | — |
 | 灵感 feed / remix 社区 | 不做（云社区） | — |
