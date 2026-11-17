@@ -46,7 +46,12 @@ export function renderInspector() {
     }
     return label + '<input id="insp-f-' + f[1] + '" value="' +
            escHtml(val) + '"' + dis + '></div>';
-  }).join("");
+  }).join("") + (locked
+      ? '<div class="field" style="font-size:10.5px;color:var(--dim)">'
+        + '🔒 该场景已生成旁白音频，文字锁定以保持音画同步——改文案请在 '
+        + 'Ask AI 里说「把第 ' + (selIdx + 1) + ' 个场景文字改成 …」（会同步'
+        + '刷新旁白指引），或点顶栏「生成旁白」重做音频</div>'
+      : "");
 }
 export function applyInspector() {
   if (selIdx < 0 || !state.spec.scenes[selIdx]) return;
