@@ -87,6 +87,26 @@ python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告�
   与云服务，与本仓库本地/开源定位冲突。替代路径：口型播报可接开源
   TTS+口型方案；评审分享用产物文件 + 常规渠道。
 
+**Studio app 文档站四页对齐评估**（2026-11-17，对齐
+hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
+/brand-kits 三页；读片/网站扫描等云侧能力依赖 HeyGen 账号体系，结论
+沿用上节"明确不做"）：
+
+| HF Studio app 能力 | xmedia-kit 现状 | 差距 / 替代路径 |
+|---|---|---|
+| Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
+| first-video：一句话→提问→storyboard 审批→成片 | `launch` 四段式（Hook→Proof→Turn→CTA，对齐 HF first-video）+ Ask AI（一句话→提问卡→spec→预览→待应用队列） | 部分对齐：无逐镜 storyboard 确认卡；场景卡+时间轴+待应用队列已提供渲染前审阅 |
+| first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
+| reference-video：读参考视频→复刻剪辑/字幕/特效，换人换词换品牌 | 不支持 | 读片依赖 HeyGen 云理解（Pro credits）；本地替代：`hf_import` 导入参考视频作参考轨人工对齐 |
+| brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | `brand save/apply/list/show`（色板/字体色/音色/片尾署名/logo 文字）+ Studio 说「应用品牌 <名>」 | 部分：无网站扫描、无 logo/字体文件、无规则条目；URL 读色板可作后续小项 |
+| brand-kits：workspace 团队共享 | 不做（本地单人定位） | — |
+| 灵感 feed / remix 社区 | 不做（云社区） | — |
+| HeyGen presenter / Pro credits 读片计费 | 不做（上节"明确不做"） | — |
+| project 模型 + Undo | `project.json` + run Undo（20 轮） | ✓ 对齐 |
+| 模板 catalog | `templates/` 19 个场景模板（同款 slots 协议） | 数量少于 HF catalog（449 页索引） |
+| 媒体导入 / 字幕 | `hf_import` 零拷贝 + `hf_asr` SRT 分段字幕 | ✓ 对齐 |
+| 导出（后台渲染 + 取消） | `/api/bake` + 取消，产物命名对齐 HF | ✓ 对齐 |
+
 **launch 四段式发布视频**（对齐 HF first-video：Hook → Proof → Turn → CTA）：
 
 ```bash
