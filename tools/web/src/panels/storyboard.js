@@ -115,6 +115,17 @@ export function storyboardRender() {
       })(shot, i);
     }
 
+    // 点画面 = 选中该镜（Inspector 联动，分镜保持打开继续看）——
+    // 图像 UI 的自然交互，此前点击无响应是「不知道怎么用」的根因之一。
+    shot.style.cursor = "pointer";
+    shot.onclick = function () {
+      selectScene(i, false);   // 选中联动 Inspector/时间轴/预览高亮，不跳走
+      list.querySelectorAll(".sb-card.sel").forEach(function (c) {
+        c.classList.remove("sel");
+      });
+      card.classList.add("sel");
+    };
+
     var foot = mk("div", "sb-foot");
     foot.innerHTML =
         '<div class="sb-text">' + escHtml(sceneFlatText(sc)) + "</div>";
