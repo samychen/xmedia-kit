@@ -401,3 +401,38 @@ hf_studio.py（浏览器编排）
 - **`hf_studio_smoke` 偶发 `TimeoutError`**：已知（两个测试各起一个服务，
   并行时抢 CPU）。用 `-j1` 串行跑。
 - **烘焙相关失败且报「找不到 html_bake」**：构建问题，不是被测代码问题。
+
+### 10.6 Studio 前端源码（`tools/web/`，M3 分片化、M5 ESM + Vite）
+
+`studio_ui.html` 不再是手改的单文件：源头是 `tools/web/src/` 下的 ESM 分片
+（22 个 JS 域分片 + 10 个 CSS 分片 + `index.html` 模板），由 Vite +
+vite-plugin-singlefile 构建为自包含单文件产物。决策与迁移地图见
+[FRONTEND-MODERNIZATION.md](FRONTEND-MODERNIZATION.md)。
+
+```bash
+# 门禁（typecheck + eslint + vitest + 构建 + 新鲜度；hermetic，无浏览器）
+bash tools/gate_local.sh --jobs web        # 或: cd tools/web && npm run gate
+
+# 改前端源码后的日常循环
+cd tools/web
+npm run dev            # Vite dev server（HMR；/api 需另起 hf_studio --serve）
+npm run build          # ESM 分片 -> dist/index.html（单文件自包含）
+npm run build && cp dist/index.html ../studio_ui.html   # 发布产物
+npm run test           # vitest：纯函数单测 + /api/state 契约测试
+npm run lint:report    # stylelint 完整报告（warning 只报告不阻塞）
+npm run mwg:scan       # modern-web-guidance 存量 legacy 模式扫描
+
+# 端到端基线回归（需要先起服务 + Chromium）
+python3 tools/hf_studio.py <contract.html> --serve --spec <spec.json> --port 8121
+cd tools/web && npm run e2e     # 交互冒烟 + 截图，控制台零 error 才算过
+```
+
+规则：
+- **改前端只改 `tools/web/src/`**，永远不要手改 `tools/studio_ui.html`——
+  它是构建产物，`check-freshness` 会拦住不一致的提交。
+- 跨分片可变标量在 `src/shared/store.js`（单一对象 S + globalThis 访问器桥，
+  分片代码保持原名读写）；分片间依赖用显式 import/export，
+  eslint no-undef 全量启用。迁移地图（M3 时代）留档于
+  `scripts/fragment-deps.json` 与 `scripts/build-order.json`。
+- `/api` 契约变更 = 服务端 handler、`src/schemas/*.schema.json`、
+  `tests/unit/contract.test.ts` 三处同 PR。
