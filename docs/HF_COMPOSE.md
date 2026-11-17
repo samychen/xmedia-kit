@@ -75,6 +75,18 @@ python3 tools/xmedia.py doctor               # 环境自检（8 项逐项报告�
 
 单步命令（等价透传）：`xmedia tts/compose/validate/studio/sfx`。
 
+**叙事计划（Storyboard）**：商业叙事的节拍骨架，先给计划再落地
+（HF prompting/design-systems 的叙事纪律）：
+
+```bash
+python3 tools/xmedia.py storyboard list          # 5 个商业 Arc
+python3 tools/xmedia.py storyboard problem-solution \
+  --message "把切片发布从半天缩短到一分钟「切片工作流」" \
+  --audience "短视频团队" --mood "轻快电子" -o sb/spec.json
+# 5 帧骨架（Hook→问题→方案→证明→CTA），每帧带 type/persuasion/beat
+# 叙事徽标（Studio 分镜卡显示）；占位文案在分镜卡/Ask AI 里改
+```
+
 **能力对齐 HF Studio 的评估结论**（2026-11-17 对齐任务链）：
 
 - **云渲染（deploy/cloud、Lambda/Cloud Run）**：评估暂不实现——本仓库
@@ -97,7 +109,8 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | HF Studio app 能力 | xmedia-kit 现状 | 差距 / 替代路径 |
 |---|---|---|
 | Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
-| first-video：一句话→提问→storyboard 审批→成片 | **storyboard 已支持**：Studio 左栏「Storyboard」逐镜审阅——每镜连拍帧（/api/thumbs 现有管线）+ 时机 + 文案，「改这镜」一键定位 Inspector/时间轴/预览高亮；视频场景网格、纯模板场景色块预览。+ `launch` 四段式 + Ask AI 待应用队列 | 渲染前逐镜审阅闭环完成 |
+| first-video：一句话→提问→storyboard 审批→成片 | **storyboard 已支持**：Studio 左栏「分镜」页签逐镜审阅——每镜**真实渲染帧**（/api/sb-frames：html_bake 低分辨率全段烘焙 → 场景中点抽帧，video 场景走连拍网格）+ 时机 + 文案，点画面选中联动 Inspector/时间轴/预览（不跳走），「改这镜」一键定位，卡上内联编辑文案/时长（应用走重组）；+ `launch` 四段式 + Ask AI 待应用队列 | 渲染前逐镜审阅闭环完成 |
+| Storyboard 工作流（prompting/design-systems）：叙事计划 → 逐帧落地 | **本地版已支持**：`xmedia storyboard <arc>`——商业叙事 Arc 模板库（launch / problem-solution / listicle / explainer / comparison），每帧带 HF 叙事词汇（type=persuasion=beat：hook/social_proof/cta · before-after/counterexample/callback · aha/resolve…）；`--message/--audience/--mood` 四要素产出骨架 spec + `spec.storyboard` 段（方向块：两色纪律/breather/负面清单——供 agent 模式读）；Studio 分镜卡显示叙事徽标 | HF 的 plan→build 由 agent 逐帧生成；本地版是确定性骨架（占位文案手工/agent 填），叙事纪律（两色/breather/负面清单）暂为元数据不强制渲染 |
 | first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
 | reference-video：读参考视频→复刻节奏/字幕，换人换词换品牌 | **本地弱化版已支持**：`xmedia reference <视频>`——ffmpeg 场景检测切镜头（保留剪辑节奏，最短镜并入/超限合并）、逐镜缩略图对照表、同节奏 spec 骨架、可选 --asr 全局字幕段；Studio 内说「参考 <路径> 讲 X」同样触发（分析 → 同节奏骨架 → 主题填充）；预览工具条「对照」= 双屏同钟对照（参考视频与成品同播放头，偏差 > 0.25s 自动对齐，`/api/reference/video` 登记外部素材白名单 + asset 响应支持 Range/206）；不复刻视觉特效/换脸（云能力，见上节） |
 | brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | **logo 图片入包已支持**：`brand save --logo-image <文件>`（复制进品牌 assets）+ `brand scan` 自动下载 og:image + `brand apply`（`--logo-mode corner/backdrop`）注入每个无图场景（hf_compose 场景级 `image` 字段，`scene-image-corner/backdrop` CSS）；字体族经 `--font-family` 写 `spec.fonts.body`；+ 网站扫描（色板/对比文字色） | 部分：无 workspace 团队共享 |

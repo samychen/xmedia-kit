@@ -81,6 +81,24 @@ export function storyboardRender() {
         '<span class="sb-type">' + escHtml(sc.type || "text") + "</span>";
     card.appendChild(head);
 
+    // 叙事徽标（spec.storyboard.frames 同索引）：type = 商业任务
+    // （hook/social_proof/cta…）、persuasion = 修辞、beat = 情绪节拍
+    // ——HF Storyboard 工作流的词汇表，让分镜从"看画面"升级为
+    // "看这镜在整片叙事里干什么"。
+    var sbFrame = ((state.spec.storyboard || {}).frames || [])[i];
+    if (sbFrame && sbFrame.type) {
+        var badges = mk("div", "sb-narrative");
+        badges.innerHTML =
+            '<span class="sb-badge t">' + escHtml(sbFrame.type) + "</span>" +
+            (sbFrame.persuasion
+                ? '<span class="sb-badge p">' +
+                  escHtml(sbFrame.persuasion) + "</span>" : "") +
+            (sbFrame.beat
+                ? '<span class="sb-badge b">' + escHtml(sbFrame.beat) +
+                  "</span>" : "");
+        card.appendChild(badges);
+    }
+
     // 画面：视频场景连拍网格；无视频场景用服务端渲染的真实帧
     // （色块+文案兜底），拿到即替换。
     var media = sceneMedia(sc);

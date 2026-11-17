@@ -567,6 +567,50 @@ def _brand_dir():
         "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
 
 
+def cmd_storyboard(args):
+    """叙事计划（Storyboard）→ spec：HF Storyboard 工作流的本地版。
+
+    Arc = 商业叙事的节拍骨架（每帧带 type/persuasion/beat 词汇）；
+    --message/--audience/--mood 是 HF 的叙事计划四要素之三（第四个是
+    Arc 本身）。产出的 spec.storyboard 段供 Studio 分镜面板显示叙事
+    徽标、供 agent 模式读方向块纪律（两色/breather/负面清单）。
+    """
+    import hf_storyboard
+    if not args.arc or args.arc == "list":
+        print("xmedia: 商业叙事 Arc 模板（storyboard <arc> --message ...）：")
+        for a in hf_storyboard.arcs():
+            print(f"  {a['id']:<17} {a['frames']} 帧  {a['label']}")
+        print("  要素：--message 一句话论点 / --audience 受众 / --mood "
+              "音乐能量（HF 叙事计划四要素，第四个是 Arc 本身）")
+        return
+    if args.arc not in hf_storyboard.ARCS:
+        print(f"xmedia: 未知 Arc「{args.arc}」（storyboard list 查看全部）",
+              file=sys.stderr)
+        sys.exit(1)
+    if not args.message:
+        print("xmedia: 缺 --message（整片的一句话论点）", file=sys.stderr)
+        sys.exit(1)
+    spec = hf_storyboard.build(
+        args.arc, args.message, audience=args.audience, mood=args.mood,
+        fmt=args.format, fps=args.fps, voice=args.voice)
+    if args.name:
+        spec["composition"]["id"] = args.name
+    out = os.path.abspath(args.out or
+                          (args.arc + "-storyboard.json"))
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(spec, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    arc_def = hf_storyboard.ARCS[args.arc]
+    print(f"xmedia: 叙事计划就绪 {out}\n"
+          f"  Arc「{arc_def['label']}」· message「{args.message[:36]}」"
+          f"· 受众「{args.audience or '未设'}」\n"
+          f"  {len(spec['scenes'])} 帧（每帧 type/persuasion/beat 见 "
+          f"spec.storyboard.frames，Studio 分镜面板显示徽标）\n"
+          f"  下一步：改占位文案（Studio 分镜卡内联编辑/Ask AI）→ "
+          f"xmedia render {out} --out {os.path.splitext(out)[0]}.mp4")
+
+
 def cmd_brand(args):
     """品牌套件：色板/字体色/音色/片尾署名的持久化与注入 spec。"""
     d = _brand_dir()
@@ -1077,6 +1121,23 @@ def main():
     p.add_argument("--logo-image", help="logo 图片文件（复制进品牌 assets，apply 时注入场景）")
     p.add_argument("--font-family", help="正文字体族（apply 时写 spec.fonts.body）")
     p.set_defaults(fn=cmd_brand)
+    p = sub.add_parser("storyboard",
+                       help="叙事计划 → spec：商业 Arc 模板库"
+                            "（launch/problem-solution/listicle/explainer/"
+                            "comparison；storyboard list 查看详情）")
+    p.add_argument("arc", nargs="?",
+                   help="Arc 名；缺省或 list = 列出全部 Arc")
+    p.add_argument("--message", default="",
+                   help="一句话论点（整片的 message，占位文案由此推导）")
+    p.add_argument("--audience", default="", help="受众短语")
+    p.add_argument("--mood", default="", help="音乐/能量描述")
+    p.add_argument("--name", default=None, help="合成 id")
+    p.add_argument("--format", default="9:16",
+                   choices=["9:16", "16:9", "1:1"])
+    p.add_argument("--fps", type=int, default=30)
+    p.add_argument("--voice", default="Tingting", help="TTS 音色")
+    p.add_argument("-o", "--out", default=None, help="spec 输出路径")
+    p.set_defaults(fn=cmd_storyboard)
     sub.add_parser("docs", help="生成文档站 docs-site/index.html").set_defaults(
         fn=cmd_docs)
 

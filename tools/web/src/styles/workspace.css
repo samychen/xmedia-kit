@@ -97,3 +97,13 @@
                  padding: 4px 6px; font-size: 11px; outline: none; }
   .sb-apply { font-size: 11px; padding: 4px 12px; }
   .sb-edit-note { font-size: 10.5px; color: var(--dim); line-height: 1.5; }
+  /* 叙事徽标（spec.storyboard.frames：type/persuasion/beat） */
+  .sb-narrative { display: flex; flex-wrap: wrap; gap: 5px;
+                  padding: 0 10px 4px; }
+  .sb-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .sb-badge.t { background: rgba(109, 139, 255, .18);
+                color: #b9c7ff; border: 1px solid rgba(109, 139, 255, .4); }
+  .sb-badge.p { background: rgba(62, 207, 142, .14);
+                color: #7fe9bd; border: 1px solid rgba(62, 207, 142, .35); }
+  .sb-badge.b { background: rgba(232, 182, 76, .12);
+                color: #ecd9a0; border: 1px solid rgba(232, 182, 76, .3); }
