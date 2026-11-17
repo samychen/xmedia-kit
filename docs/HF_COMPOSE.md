@@ -36,7 +36,8 @@ compose 产物逐字节一致——差异确实只在呈现层，呈现层换 GP
 遗留：启动区 2 帧差异（首帧 paint 与采集脚本注入的竞态家族，
 量级远小于此前，仍属已知边界）。
 
-### VT 时钟专项侦察（2026-11-17，未合入）
+### VT 时钟专项侦察（2026-11-17，未合入；GPU 合成后 seek 时钟已够用，
+### 专项优先级降低，留档仅在需要 VT 特性时启用）
 
 `--clock virtual_time` 对 HF 契约页**从未可用**（架构事实 + 三层黑盒），
 实验性修复均已回退，此处留档供专项续作：
@@ -810,4 +811,4 @@ stdout 严格只输出 JSON-RPC 行，日志走 stderr。
 - 导出画布：`--width/--height` 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。
 - CLI 健壮性：`--url` 支持相对路径（自动补全 `file://` 绝对 URL）；未知参数显式告警（拼写错如 `--hight` 不再静默吞掉）；二进制带 `__RESTRICT` 段——外部 `DYLD_LIBRARY_PATH` 等环境变量不影响其 FFmpeg 加载（机器上共存同名旧库也安全）。
 - ASR 真语音识别需要外部 provider（whisper.cpp 或 faster-whisper）；仓库零强制依赖，缺失时自动降级到 SRT/VTT 字幕文件，不会把静音素材凭空变成文字。分段字幕是逐段整行显示，暂不做逐词卡拉 OK 高亮。
-- Studio 的 `Ask AI` 未配置 `XMEDIA_LLM_ENDPOINT` 时只跑本地规则引擎（覆盖常见编辑指令），自由自然语言会返回可用指令列表；LLM 仅作为可选增强，未接入时不影响其余功能。
+- Studio 的 `Ask AI` 有两种后端（顶栏切换）：**规则引擎**（默认，零配置，覆盖常见编辑指令）与**本地 agent**（子进程驱动 `claude -p` / `codex exec`，需本机 CLI 可用，历史持久化 `<spec 目录>/chat.jsonl`）。未配置 CLI 与 `XMEDIA_LLM_ENDPOINT` 时仅规则引擎可用，agent 模式给出接入指引——不影响其余功能。

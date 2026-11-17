@@ -509,27 +509,29 @@
         <aside class="toc"><div class="t">ON THIS PAGE</div><a href="#快速上手">快速上手</a><a href="#功能速查-功能-命令">功能速查（功能 → 命令）</a><a href="#spec-schema">Spec Schema</a><a href="#自定义模板协议">自定义模板协议</a><a href="#agent-集成">Agent 集成</a><a href="#agent-调用协议与来源验证">Agent 调用协议与来源验证</a><a href="#ai-能力集成-asr-导入-agent-mcp">AI 能力集成（ASR / 导入 / Agent / MCP）</a><a href="#与-brag-的对应">与 brag 的对应</a><a href="#嵌套合成与变量-进阶">嵌套合成与变量（进阶）</a><a href="#文档站与作品轮播">文档站与作品轮播</a><a href="#已知边界">已知边界</a></aside>
         <article class="doc-body" id="doc-body"><h1 id='xmedia-kit-ai-视频生成管线'>xmedia-kit AI 视频生成管线</h1>
 <p>Agent（或人类）填 spec JSON → 生成器出契约 HTML → html_bake 烤 MP4。</p>
-<p>三步管线，同 spec 两次生成逐字节一致（确定性）。</p>
+<p>三步管线，确定性管线（同 spec 双烘逐帧 md5 差异仅启动区 2 帧——</p>
+<p>2026-11-18 起 GPU 合成根治了 software compositor 的 tile 缺失，见</p>
+<p>「确定性边界」）。</p>
 <p>返回：<a href="https://github.com/samychen/xmedia-kit/tree/main/README.md">README</a> ｜ 相关：<a href="https://github.com/samychen/xmedia-kit/blob/main/docs/EXAMPLES.md">EXAMPLES</a> ｜ <a href="https://github.com/samychen/xmedia-kit/blob/main/docs/COOKBOOK.md">COOKBOOK</a></p>
-<h3 id='确定性边界-2026-11-17-取证'>确定性边界（2026-11-17 取证）</h3>
-<p>管线各层的确定性实测结论——<b>输入侧确定，呈现层有已知限制</b>：</p>
-<table><tr><th>层</th><th>确定性</th><th>依据</th></tr><tr><td>hf_tts（say 离线）</td><td>✓ 幂等</td><td>同文本复用缓存产物，不重生成</td></tr><tr><td>hf_compose（spec → HTML）</td><td>✓ 逐字节</td><td>同 spec 两次 compose 的 HTML md5 一致（canonical sha256 锚定）</td></tr><tr><td>音频混音</td><td>✓ 帧级</td><td>双烘 <code>-map 0:a -f md5</code> 一致</td></tr><tr><td>页面 GSAP 时间线</td><td>✓ 逐 seek</td><td>seekDone 回执探针：<code>tl.time()</code> 每帧 = 请求 t + 1ms（seek 脚本的 <code>totalTime(t+1e-3)</code> 设计值），两支烘焙完全一致</td></tr><tr><td>视频像素</td><td>⚠ 逐帧 md5 有 5–18/165 差异帧</td><td>见下</td></tr></table>
-<p><b>视频像素差异的根因</b>：macOS OSR 走 software compositor（<code>disable-gpu</code>），</p>
-<p>partial raster 下<b>内容变化帧</b>（字幕点亮/场景进出/动画）触发整层重光栅，</p>
-<p>OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块（黑块边界即 tile 边界）。</p>
-<p>取证排除了其它假设：seek 在飞门控的丢弃从未触发（探针实测）；GSAP 时间线</p>
-<p>状态两支逐 seek 一致；无动画 spec 同样出现（差异与动画无关）；compose 产物</p>
-<p>逐字节一致（差异不在输入）。<code>--disable-partial-raster</code> +</p>
-<p><code>--run-all-compositor-stages-before-draw</code> 开关无效（software path 不吃）。</p>
-<p>尝试过并回退的修复（各自引入新问题，保持回退态等待专项）：</p>
-<p>"同 t 反复 Invalidate 到光栅 hash 稳定"（治好黑块但差异帧反增）、</p>
-<p>"在飞 seek 暂存补发"、"烘焙默认切 VT 时钟"（VT 另有退出挂起 +</p>
-<p>pre-apply ack miss 问题，不可用）。</p>
-<p>影响面与对策：差异帧是黑 tile 级（PSNR 19–31），<b>视觉上偶发可见</b>，</p>
-<p>发布级交付前应抽帧目检（渲染验证三件套）；同 spec 复烤不保证逐字节一致。</p>
-<p>专项方向：CEF software compositor 的 tile 光栅完成度门控（需要</p>
-<p>OnPaint 之外的完整性信号），或 VT 时钟的退出/ack 修复后切默认。</p>
-<h3 id='vt-时钟专项侦察-2026-11-17-未合入'>VT 时钟专项侦察（2026-11-17，未合入）</h3>
+<h3 id='确定性边界-2026-11-17-取证-2026-11-18-gpu-合成更新'>确定性边界（2026-11-17 取证 / 2026-11-18 GPU 合成更新）</h3>
+<p>管线各层的确定性实测结论——<b>输入侧确定，呈现层经 GPU 合成已收敛</b>：</p>
+<table><tr><th>层</th><th>确定性</th><th>依据</th></tr><tr><td>hf_tts（say 离线）</td><td>✓ 幂等</td><td>同文本复用缓存产物，不重生成</td></tr><tr><td>hf_compose（spec → HTML）</td><td>✓ 逐字节</td><td>同 spec 两次 compose 的 HTML md5 一致（canonical sha256 锚定）</td></tr><tr><td>音频混音</td><td>✓ 帧级</td><td>双烘 <code>-map 0:a -f md5</code> 一致</td></tr><tr><td>页面 GSAP 时间线</td><td>✓ 逐 seek</td><td>seekDone 回执探针：<code>tl.time()</code> 每帧 = 请求 t + 1ms（seek 脚本的 <code>totalTime(t+1e-3)</code> 设计值），两支烘焙完全一致</td></tr><tr><td>视频像素</td><td>✓ GPU 合成下双烘 diff 2/165（仅启动区竞态）</td><td>2026-11-18 见下</td></tr></table>
+<p><b>视频像素差异的根因（已根治）</b>：曾经 macOS OSR 走 software compositor</p>
+<p>（<code>disable-gpu</code>，历史注释称 GPU 子进程在 bundle 外 SIGSEGV——<b>已过时</b>：</p>
+<p>html_bake.app 现在带完整 Helper.app 结构，GPU 子进程实测正常）。software</p>
+<p>compositor 的 partial raster 下，<b>内容变化帧</b>（字幕点亮/场景进出/动画）</p>
+<p>触发整层重光栅，OnPaint 抓帧时部分 tile 尚未光栅完成 → tile 级黑块。</p>
+<p><b>修复（2026-11-18）</b>：<code>cef_app.cc</code> 移除 <code>disable-gpu</code> +</p>
+<p><code>disable-gpu-compositing</code>，启用 GPU 合成——实测 165 帧烘焙无崩溃、</p>
+<p>双烘逐帧 md5 差异从 12–18 帧降到 **2 帧（仅启动区竞态，中段动画帧全</p>
+<p>一致）**，tile 缺失消失。OSR 的 OnPaint BGRA 回读路径在 GPU 合成下正常。</p>
+<p>取证记录（software 时代的假设已被推翻）：seek 在飞门控丢弃未触发、</p>
+<p>GSAP 时间线逐 seek 一致、无动画 spec 同样出现（差异与动画无关）、</p>
+<p>compose 产物逐字节一致——差异确实只在呈现层，呈现层换 GPU 后问题消失。</p>
+<p>遗留：启动区 2 帧差异（首帧 paint 与采集脚本注入的竞态家族，</p>
+<p>量级远小于此前，仍属已知边界）。</p>
+<h3 id='vt-时钟专项侦察-2026-11-17-未合入-gpu-合成后-seek-时钟已够用'>VT 时钟专项侦察（2026-11-17，未合入；GPU 合成后 seek 时钟已够用，</h3>
+<h3 id='专项优先级降低-留档仅在需要-vt-特性时启用'>专项优先级降低，留档仅在需要 VT 特性时启用）</h3>
 <p><code>--clock virtual_time</code> 对 HF 契约页<b>从未可用</b>（架构事实 + 三层黑盒），</p>
 <p>实验性修复均已回退，此处留档供专项续作：</p>
 <p>1. <b>时间线缺口</b>：<code>TickBakeClock</code> 的 VT 分支只发 VT 步进，从不 dispatch</p>
@@ -1018,7 +1020,7 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <li>导出画布：<code>--width/--height</code> 必须与页面 CSS 尺寸一致（hf_compose 按 format 预设生成同尺寸页面）——不一致时元素 UV 窗口错位。输出分辨率固定 = CLI 尺寸，不随显示器 DPI 变化。</li>
 <li>CLI 健壮性：<code>--url</code> 支持相对路径（自动补全 <code>file://</code> 绝对 URL）；未知参数显式告警（拼写错如 <code>--hight</code> 不再静默吞掉）；二进制带 <code>__RESTRICT</code> 段——外部 <code>DYLD_LIBRARY_PATH</code> 等环境变量不影响其 FFmpeg 加载（机器上共存同名旧库也安全）。</li>
 <li>ASR 真语音识别需要外部 provider（whisper.cpp 或 faster-whisper）；仓库零强制依赖，缺失时自动降级到 SRT/VTT 字幕文件，不会把静音素材凭空变成文字。分段字幕是逐段整行显示，暂不做逐词卡拉 OK 高亮。</li>
-<li>Studio 的 <code>Ask AI</code> 未配置 <code>XMEDIA_LLM_ENDPOINT</code> 时只跑本地规则引擎（覆盖常见编辑指令），自由自然语言会返回可用指令列表；LLM 仅作为可选增强，未接入时不影响其余功能。</li>
+<li>Studio 的 <code>Ask AI</code> 有两种后端（顶栏切换）：<b>规则引擎</b>（默认，零配置，覆盖常见编辑指令）与<b>本地 agent</b>（子进程驱动 <code>claude -p</code> / <code>codex exec</code>，需本机 CLI 可用，历史持久化 <code><spec 目录>/chat.jsonl</code>）。未配置 CLI 与 <code>XMEDIA_LLM_ENDPOINT</code> 时仅规则引擎可用，agent 模式给出接入指引——不影响其余功能。</li>
 </ul></article>
       </div>
     </section>

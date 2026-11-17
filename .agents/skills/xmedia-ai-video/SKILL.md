@@ -6,8 +6,8 @@ description: xmedia-kit AI 视频生成管线——agent 按 spec JSON 确定性
 # xmedia-kit AI 视频生成管线
 
 把用户的视频需求转成 spec JSON，走确定性管线出 MP4（TTS 缓存、契约
-HTML、音频混音逐层确定；视频像素层有 software compositor tile 缺失
-的已知限制——交付前抽帧目检，见文档「确定性边界」）。本仓库
+HTML、音频混音逐层确定；视频像素层 GPU 合成后双烘差异仅启动区 2 帧，
+细节见文档「确定性边界」）。本仓库
 （xmedia-kit）是唯一真源：完整 schema、字段语义、已知边界见
 `docs/HF_COMPOSE.md`——与本技能冲突时以文档为准。
 
