@@ -80,3 +80,20 @@
   .sb-text { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim);
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sb-empty { padding: 24px; text-align: center; color: var(--dim); }
+  /* 分镜卡片内联编辑：文案 + 时长 + 应用 */
+  .sb-editor { padding: 0 10px 10px; display: flex;
+               flex-direction: column; gap: 7px; }
+  .sb-edit-text { width: 100%; background: var(--panel2); color: var(--ink);
+                  border: 1px solid var(--line); border-radius: 7px;
+                  padding: 7px 9px; font-size: 11.5px; line-height: 1.5;
+                  resize: vertical; outline: none; }
+  .sb-edit-text:focus { border-color: var(--acc); }
+  .sb-edit-text:disabled { opacity: .5; }
+  .sb-edit-row { display: flex; align-items: center; gap: 7px;
+                 font-size: 11px; color: var(--dim); }
+  .sb-edit-row .sp { flex: 1; }
+  .sb-edit-dur { width: 62px; background: var(--panel2); color: var(--ink);
+                 border: 1px solid var(--line); border-radius: 6px;
+                 padding: 4px 6px; font-size: 11px; outline: none; }
+  .sb-apply { font-size: 11px; padding: 4px 12px; }
+  .sb-edit-note { font-size: 10.5px; color: var(--dim); line-height: 1.5; }

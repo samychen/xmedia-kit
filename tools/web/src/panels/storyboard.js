@@ -12,8 +12,9 @@
  */
 
 import { $ } from "../shared/dom.js";
-import { escHtml } from "../shared/dom.js";
+import { escHtml, log } from "../shared/dom.js";
 import { api } from "../shared/api-client.js";
+import { refresh } from "./status.js";
 import { selectScene } from "./scenes.js";
 import { seekTo } from "../preview/driver.js";
 import { loadThumbsForClip, mk } from "../timeline/model.js";
@@ -127,6 +128,50 @@ export function storyboardRender() {
     };
     foot.appendChild(edit);
     card.appendChild(foot);
+
+    // 内联编辑：文案 + 时长直接在卡上改（「应用」走 /api/recompose，
+    // 重组后真实帧按契约页 mtime 自动重渲）。有旁白的场景文案锁定
+    // （音画同步，与 Inspector 一致），时长始终可改。
+    var locked = !!sc.narration;
+    var editor = mk("div", "sb-editor");
+    editor.innerHTML =
+        '<textarea class="sb-edit-text" rows="2" placeholder="这一镜的文案…"'
+        + (locked ? " disabled" : "") + ">"
+        + escHtml(sc.text || sceneFlatText(sc)) + "</textarea>"
+        + '<div class="sb-edit-row">'
+        + '<span class="sb-edit-label">时长</span>'
+        + '<input class="sb-edit-dur" type="number" step="0.1" min="0.5"'
+        + ' value="' + Number(dur).toFixed(1) + '">s'
+        + '<span class="sp"></span>'
+        + '<button class="btn sb-apply" type="button">应用</button>'
+        + "</div>"
+        + (locked ? '<div class="sb-edit-note">🔒 有旁白，文案锁定——'
+                   + "改词用 Ask AI（会保持音画同步指引）</div>" : "");
+    card.appendChild(editor);
+    editor.querySelector(".sb-apply").onclick = function () {
+      var newText = editor.querySelector(".sb-edit-text").value.trim();
+      var newDur = parseFloat(editor.querySelector(".sb-edit-dur").value);
+      if (isNaN(newDur) || newDur < 0.5 || newDur > 60) {
+        log("时长需在 0.5–60s 之间", "err");
+        return;
+      }
+      state.spec.scenes[i].duration = newDur;
+      if (!locked) {
+        state.spec.scenes[i].text = newText;
+      }
+      api("/api/recompose", { spec: state.spec,
+                              no_sfx: !document.querySelector("#sfx").checked })
+        .then(function () {
+          log("第 " + (i + 1) + " 镜已应用（文案" +
+              (locked ? "锁定" : "已更新") + " · 时长 " +
+              newDur.toFixed(1) + "s），真实帧重新渲染中…", "ok");
+        })
+        .then(function () { return refresh(true); })
+        .then(function () { storyboardRender(); })
+        .catch(function (e) {
+          log("分镜应用失败：" + e.message, "err");
+        });
+    };
     list.appendChild(card);
   });
 }
