@@ -1859,6 +1859,26 @@ class StudioServer:
             f"[{r.get('backend', '?')}] 用户: {str(r.get('user', ''))[:120]}"
             f"\n助手: {str(r.get('assistant', ''))[:200]}"
             for r in history) or "（无）"
+        # 叙事纪律注入：spec.storyboard.direction 存在时（HF Storyboard
+        # 工作流的方向块），agent 逐帧编辑必须遵守这些规则。
+        sb = (self.current_spec or {}).get("storyboard") or {}
+        discipline = ""
+        direction = sb.get("direction") or {}
+        if direction:
+            two = direction.get("two_color") or {}
+            discipline = (
+                "\n【叙事纪律（storyboard 方向块，逐帧编辑必须遵守）】\n"
+                f"- Arc: {sb.get('arc', '')} · message: "
+                f"{sb.get('message', '')[:80]}\n"
+                + (f"- 两色纪律: ground {two.get('ground', '')} / ink "
+                   f"{two.get('ink', '')}——强调只允许反转/放大/密度，"
+                   "永不引入第三色\n" if two else "")
+                + (f"- breather: 第 {direction.get('breather', '?') + 1} 帧"
+                   "是刻意更静的节拍，不要过度动画\n"
+                   if "breather" in direction else "")
+                + (f"- 负面清单（禁止）: "
+                   f"{('、'.join(direction.get('banned', [])))}\n"
+                   if direction.get("banned") else ""))
         prompt = (
             "你在 xmedia-kit Studio 的 agent 模式里帮用户编辑视频。\n"
             f"- spec JSON 路径: {spec_path}\n"
@@ -1870,7 +1890,8 @@ class StudioServer:
             f"tools/xmedia.py compose {spec_path} -o {self.contract_path}"
             "（重新生成契约页）\n"
             "- 只改 spec 与契约页相关文件，不要动渲染引擎代码。\n"
-            "- 回复用中文，简短说明做了什么改动。\n\n"
+            "- 回复用中文，简短说明做了什么改动。\n"
+            f"{discipline}\n"
             f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
         cli = probe["cli"]
         spec_mtime_before = (os.path.getmtime(spec_path)
@@ -1969,6 +1990,16 @@ def make_handler(server_ref):
                     self._send(404, str(e), "text/plain")
                     return
                 self._send(200, studio_ui(), "text/html; charset=utf-8")
+            elif path == "/api/templates":
+                import hf_compose
+                registry = hf_compose.load_custom_templates(
+                    srv._spec_root())
+                self._json({"templates": [
+                    {"name": d.get("name", ""),
+                     "description": d.get("description", ""),
+                     "slots": d.get("slots", [])}
+                    for d in sorted(registry.values(),
+                                    key=lambda x: x.get("name", ""))]})
             elif path == "/api/projects":
                 self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
@@ -2360,6 +2391,13 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
             padding: 8px 18px; }}
 #msg {{ margin-top: 12px; font-size: 12.5px; color: var(--dim);
         white-space: pre-wrap }}
+.guide {{ background: var(--panel); border: 1px solid var(--line);
+         border-radius: 12px; padding: 14px 18px; margin-bottom: 34px;
+         display: flex; flex-direction: column; gap: 8px }}
+.g-step {{ font-size: 12.5px; color: var(--dim) }}
+.g-step b {{ display: inline-grid; place-items: center; width: 20px;
+            height: 20px; border-radius: 50%; background: var(--acc);
+            color: #0d1122; font-size: 11px; margin-right: 8px }}
 .pjs {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
         gap: 14px }}
 .pj {{ display: block; background: var(--panel); border: 1px solid var(--line2);
@@ -2384,6 +2422,11 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
     <button class="go" id="create">创建项目</button>
   </div>
   <div id="msg"></div>
+</div>
+<div class="guide">
+  <div class="g-step"><b>1</b> 上面一句话创建项目（5 个商业叙事 Arc）</div>
+  <div class="g-step"><b>2</b> 编辑页左栏「对话」说一句话改内容 ·「分镜」逐镜看真实帧（卡上直接改文案/时长）</div>
+  <div class="g-step"><b>3</b> 顶栏「导出 MP4」选画质/格式/帧率出片（全部本地、确定性管线）</div>
 </div>
 <h2 style="font-size:15px">项目</h2>
 <div class="pjs">{cards or '<div class="empty">还没有项目——上面一句话创建第一个</div>'}</div>

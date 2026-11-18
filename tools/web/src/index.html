@@ -26,6 +26,7 @@
       <button class="tab" id="tab-scenes">场景</button>
       <button class="tab" id="tab-script">脚本</button>
       <button class="tab" id="tab-storyboard">分镜</button>
+      <button class="tab" id="tab-templates">模板</button>
       <button class="tab" id="tab-source">源码 JSON</button>
     </div>
     <div class="left-panel" id="chat-panel">
@@ -100,6 +101,16 @@
       <div class="sb-list" id="sb-list"></div>
       <div class="left-foot">
         <span>逐镜真实帧 ·「改这镜」定位编辑</span>
+      </div>
+    </div>
+    <div class="left-panel" id="templates-panel" style="display:none">
+      <div class="comp-card">
+        <div class="comp-name">场景模板库</div>
+        <div class="comp-meta" id="tpl-count">—</div>
+      </div>
+      <div class="sc-list" id="tpl-list"></div>
+      <div class="left-foot">
+        <span>「插入」= 追加到时间轴末尾（占位 slot 在分镜/Inspector 里填）</span>
       </div>
     </div>
     <div class="left-panel" id="source-panel" style="display:none">
