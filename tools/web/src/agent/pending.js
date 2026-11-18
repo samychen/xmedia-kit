@@ -91,10 +91,6 @@ $("ask-pending-clear").onclick = function () {
   pendingEdits = []; pendingRender();
 };
 $("ask-pending-apply").onclick = askApplyPending;
-$("ask-fab").onclick = function () {
-  askOpen(!$("ask-panel").classList.contains("open"));
-};
-$("ask-close").onclick = function () { askOpen(false); };
 $("ask-form").addEventListener("submit", function (ev) {
   ev.preventDefault();
   askSend($("ask-input").value);
@@ -111,13 +107,11 @@ document.addEventListener("keydown", function (ev) {
   var tag = (ev.target.tagName || "").toLowerCase();
   if ((ev.metaKey || ev.ctrlKey) && ev.code === "KeyK") {
     ev.preventDefault();
-    askOpen(!$("ask-panel").classList.contains("open"));
+    // chat 常驻左栏：Ctrl/⌘+K = 聚焦对话输入（切到对话 tab）
+    askOpen(true);
   } else if (ev.code === "Escape") {
     if ($("imp-panel").classList.contains("open")) {
       ev.preventDefault(); impOpen(false);
-    } else if ($("ask-panel").classList.contains("open") &&
-               tag !== "input" && tag !== "textarea") {
-      askOpen(false);
     }
   }
 });

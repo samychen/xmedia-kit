@@ -1,20 +1,9 @@
-  /* ---------- Ask AI（自然语言 → spec → 热重组） ---------- */
-  #ask-fab { position: fixed; right: 18px; bottom: 18px; z-index: 60;
-             display: flex; align-items: center; gap: 8px;
-             padding: 9px 15px; border-radius: 22px;
-             border: 1px solid var(--line2);
-             background: linear-gradient(135deg, var(--acc), var(--acc2));
-             color: #0d1122; font-size: 12px; font-weight: 600;
-             box-shadow: 0 6px 22px rgba(0, 0, 0, .45); }
-  #ask-fab:hover { filter: brightness(1.08); }
-  #ask-fab .dot { width: 7px; height: 7px; border-radius: 50%;
-                  background: #0d1122; opacity: .65; }
-  #ask-panel { position: fixed; right: 18px; bottom: 64px; z-index: 61;
-               width: 372px; max-height: min(500px, 76vh); display: none;
-               flex-direction: column; background: var(--panel);
-               border: 1px solid var(--line2); border-radius: 12px;
-               box-shadow: 0 12px 40px rgba(0, 0, 0, .55); overflow: hidden; }
-  #ask-panel.open { display: flex; }
+  /* ---------- Ask AI（自然语言 → spec → 热重组） ----------
+     chat 主界面化：面板常驻左栏第一面板（HF 的 chat 左栏形态），
+     不再是右下浮动——入口 = 左栏「对话」tab。 */
+  #chat-panel { display: none; flex-direction: column; overflow: hidden; }
+  #ask-panel { display: flex; flex-direction: column; flex: 1;
+               min-height: 0; overflow: hidden; }
   #ask-head { height: 38px; flex: none; display: flex; align-items: center;
               gap: 8px; padding: 0 12px; background: var(--panel2);
               border-bottom: 1px solid var(--line); }

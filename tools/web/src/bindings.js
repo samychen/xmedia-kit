@@ -113,12 +113,14 @@ $("btn-log").onclick = function () {
   el.classList.toggle("open");
   this.classList.toggle("on", el.classList.contains("open"));
 };
-/* 左栏四面板统一切换（场景/脚本/分镜/源码）：tab 高亮 + 面板互斥。 */
+/* 左栏五面板统一切换（对话/场景/脚本/分镜/源码）：tab 高亮 + 面板互斥。
+   对话（chat）是主面板——HF 的 chat 左栏形态。 */
 function switchLeftPanel(name) {
-  var tabs = { scenes: "tab-scenes", script: "tab-script",
+  var tabs = { chat: "tab-chat", scenes: "tab-scenes", script: "tab-script",
                storyboard: "tab-storyboard", source: "tab-source" };
-  var panels = { scenes: "scenes-panel", script: "script-panel",
-                 storyboard: "sb-panel", source: "source-panel" };
+  var panels = { chat: "chat-panel", scenes: "scenes-panel",
+                 script: "script-panel", storyboard: "sb-panel",
+                 source: "source-panel" };
   for (var k in tabs) {
     $(tabs[k]).classList.toggle("active", k === name);
     $(panels[k]).style.display = k === name ? "flex" : "none";
@@ -126,6 +128,7 @@ function switchLeftPanel(name) {
   if (name === "script") scriptRender();
   if (name === "storyboard") storyboardOpen(true);
 }
+$("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
 $("tab-script").onclick = function () { switchLeftPanel("script"); };
 $("tab-storyboard").onclick = function () {

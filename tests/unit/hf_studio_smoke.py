@@ -489,7 +489,7 @@ def main():
                       "_run_agent", "_run_asr", "_run_import",
                       "transcribe_with_fallback", "hf_agent.validate_spec"):
             assert token in srv_src, f"Studio 服务缺少 {token}"
-        for token in ('id="ask-fab"', 'id="ask-panel"', 'id="ask-quick"',
+        for token in ('id="tab-chat"', 'id="chat-panel"', 'id="ask-quick"',
                       "/api/agent", "function askSend", "KeyK"):
             assert token in ui_src or token in web_src, \
                 f"Studio UI 缺少 {token}"

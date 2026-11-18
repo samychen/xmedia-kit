@@ -26,8 +26,21 @@ export function askModeLabel() {
   b.disabled = false;
 }
 export var askBackend = "rule";
+/* chat 常驻左栏「对话」面板：开 = 切到对话 tab；关 = 回场景 tab。
+   （HF 的 chat 左栏主界面形态——对话不是浮层，是主面板。） */
 export function askOpen(on) {
-  $("ask-panel").classList.toggle("open", !!on);
+  var tabs = { chat: "tab-chat", scenes: "tab-scenes",
+               script: "tab-script", storyboard: "tab-storyboard",
+               source: "tab-source" };
+  var panels = { chat: "chat-panel", scenes: "scenes-panel",
+                 script: "script-panel", storyboard: "sb-panel",
+                 source: "source-panel" };
+  var name = on ? "chat" : "scenes";
+  for (var k in tabs) {
+    $(tabs[k]).classList.toggle("active", k === name);
+    var p = $(panels[k]);
+    if (p) p.style.display = k === name ? "flex" : "none";
+  }
   if (on) { askModeLabel(); $("ask-input").focus(); }
 }
 /* chat 主界面化：页面加载即展开对话面板；本机 agent CLI 可用时默认

@@ -22,10 +22,48 @@
 <main class="workspace">
   <aside class="left">
     <div class="tabs">
-      <button class="tab active" id="tab-scenes">场景</button>
+      <button class="tab active" id="tab-chat">对话</button>
+      <button class="tab" id="tab-scenes">场景</button>
       <button class="tab" id="tab-script">脚本</button>
       <button class="tab" id="tab-storyboard">分镜</button>
       <button class="tab" id="tab-source">源码 JSON</button>
+    </div>
+    <div class="left-panel" id="chat-panel">
+      <div id="ask-head">
+        <span class="t">Ask AI</span>
+        <span class="m" id="ask-mode">本地规则引擎</span>
+        <span class="sp"></span>
+        <button id="ask-backend" type="button"
+                title="切换编辑后端：规则引擎（预置指令）或本地 agent（子进程 LLM，可自主改文件）">规则引擎</button>
+      </div>
+      <div id="ask-msgs"></div>
+      <div id="ask-quick">
+        <button data-msg="加一个片尾卡">加片尾卡</button>
+        <button data-msg="改成竖屏">改竖屏</button>
+        <button data-msg="关闭字幕">关字幕</button>
+        <button data-msg="生成旁白">生成旁白</button>
+        <button data-msg="自动字幕">ASR 字幕</button>
+        <button data-msg="Launch 向导">Launch 向导</button>
+        <button data-open="import">导入素材</button>
+        <button data-msg="导出 MP4">导出</button>
+      </div>
+      <div id="ask-pending">
+        <div id="ask-pending-head">
+          <span>待应用编辑 <b id="ask-pending-n">0</b></span>
+          <span class="sp"></span>
+          <button id="ask-pending-clear" type="button">清空</button>
+          <button id="ask-pending-apply" class="acc" type="button"
+                  disabled>批量应用</button>
+        </div>
+        <div id="ask-pending-rows"></div>
+      </div>
+      <form id="ask-form">
+        <input id="ask-input" autocomplete="off" spellcheck="false"
+               placeholder="用一句话描述要改什么…">
+        <button class="btn" id="ask-stage" type="button"
+                title="不立即发送，攒进待应用队列（可多条一次应用）">+ 暂存</button>
+        <button class="btn acc" id="ask-send" type="submit">发送</button>
+      </form>
     </div>
     <div class="left-panel" id="scenes-panel">
       <div class="comp-card">
@@ -376,48 +414,6 @@
     <button class="btn acc" id="exp-go" type="button">渲染</button>
   </div>
 </dialog>
-
-<button id="ask-fab" title="用自然语言编辑视频（Ctrl/⌘ + K）" aria-label="用自然语言编辑视频（Ctrl/⌘ + K）">
-  <span class="dot"></span> Ask AI
-</button>
-<div id="ask-panel" role="dialog" aria-label="Ask AI 视频编辑助手">
-  <div id="ask-head">
-    <span class="t">Ask AI</span>
-    <span class="m" id="ask-mode">本地规则引擎</span>
-    <span class="sp"></span>
-    <button id="ask-backend" type="button"
-            title="切换编辑后端：规则引擎（预置指令）或本地 agent（子进程 LLM，可自主改文件）" aria-label="切换编辑后端：规则引擎（预置指令）或本地 agent（子进程 LLM，可自主改文件）">规则引擎</button>
-    <button id="ask-close" title="关闭" aria-label="关闭">×</button>
-  </div>
-  <div id="ask-msgs"></div>
-  <div id="ask-quick">
-    <button data-msg="加一个片尾卡">加片尾卡</button>
-    <button data-msg="改成竖屏">改竖屏</button>
-    <button data-msg="关闭字幕">关字幕</button>
-    <button data-msg="生成旁白">生成旁白</button>
-    <button data-msg="自动字幕">ASR 字幕</button>
-    <button data-open="import">导入素材</button>
-    <button data-msg="launch 向导">Launch 向导</button>
-    <button data-msg="导出 MP4">导出</button>
-  </div>
-  <div id="ask-pending">
-    <div id="ask-pending-head">
-      <span>待应用编辑 <b id="ask-pending-n">0</b></span>
-      <span class="sp"></span>
-      <button id="ask-pending-clear" type="button">清空</button>
-      <button id="ask-pending-apply" class="acc" type="button"
-              disabled>批量应用</button>
-    </div>
-    <div id="ask-pending-rows"></div>
-  </div>
-  <form id="ask-form">
-    <input id="ask-input" autocomplete="off" spellcheck="false"
-           placeholder="用一句话描述要改什么…">
-    <button class="btn" id="ask-stage" type="button"
-            title="不立即发送，攒进待应用队列（可多条一次应用）" aria-label="不立即发送，攒进待应用队列（可多条一次应用）">+ 暂存</button>
-    <button class="btn acc" id="ask-send" type="submit">发送</button>
-  </form>
-</div>
 
 <script type="module" src="/main.js"></script>
 </body>

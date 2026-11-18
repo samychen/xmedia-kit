@@ -226,7 +226,7 @@ def check_cli_and_ui():
               + glob.glob(os.path.join(TOOLS, "web", "src", "**", "*.html"),
                           recursive=True)):
         ui += open(f, encoding="utf-8").read() + "\n"
-    for marker in ('id="ask-fab"', 'id="ask-panel"', 'id="ask-msgs"',
+    for marker in ('id="tab-chat"', 'id="chat-panel"', 'id="ask-msgs"',
                    'id="ask-quick"', 'id="ask-input"', '/api/agent',
                    'function askSend', 'KeyK',
                    # 导入素材按钮入口：不能只留 Ask AI 里的自然语言指令
