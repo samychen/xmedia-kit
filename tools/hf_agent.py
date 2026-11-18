@@ -339,6 +339,15 @@ def handle(message, spec, spec_dir=""):
         return out(f"没有第 {idx+1} 个场景（共 {len(base['scenes'])} 个）")
 
     # 4. 改场景文字
+    # 8b. 副标题 / 单场景背景 / 单场景文字色（高频字段逐场景编辑）
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}副标题.{0,6}(?:改成|改为|设为|清空)\s*[:：]?\s*(.*)", msg, re.I)
+    if m:
+        idx = _int(m.group(1), 0) - 1
+        if 0 <= idx < len(base["scenes"]):
+            base["scenes"][idx]["subtitle"] = m.group(2).strip().strip("\"'“”")
+            return out(f"第 {idx+1} 个场景副标题已改为「{base['scenes'][idx]['subtitle']}」",
+                       base)
+
     m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,8}(?:文字|文案|标题|text)\s*(?:改成|改为|设为|set to|to)\s*[:：]?\s*(.+)", msg, re.I)
     if m:
         idx = _int(m.group(1), 0) - 1
@@ -401,6 +410,78 @@ def handle(message, spec, spec_dir=""):
         if 0 <= idx < len(base["scenes"]) and 0 < dur <= 3600:
             base["scenes"][idx]["duration"] = dur
             return out(f"第 {idx+1} 个场景时长改为 {dur}s", base)
+
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,4}背景.{0,4}?(#[0-9a-fA-F]{3,8})", msg)
+    if m:
+        idx = _int(m.group(1), 0) - 1
+        if 0 <= idx < len(base["scenes"]):
+            base["scenes"][idx]["bg"] = m.group(2)
+            return out(f"第 {idx+1} 个场景背景已改为 {m.group(2)}", base)
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,4}(?:文字色|字色).{0,4}?(#[0-9a-fA-F]{3,8})", msg)
+    if m:
+        idx = _int(m.group(1), 0) - 1
+        if 0 <= idx < len(base["scenes"]):
+            base["scenes"][idx]["text_color"] = m.group(2)
+            return out(f"第 {idx+1} 个场景文字色已改为 {m.group(2)}", base)
+
+    # 8c. 转场 / 入场动画（场景级，改完即生效）
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}转场\s*(?:改成|改为|设为)?\s*[:：]?\s*(\S+)", msg, re.I)
+    if m:
+        idx, val = _int(m.group(1), 0) - 1, m.group(2).strip().lower()
+        if val in ("fade", "slide-left", "slide-right", "wipe", "none"):
+            if 0 <= idx < len(base["scenes"]):
+                base["scenes"][idx]["transition"] = val
+                return out(f"第 {idx+1} 个场景转场已改为 {val}", base)
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}(?:动画|入场动画)\s*(?:改成|改为|设为)?\s*[:：]?\s*(\S+)", msg, re.I)
+    if m:
+        idx, val = _int(m.group(1), 0) - 1, m.group(2).strip()
+        if val in ("fade_in", "fade_in_up", "fade_in_down", "scale_in",
+                   "slide_in", "none"):
+            if 0 <= idx < len(base["scenes"]):
+                base["scenes"][idx]["animation"] = val
+                return out(f"第 {idx+1} 个场景入场动画已改为 {val}", base)
+
+    # 8d. 插入场景到指定位置（第 N 位前）：text 场景占位，字段随后编辑
+    m = re.search(r"(?:在\s*)?第?\s*([一二三四五六七八九十\d]+)\s*个?场景(?:之前|前面|位置)\s*插入.{0,8}场景[，,]?\s*(?:文字|文案)?\s*[:：]?\s*(.*)", msg)
+    if m:
+        pos = _int(m.group(1), 0) - 1
+        pos = max(0, min(pos, len(base["scenes"])))
+        text = m.group(2).strip().strip("\"'“”") or "新场景"
+        base["scenes"].insert(pos, {
+            "type": "text", "text": text, "duration": 3,
+            "bg": "#16213e", "animation": "fade_in",
+        })
+        return out(f"已在第 {pos+1} 位插入场景「{text}」（共 "
+                   f"{len(base['scenes'])} 个场景）", base)
+
+    # 8e. 模板场景插入：模板名来自 templates/ 目录（热加载）
+    m = re.search(r"加一?个?\s*([\w\-]+)\s*(?:模板|template)\s*场景", msg, re.I)
+    if m:
+        import hf_compose
+        registry = hf_compose.load_custom_templates(spec_dir)
+        tname = m.group(1)
+        if tname not in registry:
+            names = "、".join(sorted(registry))
+            return out(f"模板「{tname}」不存在。可用模板：{names or '（无）'}",
+                       mode="help")
+        defn = registry[tname]
+        scene = {"type": tname, "duration": 3}
+        for slot in defn.get("slots", []):
+            scene[slot] = f"[{slot}]"
+        base.setdefault("scenes", []).append(scene)
+        return out(f"已追加「{tname}」模板场景（占位 slot："
+                   f"{'、'.join(defn.get('slots', [])) or '无'}——分镜/Inspector "
+                   "里把 [slot] 换成实际内容）", base)
+
+    # 8f. BGM 音量 / 音轨音量（audio 段全局）
+    m = re.search(r"(?:背景音乐|BGM|bgm).{0,6}音量\s*([\d.]+)", msg, re.I)
+    if m:
+        vol = max(0.0, min(1.0, float(m.group(1))))
+        audio = base.setdefault("audio", {})
+        bgm = audio.get("bgm") if isinstance(audio.get("bgm"), dict) else {}
+        bgm["volume"] = vol
+        audio["bgm"] = bgm
+        return out(f"BGM 音量已设为 {vol}", base)
 
     # 9. 管线动作
     if re.search(r"生成旁白|配音|tts|朗读", msg, re.I):
