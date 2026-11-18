@@ -707,6 +707,11 @@ Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
   并重组。对话历史持久化到 `<spec 目录>/chat.jsonl`（最近 5 轮作为
   上下文注入下一次请求）。CLI 未安装或模型不可用时错误如实呈现
   （含 `claude --model` 指引），不影响规则引擎模式。
+  **任意 CLI 接入**：设 `XMEDIA_AGENT_CMD`（最高优先，覆盖内置探测）
+  ——JSON 数组或 shell 串，约定 = prompt 作为最后一个参数、输出纯文本
+  回复；`XMEDIA_AGENT_NAME` 可选显示名。例：`export XMEDIA_AGENT_CMD=
+  '["codebuddy","-p"]'`；或 claude 走 DeepSeek：`ANTHROPIC_BASE_URL=
+  https://api.deepseek.com/anthropic` + `ANTHROPIC_AUTH_TOKEN=<key>`。
 
 **Pending edits 批量队列**：输入区「+ 暂存」把多次编辑攒进队列
 （输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」

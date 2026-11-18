@@ -22,6 +22,7 @@ import shutil
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -1775,7 +1776,28 @@ class StudioServer:
 
     @staticmethod
     def _agent_probe():
-        """本地 agent CLI 探测：优先 claude（非交互 -p），备选 codex exec。"""
+        """本地 agent CLI 探测：
+        1. XMEDIA_AGENT_CMD 环境变量（最高优先）——任意 agent CLI 接入：
+           JSON 数组（'["codebuddy","-p"]'）或 shell 串（'codebuddy -p'）。
+           约定：CLI 收到【prompt 作为最后一个参数】，输出纯文本回复
+           （claude 的 --output-format json 解析仅对 cli=="claude" 生效）。
+           XMEDIA_AGENT_NAME 可选显示名（默认取可执行文件名）。
+        2. 内置探测：claude -p --output-format json → codex exec。"""
+        custom = os.environ.get("XMEDIA_AGENT_CMD")
+        if custom:
+            cmd = None
+            try:
+                parsed = json.loads(custom)
+                if isinstance(parsed, list):
+                    cmd = [str(x) for x in parsed]
+            except (json.JSONDecodeError, ValueError):
+                cmd = None
+            if cmd is None:
+                cmd = shlex.split(custom)
+            if cmd:
+                name = (os.environ.get("XMEDIA_AGENT_NAME")
+                        or os.path.basename(cmd[0]))
+                return {"cli": name, "cmd": cmd, "custom": True}
         for name, cmd in (("claude", ["claude", "-p", "--output-format",
                                       "json"]),
                           ("codex", ["codex", "exec"])):

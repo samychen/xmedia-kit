@@ -948,6 +948,11 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <li>并重组。对话历史持久化到 <code><spec 目录>/chat.jsonl</code>（最近 5 轮作为</li>
 <li>上下文注入下一次请求）。CLI 未安装或模型不可用时错误如实呈现</li>
 <li>（含 <code>claude --model</code> 指引），不影响规则引擎模式。</li>
+<li><b>任意 CLI 接入</b>：设 <code>XMEDIA_AGENT_CMD</code>（最高优先，覆盖内置探测）</li>
+<li>——JSON 数组或 shell 串，约定 = prompt 作为最后一个参数、输出纯文本</li>
+<li>回复；<code>XMEDIA_AGENT_NAME</code> 可选显示名。例：`export XMEDIA_AGENT_CMD=</li>
+<li>'["codebuddy","-p"]'<code>；或 claude 走 DeepSeek：</code>ANTHROPIC_BASE_URL=</li>
+<li>https://api.deepseek.com/anthropic<code> + </code>ANTHROPIC_AUTH_TOKEN=<key>`。</li>
 </ul>
 <p><b>Pending edits 批量队列</b>：输入区「+ 暂存」把多次编辑攒进队列</p>
 <p>（输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」</p>
