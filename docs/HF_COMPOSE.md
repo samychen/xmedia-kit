@@ -87,7 +87,7 @@ python3 tools/xmedia.py storyboard problem-solution \
 # 叙事徽标（Studio 分镜卡显示）；占位文案在分镜卡/Ask AI 里改
 ```
 
-**能力对齐 HF Studio 的评估结论**（2026-11-17 对齐任务链）：
+**能力对齐 HF Studio 的评估结论**（2026-11-17 首评；2026-11-18 增补：Home/叙事 Arc/双屏对照/内联编辑）：
 
 - **云渲染（deploy/cloud、Lambda/Cloud Run）**：评估暂不实现——本仓库
   定位是本地确定性引擎（单机烘焙 + 硬件加速真零拷贝路径），云渲染是
@@ -109,6 +109,7 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | HF Studio app 能力 | xmedia-kit 现状 | 差距 / 替代路径 |
 |---|---|---|
 | Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
+| Studio app Home：项目管理（一句话 + Arc + 受众/音乐 → 建片）+ chat 主界面（agent 主导，Framey 引导） | **已支持**：`hf_studio.py --serve --home`——项目管理页（一句话 + Arc 下拉[5 个商业叙事 Arc] + 受众/音乐 → `/api/project/create` → hf_storyboard 骨架 → 项目目录 spec+contract → 项目列表 `/api/projects`，存 `~/.xmedia/projects/`）；chat 主界面化（Ask AI 加载即展开，agent CLI 可用时默认 agent 后端） | 部分：agent 主导深度取决于本机 agent CLI（cli=None 回落规则引擎）；灵感 feed 不做（云社区） |
 | first-video：一句话→提问→storyboard 审批→成片 | **storyboard 已支持**：Studio 左栏「分镜」页签逐镜审阅——每镜**真实渲染帧**（/api/sb-frames：html_bake 低分辨率全段烘焙 → 场景中点抽帧，video 场景走连拍网格）+ 时机 + 文案，点画面选中联动 Inspector/时间轴/预览（不跳走），「改这镜」一键定位，卡上内联编辑文案/时长（应用走重组）；+ `launch` 四段式 + Ask AI 待应用队列 | 渲染前逐镜审阅闭环完成 |
 | Storyboard 工作流（prompting/design-systems）：叙事计划 → 逐帧落地 | **本地版已支持**：`xmedia storyboard <arc>`——商业叙事 Arc 模板库（launch / problem-solution / listicle / explainer / comparison），每帧带 HF 叙事词汇（type=persuasion=beat：hook/social_proof/cta · before-after/counterexample/callback · aha/resolve…）；`--message/--audience/--mood` 四要素产出骨架 spec + `spec.storyboard` 段（方向块：两色纪律/breather/负面清单——供 agent 模式读）；Studio 分镜卡显示叙事徽标 | HF 的 plan→build 由 agent 逐帧生成；本地版是确定性骨架（占位文案手工/agent 填），叙事纪律（两色/breather/负面清单）暂为元数据不强制渲染 |
 | first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
@@ -121,6 +122,12 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | 模板 catalog | `templates/` 19 个场景模板（同款 slots 协议） | 数量少于 HF catalog（449 页索引） |
 | 媒体导入 / 字幕 | `hf_import` 零拷贝 + `hf_asr` SRT 分段字幕 | ✓ 对齐 |
 | 导出（后台渲染 + 取消） | `/api/bake` + 取消，产物命名对齐 HF | ✓ 对齐 |
+
+**测试覆盖现状**（2026-11-18 盘点）：Home/sb-frames/双屏对照/内联编辑/叙事 Arc
+等新能力目前由**人工浏览器验证 + 提交信息记录**，尚无自动化断言——e2e
+12 项（含 storyboard 卡数/定位链）与 hf_ai/studio smoke 未覆盖新面；
+`hf_studio_smoke` 在 Linux 环境性失败（`say` TTS macOS 专用），跨平台
+需 http provider 或无旁白形态。补自动化是当前质量侧最大缺口。
 
 **launch 四段式发布视频**（对齐 HF first-video：Hook → Proof → Turn → CTA）：
 

@@ -18,9 +18,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TOOLS = os.path.join(ROOT, "tools")
 sys.path.insert(0, TOOLS)
 
+# 进程级净化：托管运行时注入的 LD_LIBRARY_PATH 与系统 ffmpeg/ffprobe 的
+# 插件依赖（GLIBCXX 版本）冲突——本 smoke 进程内直调 hf_import/hf_compose
+# （它们再 spawn ffprobe），子进程 env 净化管不到进程内直调，所以在
+# 进程入口剥掉（与 hf_studio._ff_env / hf_reference 同根因同解法）。
+os.environ.pop("LD_LIBRARY_PATH", None)
+
 
 def run(args, timeout=180):
-    proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    # 托管运行时会注入 LD_LIBRARY_PATH（自带库），与系统 ffmpeg 的插件
+    # 依赖（GLIBCXX 版本）冲突——子进程统一剥掉该变量（与 hf_studio
+    # 的 _ff_env 同根因同解法）。
+    env = os.environ.copy()
+    env.pop("LD_LIBRARY_PATH", None)
+    proc = subprocess.run(args, capture_output=True, text=True,
+                          timeout=timeout, env=env)
     assert proc.returncode == 0, (
         f"exit {proc.returncode}: {' '.join(args)}\n{proc.stderr[-600:]}")
     return proc
