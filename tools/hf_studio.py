@@ -1909,7 +1909,7 @@ def make_handler(server_ref):
         def log_message(self, *args):
             pass
 
-        def do_GET(self):
+        def _do_get_impl(self):
             path = urllib.parse.urlparse(self.path).path
             srv = server_ref
             if path == "/":
@@ -2019,6 +2019,19 @@ def make_handler(server_ref):
                 self._serve_thumb(path)
             else:
                 self._serve_asset(path)
+
+        def do_GET(self):
+            """异常兜底：GET handler 抛错（如 html_bake 缺失的 sb-frames）
+            回 400 JSON，而不是杀连接让前端静默失败——与 do_POST 的错误
+            语义一致。若响应头已发出（流式路由已开始写），二次兜底只记
+            不抛（连接此时只能关闭）。"""
+            try:
+                self._do_get_impl()
+            except (RuntimeError, ValueError, OSError, KeyError) as e:
+                try:
+                    self._json({"error": str(e)}, 400)
+                except Exception:
+                    pass
 
         def do_POST(self):
             path = urllib.parse.urlparse(self.path).path

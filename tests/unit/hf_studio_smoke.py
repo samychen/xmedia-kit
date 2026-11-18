@@ -22,6 +22,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TOOLS = os.path.join(ROOT, "tools")
 MARK = "xmedia-kit studio:begin"
 
+# 进程级净化：托管运行时注入的 LD_LIBRARY_PATH 与系统 ffmpeg 的插件
+# 依赖冲突——本 smoke 进程内 spawn ffmpeg（测试素材合成）且 import
+# hf_studio（其 build_preview_mix 再 spawn ffmpeg），入口剥掉一次
+# 全覆盖（与 hf_ai_smoke / hf_studio._ff_env 同根因同解法）。
+os.environ.pop("LD_LIBRARY_PATH", None)
+
 
 def run_tool(args):
     proc = subprocess.run([sys.executable] + args, capture_output=True,
@@ -196,6 +202,7 @@ def main():
         # 解码初始化是同步的，会阻塞与父页共享的主线程，表现为第 2、3 个
         # 音效起点前游标连续数帧不动。注入模式（单文件）必须保持多轨引擎。
         sys.path.insert(0, TOOLS)
+
         import hf_studio as studio_mod
         mix_html = studio_mod.build_chrome(
             5.17, [], studio_mod.PREVIEW_MIX_URL)

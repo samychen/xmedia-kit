@@ -181,7 +181,12 @@ def build_preview_mix(contract_path, html, total_s):
     os.close(fd)
     try:
         cmd += ["-f", "wav", tmp]
-        proc = subprocess.run(cmd, capture_output=True, timeout=60)
+        # 环境净化：托管运行时注入的 LD_LIBRARY_PATH 与系统 ffmpeg 的
+        # 插件依赖（GLIBCXX 版本）冲突——不剥掉则预混音全数失败（与
+        # hf_studio._ff_env / hf_reference 同根因）。
+        env = os.environ.copy()
+        env.pop("LD_LIBRARY_PATH", None)
+        proc = subprocess.run(cmd, capture_output=True, timeout=60, env=env)
         if proc.returncode != 0 or os.path.getsize(tmp) < 1024:
             return None
         with open(tmp, "rb") as f:
