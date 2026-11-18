@@ -13,11 +13,71 @@
 #   6. 无裸 <script src> 指向 file:// 相对路径（CEF OSR 整页黑）
 
 import sys
+import os
 import re
 import argparse
+import json
 
 
-def validate(html):
+def check_storyboard_discipline(spec, html):
+    """storyboard.direction 的纪律检查（全部 warning 级，不阻塞 0-errors
+    硬门——纪律是方向，不是渲染错误）：
+      * 两色纪律：全局背景 vs ground、场景文字色 vs ink；
+      * breather：帧索引越界；
+      * 负面清单的机器可查子集：infinite loops（GSAP repeat:-N）、
+        randomness（Math.random）——其余条目是视觉概念，不查。
+    负面清单只查**作者写的代码**：vendor 引擎（gsap.min.js 内部本就含
+    Math.random / repeat:-1）先摘掉，避免引擎实现误报。
+    """
+    findings = []
+    user_html = re.sub(
+        r"<script\b[^>]*>(?:(?!</script>).)*?GreenSockGlobals"
+        r"(?:(?!</script>).)*?</script>",
+        "<script></script>", html, flags=re.S)
+    sb = spec.get("storyboard") or {}
+    direction = sb.get("direction") or {}
+    two = direction.get("two_color") or {}
+    ground = two.get("ground")
+    ink = two.get("ink")
+    scenes = spec.get("scenes") or []
+    if ground and spec.get("background") and \
+            str(spec["background"]).lower() != str(ground).lower():
+        findings.append((
+            "warning",
+            f"两色纪律：全局背景 {spec['background']} 偏离 "
+            f"storyboard.direction.two_color.ground {ground}"))
+    if ink:
+        bad = [i for i, sc in enumerate(scenes)
+               if isinstance(sc, dict) and sc.get("text_color") and
+               str(sc["text_color"]).lower() != str(ink).lower()]
+        if bad:
+            shown = ", ".join("#" + str(i) for i in bad[:5])
+            findings.append((
+                "warning",
+                f"两色纪律：{len(bad)} 个场景文字色偏离 ink {ink}"
+                f"（{shown}{'…' if len(bad) > 5 else ''}）"))
+    breather = direction.get("breather")
+    if breather is not None:
+        try:
+            bi = int(breather)
+        except (TypeError, ValueError):
+            bi = -1
+        if not (0 <= bi < len(scenes)):
+            findings.append((
+                "warning",
+                f"storyboard.direction.breather={breather} 越界"
+                f"（场景数 {len(scenes)}）"))
+    banned = [str(b).lower() for b in (direction.get("banned") or [])]
+    for label, pat, what in (
+            ("infinite loops", r"repeat\s*:\s*-\d+", "GSAP repeat:-N"),
+            ("randomness", r"Math\.random", "Math.random")):
+        if any(label in b for b in banned) and re.search(pat, user_html):
+            findings.append((
+                "warning", f"负面清单「{label}」：契约页含 {what}"))
+    return findings
+
+
+def validate(html, spec=None):
     findings = []
     errors = 0
     warnings = 0
@@ -77,6 +137,12 @@ def validate(html):
                              "在 CEF OSR 整页黑——建议内联或用 CDN"))
             warnings += 1
 
+    # 7. storyboard 叙事纪律（可选 spec；全部 warning 级）
+    if spec and spec.get("storyboard"):
+        for lv, msg in check_storyboard_discipline(spec, html):
+            findings.append((lv, msg))
+            warnings += 1
+
     return findings, errors, warnings, infos
 
 
@@ -84,6 +150,9 @@ def main():
     parser = argparse.ArgumentParser(description="xmedia-kit 契约 HTML 验证器")
     parser.add_argument("html", help="合成 HTML 文件路径")
     parser.add_argument("--json", action="store_true", help="JSON 输出")
+    parser.add_argument("--spec", default="",
+                        help="spec JSON 路径（含 storyboard 段时做叙事纪律"
+                             "检查；缺省按契约页头注释自动发现）")
     args = parser.parse_args()
 
     try:
@@ -94,10 +163,25 @@ def main():
               "  先跑 hf_compose.py 生成契约 HTML", file=sys.stderr)
         sys.exit(1)
 
-    findings, errors, warnings, infos = validate(html)
+    spec = None
+    spec_path = args.spec
+    if not spec_path:
+        # 自动发现：compose 在头注释写 spec:<文件名>|（相对契约页目录）
+        m = re.search(r"spec:([^|]+)\|", html)
+        if m:
+            cand = os.path.join(os.path.dirname(os.path.abspath(args.html)),
+                                m.group(1).strip())
+            if os.path.isfile(cand):
+                spec_path = cand
+    if spec_path and os.path.isfile(spec_path):
+        try:
+            spec = json.load(open(spec_path, encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            spec = None
+
+    findings, errors, warnings, infos = validate(html, spec=spec)
 
     if args.json:
-        import json
         print(json.dumps({
             "errorCount": errors, "warningCount": warnings,
             "infoCount": infos,

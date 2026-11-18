@@ -101,8 +101,29 @@ def main():
              out, "-o", contract])
         run([sys.executable, os.path.join(TOOLS, "hf_validate.py"),
              contract])
+        # 叙事纪律（validate(html, spec)）：合规骨架零纪律警告；
+        # 违规注入（背景/文字色偏离 + Math.random/repeat:-1）出 4 类警告
+        import hf_validate
+        html = open(contract, encoding="utf-8").read()
+        f_ok, _, _, _ = hf_validate.validate(html, spec=spec)
+        disc_ok = [m for lv, m in f_ok if lv == "warning" and
+                   ("两色纪律" in m or "负面清单" in m or "breather" in m)]
+        assert not disc_ok, f"{arc}: 合规骨架不应有纪律警告：{disc_ok}"
+        bad = json.loads(json.dumps(spec))
+        bad["background"] = "#ff0000"
+        for sc in bad["scenes"]:
+            sc["text_color"] = "#00ff00"
+        bad_html = html.replace(
+            "</body>",
+            "<script>gsap.to(o,{repeat:-1});var r=Math.random();"
+            "</script></body>")
+        f_bad, _, _, _ = hf_validate.validate(bad_html, spec=bad)
+        disc_bad = [m for lv, m in f_bad if lv == "warning" and
+                    ("两色纪律" in m or "负面清单" in m or "breather" in m)]
+        assert len(disc_bad) == 4, \
+            f"{arc}: 违规注入应出 4 类纪律警告，实得 {disc_bad}"
     print(f"  ok storyboard CLI：{len(hf_storyboard.ARCS)} 个 Arc 全部"
-          "骨架合法（compose/validate 0 errors）")
+          "骨架合法（compose/validate 0 errors + 叙事纪律双向断言）")
 
     # ---------- 2. Home 项目管理（--home） ----------
     projects_root = os.path.join(tmp, "projects")
@@ -195,17 +216,17 @@ def main():
         assert "Content-Range" in hdr, "206 缺 Content-Range"
         print("  ok 双屏对照：登记 → state.ref_video → asset Range/206")
 
-        # ---------- 5. sb-frames 降级 ----------
+        # ---------- 5. sb-frames 降级（对齐 /api/waveform 先例：
+        # "环境渲染不出帧"返回 200 + 空帧 + note，不是错误——400 会让
+        # 每次打开分镜都刷一屏 console 红字） ----------
         st, _, raw = http("GET", base + "/api/sb-frames")
         body = jbody(raw)
-        if st == 400:
-            assert "html_bake" in str(body.get("error", "")), \
-                f"降级提示应指向 html_bake：{body.get('error')}"
-            print("  ok sb-frames 降级：无 html_bake → 400 + 构建提示")
-        else:
-            frames = body.get("frames") or body.get("urls") or []
-            assert frames, "sb-frames 既未降级也未产出帧"
-            print(f"  ok sb-frames：{len(frames)} 帧（本机已构建 html_bake）")
+        assert st == 200 and body.get("ok") is True, \
+            f"sb-frames 降级应为 200 ok：{st} {str(body)[:120]}"
+        assert body.get("frames") == [], "降级响应应带空帧"
+        assert "html_bake" in str(body.get("note", "")), \
+            f"note 应指向 html_bake：{body.get('note')}"
+        print("  ok sb-frames 降级：无 html_bake → 200 + 空帧 + 构建提示")
     finally:
         server.terminate()
         server.wait(timeout=10)

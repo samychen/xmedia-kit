@@ -23,7 +23,56 @@ let step = 0;
 const ok = (msg) => console.log(`  ok[${++step}] ${msg}`);
 const fail = (msg) => { console.error(`  FAIL[${step}] ${msg}`); process.exitCode = 1; };
 
+const HOME_URL = process.env.HOME_URL || "";
+
+/* Home 阶段（HF Studio app Home：项目管理 → 一句话建片 → 编辑页）。
+ * 需要独立起一个 --serve --home 服务（XMEDIA_STUDIO_PROJECTS 指向临时
+ * 目录），HOME_URL 指向它；未设置时跳过本阶段。 */
+async function homePhase(browser) {
+  if (!HOME_URL) {
+    console.log("  skip Home 阶段（未设 HOME_URL）");
+    return;
+  }
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const errs = [];
+  page.on("console", (m) => { if (m.type() === "error") errs.push(m.text()); });
+  page.on("pageerror", (e) => errs.push(String(e)));
+  try {
+    await page.goto(HOME_URL, { waitUntil: "networkidle" });
+    const hasForm = await page.locator("#message").count() &&
+        (await page.locator("#arc").count()) &&
+        (await page.locator("#create").count());
+    if (!hasForm) fail("Home 页缺建片表单（message/arc/create）");
+    else ok("Home 项目管理页加载（message/arc/create 表单）");
+    await page.screenshot({ path: join(outDir, "e2e-07-home.png") });
+
+    await page.fill("#message", "e2e Home 冒烟：一句话建片");
+    await page.selectOption("#arc", "problem-solution");
+    await page.click("#create");
+    await page.waitForURL("**/project/**", { timeout: 15000 });
+    ok("创建成功 → " + page.url().split("/").slice(-1)[0]);
+
+    await page.waitForTimeout(800);
+    const status = await page.textContent("#status");
+    if (!/校验通过/.test(status || "")) fail(`编辑页契约校验: ${status}`);
+    else ok("项目编辑页加载，契约校验通过");
+    await page.screenshot({ path: join(outDir, "e2e-08-home-editor.png") });
+
+    const projects = await page.evaluate(async () =>
+      (await (await fetch("/api/projects")).json()).projects);
+    const names = projects.map((p) => (typeof p === "string" ? p : p.name));
+    if (!names.length) fail("/api/projects 项目列表为空");
+    else ok(`/api/projects：${names.length} 个项目`);
+    if (errs.length) fail(`Home 阶段控制台 ${errs.length} 条 error: ${errs[0]}`);
+    else ok("Home 阶段控制台零 error");
+  } finally {
+    await page.close();
+  }
+}
+
 const browser = await chromium.launch();
+await homePhase(browser);
+
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -58,10 +107,12 @@ try {
   await page.dispatchEvent("#scrub", "input");
   ok("scrub seek 无异常");
 
-  // 4. 三个面板开合
-  await page.click("#ask-fab");
-  if (!(await page.locator("#ask-panel.open").count())) fail("Ask AI 面板未打开");
-  else ok("Ask AI 面板打开");
+  // 4. 三个面板开合（chat 主界面化：Ask AI 加载即展开——幂等处理）
+  if (!(await page.locator("#ask-panel.open").count()))
+    await page.click("#ask-fab");
+  if (!(await page.locator("#ask-panel.open").count()))
+    fail("Ask AI 面板未打开");
+  else ok("Ask AI 面板打开（chat 主界面化）");
   await page.screenshot({ path: join(outDir, "e2e-03-ask.png") });
   await page.click("#ask-fab");
 
@@ -77,9 +128,10 @@ try {
   await page.screenshot({ path: join(outDir, "e2e-05-import.png") });
   await page.mouse.click(10, 10); // dialog ::backdrop 点击关闭
 
-  // 5. Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版）
-  await page.click("#btn-storyboard");
-  await page.waitForTimeout(300);
+  // 5. Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版；
+  //    M5+：第四个 tab「分镜」+ 点画面选中（不跳走）+ 卡上内联编辑）
+  await page.click("#tab-storyboard");
+  await page.waitForTimeout(400);
   const sbCards = await page.locator("#sb-list .sb-card").count();
   const apiSceneCount = await page.evaluate(async () => {
     const st = await (await fetch("/api/state")).json();
@@ -88,6 +140,14 @@ try {
   if (sbCards !== apiSceneCount) fail(`storyboard 卡数 ${sbCards} ≠ 场景数 ${apiSceneCount}`);
   else ok(`storyboard 逐镜卡 ${sbCards} 张（与 /api/state 一致）`);
   await page.screenshot({ path: join(outDir, "e2e-06-storyboard.png") });
+  // 点画面 = 选中该镜（面板保持打开，Inspector 联动不跳走）
+  await page.locator("#sb-list .sb-card .sb-shot").first().click();
+  await page.waitForTimeout(300);
+  const shotSel = await page.locator("#sb-list .sb-card.sel").count() &&
+      (await page.locator(".sc-card.sel").count());
+  if (!shotSel) fail("点画面后分镜卡/场景卡未选中");
+  else ok("点画面选中该镜（分镜保持打开 + Inspector 联动）");
+  // 「改这镜」= 定位 + 面板收起
   await page.locator("#sb-list .sb-card .sb-edit").first().click();
   await page.waitForTimeout(300);
   const sbHidden = await page.locator("#sb-panel")
@@ -96,6 +156,21 @@ try {
   else if (!(await page.locator(".sc-card.sel").count()))
     fail("「改这镜」后场景卡未选中");
   else ok("「改这镜」定位链（面板收起 + 场景选中）");
+  // 内联编辑：卡上改文案 → 应用 → /api/recompose → spec 同步
+  await page.click("#tab-storyboard");
+  await page.waitForTimeout(400);
+  const editText = `e2e 内联编辑 ${Date.now()}`;
+  await page.locator("#sb-list .sb-card .sb-edit-text").first()
+    .fill(editText);
+  await page.locator("#sb-list .sb-card .sb-apply").first().click();
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(async () => {
+    const st = await (await fetch("/api/state")).json();
+    return (st.spec.scenes[0].text || "");
+  });
+  if (after !== editText)
+    fail(`内联编辑未写回 spec（${JSON.stringify(after)}）`);
+  else ok("分镜卡内联编辑 → /api/recompose → spec 同步");
 
   // 6. /api/state 可用
   const state = await page.evaluate(async () => {

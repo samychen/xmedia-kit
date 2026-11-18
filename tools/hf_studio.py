@@ -764,9 +764,13 @@ def studio_ui():
 class StudioServer:
     """本地 Studio 服务：预览、重组、TTS、烘焙。仅绑定 127.0.0.1。"""
 
-    def __init__(self, contract_path, spec_path, port, no_sfx=False):
+    def __init__(self, contract_path, spec_path, port, no_sfx=False,
+                 home=False):
         # contract_path 为 None = Home 模式（项目管理页起步，点开项目时
         # 经 open_project 重绑）。
+        # home=True（--home 启动）：`/` 永远是项目管理页（稳定启动器，
+        # 对齐 HF 的 Home 语义）；项目编辑只在 /project/<name>。
+        self.home_mode = home
         self.contract_path = (os.path.abspath(contract_path)
                               if contract_path else None)
         self.spec_path = os.path.abspath(spec_path) if spec_path else None
@@ -1286,13 +1290,18 @@ class StudioServer:
 
     def _sb_frames(self):
         """Storyboard 逐镜真实帧：低分辨率全段一次烘焙（fps=1）→ 按
-        场景中点抽帧。缓存 = <thumbs>/sb/（契约页 mtime 失效）。"""
+        场景中点抽帧。缓存 = <thumbs>/sb/（契约页 mtime 失效）。
+
+        html_bake 未构建时返回 200 + 空帧（对齐 /api/waveform 的"没有
+        音轨返回 ok:true 且 peaks:null"先例——这是"本环境渲染不出帧"，
+        不是错误；前端分镜卡有色块+文案兜底。返回 400 会让每次打开分镜
+        都刷一屏 console 红字。"""
         import xmedia
         bake = xmedia.bake_bin()
         if not bake:
-            raise RuntimeError(
-                "找不到 html_bake——先构建（cmake --build build --target "
-                "html_bake）")
+            return {"ok": True, "frames": [], "note":
+                    "html_bake 未构建——分镜真实帧不可用，先用色块兜底"
+                    "（cmake --build build --target html_bake）"}
         cache = os.path.join(self._thumbs_dir(), "sb")
         os.makedirs(cache, exist_ok=True)
         marker = os.path.join(cache, "done.json")
@@ -1389,6 +1398,15 @@ class StudioServer:
         name = str(body.get("name") or "").strip()
         arc = str(body.get("arc") or "launch")
         message = str(body.get("message") or "").strip()
+        if not name:
+            # Home 表单承诺「项目名（可选，默认自动）」：自动名 = Arc +
+            # 时间戳（正则合法 + 可读），冲突追加序号。
+            name = f"{arc}-{time.strftime('%m%d-%H%M%S')}"
+            root = self._projects_root()
+            k = 2
+            while os.path.isdir(os.path.join(root, name)):
+                name = f"{name}-{k}"
+                k += 1
         if not re.fullmatch(r"[\w\-]+", name):
             raise RuntimeError("项目名只能是字母/数字/下划线/连字符")
         if arc not in hf_storyboard.ARCS:
@@ -1913,9 +1931,9 @@ def make_handler(server_ref):
             path = urllib.parse.urlparse(self.path).path
             srv = server_ref
             if path == "/":
-                # Home 模式（--home 启动，未绑契约页）= 项目管理页；
+                # Home 模式（--home 启动）= 项目管理页（稳定启动器）；
                 # 直接指定契约页启动 = 编辑视图（旧行为兼容）。
-                if not srv.contract_path:
+                if srv.home_mode or not srv.contract_path:
                     self._send(200, home_html(srv._projects_list()),
                                "text/html; charset=utf-8")
                 else:
@@ -1933,7 +1951,8 @@ def make_handler(server_ref):
                 self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
                 import hf_validate
-                findings, errors, _, _ = hf_validate.validate(srv.current_html)
+                findings, errors, _, _ = hf_validate.validate(
+                    srv.current_html, spec=srv.current_spec)
                 scenes = parse_scenes(srv.current_html)
                 audios = parse_audio_tracks(srv.current_html)
                 total = parse_total(srv.current_html, scenes)
@@ -2373,7 +2392,7 @@ def serve(contract_path, spec_path, port, no_sfx, home=False):
     contract_path = os.path.abspath(contract_path) if contract_path else None
     if contract_path is None:
         # Home 模式：项目管理页起步，open_project 在点开项目时重绑。
-        srv = StudioServer(None, None, port, no_sfx)
+        srv = StudioServer(None, None, port, no_sfx, home=True)
     else:
         spec_dir = os.path.dirname(contract_path) or "."
     if spec_path is None and contract_path is not None:
@@ -2386,7 +2405,7 @@ def serve(contract_path, spec_path, port, no_sfx, home=False):
                 spec_path = candidate
     if contract_path is None:
         # Home 模式：上面那段自动发现跳过，spec 维持 None。
-        srv = StudioServer(None, None, port, no_sfx)
+        srv = StudioServer(None, None, port, no_sfx, home=True)
     else:
         srv = StudioServer(contract_path, spec_path, port, no_sfx)
 

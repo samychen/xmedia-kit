@@ -954,12 +954,16 @@ jobs:
           python3 tools/hf_compose.py gallery/knowledge-cards.json \
             -o /tmp/studio-e2e/contract.html
           cp gallery/knowledge-cards.json /tmp/studio-e2e/spec.json
-      - name: Studio e2e baseline
+      - name: Studio e2e baseline（contract + Home 双服务）
         run: |
+          XMEDIA_STUDIO_PROJECTS=/tmp/studio-projects \
+            python3 tools/hf_studio.py --serve --home --port 8233 &
           python3 tools/hf_studio.py /tmp/studio-e2e/contract.html \
             --serve --spec /tmp/studio-e2e/spec.json --port 8121 &
           sleep 2
-          cd tools/web && npm run e2e
+          cd tools/web
+          HOME_URL=http://127.0.0.1:8233 \
+            BASE_URL=http://127.0.0.1:8121 npm run e2e
 
   # docs/04 §8 and docs/07 §10 (M13): self-contained micro-benchmarks. No
   # Google Benchmark (it cannot be fetched in the sandbox and the runner should
