@@ -712,10 +712,15 @@ Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
   回复；`XMEDIA_AGENT_NAME` 可选显示名。例：`export XMEDIA_AGENT_CMD=
   '["codebuddy","-p"]'`；或 claude 走 DeepSeek：`ANTHROPIC_BASE_URL=
   https://api.deepseek.com/anthropic` + `ANTHROPIC_AUTH_TOKEN=<key>`。
-  **CodeBuddy 实测**（2026-11-19）：`npm install -g @tencent-ai/
+  **CodeBuddy 实测**（2026-11-19，全链跑通）：`npm install -g @tencent-ai/
   codebuddy-code`（Node ≥18）装好后先在终端跑一次 `codebuddy` 完成登录
-  （交互模式弹 OAuth），之后 `XMEDIA_AGENT_CMD='["codebuddy","-p"]'`
-  即接入——未登录时错误如实呈现（"Authentication required"）。
+  （交互模式弹 OAuth），之后
+  `XMEDIA_AGENT_CMD='["codebuddy","-p","--permission-mode","acceptEdits"]'`
+  接入——**acceptEdits 必需**：非交互 -p 默认拦截文件写入，agent 会诚实
+  报告"修改被权限拦截"（实测）。端到端验证：对话改标题/副标题 →
+  spec 写回 → 服务端重载重组 → 分镜真实帧刷新；且回复明确遵守了
+  spec.storyboard 方向块纪律（"第 1 帧仍为安静节拍"）。服务进程需能
+  找到 CLI（nvm bin 要在 PATH 里）。
 
 **Pending edits 批量队列**：输入区「+ 暂存」把多次编辑攒进队列
 （输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」
