@@ -171,6 +171,95 @@ def _probe_audio_duration(path):
     return None
 
 
+def _design_css(spec, bg_default):
+    """spec.design 段（设计系统）→ (root CSS 变量, 场景类覆盖)。
+
+    对齐 HF frame.md 设计系统层（frame-presets 的 YAML 规格）：colors
+    带角色、typography ramp（display/h1/stat_figure/body/label）、
+    components（hairline/invert_block）。场景显式 bg/color 仍优先。"""
+    design = spec.get("design") or {}
+    if not design:
+        return "", ""
+    colors = design.get("colors") or {}
+    typo = design.get("typography") or {}
+    comps = design.get("components") or {}
+    root_lines = ["    --ground: " + colors.get("bg_primary", bg_default)]
+    if colors.get("bg_secondary"):
+        root_lines.append("    --surface: " + colors["bg_secondary"])
+    root_lines.append("    --ink: " + colors.get("text_primary", "#ffffff"))
+    if colors.get("text_secondary"):
+        root_lines.append("    --ink-2: " + colors["text_secondary"])
+    if colors.get("accent"):
+        root_lines.append("    --accent-d: " + colors["accent"])
+    if colors.get("line"):
+        root_lines.append("    --line-d: " + colors["line"])
+
+    def tvar(name, family, size, unit, weight, lh):
+        if not family:
+            return ""
+        return ("    --t-" + name + ": " + family + " " + str(weight) + ";\n"
+                + "    --t-" + name + "-size: calc(" + str(size) + " * 1"
+                + unit + ");\n"
+                + "    --t-" + name + "-lh: " + str(lh) + ";")
+
+    scene_ov = []
+    ink = colors.get("text_primary", "")
+    ink2 = colors.get("text_secondary", "")
+    disp = typo.get("display") or {}
+    if disp.get("family"):
+        scene_ov.append(
+            "  .scene-title { font-family: " + disp["family"]
+            + "; font-size: calc(" + str(disp.get("size_vh", 7)) + " * 1vh)"
+            + "; font-weight: " + str(disp.get("weight", 700))
+            + "; line-height: " + str(disp.get("line_height", 1.1))
+            + "; letter-spacing: " + str(disp.get("tracking", "normal"))
+            + ("; color: " + ink if ink else "")
+            + "; }")
+    if ink:
+        scene_ov.append("  .scene > * { color: " + ink + "; }")
+    body_t = typo.get("body") or {}
+    if body_t.get("family"):
+        scene_ov.append(
+            "  .scene-body, .scene-item, .scene-list-item { font-family: "
+            + body_t["family"] + "; font-size: calc("
+            + str(body_t.get("size_vh", 1.0)) + " * 1vh); color: "
+            + str(body_t.get("color") or ink2 or "inherit") + "; }")
+    lbl = typo.get("label") or {}
+    if lbl.get("family"):
+        scene_ov.append(
+            "  .scene-subtitle { font-family: " + lbl["family"]
+            + "; font-size: " + str(lbl.get("px", 14)) + "px; letter-spacing: "
+            + str(lbl.get("tracking", "normal")) + "; text-transform: "
+            + ("uppercase" if lbl.get("upper") else "none") + "; color: "
+            + str(lbl.get("color", "inherit")) + "; }")
+    hl = comps.get("hairline") or ""
+    if hl and "{colors.line}" in hl and colors.get("line"):
+        scene_ov.append(
+            "  .scene-heading { border-bottom: "
+            + hl.replace("{colors.line}", colors["line"])
+            + "; padding-bottom: 12px; }")
+    root_css = "\n".join(root_lines)
+    scene_css = "\n".join(scene_ov)
+    return root_css, scene_css
+
+
+def _design_presets():
+    """内置设计预设（tools/design-presets/*.json）。"""
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "design-presets")
+    out = {}
+    if os.path.isdir(d):
+        for fn in sorted(os.listdir(d)):
+            if fn.endswith(".json"):
+                try:
+                    data = json.load(open(os.path.join(d, fn),
+                                          encoding="utf-8"))
+                    out[data.get("name", fn[:-5])] = data
+                except (json.JSONDecodeError, OSError):
+                    pass
+    return out
+
+
 def _fit_scene_duration(scene, fallback=3.0):
     """旁白驱动时长拟合：narration 音频时长 + padding（AI-auto-generate-
     video 对齐）。无 narration 时用 duration 字段或 fallback。"""
@@ -672,7 +761,10 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         scene_styles.append(
             f'  #scene-{idx} {{ background: {bg_style}; color: {color}; }}')
 
-    style_block = "\n".join(scene_styles)
+    design_root, design_scene = _design_css(spec, bg)
+    if design_scene:
+        design_scene = "\n" + design_scene
+        style_block = "\n".join(scene_styles)
     if tpl_css:
         style_block += "\n" + "\n".join(tpl_css)
 
@@ -687,6 +779,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     --ground: {bg};
     --ink: #ffffff;
     --font-display: sans-serif;
+{design_root}
   }}
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   html, body {{
@@ -746,6 +839,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
   .comp-col h3 {{ font-size: 32px; font-weight: 600; margin-bottom: 16px;
                   border-bottom: 2px solid currentColor; padding-bottom: 8px; }}
   .comp-col li {{ font-size: 26px; margin: 12px 0; }}
+{design_scene}
 {style_block}
 </style>
 </head>

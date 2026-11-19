@@ -1,0 +1,29 @@
+{
+  "name": "bold-poster",
+  "description": "海报冲击风：近黑底、巨大无衬线、实块反白强调拍、字号即层级",
+  "source": "设计语言改写自 HF bold-poster 风格（两色纪律）",
+  "colors": {
+    "bg_primary": "#0A0A1A",
+    "bg_secondary": "#16213E",
+    "text_primary": "#F0F0F5",
+    "text_secondary": "#8B8BA0",
+    "accent": "#F0F0F5",
+    "accent_block": "#F0F0F5"
+  },
+  "typography": {
+    "display": {"family": "Inter", "size_vh": 9.5, "weight": 900, "line_height": 1.02, "tracking": "-0.02em"},
+    "h1": {"family": "Inter", "size_vh": 6.2, "weight": 800, "line_height": 1.06},
+    "h2": {"family": "Inter", "size_vh": 4.0, "weight": 800, "line_height": 1.1},
+    "stat_figure": {"family": "Inter", "size_vh": 8.0, "weight": 900, "line_height": 1.0},
+    "label": {"family": "Inter", "px": 14, "weight": 500, "tracking": "3px", "upper": true, "color": "text_secondary"},
+    "body": {"family": "Inter", "size_vh": 1.0, "weight": 400, "line_height": 1.6, "color": "text_secondary"},
+    "body_sm": {"family": "Inter", "size_vh": 0.85, "weight": 400, "line_height": 1.5}
+  },
+  "spacing": {"pad_x": "8cqw", "pad_y": "6cqw"},
+  "components": {
+    "invert_block": "background {colors.accent_block}; color {colors.bg_primary}; padding 0.5em 0.4em",
+    "label_upper": "uppercase + tracking 3px",
+    "hairline": "0.14vh solid {colors.text_secondary}"
+  },
+  "layout": "left-aligned, focal off-center, emphasis = solid block inversion"
+}

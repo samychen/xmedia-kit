@@ -1,0 +1,29 @@
+{
+  "name": "editorial-stone",
+  "description": "暖石色编辑风：衬线大字 + 无衬线正文、1px 发丝线结构件、零阴影零填充、留白慷慨",
+  "source": "设计语言改写自 HF frame-presets/cartesian（Apache 2.0）",
+  "colors": {
+    "bg_primary": "#EDE8E0",
+    "bg_secondary": "#E2DBD1",
+    "text_primary": "#1A1A1A",
+    "text_secondary": "#5A5A5A",
+    "accent": "#8A8178",
+    "line": "#B8B0A4",
+    "white_overlay": "rgba(255,255,255,0.3)"
+  },
+  "typography": {
+    "display": {"family": "Playfair Display", "size_vh": 8.0, "weight": 400, "line_height": 1.04},
+    "h1": {"family": "Playfair Display", "size_vh": 6.2, "weight": 400, "line_height": 1.06},
+    "h2": {"family": "Playfair Display", "size_vh": 4.0, "weight": 400, "line_height": 1.1},
+    "stat_figure": {"family": "Playfair Display", "size_vh": 3.0, "weight": 400, "line_height": 1.0},
+    "label": {"family": "Inter", "px": 14, "weight": 500, "tracking": "3px", "upper": true, "color": "accent"},
+    "body": {"family": "Inter", "size_vh": 1.0, "weight": 400, "line_height": 1.6, "color": "text_secondary"},
+    "body_sm": {"family": "Inter", "size_vh": 0.85, "weight": 400, "line_height": 1.6}
+  },
+  "spacing": {"pad_x": "7cqw", "pad_y": "5cqw", "gap_lg": "5cqw"},
+  "components": {
+    "hairline": "0.14vh solid {colors.line}",
+    "card": "background {colors.white_overlay}; border hairline; no shadow; no radius"
+  },
+  "layout": "left-aligned, generous whitespace, focal off-center"
+}
