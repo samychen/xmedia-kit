@@ -712,6 +712,10 @@ Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
   回复；`XMEDIA_AGENT_NAME` 可选显示名。例：`export XMEDIA_AGENT_CMD=
   '["codebuddy","-p"]'`；或 claude 走 DeepSeek：`ANTHROPIC_BASE_URL=
   https://api.deepseek.com/anthropic` + `ANTHROPIC_AUTH_TOKEN=<key>`。
+  **CodeBuddy 实测**（2026-11-19）：`npm install -g @tencent-ai/
+  codebuddy-code`（Node ≥18）装好后先在终端跑一次 `codebuddy` 完成登录
+  （交互模式弹 OAuth），之后 `XMEDIA_AGENT_CMD='["codebuddy","-p"]'`
+  即接入——未登录时错误如实呈现（"Authentication required"）。
 
 **Pending edits 批量队列**：输入区「+ 暂存」把多次编辑攒进队列
 （输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」

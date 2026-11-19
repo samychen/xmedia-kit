@@ -953,6 +953,10 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <li>回复；<code>XMEDIA_AGENT_NAME</code> 可选显示名。例：`export XMEDIA_AGENT_CMD=</li>
 <li>'["codebuddy","-p"]'<code>；或 claude 走 DeepSeek：</code>ANTHROPIC_BASE_URL=</li>
 <li>https://api.deepseek.com/anthropic<code> + </code>ANTHROPIC_AUTH_TOKEN=<key>`。</li>
+<li><b>CodeBuddy 实测</b>（2026-11-19）：`npm install -g @tencent-ai/</li>
+<li>codebuddy-code<code>（Node ≥18）装好后先在终端跑一次 </code>codebuddy` 完成登录</li>
+<li>（交互模式弹 OAuth），之后 <code>XMEDIA_AGENT_CMD='["codebuddy","-p"]'</code></li>
+<li>即接入——未登录时错误如实呈现（"Authentication required"）。</li>
 </ul>
 <p><b>Pending edits 批量队列</b>：输入区「+ 暂存」把多次编辑攒进队列</p>
 <p>（输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」</p>
