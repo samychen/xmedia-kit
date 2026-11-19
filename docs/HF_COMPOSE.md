@@ -716,11 +716,18 @@ Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
   codebuddy-code`（Node ≥18）装好后先在终端跑一次 `codebuddy` 完成登录
   （交互模式弹 OAuth），之后
   `XMEDIA_AGENT_CMD='["codebuddy","-p","--permission-mode","acceptEdits"]'`
-  接入——**acceptEdits 必需**：非交互 -p 默认拦截文件写入，agent 会诚实
-  报告"修改被权限拦截"（实测）。端到端验证：对话改标题/副标题 →
-  spec 写回 → 服务端重载重组 → 分镜真实帧刷新；且回复明确遵守了
-  spec.storyboard 方向块纪律（"第 1 帧仍为安静节拍"）。服务进程需能
-  找到 CLI（nvm bin 要在 PATH 里）。
+  接入——**--permission-mode 必需**：默认权限会拦文件写入与命令执行
+  （agent 诚实报告而非假装完成——好行为）。两档实测：
+  `acceptEdits` = 只放行文件编辑（够改 spec，但 agent 跑 gate/compose
+  的 Bash 仍被拦）；`bypassPermissions` = 全放行（本仓库编排的 agent
+  子进程跑在信任的本地上下文，推荐）。**全链实测（2026-11-19）**：
+  prompt 注入 skills/launch/SKILL.md 工作流后，CodeBuddy 自主完成
+  "改标题 → 重生成 contract.html → 跑 skills/launch/scripts/gate.py
+  → 报告 gate PASS（9 项）"，且回复明确遵守 spec.storyboard 方向块
+  纪律（"第 1 帧仍为安静节拍"）。服务进程需能找到 CLI（nvm bin 在
+  PATH 里）。skills/launch/ = 对齐 HF product-launch-video 的本地
+  工作流（brief → capture → design → storyboard → tts → build →
+  gate → look → reply），方法论出处见 skills/STANDARDS.md。
 
 **Pending edits 批量队列**：输入区「+ 暂存」把多次编辑攒进队列
 （输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」

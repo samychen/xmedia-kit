@@ -957,11 +957,18 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <li>codebuddy-code<code>（Node ≥18）装好后先在终端跑一次 </code>codebuddy` 完成登录</li>
 <li>（交互模式弹 OAuth），之后</li>
 <li><code>XMEDIA_AGENT_CMD='["codebuddy","-p","--permission-mode","acceptEdits"]'</code></li>
-<li>接入——<b>acceptEdits 必需</b>：非交互 -p 默认拦截文件写入，agent 会诚实</li>
-<li>报告"修改被权限拦截"（实测）。端到端验证：对话改标题/副标题 →</li>
-<li>spec 写回 → 服务端重载重组 → 分镜真实帧刷新；且回复明确遵守了</li>
-<li>spec.storyboard 方向块纪律（"第 1 帧仍为安静节拍"）。服务进程需能</li>
-<li>找到 CLI（nvm bin 要在 PATH 里）。</li>
+<li>接入——<b>--permission-mode 必需</b>：默认权限会拦文件写入与命令执行</li>
+<li>（agent 诚实报告而非假装完成——好行为）。两档实测：</li>
+<li><code>acceptEdits</code> = 只放行文件编辑（够改 spec，但 agent 跑 gate/compose</li>
+<li>的 Bash 仍被拦）；<code>bypassPermissions</code> = 全放行（本仓库编排的 agent</li>
+<li>子进程跑在信任的本地上下文，推荐）。<b>全链实测（2026-11-19）</b>：</li>
+<li>prompt 注入 skills/launch/SKILL.md 工作流后，CodeBuddy 自主完成</li>
+<li>"改标题 → 重生成 contract.html → 跑 skills/launch/scripts/gate.py</li>
+<li>→ 报告 gate PASS（9 项）"，且回复明确遵守 spec.storyboard 方向块</li>
+<li>纪律（"第 1 帧仍为安静节拍"）。服务进程需能找到 CLI（nvm bin 在</li>
+<li>PATH 里）。skills/launch/ = 对齐 HF product-launch-video 的本地</li>
+<li>工作流（brief → capture → design → storyboard → tts → build →</li>
+<li>gate → look → reply），方法论出处见 skills/STANDARDS.md。</li>
 </ul>
 <p><b>Pending edits 批量队列</b>：输入区「+ 暂存」把多次编辑攒进队列</p>
 <p>（输入区上方暂存条：逐条展示/移除/清空 + 计数徽标），「批量应用 N」</p>
