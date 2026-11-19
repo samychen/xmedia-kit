@@ -707,6 +707,11 @@ Studio 右下角 `Ask AI`（Ctrl/⌘ + K）打开聊天面板，发一句话 →
   并重组。对话历史持久化到 `<spec 目录>/chat.jsonl`（最近 5 轮作为
   上下文注入下一次请求）。CLI 未安装或模型不可用时错误如实呈现
   （含 `claude --model` 指引），不影响规则引擎模式。
+  **未命中自动转发**：规则引擎不认识的话（"我不确定…"）在 agent CLI
+  可用时**自动转给 agent 处理**——用户不需要区分"哪句话该走哪条路"
+  （HF chat 主界面形态）。引导类回复（缺参数/选模板）不转发。
+  实测："给第一镜加一个倒计时的感觉" → CodeBuddy 理解为 3·2·1 倒计时
+  标题并遵守叙事纪律（breather 节拍/两色）。
   **任意 CLI 接入**：设 `XMEDIA_AGENT_CMD`（最高优先，覆盖内置探测）
   ——JSON 数组或 shell 串，约定 = prompt 作为最后一个参数、输出纯文本
   回复；`XMEDIA_AGENT_NAME` 可选显示名。例：`export XMEDIA_AGENT_CMD=

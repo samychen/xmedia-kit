@@ -948,6 +948,11 @@ xmedia import ~/Movies/kpl.mp4 -o one_clip.json     # 单文件 = 一段场景</
 <li>并重组。对话历史持久化到 <code><spec 目录>/chat.jsonl</code>（最近 5 轮作为</li>
 <li>上下文注入下一次请求）。CLI 未安装或模型不可用时错误如实呈现</li>
 <li>（含 <code>claude --model</code> 指引），不影响规则引擎模式。</li>
+<li><b>未命中自动转发</b>：规则引擎不认识的话（"我不确定…"）在 agent CLI</li>
+<li>可用时<b>自动转给 agent 处理</b>——用户不需要区分"哪句话该走哪条路"</li>
+<li>（HF chat 主界面形态）。引导类回复（缺参数/选模板）不转发。</li>
+<li>实测："给第一镜加一个倒计时的感觉" → CodeBuddy 理解为 3·2·1 倒计时</li>
+<li>标题并遵守叙事纪律（breather 节拍/两色）。</li>
 <li><b>任意 CLI 接入</b>：设 <code>XMEDIA_AGENT_CMD</code>（最高优先，覆盖内置探测）</li>
 <li>——JSON 数组或 shell 串，约定 = prompt 作为最后一个参数、输出纯文本</li>
 <li>回复；<code>XMEDIA_AGENT_NAME</code> 可选显示名。例：`export XMEDIA_AGENT_CMD=</li>

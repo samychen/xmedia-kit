@@ -138,7 +138,8 @@ def _llm_complete(message, spec, timeout=60):
 HELP = ("可用指令：导入 <目录> / 加片尾卡 / 删除第 N 个场景 / "
         "第 N 个场景文字改成 X / 改成竖屏 / 背景改成 #1a1a2e / "
         "关闭字幕 / 生成旁白 / 自动字幕(ASR) / 导出 MP4 / 第 N 个场景时长 X 秒。"
-        " 配置 XMEDIA_LLM_ENDPOINT 后可直接用自由自然语言。")
+        " 自由自然语言：切到 agent 后端（顶栏 → agent，本机 CodeBuddy/"
+        "claude CLI 驱动）即可说任意表述。")
 
 
 # 单个路径段只认 ASCII 字符，避免把中文正文（「我录制的视频」）吞进路径；

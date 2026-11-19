@@ -1740,6 +1740,23 @@ class StudioServer:
         result = hf_agent.handle(message, self.current_spec, self._spec_root())
         out = {"reply": result.get("reply", ""), "mode": result.get("mode"),
                "action": result.get("action")}
+        # 规则引擎未命中（"我不确定…"）且本机 agent CLI 可用 → 自动转发
+        # 给 agent 后端处理这条自由语言——HF 的 chat 主界面形态：用户不
+        # 需要区分"哪句话该走哪条路"。（引导类回复——缺参数/选模板等
+        # —— reply 不以"我不确定"开头，不转发。）
+        if str(out.get("reply", "")).startswith("我不确定这条指令"):
+            probe = self._agent_probe()
+            if probe["cli"]:
+                chat = self._run_agent_chat(message)
+                out["reply"] = f"{probe['cli']}：{chat.get('reply', '')}"
+                out["mode"] = "agent"
+                out["agent"] = chat.get("agent", probe["cli"])
+                out["error"] = chat.get("error")
+                if chat.get("spec_updated"):
+                    self.current_spec = self._load_spec()
+                    out["composed"] = self._compose()
+                    out["spec"] = self.current_spec
+                return out
         if "spec" in result:
             out["composed"] = self._apply_spec(result["spec"])
             out["spec"] = self.current_spec
