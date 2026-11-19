@@ -10,6 +10,7 @@ import "./styles/inspector.css";
 import "./styles/timeline.css";
 import "./styles/ask.css";
 import "./styles/import.css";
+import "./styles/brand.css";
 import "./shared/store.js";
 import "./shared/icons.js";
 import "./shared/state.js";

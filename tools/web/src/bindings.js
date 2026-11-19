@@ -10,6 +10,7 @@ import { fitTimeline, zoomTimeline, zoomToScene } from "./timeline/render.js";
 import { splitAtPlayhead } from "./timeline/trim.js";
 import { storyboardIsOpen, storyboardOpen, storyboardRender } from "./panels/storyboard.js";
 import { tplRender } from "./panels/templates.js";
+import { brandRender } from "./panels/brand.js";
 
 /* ---------------- 交互绑定 ---------------- */
 $("btn-play").innerHTML = ICON.play;
@@ -119,10 +120,11 @@ $("btn-log").onclick = function () {
 function switchLeftPanel(name) {
   var tabs = { chat: "tab-chat", scenes: "tab-scenes", script: "tab-script",
                storyboard: "tab-storyboard", templates: "tab-templates",
-               source: "tab-source" };
+               brand: "tab-brand", source: "tab-source" };
   var panels = { chat: "chat-panel", scenes: "scenes-panel",
                  script: "script-panel", storyboard: "sb-panel",
-                 templates: "templates-panel", source: "source-panel" };
+                 templates: "templates-panel", brand: "brand-panel",
+                 source: "source-panel" };
   for (var k in tabs) {
     $(tabs[k]).classList.toggle("active", k === name);
     $(panels[k]).style.display = k === name ? "flex" : "none";
@@ -130,6 +132,7 @@ function switchLeftPanel(name) {
   if (name === "script") scriptRender();
   if (name === "storyboard") storyboardOpen(true);
   if (name === "templates") tplRender();
+  if (name === "brand") brandRender();
 }
 $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
@@ -138,4 +141,5 @@ $("tab-storyboard").onclick = function () {
   switchLeftPanel("storyboard");
 };
 $("tab-templates").onclick = function () { switchLeftPanel("templates"); };
+$("tab-brand").onclick = function () { switchLeftPanel("brand"); };
 $("tab-source").onclick = function () { switchLeftPanel("source"); };

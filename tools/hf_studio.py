@@ -1753,6 +1753,111 @@ class StudioServer:
                 "notes": notes, "composed": self._apply_spec(spec),
                 "spec": self.current_spec}
 
+    def _brands_dir(self):
+        return os.path.expanduser(
+            os.environ.get("XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+
+    def _brands_list(self):
+        """品牌 kits 清单（HF Brand kits 左栏列表）：名/来源/色板/字体/
+        logo/是否默认。brand JSON 很小，全量随列表下发，详情免二次请求。"""
+        d = self._brands_dir()
+        pin = os.path.join(d, ".default")
+        pinned = ""
+        if os.path.isfile(pin):
+            try:
+                pinned = open(pin, encoding="utf-8").read().strip()
+            except OSError:
+                pinned = ""
+        kits = []
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if not f.endswith(".json"):
+                    continue
+                try:
+                    b = json.load(open(os.path.join(d, f),
+                                       encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                b["_default"] = (f[:-5] == pinned)
+                kits.append(b)
+        return {"brands": kits}
+
+    def _serve_brand_logo(self, name):
+        """品牌 logo 图片（详情页预览）。仅认 kit 名（防路径穿越），
+        实际文件从 brand JSON 的 logo_image 解析且必须仍在品牌目录内。"""
+        if not re.fullmatch(r"[\w\-]+", name or ""):
+            self._send(404, "not found", "text/plain")
+            return
+        d = os.path.realpath(self._brands_dir())
+        try:
+            brand = json.load(open(os.path.join(d, name + ".json"),
+                                   encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            self._send(404, "not found", "text/plain")
+            return
+        li = brand.get("logo_image") or ""
+        if not li or li.startswith(("http://", "https://")):
+            self._send(404, "no local logo", "text/plain")
+            return
+        img = os.path.realpath(os.path.join(d, li))
+        if not img.startswith(d + os.sep) or not os.path.isfile(img):
+            self._send(404, "not found", "text/plain")
+            return
+        ctype = "image/png" if img.endswith(".png") else (
+            "image/jpeg" if img.endswith((".jpg", ".jpeg")) else (
+            "image/svg+xml" if img.endswith(".svg") else (
+            "image/webp" if img.endswith(".webp") else
+            "application/octet-stream")))
+        with open(img, "rb") as fh:
+            self._send(200, fh.read(), ctype)
+
+    def _brand_scan_api(self, body):
+        """HF Brand kits 的「Scan my site」：抓站点色板/字体/logo 存 kit
+        （subprocess 复用 xmedia brand scan，扫描同步、至多 ~60s）。"""
+        url = str(body.get("url") or "").strip()
+        if not url:
+            raise ValueError("需要 url")
+        name = re.sub(r"[^\w\-]", "", str(body.get("name") or ""))[:24]
+        if not name:
+            host = url.split("//", 1)[-1].split("/", 1)[0]
+            host = host.split(":")[0].lower()
+            if host.startswith("www."):
+                host = host[4:]
+            name = re.sub(r"[^\w\-]", "", host.split(".")[0]) or "scanned"
+        try:
+            r = subprocess.run(
+                [sys.executable, os.path.join(TOOLS_DIR, "xmedia.py"),
+                 "brand", "scan", name, "--url", url],
+                capture_output=True, text=True, timeout=60,
+                cwd=os.path.dirname(TOOLS_DIR))
+        except subprocess.TimeoutExpired:
+            raise ValueError("扫描超时（网站响应太慢），稍后再试")
+        fpath = os.path.join(self._brands_dir(), name + ".json")
+        if r.returncode != 0 or not os.path.isfile(fpath):
+            tail = [ln for ln in (r.stderr or r.stdout or "").strip()
+                    .splitlines() if ln.strip()]
+            raise ValueError("扫描失败：" +
+                             (tail[-1] if tail else "未知错误"))
+        brand = json.load(open(fpath, encoding="utf-8"))
+        return {"ok": True, "name": name, "brand": brand}
+
+    def _brand_default(self, body):
+        """default pin（HF brand kits 的 default 语义）：新项目创建时
+        自动应用该品牌；name 为空 = 取消 pin。"""
+        name = str(body.get("name") or "").strip()
+        d = self._brands_dir()
+        os.makedirs(d, exist_ok=True)
+        pin = os.path.join(d, ".default")
+        if not name:
+            if os.path.isfile(pin):
+                os.remove(pin)
+            return {"ok": True, "default": ""}
+        if not os.path.isfile(os.path.join(d, name + ".json")):
+            raise ValueError(f"品牌 {name} 不存在")
+        with open(pin, "w", encoding="utf-8") as fh:
+            fh.write(name + "\n")
+        return {"ok": True, "default": name}
+
     def _run_agent(self, message):
         import hf_agent
         result = hf_agent.handle(message, self.current_spec, self._spec_root())
@@ -2168,6 +2273,10 @@ def make_handler(server_ref):
                      "slots": d.get("slots", [])}
                     for d in sorted(registry.values(),
                                     key=lambda x: x.get("name", ""))]})
+            elif path == "/api/brands":
+                self._json(srv._brands_list())
+            elif path.startswith("/api/brand-logo/"):
+                self._serve_brand_logo(path[len("/api/brand-logo/"):])
             elif path == "/api/agent/chat/status":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(
                     self.path).query)
@@ -2358,6 +2467,10 @@ def make_handler(server_ref):
                     self._json(srv._run_import(body))
                 elif path == "/api/import/undo":
                     self._json(srv._undo_import())
+                elif path == "/api/brand/scan":
+                    self._json(srv._brand_scan_api(body))
+                elif path == "/api/brand/default":
+                    self._json(srv._brand_default(body))
                 elif path == "/api/agent":
                     self._json(srv._run_agent(str(body.get("message") or "")))
                 elif path == "/api/agent/chat":
