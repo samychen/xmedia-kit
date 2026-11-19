@@ -33,4 +33,5 @@ import "./shortcuts.js";
 import "./agent/ask.js";
 import "./agent/pending.js";
 import "./panels/import.js";
+import "./panels/templates.js";
 import "./panels/reference.js";
