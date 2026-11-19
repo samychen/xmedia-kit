@@ -23,11 +23,11 @@ let sbOpen = false;
 /* 无 video 场景的真实帧：html_bake 低分辨率全段烘焙 → 场景中点抽帧
  * （服务端 /api/sb-frames，契约页 mtime 失效，URL 自带版本号——重组合
  * 成后浏览器缓存自然失效）。每次 render 都拉（服务端命中缓存很快）。 */
-function sbFrames() {
+export function sbFrames() {
   return api("/api/sb-frames");
 }
 
-function sceneMedia(sc) {
+export function sceneMedia(sc) {
   var v = sc.video;
   if (!v) return null;
   var src = typeof v === "string" ? v : String(v.src || "");
@@ -69,7 +69,6 @@ export function storyboardRender() {
   scenes.forEach(function (sc, i) {
     var meta = metas[i] || {};
     var dur = meta.dur || sc.duration || 3;
-    var bg = /^#[0-9a-fA-F]{6}$/.test(sc.bg || "") ? sc.bg : "#23232f";
     var card = mk("div", "sb-card" + (i === selIdx ? " sel" : ""));
     card.dataset.i = String(i);
 
@@ -100,38 +99,10 @@ export function storyboardRender() {
     }
 
     // 画面：视频场景连拍网格；无视频场景用服务端渲染的真实帧
-    // （色块+文案兜底），拿到即替换。
-    var media = sceneMedia(sc);
-    var shot = mk("div", "sb-shot" + (media ? "" : " flat"));
-    shot.style.background = media ? "" : bg;
-    if (media) {
-      shotGrid(shot, media, dur);
-    } else {
-      var txt = mk("div", "sb-flat-text");
-      txt.textContent = sceneFlatText(sc);
-      shot.appendChild(txt);
-    }
+    // （色块+文案兜底），拿到即替换——共用 fillSceneVisual。
+    var shot = mk("div", "sb-shot");
+    fillSceneVisual(shot, sc, i, dur);
     card.appendChild(shot);
-    if (!media) {
-      (function (shotEl, i) {
-        sbFrames().then(function (data) {
-          var url = data && data.urls ? data.urls[i] : null;
-          if (!url) return;
-          var img = new Image();
-          img.onload = function () {
-            if (shotEl.isConnected && !shotEl.querySelector("img")) {
-              shotEl.textContent = "";   // 清掉色块+文字兜底
-              shotEl.style.background = "";
-              img.style.width = "100%";
-              img.style.height = "100%";
-              img.style.objectFit = "cover";
-              shotEl.appendChild(img);
-            }
-          };
-          img.src = url;
-        }).catch(function () { /* 帧渲染失败保持色块兜底 */ });
-      })(shot, i);
-    }
 
     // 点画面 = 选中该镜（Inspector 联动，分镜保持打开继续看）——
     // 图像 UI 的自然交互，此前点击无响应是「不知道怎么用」的根因之一。
@@ -205,7 +176,43 @@ export function storyboardRender() {
   });
 }
 
-function sceneFlatText(sc) {
+/* 场景画面填充（左栏逐镜卡与中央 Storyboard 网格共用）：视频场景
+ * 连拍网格；无视频场景先色块+文案兜底，再异步换 /api/sb-frames 真实
+ * 帧（拿到即替换，帧未就绪时不挡卡片其余内容）。 */
+export function fillSceneVisual(shot, sc, i, dur) {
+  var media = sceneMedia(sc);
+  var bg = /^#[0-9a-fA-F]{6}$/.test(sc.bg || "") ? sc.bg : "#23232f";
+  if (!media) shot.classList.add("flat");
+  shot.style.background = media ? "" : bg;
+  if (media) {
+    shotGrid(shot, media, dur);
+  } else {
+    var txt = mk("div", "sb-flat-text");
+    txt.textContent = sceneFlatText(sc);
+    shot.appendChild(txt);
+    (function (shotEl, idx) {
+      sbFrames().then(function (data) {
+        var url = data && data.urls ? data.urls[idx] : null;
+        if (!url) return;
+        var img = new Image();
+        img.onload = function () {
+          if (shotEl.isConnected && !shotEl.querySelector("img")) {
+            shotEl.textContent = "";   // 清掉色块+文字兜底
+            shotEl.style.background = "";
+            img.style.width = "100%";
+            img.style.height = "100%";
+            img.style.objectFit = "cover";
+            shotEl.appendChild(img);
+          }
+        };
+        img.src = url;
+      }).catch(function () { /* 帧渲染失败保持色块兜底 */ });
+    })(shot, i);
+  }
+  return media;
+}
+
+export function sceneFlatText(sc) {
   return sc.subtitle || sc.text || sc.quote ||
       (Array.isArray(sc.items) ? sc.items.join(" · ") : "") ||
       "（无文案）";

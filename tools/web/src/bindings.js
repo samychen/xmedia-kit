@@ -11,6 +11,7 @@ import { splitAtPlayhead } from "./timeline/trim.js";
 import { storyboardIsOpen, storyboardOpen, storyboardRender } from "./panels/storyboard.js";
 import { tplRender } from "./panels/templates.js";
 import { brandRender } from "./panels/brand.js";
+import { sbGridShow } from "./preview/sbgrid.js";
 
 /* ---------------- 交互绑定 ---------------- */
 $("btn-play").innerHTML = ICON.play;
@@ -143,3 +144,15 @@ $("tab-storyboard").onclick = function () {
 $("tab-templates").onclick = function () { switchLeftPanel("templates"); };
 $("tab-brand").onclick = function () { switchLeftPanel("brand"); };
 $("tab-source").onclick = function () { switchLeftPanel("source"); };
+/* 预览区 Main/Storyboard 双 tab（HF 编辑器形态）：Main=成片预览，
+   Storyboard=全镜网格总览。 */
+$("pv-tab-main").onclick = function () {
+  $("pv-tab-main").classList.add("active");
+  $("pv-tab-sb").classList.remove("active");
+  sbGridShow(false);
+};
+$("pv-tab-sb").onclick = function () {
+  $("pv-tab-sb").classList.add("active");
+  $("pv-tab-main").classList.remove("active");
+  sbGridShow(true);
+};

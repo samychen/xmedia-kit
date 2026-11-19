@@ -132,6 +132,12 @@
   </aside>
 
   <section class="center">
+    <div class="pv-tabs">
+      <button class="pv-tab active" id="pv-tab-main" type="button"
+              title="成片预览">Main</button>
+      <button class="pv-tab" id="pv-tab-sb" type="button"
+              title="全镜网格总览（点镜头定位到 Main）">Storyboard</button>
+    </div>
     <div class="pv-toolbar">
       <span class="cap">预览</span>
       <span class="dims" id="dims">—</span>
@@ -169,6 +175,8 @@
       </div>
       <div id="pv-hint">原生画布等比缩放 · Ctrl/⌘ + 滚轮缩放 · 点选画面联动</div>
     </div>
+
+    <div id="sbgrid-view" style="display:none"></div>
 
     <div id="ref-panel">
       <div id="ref-head">
