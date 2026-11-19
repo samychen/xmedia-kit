@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.xmedia.studio</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/python3</string>
+    <string>/Users/samychen/Develop/avbase/tools/hf_studio.py</string>
+    <string>--serve</string>
+    <string>--home</string>
+    <string>--port</string>
+    <string>8150</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/Users/samychen/.nvm/versions/node/v22.8.0/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>XMEDIA_AGENT_CMD</key><string>["codebuddy","-p","--permission-mode","bypassPermissions"]</string>
+    <key>XMEDIA_AGENT_NAME</key><string>CodeBuddy</string>
+  </dict>
+  <key>WorkingDirectory</key><string>/Users/samychen/Develop/avbase</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/tmp/xmedia-studio.log</string>
+  <key>StandardErrorPath</key><string>/tmp/xmedia-studio.err</string>
+</dict>
+</plist>
