@@ -1773,7 +1773,7 @@ class StudioServer:
                 out["reply"] += f"（动作执行失败：{emsg}）"
         return out
 
-    AGENT_CHAT_TIMEOUT_S = 240
+    AGENT_CHAT_TIMEOUT_S = 900
     AGENT_HISTORY_ROUNDS = 5
 
     @staticmethod
@@ -1865,26 +1865,47 @@ class StudioServer:
                 + (f"- 负面清单（禁止）: "
                    f"{('、'.join(direction.get('banned', [])))}\n"
                    if direction.get("banned") else ""))
+        # HF chatSystemPrompt 的编排规则移植（chatRules.mjs 对齐）：
+        # plan/edit 分流 / 文件白名单 / 历史感知 / gate 循环 / 时长联动 /
+        # 回复风格——语义照搬，命令换 xmedia 对应物。
+        runs = self._load_runs()
+        hist_note = ""
+        for r in reversed(runs):
+            if r.get("backend") in ("claude", "codebuddy", "agent"):
+                hist_note = (f"- 历史感知：项目在 {r['ts']} 之后有人（非 "
+                             "agent）改过的话，在那些改动之上继续，永不撤销"
+                             "人的修改\n")
+                break
         return (
-            "你在 xmedia-kit Studio 的 agent 模式里帮用户编辑视频。\n"
-            f"- spec JSON 路径: {spec_path}\n"
-            f"- spec 所在目录: {root}\n"
-            f"- 仓库根: {ROOT_DIR}\n"
-            f"- schema 文档: {ROOT_DIR}/docs/HF_COMPOSE.md"
-            "（改 spec 前先读它的 schema 段）\n"
-            f"- 项目 skill: {ROOT_DIR}/.agents/skills/xmedia-ai-video/"
-            "SKILL.md（存在则先读，里面有 xmedia CLI 全能力）\n"
-            f"- 【skill 工作流】先读 {ROOT_DIR}/skills/launch/SKILL.md"
-            "（对齐 HF 的编排工作流）按其 Order 执行：brief → capture → "
-            "design → storyboard（审批）→ tts → build → gate"
-            f"（python3 {ROOT_DIR}/skills/launch/scripts/gate.py "
-            f"{root}——PASS 才能回复）→ look（/api/sb-frames 自己看帧）"
-            "→ reply；floor 见 skills/launch/references/floor.md\n"
-            f"- 改完 spec 后运行: python3 {TOOLS_DIR}/xmedia.py compose "
-            f"{spec_path} -o {self.contract_path}"
-            "（重新生成契约页）\n"
-            "- 只改 spec 与契约页相关文件，不要动渲染引擎代码。\n"
-            "- 回复用中文，简短说明做了什么改动。\n"
+            "你在 xmedia-kit Studio 的 agent 模式里，与用户一起编辑这个"
+            "文件夹里的视频项目。像终端里的编码 agent 一样读用户消息。\n"
+            "【消息分流】要求计划/大纲/头脑风暴/解释、或提出问题的消息——"
+            "只用文字回答（被要求时给一份平实的计划），不改任何文件、不跑"
+            "任何会写文件的命令，可以提议继续执行。消息要求做或改什么、或"
+            "在计划后说继续——才动手改文件。\n"
+            "【文件白名单】只编辑 spec.json 与 contract.html（以及你自己"
+            "创建的临时文件）；chat.jsonl / project.json / __thumbs__/ 是"
+            "应用自己的，读可以、永不删除或改动。\n"
+            "【历史感知】改一个已存在的项目前，看 project.json 的 runs："
+            "你上一次编辑之后由人或其他 agent 做的改动，要在那些改动之上"
+            "继续，永不撤销它们。\n"
+            f"【gate 循环】每次改动 spec 后：python3 {TOOLS_DIR}/"
+            "hf_validate.py "
+            f"{spec_path} 修到 0 errors → 用分镜真实帧（/api/sb-frames 或 "
+            "xmedia.py render 抽帧）看被改的瞬间，回复前自己看帧——"
+            "「看起来顺」不是验证，用数字与帧说话。\n"
+            "【时长联动】视频总长 = 所有场景 duration 之和（compose 自动"
+            "排 data-start）：新增/删除/加长/缩短场景时，确认后续场景"
+            "时长与总长衔接，视频永不留空白尾巴、永不切掉一镜。\n"
+            "【回复风格】一两句平实的话，说屏幕上改了什么。名字用它们"
+            "显示的样子（「第一镜的大标题」），不用 id/文件名/mount 这类"
+            "词，除非用户先用了。从不声称没验证的东西。\n"
+            f"【路径】spec: {spec_path} · 目录: {root} · 仓库: {ROOT_DIR}"
+            f"\n- schema 文档: {ROOT_DIR}/docs/HF_COMPOSE.md（改 spec 前"
+            "先读它的 schema 段）\n"
+            f"- 【skill 工作流】大改动（新项目/多场景结构）先读 "
+            f"{ROOT_DIR}/skills/launch/SKILL.md 按其 Order 执行；技能"
+            "清单里没有的技能，看 skills/ 目录下有没有对应的 SKILL.md\n"
             f"{discipline}\n"
             f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
 
