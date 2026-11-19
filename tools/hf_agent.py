@@ -135,7 +135,8 @@ def _llm_complete(message, spec, timeout=60):
     return data
 
 
-HELP = ("可用指令：导入 <目录> / 加片尾卡 / 删除第 N 个场景 / "
+HELP = ("可用指令：导入 <目录> / 扫描 <网址> 做成品牌 / 应用品牌 <名> / "
+        "加片尾卡 / 删除第 N 个场景 / "
         "第 N 个场景文字改成 X / 改成竖屏 / 背景改成 #1a1a2e / "
         "关闭字幕 / 生成旁白 / 自动字幕(ASR) / 导出 MP4 / 第 N 个场景时长 X 秒。"
         " 自由自然语言：切到 agent 后端（顶栏 → agent，本机 CodeBuddy/"
@@ -223,10 +224,15 @@ def apply_brand(spec, brand):
         spec["background"] = brand.get("background", spec["background"])
     if brand.get("voice"):
         spec.setdefault("tts", {})["voice"] = brand["voice"]
-    # 字体（v2 fonts.body/display 或 v1 font_family）
+    # 字体：v2 fonts.body.family；v1（brand save --font-family /
+    # brand scan 产物）fonts 是 font-family 字符串数组，取首个。
     fonts = brand.get("fonts") or {}
-    body_font = (fonts.get("body") or {}).get("family") or \
-        brand.get("font_family", "")
+    if isinstance(fonts, list):
+        body_font = (fonts[0] if fonts else "") or \
+            brand.get("font_family", "")
+    else:
+        body_font = (fonts.get("body") or {}).get("family") or \
+            brand.get("font_family", "")
     if body_font:
         spec.setdefault("fonts", {})["body"] = body_font
     # outro
@@ -334,6 +340,65 @@ def handle(message, spec, spec_dir=""):
         return out(f"品牌「{m.group(1)}」已应用（色板 {len(palette)} 色、"
                    f"文字 {text or '不变'}、音色 "
                    f"{brand.get('voice') or '不变'}）", base)
+
+    # 0b-2. 扫描网站 → 品牌（HF brand kits 的「输入网址生成 kit」形态）：
+    #     消息带 URL + 品牌词 → xmedia brand scan（抓页面 + 至多 3 个同源
+    #     CSS 统计色板/字体/logo，存 ~/.xmedia/brands/<名>.json）→
+    #     apply_brand 注入当前 spec。品牌名缺省取域名主体。
+    m_url = re.search(r"((?:https?|file)://[^\s\"'<>」』】]+)", msg)
+    if m_url and re.search(
+            r"扫描|做成品牌|生成品牌|品牌套件|品牌指南|识别品牌|"
+            r"brand ?kit|brand.?scan|配色|色板", msg, re.I):
+        import subprocess as _sp
+        url = m_url.group(1)
+        m_name = re.search(
+            r"品牌\s*(?:叫|名叫|名为|名字是|存成|保存成|命名为)"
+            r"\s*[为:：]?\s*([\w\-]{2,24})", msg, re.I)
+        if m_name:
+            name = m_name.group(1)
+        elif url.startswith("file://"):
+            name = os.path.splitext(os.path.basename(
+                url.split("://", 1)[-1].split("?")[0]))[0] or "scanned"
+        else:
+            host = url.split("//", 1)[-1].split("/", 1)[0]
+            host = host.split(":")[0].lower()
+            if host.startswith("www."):
+                host = host[4:]
+            name = host.split(".")[0] or "scanned"
+        bpath = os.path.expanduser(os.environ.get(
+            "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+        fpath = os.path.join(bpath, name + ".json")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        try:
+            r = _sp.run(
+                [sys.executable, os.path.join(root, "tools", "xmedia.py"),
+                 "brand", "scan", name, "--url", url],
+                capture_output=True, text=True, timeout=60, cwd=root)
+        except _sp.TimeoutExpired:
+            return out("扫描超时（网站响应太慢）。稍后再试，或直接说"
+                       f"「应用品牌 {name}」（若之前扫过）。", mode="help")
+        if r.returncode != 0 or not os.path.exists(fpath):
+            tail = [ln for ln in (r.stderr or r.stdout or "").strip()
+                    .splitlines() if ln.strip()]
+            return out("扫描失败：" + (tail[-1] if tail else "未知错误"),
+                       mode="help")
+        brand = json.load(open(fpath, encoding="utf-8"))
+        li = brand.get("logo_image")
+        if li and not os.path.isabs(li):
+            cand = os.path.join(bpath, li)
+            if os.path.exists(cand):
+                brand["logo_src"] = cand
+        base, notes = apply_brand(base, brand)
+        palette = brand.get("palette", [])
+        fonts = brand.get("fonts") or []
+        reply = (f"品牌「{name}」已从 {url} 扫描生成并应用到当前项目：\n"
+                 f"· 色板 {' '.join(palette)}"
+                 f"（背景 {brand.get('background')}"
+                 f" · 文字 {brand.get('text_color')}）\n"
+                 + (f"· 字体 {'、'.join(fonts)}\n" if fonts else "")
+                 + f"· {notes[0] if notes else '已注入'}\n"
+                 f"之后随时说「应用品牌 {name}」即可再套用。")
+        return out(reply, base)
 
     # 0c. 参考视频（HF reference-video 的本地弱化版指令入口）：路径 →
     #     action 分发，Studio 侧跑 hf_reference（镜头切割 → 同节奏 spec
