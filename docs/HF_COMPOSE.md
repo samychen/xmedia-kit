@@ -109,9 +109,9 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | HF Studio app 能力 | xmedia-kit 现状 | 差距 / 替代路径 |
 |---|---|---|
 | Studio app 桌面应用（Electron，描述→agent 建片→改） | `hf_studio.py --serve` 本地浏览器 UI（Ask AI 对话 + 时间轴 + 预览，Playwright e2e 10 项） | 形态差异：浏览器版 vs 桌面版；CEF 壳可选 |
-| Studio app Home：项目管理（一句话 + Arc + 受众/音乐 → 建片）+ chat 主界面（agent 主导，Framey 引导） | **已支持**：`hf_studio.py --serve --home`——项目管理页（一句话 + Arc 下拉[5 个商业叙事 Arc] + 受众/音乐 → `/api/project/create` → hf_storyboard 骨架 → 项目目录 spec+contract → 项目列表 `/api/projects`，存 `~/.xmedia/projects/`）；chat 主界面化（Ask AI 加载即展开，agent CLI 可用时默认 agent 后端） | 部分：agent 主导深度取决于本机 agent CLI（cli=None 回落规则引擎）；灵感 feed 不做（云社区） |
+| Studio app Home：项目管理（一句话 + Arc + 受众/音乐 → 建片）+ chat 主界面（agent 主导，Framey 引导） | **已支持**：`hf_studio.py --serve --home`——项目管理页（一句话 + Arc 下拉[5 个商业叙事 Arc] + 受众/音乐 → `/api/project/create` → hf_storyboard 骨架 → 项目目录 spec+contract → 项目列表 `/api/projects`，存 `~/.xmedia/projects/`）；chat 主界面化已升格：**对话面板常驻左栏第一面板**（默认 active，五面板 对话/场景/脚本/分镜/源码，fab 浮层移除，Ctrl/⌘+K 聚焦输入）；**agent 后端通用化**：`XMEDIA_AGENT_CMD`（JSON 数组/shell 串）接入任意 agent CLI（CodeBuddy/DeepSeek/aider 即插即用，XMEDIA_AGENT_NAME 显示名），CodeBuddy 已实测接入；**规则引擎 8 类高频指令**（副标题/场景色/转场/动画/插场景/模板场景/BGM 音量） | 部分：灵感 feed 不做（云社区） |
 | first-video：一句话→提问→storyboard 审批→成片 | **storyboard 已支持**：Studio 左栏「分镜」页签逐镜审阅——每镜**真实渲染帧**（/api/sb-frames：html_bake 低分辨率全段烘焙 → 场景中点抽帧，video 场景走连拍网格）+ 时机 + 文案，点画面选中联动 Inspector/时间轴/预览（不跳走），「改这镜」一键定位，卡上内联编辑文案/时长（应用走重组）；+ `launch` 四段式 + Ask AI 待应用队列 | 渲染前逐镜审阅闭环完成 |
-| Storyboard 工作流（prompting/design-systems）：叙事计划 → 逐帧落地 | **本地版已支持**：`xmedia storyboard <arc>`——商业叙事 Arc 模板库（launch / problem-solution / listicle / explainer / comparison），每帧带 HF 叙事词汇（type=persuasion=beat：hook/social_proof/cta · before-after/counterexample/callback · aha/resolve…）；`--message/--audience/--mood` 四要素产出骨架 spec + `spec.storyboard` 段（方向块：两色纪律/breather/负面清单——供 agent 模式读）；Studio 分镜卡显示叙事徽标 | HF 的 plan→build 由 agent 逐帧生成；本地版是确定性骨架（占位文案手工/agent 填），叙事纪律（两色/breather/负面清单）暂为元数据不强制渲染 |
+| Storyboard 工作流（prompting/design-systems）：叙事计划 → 逐帧落地 | **本地版已支持**：`xmedia storyboard <arc>`——商业叙事 Arc 模板库（launch / problem-solution / listicle / explainer / comparison），每帧带 HF 叙事词汇（type=persuasion=beat：hook/social_proof/cta · before-after/counterexample/callback · aha/resolve…）；`--message/--audience/--mood` 四要素产出骨架 spec + `spec.storyboard` 段（方向块：两色纪律/breather/负面清单——供 agent 模式读）；Studio 分镜卡显示叙事徽标 | HF 的 plan→build 由 agent 逐帧生成；本地版是确定性骨架（占位文案手工/agent 填），叙事纪律已**注入 agent prompt**（spec.storyboard.direction 存在时方向块进 agent 上下文，逐帧编辑必须遵守）；compose/validate 层为 warning 级校验（hf_validate 两色/breather/负面清单机器可查子集） |
 | first-video 卡片：四部分 + 网站扫描（读字体/色/logo） | `launch --hook/--proof/--turn/--cta --url`（`--url` 尽力抓网站**文案**） | 网站品牌扫描（色板/字体/logo 文件）不做；brand 走手工 CLI |
 | reference-video：读参考视频→复刻节奏/字幕，换人换词换品牌 | **本地弱化版已支持**：`xmedia reference <视频>`——ffmpeg 场景检测切镜头（保留剪辑节奏，最短镜并入/超限合并）、逐镜缩略图对照表、同节奏 spec 骨架、可选 --asr 全局字幕段；Studio 内说「参考 <路径> 讲 X」同样触发（分析 → 同节奏骨架 → 主题填充）；预览工具条「对照」= 双屏同钟对照（参考视频与成品同播放头，偏差 > 0.25s 自动对齐，`/api/reference/video` 登记外部素材白名单 + asset 响应支持 Range/206）；不复刻视觉特效/换脸（云能力，见上节） |
 | brand-kits：品牌套件（色/字体/logo/文件，可从网站扫） | **logo 图片入包已支持**：`brand save --logo-image <文件>`（复制进品牌 assets）+ `brand scan` 自动下载 og:image + `brand apply`（`--logo-mode corner/backdrop`）注入每个无图场景（hf_compose 场景级 `image` 字段，`scene-image-corner/backdrop` CSS）；字体族经 `--font-family` 写 `spec.fonts.body`；+ 网站扫描（色板/对比文字色） | 部分：无 workspace 团队共享 |
@@ -119,7 +119,7 @@ hyperframes.heygen.com/studio-app 及其 /first-video、/reference-video、
 | 灵感 feed / remix 社区 | 不做（云社区） | — |
 | HeyGen presenter / Pro credits 读片计费 | 不做（上节"明确不做"） | — |
 | project 模型 + Undo | `project.json` + run Undo（20 轮） | ✓ 对齐 |
-| 模板 catalog | `templates/` 19 个场景模板（同款 slots 协议） | 数量少于 HF catalog（449 页索引） |
+| 模板 catalog | `templates/` 19 个场景模板（同款 slots 协议）+ **Studio「模板」tab**：卡片网格（名称/描述/slots/一键插入场景，走 Ask AI 规则引擎 → 重组 → 分镜真实帧刷新） | 数量少于 HF catalog（449 页索引） |
 | 媒体导入 / 字幕 | `hf_import` 零拷贝 + `hf_asr` SRT 分段字幕 | ✓ 对齐 |
 | 导出（后台渲染 + 取消） | `/api/bake` + 取消，产物命名对齐 HF | ✓ 对齐 |
 
@@ -400,7 +400,7 @@ filmstrip 立刻不同。旁白拟合时长的片段（有 `narration`）拒绝�
 | xmedia Studio 服务 | `python3 tools/hf_studio.py out.html --serve --spec spec.narrated.json [--port 8120]` → 浏览器 UI（127.0.0.1）：**spec 编辑器热重组**（Ctrl/Cmd+Enter）、五轨时间轴点选与标尺定位、**区间（in/out）选区与区间播放**、TTS 一键、**导出按钮（尺寸/时长由 spec 自动推导）**、校验与日志面板——对位 Remotion Studio 的编辑→预览→渲染闭环 |
 | ASR 分段字幕 | `xmedia asr <media\|.srt\|.vtt> -o captions.json [--provider auto\|srt\|whisper\|fw]`；输出 `{segments:[{start,end,text}]}`，填进 spec `captions.segments` |
 | 素材自动导入 | `xmedia import <dir> -o spec.json [--asr] [--captions cap.srt] [--endcard] [--format 9:16]`；ffprobe 实长按文件名排序排时间轴 |
-| 自然语言编辑 | Studio 右下角 `Ask AI`（Ctrl/⌘ + K）或 `POST /api/agent`；本地规则引擎零配置可用，可选 OpenAI 兼容 LLM |
+| 自然语言编辑 | Studio 左栏「对话」主面板（Ctrl/⌘ + K 聚焦输入）或 `POST /api/agent`；规则引擎零配置（8 类高频指令），agent 走 `XMEDIA_AGENT_CMD` 任意 CLI / OpenAI 兼容 LLM |
 | MCP server | `xmedia mcp --studio-url http://127.0.0.1:8120`（stdio JSON-RPC，11 个 tools） |
 
 ### TTS provider（hf_tts.py）

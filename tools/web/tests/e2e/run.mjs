@@ -107,14 +107,22 @@ try {
   await page.dispatchEvent("#scrub", "input");
   ok("scrub seek 无异常");
 
-  // 4. 三个面板开合（chat 主界面化：Ask AI 加载即展开——幂等处理）
-  if (!(await page.locator("#ask-panel.open").count()))
-    await page.click("#ask-fab");
-  if (!(await page.locator("#ask-panel.open").count()))
-    fail("Ask AI 面板未打开");
-  else ok("Ask AI 面板打开（chat 主界面化）");
-  await page.screenshot({ path: join(outDir, "e2e-03-ask.png") });
-  await page.click("#ask-fab");
+  // 4. chat 主界面化：对话面板 = 左栏第一面板，默认展开（HF 三栏形态）
+  const chatVisible = await page.locator("#chat-panel")
+    .evaluate((el) => el.style.display !== "none");
+  if (!chatVisible) fail("chat 对话面板未常驻（应为左栏第一面板默认展开）");
+  else ok("chat 对话面板常驻左栏第一面板（HF 三栏形态）");
+  const chatInput = await page.locator("#ask-input").count();
+  if (!chatInput) fail("chat 对话输入框缺失");
+  else ok("chat 对话输入框在位");
+  await page.screenshot({ path: join(outDir, "e2e-03-chat.png") });
+
+  // 4b. 模板库 tab：19 个模板卡片可浏览（HF catalog 可发现性对齐）
+  await page.click("#tab-templates");
+  await page.waitForTimeout(400);
+  const tplCards = await page.locator("#templates-panel .tpl-card").count();
+  if (tplCards < 19) fail(`模板库卡片 ${tplCards} < 19`);
+  else ok(`模板库 tab：${tplCards} 个模板卡片可浏览/可插入`);
 
   await page.click("#btn-bake");
   if (!(await page.locator("#exp-panel.open").count())) fail("导出面板未打开");
