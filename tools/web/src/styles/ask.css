@@ -78,3 +78,9 @@
   #ask-send:disabled { opacity: .45; cursor: default; }
   #btn-import svg { vertical-align: -2px; margin-right: 3px; }
 
+  /* agent job 流式：处理中气泡实时 tail + 改动明细卡 */
+  .ask-msg.streaming { border-color: var(--acc); }
+  .ask-diff { margin-top: 6px; font-size: 11px; color: var(--dim);
+              background: var(--panel2); border-radius: 7px;
+              padding: 6px 8px; line-height: 1.6; }
+  .ask-diff b { color: var(--acc) }

@@ -781,6 +781,8 @@ class StudioServer:
         self.no_sfx = no_sfx
         self.job = None
         self.job_seq = 0
+        self.agent_jobs = {}       # agent chat job 表（id → 状态）
+        self.agent_chat_seq = 0
         self.current_html = ""
         if self.contract_path:
             with open(self.contract_path, "r", encoding="utf-8") as f:
@@ -1740,23 +1742,6 @@ class StudioServer:
         result = hf_agent.handle(message, self.current_spec, self._spec_root())
         out = {"reply": result.get("reply", ""), "mode": result.get("mode"),
                "action": result.get("action")}
-        # 规则引擎未命中（"我不确定…"）且本机 agent CLI 可用 → 自动转发
-        # 给 agent 后端处理这条自由语言——HF 的 chat 主界面形态：用户不
-        # 需要区分"哪句话该走哪条路"。（引导类回复——缺参数/选模板等
-        # —— reply 不以"我不确定"开头，不转发。）
-        if str(out.get("reply", "")).startswith("我不确定这条指令"):
-            probe = self._agent_probe()
-            if probe["cli"]:
-                chat = self._run_agent_chat(message)
-                out["reply"] = f"{probe['cli']}：{chat.get('reply', '')}"
-                out["mode"] = "agent"
-                out["agent"] = chat.get("agent", probe["cli"])
-                out["error"] = chat.get("error")
-                if chat.get("spec_updated"):
-                    self.current_spec = self._load_spec()
-                    out["composed"] = self._compose()
-                    out["spec"] = self.current_spec
-                return out
         if "spec" in result:
             out["composed"] = self._apply_spec(result["spec"])
             out["spec"] = self.current_spec
@@ -1788,7 +1773,7 @@ class StudioServer:
                 out["reply"] += f"（动作执行失败：{emsg}）"
         return out
 
-    AGENT_CHAT_TIMEOUT_S = 600
+    AGENT_CHAT_TIMEOUT_S = 240
     AGENT_HISTORY_ROUNDS = 5
 
     @staticmethod
@@ -1851,24 +1836,8 @@ class StudioServer:
         except OSError:
             pass
 
-    def _run_agent_chat(self, message):
-        """agent 模式：子进程驱动本地 agent CLI（真会话，能改项目文件）。
-
-        与规则引擎模式（_run_agent）的区别：LLM 自主理解任意表述并执行
-        多步操作（读文档 → 改 spec → 重跑 compose），不限于预置指令。
-        历史持久化到 <spec 根>/chat.jsonl；spec 被改时重载并重组契约页。
-        """
-        probe = self._agent_probe()
-        if not probe["cli"]:
-            return {"agent": "none", "mode": "help",
-                    "reply": "本机未检测到可用的 agent CLI（claude / codex）。\n"
-                             "接入方式二选一：\n"
-                             "1. 安装 Claude Code 后重启 Studio（本模式以\n"
-                             "   claude -p 子进程驱动，可自主改文件）\n"
-                             "2. 外部 agent + skill 驱动：仓库内\n"
-                             "   .agents/skills/xmedia-ai-video/SKILL.md\n"
-                             "   （xmedia CLI 全能力，脱离 Studio 也可用）\n"
-                             "3. 继续用「规则引擎」模式改 spec（本页预置指令）"}
+    def _agent_chat_body(self, message, probe):
+        """agent prompt 构造（路径/skill 工作流/叙事纪律/历史）。"""
         spec_path = self.spec_path or ""
         root = self._spec_root()
         history = self._chat_history_tail()
@@ -1896,7 +1865,7 @@ class StudioServer:
                 + (f"- 负面清单（禁止）: "
                    f"{('、'.join(direction.get('banned', [])))}\n"
                    if direction.get("banned") else ""))
-        prompt = (
+        return (
             "你在 xmedia-kit Studio 的 agent 模式里帮用户编辑视频。\n"
             f"- spec JSON 路径: {spec_path}\n"
             f"- spec 所在目录: {root}\n"
@@ -1918,28 +1887,97 @@ class StudioServer:
             "- 回复用中文，简短说明做了什么改动。\n"
             f"{discipline}\n"
             f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
+
+    def _spec_diff_summary(self, before_scenes, after_scenes):
+        """agent 前后场景 diff 摘要（改动明细卡）。"""
+        out = []
+        if len(before_scenes) != len(after_scenes):
+            out.append(f"场景数 {len(before_scenes)} → {len(after_scenes)}")
+        for i, (b, a) in enumerate(zip(before_scenes, after_scenes)):
+            for k in ("text", "subtitle", "duration", "bg", "type"):
+                bv, av = (b or {}).get(k), (a or {}).get(k)
+                if bv != av:
+                    sb_ = str(bv)[:24] if bv is not None else "—"
+                    sa_ = str(av)[:24] if av is not None else "—"
+                    out.append(f"镜{i+1}.{k}: {sb_} → {sa_}")
+        return out[:10]
+
+    def _start_agent_chat(self, message):
+        """agent chat job 化：后台线程驱动 CLI，前端轮询 tail——
+        HF 的 agent 过程可视化（"正在改第 2 镜…"实时可见）。"""
+        probe = self._agent_probe()
+        if not probe["cli"]:
+            return {"job": None, "agent": "none", "mode": "help",
+                    "reply": "本机未检测到可用的 agent CLI（claude / codex）。\n"
+                             "接入方式二选一：\n"
+                             "1. 安装 Claude Code / CodeBuddy 后重启 Studio\n"
+                             "2. 外部 agent + skill 驱动：.agents/skills/"
+                             "xmedia-ai-video/SKILL.md\n"
+                             "3. 继续用「规则引擎」模式"}
+        job_id = self.agent_chat_seq
+        self.agent_chat_seq += 1
+        spec_path = self.spec_path or ""
+        before_scenes = json.loads(json.dumps(
+            (self.current_spec or {}).get("scenes") or []))
+        job = {"id": job_id, "message": message, "agent": probe["cli"],
+               "running": True, "tail": "（启动 agent…）", "reply": "",
+               "spec_updated": False, "error": None, "done": False,
+               "diff": []}
+        self.agent_jobs[job_id] = job
+        th = threading.Thread(
+            target=self._agent_chat_thread,
+            args=(job, message, probe, spec_path, before_scenes),
+            daemon=True)
+        th.start()
+        return {"job": job_id, "agent": probe["cli"]}
+
+    def _agent_chat_thread(self, job, message, probe, spec_path,
+                           before_scenes):
         cli = probe["cli"]
+        root = self._spec_root()
+        prompt = self._agent_chat_body(message, probe)
         spec_mtime_before = (os.path.getmtime(spec_path)
                              if spec_path and os.path.exists(spec_path)
                              else 0)
         self._record_run(message, cli)   # agent 改文件前压快照
         try:
-            proc = subprocess.run(probe["cmd"] + [prompt],
-                                  capture_output=True, text=True,
-                                  timeout=self.AGENT_CHAT_TIMEOUT_S,
-                                  cwd=root or ".")
-        except subprocess.TimeoutExpired:
-            self._chat_log(message, "（agent 运行超时）", cli)
-            return {"agent": cli, "mode": "agent",
-                    "reply": f"agent 运行超时（{self.AGENT_CHAT_TIMEOUT_S}s "
-                             "上限），任务可能仍在后台继续",
-                    "error": "timeout"}
-        reply_raw = (proc.stdout or "").strip()
+            proc = subprocess.Popen(
+                probe["cmd"] + [prompt], stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, text=True, cwd=root or ".")
+        except OSError as e:
+            job.update({"running": False, "done": True,
+                        "reply": f"agent 启动失败：{e}", "error": "spawn"})
+            self._chat_log(message, job["reply"], cli)
+            return
+        tail_lines = []
+        # 流式收集：daemon 轮询读 tail；进程结束取剩余
+        import selectors
+        sel = selectors.DefaultSelector()
+        sel.register(proc.stdout, selectors.EVENT_READ)
+        deadline = time.time() + self.AGENT_CHAT_TIMEOUT_S
+        buf = ""
+        while True:
+            if time.time() > deadline:
+                proc.kill()
+                job.update({"running": False, "done": True,
+                            "reply": f"agent 运行超时"
+                                     f"（{self.AGENT_CHAT_TIMEOUT_S}s）",
+                            "error": "timeout"})
+                self._chat_log(message, "（agent 运行超时）", cli)
+                return
+            events = sel.select(timeout=0.5)
+            for key, _ in events:
+                chunk = key.fileobj.readline()
+                if chunk:
+                    buf += chunk
+                    tail_lines.append(chunk.rstrip())
+                    job["tail"] = "\n".join(tail_lines[-14:])
+            if not events and proc.poll() is not None:
+                break
+        proc.wait()
+        reply_raw = (buf or "").strip()
         reply, is_error, parsed = reply_raw, False, False
         if cli == "claude":
-            # --output-format json：取 result 字段（text 模式的 stdout 尾部
-            # 会被 SessionEnd hook 噪音污染，实测）。stdout 可能混有噪音行
-            # ——整体与逐行都试一遍，取第一个含 result 的 JSON 对象。
             payload = None
             for cand in [reply_raw] + reply_raw.splitlines():
                 try:
@@ -1953,29 +1991,42 @@ class StudioServer:
                 reply = str(payload.get("result") or "")
                 is_error = bool(payload.get("is_error"))
                 parsed = True
-        if proc.returncode != 0 and not parsed:
-            # 非零退出且没有可解析的回复才视为失败——本机 hook 配置
-            # （SessionEnd 钩子被取消）会让 claude -p 以 exit 1 结束，
-            # 但 stdout 仍携带有效 result JSON。
-            return {"agent": cli, "mode": "agent",
-                    "reply": (proc.stderr or reply_raw)[-600:]
-                              or "agent 非零退出",
-                    "error": f"exit {proc.returncode}"}
         spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
                         os.path.getmtime(spec_path) > spec_mtime_before)
-        out = {"agent": cli, "mode": "agent",
-               "reply": reply[-1500:] or "（agent 无输出）",
-               "spec_updated": spec_changed}
+        job["spec_updated"] = spec_changed
+        if proc.returncode != 0 and not parsed:
+            job.update({"running": False, "done": True,
+                        "reply": (proc.stderr or reply_raw)[-600:]
+                                  or "agent 非零退出",
+                        "error": f"exit {proc.returncode}"})
+            self._chat_log(message, job["reply"], cli)
+            return
         if is_error:
-            out["error"] = ("agent 上报错误（回复文本是 CLI 的错误说明，"
-                            "常见为 CLI 配置的模型不可用：claude --model "
-                            "换可用模型）")
+            job["error"] = ("agent 上报错误（常见为 CLI 配置的模型不可用："
+                            "claude --model 换可用模型）")
+        job["reply"] = reply[-1500:] or "（agent 无输出）"
+        job["done"] = True
+        # spec 被改 → 重载重组 + diff 摘要（线程内完成，前端轮询到 done）
         if spec_changed:
             self.current_spec = self._load_spec()
-            out["composed"] = self._compose()
-            out["spec"] = self.current_spec
-        self._chat_log(message, reply, cli)
-        return out
+            self._compose()
+            job["diff"] = self._spec_diff_summary(before_scenes,
+                                                  self.current_spec.get(
+                                                      "scenes") or [])
+        self._chat_log(message, job["reply"], cli)
+
+    def _agent_chat_status(self, job_id):
+        job = self.agent_jobs.get(job_id)
+        if job is None:
+            raise RuntimeError("无此 agent 任务")
+        return {"running": job.get("running", False),
+                "done": job.get("done", False),
+                "agent": job.get("agent"),
+                "tail": job.get("tail", ""),
+                "reply": job.get("reply", ""),
+                "spec_updated": job.get("spec_updated", False),
+                "diff": job.get("diff", []),
+                "error": job.get("error")}
 
 
 def make_handler(server_ref):
@@ -2025,6 +2076,11 @@ def make_handler(server_ref):
                      "slots": d.get("slots", [])}
                     for d in sorted(registry.values(),
                                     key=lambda x: x.get("name", ""))]})
+            elif path == "/api/agent/chat/status":
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(
+                    self.path).query)
+                self._json(srv._agent_chat_status(
+                    int((q.get("id") or ["0"])[0])))
             elif path == "/api/projects":
                 self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
@@ -2213,7 +2269,7 @@ def make_handler(server_ref):
                 elif path == "/api/agent":
                     self._json(srv._run_agent(str(body.get("message") or "")))
                 elif path == "/api/agent/chat":
-                    self._json(srv._run_agent_chat(
+                    self._json(srv._start_agent_chat(
                         str(body.get("message") or "")))
                 else:
                     self._json({"error": "unknown endpoint"}, 404)

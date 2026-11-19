@@ -1,7 +1,7 @@
 import { pollJob } from "../panels/export.js";
 import { refresh } from "../panels/status.js";
 import { api } from "../shared/api-client.js";
-import { log, $ } from "../shared/dom.js";
+import { log, $, escHtml } from "../shared/dom.js";
 
 export function askAdd(text, who, cls) {
   var box = $("ask-msgs"), el = document.createElement("div");
@@ -52,13 +52,87 @@ export function askOpen(on) {
   }
   askOpen(true);
 })();
+/* 极简 markdown → HTML（先转义再转标记，XSS 安全）：
+   **粗体** / `代码` / "- 列表" / 换行。 */
+function mdLite(text) {
+  var s = escHtml(String(text || ""));
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  s = s.replace(/`([^`]+)`/g, '<code style="background:var(--panel2);'
+      + 'padding:0 4px;border-radius:3px">$1</code>');
+  s = s.replace(/^- (.+)$/gm, "· $1");
+  return s.replace(/\n/g, "<br>");
+}
+
+/* agent 模式（job 化流式）：POST 创建 job → 轮询 tail（实时显示
+   agent 在做什么——HF 的过程可视化）→ done 渲染 markdown 回复 +
+   改动明细卡。spec 被改时 refresh（分镜/预览同步）。 */
+function askRunAgentJob(msg) {
+  var pending = askAdd("agent 启动中…", "bot");
+  return api("/api/agent/chat", { message: msg }).then(function (r) {
+    if (r.job === null || r.job === undefined) {
+      pending.textContent = r.reply || "agent 不可用";
+      pending.className = "ask-msg bot err";
+      return null;
+    }
+    pending.classList.add("streaming");
+    var poll = function () {
+      return api("/api/agent/chat/status?id=" + r.job).then(function (s) {
+        if (s.tail) {
+          var tail = String(s.tail).split("\n").slice(-3).join("\n");
+          pending.innerHTML = mdLite("…" + tail);
+        }
+        if (s.running) {
+          return new Promise(function (res) {
+            setTimeout(res, 700);
+          }).then(poll);
+        }
+        return s;
+      });
+    };
+    return poll().then(function (s) {
+      pending.innerHTML = mdLite(s.reply || "（agent 无输出）");
+      pending.className = "ask-msg bot " +
+          (s.error ? "err" : "ok");
+      if (s.diff && s.diff.length) {
+        var dif = document.createElement("div");
+        dif.className = "ask-diff";
+        dif.innerHTML = "<b>改动</b>" + s.diff.map(function (d) {
+          return "<div>· " + escHtml(d) + "</div>";
+        }).join("");
+        pending.appendChild(dif);
+      }
+      if (s.error) {
+        log("agent [" + s.agent + "] 错误：" + s.error, "err");
+      } else {
+        log("agent [" + s.agent + "] 完成", "ok");
+      }
+      return s;
+    });
+  });
+}
+
 export function askRun(msg) {
   /* 单条编辑请求：按当前后端走 /api/agent（规则引擎）或
-     /api/agent/chat（本地 agent 子进程），并渲染回复/导入/ASR/导出
-     任务，不做 refresh——调用方决定何时统一重组（批量结束时一次）。 */
+     /api/agent/chat（本地 agent 子进程，job 化流式），并渲染回复/
+     导入/ASR/导出任务，不做 refresh——调用方决定何时统一重组。
+     规则引擎未命中（"我不确定…"）且 agent CLI 可用 → 自动转
+     agent 处理（HF chat 主界面形态：任意话都有人接）。 */
+  if (askBackend === "agent") {
+    return askRunAgentJob(msg);
+  }
   var pending = askAdd("处理中…", "bot");
-  var url = askBackend === "agent" ? "/api/agent/chat" : "/api/agent";
-  return api(url, { message: msg }).then(function (r) {
+  return api("/api/agent", { message: msg }).then(function (r) {
+    if (String(r.reply || "").indexOf("我不确定这条指令") === 0 &&
+        (state.agent || {}).cli) {
+      pending.remove();
+      log("规则引擎没听懂，已转 agent 处理", "ok");
+      return askRunAgentJob(msg).then(function (s) {
+        if (!s.error && (s.spec_updated || s.diff)) {
+          return refresh(true);
+        }
+        return s;
+      });
+    }
     pending.textContent = r.reply || "已完成";
     pending.className = "ask-msg bot " + (r.error ? "err" : "ok");
     if (!r.error && (r.spec || r.spec_updated)) {
