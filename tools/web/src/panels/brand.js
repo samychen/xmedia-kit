@@ -155,19 +155,104 @@ function renderDetail(view, b) {
   head.appendChild(back); head.appendChild(title); head.appendChild(acts);
   view.appendChild(head);
 
-  /* Colors：色块网格 */
-  view.appendChild(sectionTitle("Colors " + colors.length));
+  /* Colors：v2 colors with roles（角色徽标 + 变量名）优先，
+     v1 palette 纯色块兜底 */
+  var kitColors = (b.colors || []).length ? b.colors :
+      colors.map(function (c) { return { hex: c, role: "", var: "" }; });
+  view.appendChild(sectionTitle("Colors " + kitColors.length));
   var sw = document.createElement("div");
   sw.className = "brand-colors";
-  sw.innerHTML = colors.map(function (c) {
+  sw.innerHTML = kitColors.map(function (c) {
     return '<div class="brand-color"><i style="background:' +
-        escHtml(c) + '"></i><code>' + escHtml(c) + "</code></div>";
+        escHtml(c.hex) + '"></i>' +
+        (c.role ? '<em class="brand-role">' + escHtml(c.role) + "</em>" : "") +
+        "<code>" + escHtml(c.hex) +
+        (c.var ? ' <u title="' + escHtml(c.var) + '">' +
+            escHtml(c.var) + "</u>" : "") + "</code></div>";
   }).join("");
   view.appendChild(sw);
 
-  /* Text styles：字体族示例 */
+  /* Text styles：字号×字重组合（扫到的真实排版体系） */
+  if ((b.text_styles || []).length) {
+    view.appendChild(sectionTitle("Text styles " + b.text_styles.length));
+    var tx = document.createElement("div");
+    tx.className = "brand-fonts";
+    tx.innerHTML = b.text_styles.map(function (t) {
+      return '<div class="brand-font"><span style="font-size:' +
+          Math.min(t.size, 22) + 'px;font-weight:' + t.weight + '">' +
+          escHtml("标题 Style " + t.size) + "</span><code>" +
+          t.size + "px · " + t.weight + "</code></div>";
+    }).join("");
+    view.appendChild(tx);
+  }
+
+  /* Backgrounds：大面积背景色（页面/表面） */
+  if ((b.backgrounds || []).length) {
+    view.appendChild(sectionTitle("Backgrounds " + b.backgrounds.length));
+    var bgs = document.createElement("div");
+    bgs.className = "brand-colors";
+    bgs.innerHTML = b.backgrounds.map(function (g) {
+      return '<div class="brand-color"><i style="background:' +
+          escHtml(g.hex) + '"></i><code>' + escHtml(g.hex) +
+          " ×" + g.count + "</code></div>";
+    }).join("");
+    view.appendChild(bgs);
+  }
+
+  /* Shapes and spacing：圆角/间距（扫到的真实形状体系） */
+  if ((b.shapes || {}).radii && b.shapes.radii.length) {
+    var radii = b.shapes.radii.concat(b.shapes.gaps || []);
+    view.appendChild(sectionTitle("Shapes & spacing " + radii.length));
+    var sh = document.createElement("div");
+    sh.className = "brand-shapes";
+    sh.innerHTML = radii.map(function (s) {
+      var isGap = /px$/.test(s.value) && s.value !== undefined;
+      return '<div class="brand-shape"><i style="border-radius:' +
+          (isGap ? "2px" : escHtml(s.value)) + ';height:' +
+          (isGap ? "10px" : "26px") + ';width:' +
+          (isGap ? escHtml(s.value) : "40px") +
+          ';background:var(--acc)"></i><code>' + escHtml(s.value) +
+          " ×" + s.count + "</code></div>";
+    }).join("");
+    view.appendChild(sh);
+  }
+
+  /* Components：扫到的真实组件样式（.btn/.card 类规则） */
+  if ((b.components || []).length) {
+    view.appendChild(sectionTitle("Components " + b.components.length));
+    var comps = document.createElement("div");
+    comps.className = "brand-comps";
+    comps.innerHTML = b.components.map(function (c) {
+      return '<div class="bcomp"><span class="bcomp-tag">' +
+          escHtml(c.kind) + '</span><div class="bcomp-stage">' +
+          '<span style="background:' + escHtml(c.bg || "transparent") +
+          ";color:" + escHtml(c.color || "inherit") +
+          ";border-radius:" + escHtml(c.radius || "4px") +
+          ';padding:4px 10px;font-size:11px">' +
+          escHtml(c.selector.split(" ").pop()) + "</span></div></div>";
+    }).join("");
+    view.appendChild(comps);
+  }
+
+  /* Logos 集合（og:image / touch icon / favicon；本地下载的排前） */
+  if (b.logo_image || (b.logos || []).length) {
+    view.appendChild(sectionTitle("Logos " +
+        ((b.logos || []).length || 1)));
+    var lgx = document.createElement("div");
+    lgx.className = "brand-logos";
+    lgx.innerHTML = (b.logo_image
+        ? '<img class="local" src="/api/brand-logo/' +
+          encodeURIComponent(name) + '" alt="logo">' : "") +
+        (b.logos || []).map(function (u) {
+          return '<img src="' + escHtml(u) +
+              '" alt="" onerror="this.style.display=\'none\'">';
+        }).join("");
+    view.appendChild(lgx);
+  }
+
+  /* Fonts：字体族示例（与 Text styles 的字号×字重组合互补） */
   if (fonts.length) {
-    view.appendChild(sectionTitle("Text styles " + fonts.length));
+    view.appendChild(sectionTitle("Fonts " + fonts.length));
     var fx = document.createElement("div");
     fx.className = "brand-fonts";
     fx.innerHTML = fonts.map(function (f) {
@@ -177,16 +262,6 @@ function renderDetail(view, b) {
           escHtml(f) + "</code></div>";
     }).join("");
     view.appendChild(fx);
-  }
-
-  /* Logo */
-  if (b.logo_image) {
-    view.appendChild(sectionTitle("Logo"));
-    var lg = document.createElement("div");
-    lg.className = "brand-logobox";
-    lg.innerHTML = '<img src="/api/brand-logo/' + encodeURIComponent(name) +
-        '" alt="logo">';
-    view.appendChild(lg);
   }
 
   /* 组件预览卡（Title card / Lower third / Caption / End card）：
@@ -222,11 +297,19 @@ function renderDetail(view, b) {
     escHtml(host || name) + "</span></div></div>";
   view.appendChild(cards);
 
-  /* Context：其余字段一行表 */
+  /* Context：其余字段一行表 + capture 证据行（HF 的
+     "Read from bilibili.com · 10 colors · 5 text styles · 54 files"） */
   view.appendChild(sectionTitle("Context"));
   var ctx = document.createElement("div");
   ctx.className = "brand-ctx";
+  var cap = b.capture || {};
   ctx.innerHTML =
+    (cap.stylesheets || cap.css_vars
+        ? '<div class="brand-capture">从 ' + escHtml(host || "本地文件") +
+          " 抓取：样式表 " + escHtml(cap.stylesheets || 0) + " · CSS 变量 " +
+          escHtml(cap.css_vars || 0) + " · 见过颜色 " +
+          escHtml(cap.colors_seen || 0) + " · " +
+          escHtml(cap.at || "") + "</div>" : "") +
     "<div><span>背景</span><code>" + escHtml(bg || "继承") + "</code></div>" +
     "<div><span>文字色</span><code>" + escHtml(ink || "继承") + "</code></div>" +
     "<div><span>音色</span><code>" + escHtml(b.voice || "默认") + "</code></div>" +

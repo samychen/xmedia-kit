@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(TOOLS_DIR)
@@ -638,6 +639,15 @@ def cmd_brand(args):
             "fonts": draft["fonts"],
             "logo_image_url": draft["logo_image_url"],
             "source_url": draft["source_url"],
+            # v2 capture 增量（colors with roles / text styles /
+            # backgrounds / shapes / components / logos 集合）
+            "colors": draft.get("colors", []),
+            "text_styles": draft.get("text_styles", []),
+            "backgrounds": draft.get("backgrounds", []),
+            "shapes": draft.get("shapes", {}),
+            "components": draft.get("components", []),
+            "logos": draft.get("logos", []),
+            "capture": draft.get("capture", {}),
         }
         d = _brand_dir()
         os.makedirs(d, exist_ok=True)
@@ -780,13 +790,21 @@ def cmd_brand(args):
 
 
 def _brand_scan(url):
-    """读网站 → 品牌草稿（色板/字体/站点名/logo 图）。
+    """读网站 → 品牌草稿 v2（brandkit-v2 capture + 证据）。
 
     纯本地解析（对齐 HF brand-kits 的"输入网站自动读品牌"）：抓页面 +
-    至多 3 个同源样式表，统计 CSS 颜色与 font-family 频次。启发式：
-    色板取饱和度优先的高频色（互相色距过近的合并），背景取最常见浅色
-    或深色，文字色取与背景对比最大的近黑/近白。读不到就用 CLI 给的
-    默认值——扫描是草稿，brand save 的参数永远可以覆盖。
+    至多 8 个样式表。v2 深度：
+    - CSS 变量表 → 语义色角色（--brand-pink → primary，…）
+    - 颜色频次全量统计 → 色板扩到 10 色（饱和优先 + 高频补充）
+    - text styles：font-size × font-weight 组合 top5
+    - backgrounds：background 声明 top2
+    - shapes：border-radius / gap 频次 top
+    - components：.btn/.card/.tag 类规则的真实样式抽取 top5
+    - logos：og:image + apple-touch-icon + favicon 集
+    返回 dict 兼容 v1 字段（palette/background/text_color/fonts/
+    logo_image_url/site_title/source_url），v2 增量字段
+    （colors/text_styles/backgrounds/shapes/components/logos）。
+    读不到就用默认值——扫描是草稿，brand save 的参数永远可以覆盖。
     """
     import urllib.request
     import urllib.parse
@@ -816,13 +834,23 @@ def _brand_scan(url):
 
     site_title = (_tag_attr(r'<meta\s+property="og:site_name"\s+content="([^"]*)"')
                   or _tag_attr(r"<title[^>]*>([^<]*)</title>"))
-    logo_url = (_tag_attr(r'<meta\s+property="og:image"\s+content="([^"]*)"')
-                or _tag_attr(r'<link\s+rel="apple-touch-icon"[^>]*href="([^"]*)"'))
 
-    # 同源样式表（至多 3 个，每个 ≤1MB）：外链 CSS 是颜色的大头
+    # logo 集合：og:image（社交卡）+ apple-touch-icon（高清）+ favicon。
+    # 去重保持优先级，下载时逐个尝试直到成功。
+    logos = []
+    for pat in (r'<meta\s+property="og:image"\s+content="([^"]*)"',
+                r'<link\s+rel="apple-touch-icon"[^>]*href="([^"]*)"',
+                r'<link\s+rel="(?:shortcut )?icon"[^>]*href="([^"]*)"'):
+        for m in re.finditer(pat, html_src, re.I):
+            u = _abs(_html.unescape(m.group(1)).strip(), base)
+            if u and u not in logos:
+                logos.append(u)
+    logo_url = logos[0] if logos else ""
+
+    # 样式表（至多 8 个，每个 ≤1MB）：外链 CSS 是颜色/字体/圆角的大头
     css_chunks = re.findall(r"<style[^>]*>(.*?)</style>", html_src, re.I | re.S)
     for href in re.findall(r'<link[^>]+rel="stylesheet"[^>]*href="([^"]*)"',
-                           html_src, re.I)[:3]:
+                           html_src, re.I)[:8]:
         absu = _abs(_html.unescape(href), base)
         if absu.startswith(("http://", "https://", "file://")):
             try:
@@ -851,6 +879,72 @@ def _brand_scan(url):
             return None  # 近全透明不算色
         return f"#{r_:02x}{g_:02x}{b_:02x}"
 
+    # ---- CSS 变量表 → 语义色角色（v2 核心：HF 的 "color roles"）----
+    css_vars = {}
+    for m in re.finditer(r"(--[\w-]+)\s*:\s*([^;{}]+)[;}]", hay):
+        css_vars.setdefault(m.group(1).lower(), m.group(2).strip())
+
+    def _role_of(varname):
+        n = varname[2:]
+        if re.search(r"brand|primary|main-color|theme", n):
+            return "primary"
+        if re.search(r"accent|highlight|active", n):
+            return "accent"
+        if re.search(r"secondary|second", n):
+            return "secondary"
+        if re.search(r"success|ok-", n):
+            return "success"
+        if re.search(r"danger|error|alert", n):
+            return "danger"
+        if re.search(r"warning|warn", n):
+            return "warning"
+        if re.search(r"(^|[^a-z])ink|text|fg|foreground", n):
+            return "ink"
+        if re.search(r"bg|background|surface|panel|card", n):
+            return "background"
+        if re.search(r"muted|dim|gray|grey|border|line|divider|placeholder", n):
+            return "muted"
+        return None
+
+    colors = []
+    seen_hex = set()
+
+    def _push_color(hx, role, var="", prio=3):
+        if not hx or not re.fullmatch(r"#[0-9a-f]{6}", hx):
+            return
+        if hx in seen_hex:
+            # 同色再次出现且证据更硬（如 palette 频次算出的角色）→ 提升
+            for c in colors:
+                if c["hex"] == hx and prio < c["_p"]:
+                    c["_p"] = prio
+                    if role and not c["role"]:
+                        c["role"] = role
+                    if var and not c["var"]:
+                        c["var"] = var
+            return
+        seen_hex.add(hx)
+        colors.append({"hex": hx, "role": role or "", "var": var,
+                       "_p": prio})
+
+    _ROLE_PRIO = {"primary": 0, "accent": 0, "secondary": 1,
+                  "danger": 1, "warning": 1, "success": 1}
+    for vname, vval in css_vars.items():
+        role = _role_of(vname)
+        hx = _css_color_to_hex(vval)
+        if hx:
+            _push_color(hx, role, vname, _ROLE_PRIO.get(role, 3))
+    for m in re.finditer(r"(--[\w-]+)\s*:\s*([^;{}]+)[;}]", html_src):
+        # 内联 style 上的变量（部分站点品牌色只在这里）——同样的角色推断
+        hx = _css_color_to_hex(m.group(2))
+        if hx:
+            role = _role_of(m.group(1).lower())
+            _push_color(hx, role, m.group(1), _ROLE_PRIO.get(role, 3))
+    # theme-color meta（浏览器地址栏染色色 = 站点自认的品牌主色）
+    theme = _tag_attr(r'<meta\s+name="theme-color"\s+content="([^"]*)"')
+    if theme:
+        _push_color(_css_color_to_hex(theme), "primary", "theme-color", 0)
+
+    # ---- 颜色频次全量统计（v1 逻辑保留 + 色板扩到 10）----
     freq = {}
     for raw in re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", hay):
         hx = _css_color_to_hex(raw)
@@ -868,9 +962,9 @@ def _brand_scan(url):
         ca, cb = _chan(a), _chan(b)
         return max(abs(x - y) for x, y in zip(ca, cb))
 
-    colors = sorted(freq.items(), key=lambda kv: (-_sat(kv[0]), -kv[1]))
+    ranked = sorted(freq.items(), key=lambda kv: (-_sat(kv[0]), -kv[1]))
     palette, bg, text = [], None, None
-    for hx, _n in colors:
+    for hx, _n in ranked:
         if len(palette) < 3 and _sat(hx) >= 24 and \
                 all(_dist(hx, p) > 32 for p in palette):
             palette.append(hx)
@@ -893,18 +987,120 @@ def _brand_scan(url):
         fallback = ["#1a1a2e", "#16213e", "#0f3460"]
         palette += fallback[len(palette):]
 
+    # v2 色板梯队：品牌三色（v1 饱和度算法产物）以高优先级插入，
+    # 再补高频色；最终按梯队排序取 10（灰阶变量表 --ga0..--ga9 之类
+    # 不再把品牌色挤出清单）。
+    for i, hx in enumerate(palette):
+        _push_color(hx, ("primary", "secondary", "accent")[min(i, 2)],
+                    "", 1)
+    for hx, n in sorted(freq.items(), key=lambda kv: -kv[1]):
+        if n < 2 or _sat(hx) < 8:
+            continue  # 纯灰白黑低频跳过（角色区已有 bg/ink）
+        if all(_dist(hx, c["hex"]) > 24 for c in colors):
+            _push_color(hx, "", "", 2)
+            if len(colors) >= 24:
+                break
+
+    colors = [{"hex": c["hex"], "role": c["role"], "var": c["var"]}
+              for c in sorted(colors, key=lambda c: (c["_p"],
+                                                     -_sat(c["hex"])))[:10]]
+
+    # ---- text styles：font-size × font-weight 组合频次 top5 ----
+    ts_freq = {}
+    for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", hay):
+        body = m.group(2)
+        fs = re.search(r"font-size\s*:\s*([\d.]+)px", body)
+        if not fs:
+            continue
+        fw = re.search(r"font-weight\s*:\s*(\d{3})", body)
+        key = (round(float(fs.group(1))),
+               int(fw.group(1)) if fw else 400)
+        ts_freq[key] = ts_freq.get(key, 0) + 1
+    text_styles = [{"size": s, "weight": w, "count": c}
+                   for (s, w), c in sorted(ts_freq.items(),
+                                           key=lambda kv: (-kv[0][1],
+                                                           -kv[0][0],
+                                                           -kv[1]))[:5]]
+
+    # ---- backgrounds：background 声明频次 top2（非透明）----
+    bg_freq = {}
+    for m in re.finditer(r"background(?:-color)?\s*:\s*([^;}]+)", hay, re.I):
+        hx = _css_color_to_hex(m.group(1))
+        if hx:
+            bg_freq[hx] = bg_freq.get(hx, 0) + 1
+    backgrounds = [{"hex": hx, "count": c}
+                   for hx, c in sorted(bg_freq.items(),
+                                       key=lambda kv: -kv[1])[:2]]
+
+    # ---- shapes：圆角 / 间距频次 top ----
+    rad_freq, gap_freq = {}, {}
+    for m in re.finditer(r"border-radius\s*:\s*([^;}]+)", hay, re.I):
+        v = m.group(1).strip().split()[0]
+        if re.match(r"[\d.]+px", v):
+            rad_freq[v] = rad_freq.get(v, 0) + 1
+    for m in re.finditer(r"\bgap\s*:\s*([\d.]+px)", hay, re.I):
+        gap_freq[m.group(1)] = gap_freq.get(m.group(1), 0) + 1
+    shapes = {"radii": [{"value": v, "count": c} for v, c in
+                        sorted(rad_freq.items(), key=lambda kv: -kv[1])[:3]],
+              "gaps": [{"value": v, "count": c} for v, c in
+                       sorted(gap_freq.items(), key=lambda kv: -kv[1])[:2]]}
+
+    # ---- components：.btn/.card/.tag 类规则的真实样式抽取 top5 ----
+    components = []
+    seen_comp = set()
+    for m in re.finditer(r"([^{}]*\.(?:btn|button|card|tag|badge|chip|pill)"
+                         r"[\w\-]*)\s*\{([^{}]*)\}", hay):
+        sel = m.group(1).strip().split(",")[-1].strip()
+        body = m.group(2)
+        cbg = _css_color_to_hex(
+            (re.search(r"background(?:-color)?\s*:\s*([^;]+)", body, re.I)
+             or [None, ""])[1] if re.search(
+                 r"background(?:-color)?\s*:", body, re.I) else "")
+        ccol = _css_color_to_hex(
+            (re.search(r"(?:^|;)\s*color\s*:\s*([^;]+)", body, re.I)
+             or [None, ""])[1] if re.search(r"(?:^|;)\s*color\s*:", body,
+                                            re.I) else "")
+        crad = (re.search(r"border-radius\s*:\s*([^;]+)", body, re.I)
+                or [None, ""])[1].strip().split()[0] if re.search(
+                    r"border-radius\s*:", body, re.I) else ""
+        kind = ("button" if re.search(r"btn|button|pill", sel, re.I)
+                else "card" if re.search(r"card", sel, re.I)
+                else "tag")
+        key = (kind, cbg or "", crad or "")
+        if key in seen_comp or (not cbg and not ccol and not crad):
+            continue
+        seen_comp.add(key)
+        components.append({"kind": kind, "selector": sel[:48],
+                           "bg": cbg or "", "color": ccol or "",
+                           "radius": crad or ""})
+        if len(components) >= 5:
+            break
+
+    # ---- fonts（v1 保留）----
     fonts = []
     for decl in re.findall(r"font-family\s*:\s*([^;}]+)", hay, re.I):
         for fam in decl.split(","):
             fam = fam.strip().strip("'\"").replace("!important", "").strip()
             if fam and fam.lower() not in [f.lower() for f in fonts]:
                 fonts.append(fam)
-    fonts = fonts[:4]
+    fonts = fonts[:5]
 
     return {"palette": palette, "background": bg or "#0a0a1a",
             "text_color": text or "", "fonts": fonts,
-            "logo_image_url": _abs(logo_url, base) if logo_url else "",
-            "site_title": site_title, "source_url": url}
+            "logo_image_url": logo_url, "site_title": site_title,
+            "source_url": url,
+            "colors": colors[:10], "text_styles": text_styles,
+            "backgrounds": backgrounds, "shapes": shapes,
+            "components": components, "logos": logos[:3],
+            # capture 证据（HF 的 "Read from bilibili.com · 10 colors ·
+            # 5 text styles · 54 files" 行）：抓了什么、多深、何时
+            "capture": {
+                "stylesheets": len(css_chunks),
+                "css_vars": len(css_vars),
+                "colors_seen": len(freq),
+                "bytes": len(hay),
+                "at": time.strftime("%Y-%m-%d"),
+            }}
 
 
 def cmd_reference(args):

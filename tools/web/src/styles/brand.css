@@ -73,3 +73,26 @@
   background: var(--panel2); border-radius: 5px; padding: 5px 8px; }
 .brand-ctx span { color: var(--dim); }
 .brand-ctx code { color: var(--fg); }
+
+/* v2 capture 分区（Colors with roles / Text styles / Shapes / Logos） */
+.brand-color { position: relative; }
+.brand-role { position: absolute; top: 4px; left: 4px; font-style: normal;
+  font-size: 9px; background: rgba(0, 0, 0, .55); color: #fff;
+  border-radius: 8px; padding: 1px 6px; text-transform: capitalize; }
+.brand-color code { display: flex; gap: 4px; align-items: baseline; }
+.brand-color code u { text-decoration: none; color: var(--dim);
+  font-size: 9px; overflow: hidden; text-overflow: ellipsis;
+  max-width: 72px; white-space: nowrap; }
+.brand-shapes { display: flex; flex-wrap: wrap; gap: 8px; }
+.brand-shape { display: flex; flex-direction: column; gap: 3px;
+  align-items: flex-start; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.brand-shape i { display: block; }
+.brand-shape code { font-size: 10px; color: var(--dim); }
+.brand-logos { display: flex; gap: 10px; align-items: center;
+  flex-wrap: wrap; background: #fff; border-radius: 8px; padding: 10px; }
+.brand-logos img { max-height: 40px; max-width: 72px;
+  object-fit: contain; }
+.brand-logos img.local { max-height: 56px; }
+.brand-capture { font-size: 10.5px; color: var(--dim); background:
+  var(--panel2); border-radius: 5px; padding: 6px 8px; }
