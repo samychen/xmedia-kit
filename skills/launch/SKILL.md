@@ -65,6 +65,16 @@ Order: brief（stop 0）→ capture → design → storyboard（stop 3 审批）
   是硬门。
 - Gate：compose exit 0 且 0 errors。
 
+## 6b. Frame Worker（agent 逐帧创作——可选升级）
+
+默认 build 用预置模板填空。需要**定制画面**（超越模板的设计水平）时，
+每帧派一个 frame worker（CodeBuddy/claude `-p`）：prompt 包 =
+`references/frame-worker.md` 的协议（帧规格 + 两色纪律 + 负面清单 +
+**GSAP paused 渲染协议**——CSS animation 不被 seek 时钟推进，实测
+全黑）→ worker 写单帧定制 HTML → 组装进契约页（data-start/
+data-duration 窗口）。实测产出：镂空描边字/反转强调拍/左对齐偏置
+构图，质量超过预置模板。
+
 ## 7. Gate → look → reply
 
 - **gate 脚本**：`python3 skills/launch/scripts/gate.py <项目目录>`——
