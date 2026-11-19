@@ -1427,22 +1427,30 @@ class StudioServer:
             fps=int(body.get("fps") or 30),
             voice=str(body.get("voice") or "Tingting"))
         spec["composition"]["id"] = name
-        # workspace 默认品牌（HF brand kits 的 default pin 语义）：
-        # 新项目自动应用 pin 的品牌。
-        try:
-            broot = os.path.expanduser(os.environ.get(
-                "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
-            pin = os.path.join(broot, ".default")
-            if os.path.isfile(pin):
-                bname = open(pin, encoding="utf-8").read().strip()
-                bfile = os.path.join(broot, bname + ".json")
+        # 品牌 kit 注入（HF brand kits 语义）：Make Something 向导显式
+        # 选 kit > workspace default pin > 无品牌保持 Arc 默认色板。
+        brand_name = str(body.get("brand") or "").strip()
+        if not brand_name:
+            try:
+                broot = os.path.expanduser(os.environ.get(
+                    "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+                pin = os.path.join(broot, ".default")
+                if os.path.isfile(pin):
+                    brand_name = open(pin, encoding="utf-8").read().strip()
+            except OSError:
+                brand_name = ""
+        if brand_name:
+            try:
+                broot = os.path.expanduser(os.environ.get(
+                    "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+                bfile = os.path.join(broot, brand_name + ".json")
                 if os.path.isfile(bfile):
                     brand = json.load(open(bfile, encoding="utf-8"))
                     sys.path.insert(0, TOOLS_DIR)
                     import hf_agent
                     spec, _ = hf_agent.apply_brand(spec, brand)
-        except (OSError, json.JSONDecodeError, ValueError):
-            pass
+            except (OSError, json.JSONDecodeError, ValueError):
+                pass
         spec_file = os.path.join(d, "spec.json")
         with open(spec_file, "w", encoding="utf-8") as f:
             json.dump(spec, f, ensure_ascii=False, indent=1)
@@ -2634,7 +2642,11 @@ def make_handler(server_ref):
 
 
 def home_html(projects):
-    """Home 页（项目管理）：一句话新建 + 项目卡片网格。
+    """Home 页（项目管理）：Make Something 三步向导 + 项目卡片网格。
+
+    对齐 HF first-cut 的「What do you want to make? → A bit about you →
+    合成首剪」形态：类型宫格选叙事 Arc → 一句话 brief（受众/语气可选）
+    → 品牌 kit 可选 → /api/project/create 一键建项目跳编辑器。
     独立小页面（不进 web 构建），风格对齐 studio tokens。"""
     cards = "".join(
         f'<a class="pj" href="/project/{p["name"]}">'
@@ -2644,9 +2656,15 @@ def home_html(projects):
         + f' · {p["updated"]}</div>'
         f'<div class="pj-msg">{p["message"]}</div></a>'
         for p in projects)
-    arc_opts = "".join(
-        f'<option value="{a["id"]}">{a["label"]}</option>'
-        for a in __import__("hf_storyboard").arcs())
+    # 类型宫格（HF survey 的 grid-cols-4 形态）：Arc 清单 → 卡片
+    arc_cards = "".join(
+        f'<button type="button" class="mk-arc" data-arc="{a["id"]}">'
+        f'<span class="mk-arc-strip s-{i % 5}"></span>'
+        f'<b>{a["label"].split("（")[0]}</b>'
+        f'<i>{a["label"].split("（")[1].rstrip("）") if "（" in a["label"] else ""}</i>'
+        f'</button>'
+        for i, a in enumerate(__import__("hf_storyboard").arcs()))
+    # 品牌 kit 下拉由前端 fetch /api/brands 动态填充（default pin 标记）
     return f"""<!doctype html>
 <html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2661,20 +2679,50 @@ body {{ margin:0; background:var(--bg); color:var(--ink);
 .wrap {{ max-width: 860px; margin: 0 auto; padding: 40px 20px }}
 h1 {{ font-size: 22px; margin: 0 0 4px }}
 .sub {{ color: var(--dim); font-size: 12.5px; margin-bottom: 30px }}
-.new {{ background: var(--panel); border: 1px solid var(--line2);
-       border-radius: 14px; padding: 20px; margin-bottom: 34px }}
-.new textarea {{ width: 100%; min-height: 64px; background: var(--panel2);
-                 color: var(--ink); border: 1px solid var(--line);
-                 border-radius: 8px; padding: 10px 12px; font: inherit;
-                 resize: vertical; outline: none }}
-.new textarea:focus {{ border-color: var(--acc) }}
-.new .row {{ display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap }}
-.new select, .new input {{ background: var(--panel2); color: var(--ink);
-                           border: 1px solid var(--line); border-radius: 8px;
-                           padding: 8px 10px; font: inherit; outline: none }}
-.new .go {{ background: linear-gradient(135deg,var(--acc),var(--acc2));
-            border: 0; color: #0d1122; font-weight: 600; border-radius: 8px;
-            padding: 8px 18px; }}
+/* ---- Make Something 向导（HF first-cut 形态）---- */
+.mk {{ background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 14px; padding: 20px; margin-bottom: 34px }}
+.mk-step {{ font-size: 11.5px; color: var(--dim); letter-spacing: .04em;
+      margin-bottom: 10px }}
+.mk-grid {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px }}
+.mk-arc {{ display: flex; flex-direction: column; gap: 6px;
+      background: var(--panel2); border: 1px solid var(--line);
+      border-radius: 12px; padding: 12px 10px; cursor: pointer;
+      color: var(--ink); text-align: left; font: inherit;
+      transition: border-color .12s, transform .12s }}
+.mk-arc:hover {{ border-color: var(--dim) }}
+.mk-arc.sel {{ border-color: var(--acc);
+      box-shadow: 0 0 0 1px var(--acc) }}
+.mk-arc:active {{ transform: scale(.98) }}
+.mk-arc b {{ font-size: 13px }}
+.mk-arc i {{ font-style: normal; font-size: 10.5px; color: var(--dim);
+      line-height: 1.4 }}
+.mk-arc-strip {{ display: flex; height: 22px; border-radius: 5px;
+      overflow: hidden }}
+.mk-arc-strip::before {{ content: ""; flex: 2 }}
+.mk-arc-strip::after {{ content: ""; flex: 1 }}
+.s-0 {{ background: linear-gradient(90deg, #ffcc00, #00a3ff) }}
+.s-1 {{ background: linear-gradient(90deg, #e84b5f, #6d8bff) }}
+.s-2 {{ background: linear-gradient(90deg, #3ecf8e, #1a6dff) }}
+.s-3 {{ background: linear-gradient(90deg, #8b6dff, #ff661a) }}
+.s-4 {{ background: linear-gradient(90deg, #fa9600, #3ecf8e) }}
+.mk-fields {{ display: flex; flex-direction: column; gap: 10px;
+      margin-top: 14px }}
+.mk-fields textarea {{ width: 100%; min-height: 64px; background: var(--panel2);
+      color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; padding: 10px 12px; font: inherit;
+      resize: vertical; outline: none }}
+.mk-fields textarea:focus {{ border-color: var(--acc) }}
+.mk-row {{ display: flex; gap: 10px; flex-wrap: wrap }}
+.mk-row select, .mk-row input {{ background: var(--panel2); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 8px 10px; font: inherit; outline: none; flex: 1;
+      min-width: 140px }}
+.mk-go {{ margin-top: 14px; background: linear-gradient(135deg,var(--acc),
+      var(--acc2)); border: 0; color: #0d1122; font-weight: 700;
+      border-radius: 10px; padding: 11px 26px; font-size: 14px;
+      cursor: pointer }}
+.mk-go:disabled {{ opacity: .6; cursor: default }}
 #msg {{ margin-top: 12px; font-size: 12.5px; color: var(--dim);
         white-space: pre-wrap }}
 .guide {{ background: var(--panel); border: 1px solid var(--line);
@@ -2697,45 +2745,96 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
 .empty {{ color: var(--dim); font-size: 13px }}
 </style></head><body><div class="wrap">
 <h1>xmedia Studio</h1>
-<div class="sub">一句话建项目 → 分镜审阅 → 导出 MP4（全部本地、确定性管线）</div>
-<div class="new">
-  <textarea id="message" placeholder="一句话说你要做什么视频，例如：把切片发布从半天缩短到一分钟「切片工作流」"></textarea>
-  <div class="row">
-    <select id="arc">{arc_opts}</select>
-    <input id="audience" placeholder="受众（可选）">
-    <input id="mood" placeholder="音乐/能量（可选）">
-    <input id="name" placeholder="项目名（可选，默认自动）">
-    <button class="go" id="create">创建项目</button>
+<div class="sub">做个东西 → 分镜审阅 → 导出 MP4（全部本地、确定性管线）</div>
+<div class="mk">
+  <div class="mk-step" id="mk-step-label">1 of 3 · 你想做个什么？</div>
+  <div class="mk-grid" role="group" aria-label="你想做个什么？">{arc_cards}</div>
+  <div class="mk-fields" id="mk-fields" style="display:none">
+    <div class="mk-step">2 of 3 · 这条片子说什么</div>
+    <textarea id="message" placeholder="一句话说你要做什么视频，例如：把切片发布从半天缩短到一分钟「切片工作流」"></textarea>
+    <div class="mk-row">
+      <input id="audience" placeholder="受众（可选）">
+      <input id="mood" placeholder="音乐/能量（可选）">
+    </div>
+    <div class="mk-step" style="margin-top:8px">3 of 3 · 品牌（可选）</div>
+    <div class="mk-row">
+      <select id="brand"><option value="">不用品牌（默认色板）</option></select>
+      <input id="name" placeholder="项目名（可选，默认自动）" style="flex:1">
+    </div>
+    <button class="go mk-go" id="create">合成首剪</button>
   </div>
   <div id="msg"></div>
 </div>
 <div class="guide">
-  <div class="g-step"><b>1</b> 上面一句话创建项目（5 个商业叙事 Arc）</div>
+  <div class="g-step"><b>1</b> 选一个叙事类型 → 一句话 brief →「合成首剪」（5 个商业叙事 Arc）</div>
   <div class="g-step"><b>2</b> 编辑页左栏「对话」说一句话改内容 ·「分镜」逐镜看真实帧（卡上直接改文案/时长）</div>
   <div class="g-step"><b>3</b> 顶栏「导出 MP4」选画质/格式/帧率出片（全部本地、确定性管线）</div>
 </div>
 <h2 style="font-size:15px">项目</h2>
-<div class="pjs">{cards or '<div class="empty">还没有项目——上面一句话创建第一个</div>'}</div>
+<div class="pjs">{cards or '<div class="empty">还没有项目——上面选个类型开做</div>'}</div>
 </div>
 <script>
-document.getElementById("create").onclick = function () {{
-  var body = {{ message: document.getElementById("message").value,
-               arc: document.getElementById("arc").value,
-               audience: document.getElementById("audience").value,
-               mood: document.getElementById("mood").value,
-               name: document.getElementById("name").value }};
-  var msg = document.getElementById("msg");
-  msg.textContent = "创建中…";
-  fetch("/api/project/create", {{ method: "POST",
-    headers: {{ "Content-Type": "application/json" }},
-    body: JSON.stringify(body) }})
-    .then(function (r) {{ return r.json(); }})
-    .then(function (r) {{
-      if (r.error) {{ msg.textContent = "失败：" + r.error; return; }}
-      location.href = r.url;
-    }})
-    .catch(function (e) {{ msg.textContent = "失败：" + e.message; }});
-}};
+(function () {{
+  var arc = null;
+  var grid = document.querySelector(".mk-grid");
+  var fields = document.getElementById("mk-fields");
+  var label = document.getElementById("mk-step-label");
+  grid.addEventListener("click", function (ev) {{
+    var btn = ev.target.closest(".mk-arc");
+    if (!btn) return;
+    arc = btn.dataset.arc;
+    grid.querySelectorAll(".mk-arc").forEach(function (b) {{
+      b.classList.toggle("sel", b === btn);
+    }});
+    fields.style.display = "flex";
+    label.textContent = "已选「" + btn.querySelector("b").textContent +
+                        "」· 2 of 3 这条片子说什么";
+    document.getElementById("message").focus();
+  }});
+  /* 品牌 kits 注入（/api/brands 同源数据，default pin 标记） */
+  fetch("/api/brands").then(function (r) {{ return r.json(); }}).then(function (r) {{
+    var sel = document.getElementById("brand");
+    (r.brands || []).forEach(function (b) {{
+      var o = document.createElement("option");
+      o.value = b.name;
+      o.textContent = b.name + (b._default ? "（默认）" : "");
+      sel.appendChild(o);
+    }});
+  }}).catch(function () {{}});
+  document.getElementById("create").onclick = function () {{
+    if (!arc) {{ document.getElementById("msg").textContent = "先选一个类型"; return; }}
+    var body = {{ message: document.getElementById("message").value,
+                 arc: arc,
+                 audience: document.getElementById("audience").value,
+                 mood: document.getElementById("mood").value,
+                 name: document.getElementById("name").value,
+                 brand: document.getElementById("brand").value }};
+    if (!body.message.trim()) {{
+      document.getElementById("msg").textContent = "说一句话你要做什么";
+      document.getElementById("message").focus();
+      return;
+    }}
+    var btn = this, msg = document.getElementById("msg");
+    btn.disabled = true;
+    msg.textContent = "合成中…（叙事骨架 → 占位文案 → 契约页）";
+    fetch("/api/project/create", {{ method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify(body) }})
+      .then(function (r) {{ return r.json(); }})
+      .then(function (r) {{
+        if (r.error) {{
+          msg.textContent = "失败：" + r.error;
+          btn.disabled = false;
+          return;
+        }}
+        location.href = r.url;
+      }})
+      .catch(function (e) {{
+        msg.textContent = "失败：" + e.message;
+        btn.disabled = false;
+      }});
+  }};
+}})();
 </script></body></html>"""
 
 
