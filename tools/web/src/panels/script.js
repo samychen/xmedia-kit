@@ -36,7 +36,7 @@ export function scriptBuild() {
 export function scriptRender() {
   scriptBuild();
   var box = $("script-words");
-  box.innerHTML = "";
+  box.replaceChildren();
   scriptTokens.forEach(function (tk, i) {
     var el = document.createElement("span");
     el.textContent = tk.text + " ";

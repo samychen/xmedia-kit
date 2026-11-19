@@ -25,6 +25,8 @@
   #timeline { position: relative; flex: 1; overflow: hidden; min-height: 0;
               cursor: crosshair; }
   .tl-scroll { position: absolute; inset: 0; overflow: auto; }
+  .tl-scroll { scrollbar-color: #34344c #0d0d14;
+               scrollbar-width: thin; }
   .tl-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
   .tl-scroll::-webkit-scrollbar-thumb { background: #34344c;
                                         border-radius: 5px; }

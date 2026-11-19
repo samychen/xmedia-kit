@@ -14,7 +14,7 @@ export function tplRender() {
   api("/api/templates").then(function (r) {
     var tpls = r.templates || [];
     $("tpl-count").textContent = tpls.length + " 个模板";
-    list.innerHTML = "";
+    list.replaceChildren();
     if (!tpls.length) {
       list.innerHTML = '<div class="sb-empty">templates/ 目录为空</div>';
       return;

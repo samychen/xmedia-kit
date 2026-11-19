@@ -270,7 +270,7 @@ export function renderTimeline() {
   var cw = Math.max(220, Math.round(total * tlPPS));
   var grid = $("tl-grid");
   grid.style.width = (HEAD_W + cw) + "px";
-  grid.innerHTML = "";
+  grid.replaceChildren();
   // 轨道 DOM 重建后清掉写入缓存，否则新元素会因「值没变」而留空。
   lastTcHtml = lastLabel = lastBadge = lastTlTc = "";
   $("tl-zoom-label").textContent =

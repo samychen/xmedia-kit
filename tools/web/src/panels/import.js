@@ -53,7 +53,7 @@ export function impClearFiles() {
 }
 export function impRenderFiles() {
   var box = $("imp-files");
-  box.innerHTML = "";
+  box.replaceChildren();
   impPicked.forEach(function (f, i) {
     var c = document.createElement("span");
     c.className = "imp-chip";
@@ -195,6 +195,7 @@ $("imp-specdir").onclick = function () {
   if (d) { $("imp-dir").value = d; impTab("dir"); }
 };
 $("imp-dir").addEventListener("keydown", function (ev) {
+  if (ev.isComposing || ev.keyCode === 229) return;  // CJK 组合中不触发
   if (ev.key === "Enter") { ev.preventDefault(); impRun(); }
 });
 $("imp-drop").onclick = function () { $("imp-picker").click(); };

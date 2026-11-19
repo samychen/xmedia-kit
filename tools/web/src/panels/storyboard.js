@@ -61,7 +61,7 @@ export function storyboardRender() {
   $("sb-count").textContent = scenes.length
     ? scenes.length + " 镜 · 总长 " + (state.duration || 0).toFixed(1) + "s"
     : "";
-  list.innerHTML = "";
+  list.replaceChildren();
   if (!scenes.length) {
     list.innerHTML = '<div class="sb-empty">spec 中还没有场景</div>';
     return;

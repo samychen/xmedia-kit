@@ -12,7 +12,7 @@ export function pendingRender() {
   var box = $("ask-pending"), rows = $("ask-pending-rows");
   box.classList.toggle("has", pendingEdits.length > 0);
   $("ask-pending-n").textContent = pendingEdits.length;
-  rows.innerHTML = "";
+  rows.replaceChildren();
   pendingEdits.forEach(function (t, i) {
     var row = document.createElement("div");
     row.className = "ask-pend-row";

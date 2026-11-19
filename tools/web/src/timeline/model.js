@@ -133,7 +133,7 @@ export function stripHTML(sc, idx, wpx) {
    spec.video 路径缓存，避免每次 renderTimeline 重复请求 / 抽帧。 */
 export var thumbCache = {};
 export function paintThumbs(holder, frames) {
-  holder.innerHTML = "";
+  holder.replaceChildren();
   holder.classList.remove("loading");
   holder.classList.add("vid");
   for (var i = 0; i < frames.length; i++) {

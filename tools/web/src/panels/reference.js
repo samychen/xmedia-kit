@@ -65,6 +65,7 @@ $("btn-ref").onclick = function () {
 };
 $("ref-go").onclick = function () { refStart($("ref-path").value); };
 $("ref-path").addEventListener("keydown", function (ev) {
+  if (ev.isComposing || ev.keyCode === 229) return;  // CJK 组合中不触发
   if (ev.key === "Enter") refStart($("ref-path").value);
 });
 $("ref-close").onclick = refClose;

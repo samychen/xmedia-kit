@@ -12,7 +12,7 @@ import { storyboardIsOpen, storyboardRender } from "./storyboard.js";
 
 /* ---------------- 校验 / 状态 ---------------- */
 export function renderFindings(f) {
-  var el = $("findings"); el.innerHTML = "";
+  var el = $("findings"); el.replaceChildren();
   // 只展示错误与警告：契约校验的 info 项是"已确认合规"的噪音，默认不占
   // 预览区高度；状态徽章已表达"校验通过"。
   (f || []).filter(function (x) {
