@@ -683,16 +683,31 @@ def cmd_brand(args):
         return
     if args.action == "save":
         os.makedirs(d, exist_ok=True)
+        # v2 结构（对齐 HF brand kit：colors with roles / ink / fonts
+        # with weight / rules Do's-Don'ts）；v1 兼容字段（palette/
+        # text_color）同时保留给旧读取方。
+        palette = [args.palette1 or "#1a1a2e",
+                   args.palette2 or "#16213e",
+                   args.palette3 or "#0f3460"]
+        ink = args.text or "#f0f0f5"
         brand = {"name": args.name,
+                 "revision": 1,
                  "background": args.background or "#0a0a1a",
-                 "palette": [args.palette1 or "#1a1a2e",
-                             args.palette2 or "#16213e",
-                             args.palette3 or "#0f3460"],
-                 "text_color": args.text or "#f0f0f5",
+                 "colors": [{"hex": palette[0], "role": "ground"},
+                            {"hex": palette[1], "role": "surface"},
+                            {"hex": palette[2], "role": "accent"}],
+                 "palette": palette,
+                 "ink": ink,
+                 "text_color": ink,
+                 "fonts": {"body": {"family": args.font_family or "",
+                                    "weight": 400}},
+                 "font_family": args.font_family or "",
                  "voice": args.voice or "Tingting",
+                 "outro": {"text": args.outro or "",
+                           "logo_text": args.logo or ""},
                  "outro_text": args.outro or "",
                  "logo_text": args.logo or "",
-                 "font_family": args.font_family or ""}
+                 "rules": {"dos": [], "donts": []}}
         if args.logo_image:
             if not os.path.isfile(args.logo_image):
                 print(f"xmedia: logo 图片不存在 {args.logo_image}",
@@ -710,6 +725,22 @@ def cmd_brand(args):
             f.write("\n")
         print(f"xmedia: 品牌「{args.name}」已保存 {path}")
         return
+    if args.action == "default":
+        pin = os.path.join(d, ".default")
+        if args.name:
+            if not os.path.exists(os.path.join(d, args.name + ".json")):
+                print(f"xmedia: 品牌「{args.name}」不存在", file=sys.stderr)
+                sys.exit(1)
+            with open(pin, "w", encoding="utf-8") as f:
+                f.write(args.name)
+            print(f"xmedia: 默认品牌已设为「{args.name}」（新项目自动应用）")
+        else:
+            if os.path.isfile(pin):
+                print("xmedia: 默认品牌 =",
+                      open(pin, encoding="utf-8").read().strip())
+            else:
+                print("xmedia: 未设置默认品牌（brand default <名> 设置）")
+        return
     if args.action == "show":
         path = os.path.join(d, args.name + ".json")
         if not os.path.exists(path):
@@ -718,7 +749,8 @@ def cmd_brand(args):
             sys.exit(1)
         print(open(path, encoding="utf-8").read())
         return
-    # apply
+    # apply（注入逻辑统一走 hf_agent.apply_brand——与 Studio 指令/Home
+    # 默认品牌同一份逻辑）
     path = os.path.join(d, args.name + ".json")
     if not os.path.exists(path):
         print(f"xmedia: 品牌「{args.name}」不存在（brand list 查看）",
@@ -729,47 +761,22 @@ def cmd_brand(args):
         print(f"xmedia: spec 不存在 {args.spec}", file=sys.stderr)
         sys.exit(1)
     spec = json.load(open(args.spec, encoding="utf-8"))
-    palette = brand.get("palette", [])
-    text = brand.get("text_color", "")
-    n = 0
-    n_logo = 0
-    for i, sc in enumerate(spec.get("scenes", [])):
-        if not sc.get("video"):
-            if palette:
-                sc["bg"] = palette[i % len(palette)]
-            if text:
-                sc.setdefault("color", text)
-            n += 1
-    if spec.get("background"):
-        spec["background"] = brand.get("background", spec["background"])
-    if brand.get("voice"):
-        spec.setdefault("tts", {})["voice"] = brand["voice"]
-    # logo 图片入包：brand 的 logo_image（相对品牌文件，或 URL 已下载到
-    # 品牌目录）注入每个无图场景——backdrop 模式铺满置底，corner 角标
-    # 水印由 --logo-mode 控制（默认 corner，logo 常态）。
-    logo_rel = brand.get("logo_image")
-    if logo_rel:
-        mode = "corner" if not getattr(args, "logo_mode", None) or \
-            args.logo_mode == "corner" else "backdrop"
-        for sc in spec.get("scenes", []):
-            if not sc.get("image") and not sc.get("video"):
-                sc["image"] = {"src": logo_rel, "mode": mode}
-                n_logo += 1
-        if brand.get("font_family"):
-            spec.setdefault("fonts", {})["body"] = brand["font_family"]
-    out_scenes = [sc for sc in spec.get("scenes", [])
-                  if sc.get("type") == "outro"]
-    for sc in out_scenes:
-        if brand.get("outro_text"):
-            sc["text"] = brand["outro_text"]
-        if brand.get("logo_text") and "subtitle" in sc:
-            sc["subtitle"] = brand["logo_text"]
+    sys.path.insert(0, TOOLS_DIR)
+    import hf_agent
+    logo_src = ""
+    if brand.get("logo_image"):
+        # 品牌资产目录里的 logo → 绝对路径（契约页 file:// 可读）
+        cand = os.path.join(d, brand["logo_image"])
+        logo_src = os.path.abspath(cand) if os.path.isfile(cand) else \
+            brand["logo_image"]
+    brand["logo_src"] = logo_src
+    spec, notes = hf_agent.apply_brand(spec, brand)
     with open(args.spec, "w", encoding="utf-8") as f:
         json.dump(spec, f, ensure_ascii=False, indent=1)
         f.write("\n")
-    print(f"xmedia: 品牌「{args.name}」已应用 {args.spec}"
-          f"（{n} 个场景换色，logo 图 {n_logo} 处，outro 署名 "
-          f"「{brand.get('outro_text') or '未设置'}」）")
+    print(f"xmedia: 品牌「{args.name}」已应用 {args.spec}")
+    for n in notes:
+        print(f"  {n}")
 
 
 def _brand_scan(url):
@@ -1103,8 +1110,10 @@ def main():
                    help="用 hf_asr 把参考音频转成全局字幕段")
     p.add_argument("--name", default="", help="合成 id")
     p.set_defaults(fn=cmd_reference)
-    p = sub.add_parser("brand", help="品牌套件：save/list/show/apply/scan")
-    p.add_argument("action", choices=["save", "list", "show", "apply", "scan"])
+    p = sub.add_parser("brand", help="品牌套件：save/list/show/apply/scan/default")
+    p.add_argument("action",
+                   choices=["save", "list", "show", "apply", "scan",
+                            "default"])
     p.add_argument("name", nargs="?", help="品牌名")
     p.add_argument("--spec", help="apply 目标 spec JSON")
     p.add_argument("--logo-mode", choices=["corner", "backdrop"],

@@ -1427,6 +1427,22 @@ class StudioServer:
             fps=int(body.get("fps") or 30),
             voice=str(body.get("voice") or "Tingting"))
         spec["composition"]["id"] = name
+        # workspace 默认品牌（HF brand kits 的 default pin 语义）：
+        # 新项目自动应用 pin 的品牌。
+        try:
+            broot = os.path.expanduser(os.environ.get(
+                "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+            pin = os.path.join(broot, ".default")
+            if os.path.isfile(pin):
+                bname = open(pin, encoding="utf-8").read().strip()
+                bfile = os.path.join(broot, bname + ".json")
+                if os.path.isfile(bfile):
+                    brand = json.load(open(bfile, encoding="utf-8"))
+                    sys.path.insert(0, TOOLS_DIR)
+                    import hf_agent
+                    spec, _ = hf_agent.apply_brand(spec, brand)
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
         spec_file = os.path.join(d, "spec.json")
         with open(spec_file, "w", encoding="utf-8") as f:
             json.dump(spec, f, ensure_ascii=False, indent=1)
@@ -1851,6 +1867,28 @@ class StudioServer:
             f"[{r.get('backend', '?')}] 用户: {str(r.get('user', ''))[:120]}"
             f"\n助手: {str(r.get('assistant', ''))[:200]}"
             for r in history) or "（无）"
+        # 品牌规则注入（HF brand kit 的 Do's and Don'ts prose）：默认
+        # 品牌存在时读其 rules 注入 agent 上下文。
+        brand_rules = ""
+        try:
+            broot = os.path.expanduser(os.environ.get(
+                "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+            pin = os.path.join(broot, ".default")
+            if os.path.isfile(pin):
+                bname = open(pin, encoding="utf-8").read().strip()
+                bfile = os.path.join(broot, bname + ".json")
+                if os.path.isfile(bfile):
+                    brand = json.load(open(bfile, encoding="utf-8"))
+                    rules = brand.get("rules") or {}
+                    dos = rules.get("dos") or []
+                    donts = rules.get("donts") or []
+                    if dos or donts:
+                        brand_rules = (
+                            "\n【品牌规则（brand kit，必须遵守）】\n"
+                            + ("".join(f"- 应该：{d}\n" for d in dos))
+                            + ("".join(f"- 禁止：{d}\n" for d in donts)))
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
         # 叙事纪律注入：spec.storyboard.direction 存在时（HF Storyboard
         # 工作流的方向块），agent 逐帧编辑必须遵守这些规则。
         sb = (self.current_spec or {}).get("storyboard") or {}
@@ -1912,7 +1950,7 @@ class StudioServer:
             f"- 【skill 工作流】大改动（新项目/多场景结构）先读 "
             f"{ROOT_DIR}/skills/launch/SKILL.md 按其 Order 执行；技能"
             "清单里没有的技能，看 skills/ 目录下有没有对应的 SKILL.md\n"
-            f"{discipline}\n"
+            f"{brand_rules}{discipline}\n"
             f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
 
     def _spec_diff_summary(self, before_scenes, after_scenes):

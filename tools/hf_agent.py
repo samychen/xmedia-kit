@@ -199,6 +199,61 @@ def _topic_of(msg):
     return m.group(1).strip() if m else ""
 
 
+def apply_brand(spec, brand):
+    """品牌套件统一注入（xmedia brand apply / agent 指令 / Home 默认
+    品牌共用这一份逻辑）。v2 结构（colors with roles / ink / fonts /
+    rules）为主，v1 扁平字段（palette/text_color）兼容读取。
+
+    返回 (spec, 摘要行列表)。"""
+    scenes = spec.get("scenes") or []
+    # 色板：v2 colors[{hex, role}] 按序循环；v1 palette 兼容
+    colors = [c["hex"] for c in brand.get("colors", []) if c.get("hex")]
+    if not colors:
+        colors = brand.get("palette", [])
+    text = brand.get("ink") or brand.get("text_color", "")
+    n = 0
+    for i, sc in enumerate(scenes):
+        if not sc.get("video"):
+            if colors:
+                sc["bg"] = colors[i % len(colors)]
+            if text:
+                sc.setdefault("color", text)
+            n += 1
+    if spec.get("background"):
+        spec["background"] = brand.get("background", spec["background"])
+    if brand.get("voice"):
+        spec.setdefault("tts", {})["voice"] = brand["voice"]
+    # 字体（v2 fonts.body/display 或 v1 font_family）
+    fonts = brand.get("fonts") or {}
+    body_font = (fonts.get("body") or {}).get("family") or \
+        brand.get("font_family", "")
+    if body_font:
+        spec.setdefault("fonts", {})["body"] = body_font
+    # outro
+    for sc in scenes:
+        if sc.get("type") == "outro":
+            if brand.get("outro_text"):
+                sc["text"] = brand["outro_text"]
+            logo_text = brand.get("logo_text") or \
+                (brand.get("outro") or {}).get("logo_text", "")
+            if logo_text and "subtitle" in sc:
+                sc["subtitle"] = logo_text
+    # logo 图片（identity mark）：brand["logo_src"] 由调用方解析为
+    # 对 spec/契约页可读的 src（相对项目目录或绝对路径）。
+    logo_src = brand.get("logo_src") or brand.get("logo_image") or ""
+    mode = brand.get("logo_mode", "corner")
+    n_logo = 0
+    if logo_src:
+        for sc in scenes:
+            if not sc.get("image") and not sc.get("video"):
+                sc["image"] = {"src": logo_src, "mode": mode}
+                n_logo += 1
+    notes = [f"色板 {len(colors) or '继承'} 色 · 文字 {text or '不变'}"
+             f" · 音色 {brand.get('voice') or '不变'}"
+             f" · logo 图 {n_logo} 处"]
+    return spec, notes
+
+
 def _int(s, default=0):
     cn = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
           "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
