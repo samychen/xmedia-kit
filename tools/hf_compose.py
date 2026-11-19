@@ -762,9 +762,9 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
             f'  #scene-{idx} {{ background: {bg_style}; color: {color}; }}')
 
     design_root, design_scene = _design_css(spec, bg)
+    style_block = "\n".join(scene_styles)
     if design_scene:
         design_scene = "\n" + design_scene
-        style_block = "\n".join(scene_styles)
     if tpl_css:
         style_block += "\n" + "\n".join(tpl_css)
 
