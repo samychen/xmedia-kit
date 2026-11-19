@@ -1784,7 +1784,9 @@ class StudioServer:
            约定：CLI 收到【prompt 作为最后一个参数】，输出纯文本回复
            （claude 的 --output-format json 解析仅对 cli=="claude" 生效）。
            XMEDIA_AGENT_NAME 可选显示名（默认取可执行文件名）。
-        2. 内置探测：claude -p --output-format json → codex exec。"""
+        2. 内置探测：claude/codebuddy -p --output-format stream-json
+           （逐行 JSON 事件流——assistant text 实时进 tail，进程退出 =
+           真完成）→ codex exec。"""
         custom = os.environ.get("XMEDIA_AGENT_CMD")
         if custom:
             cmd = None
@@ -1801,7 +1803,11 @@ class StudioServer:
                         or os.path.basename(cmd[0]))
                 return {"cli": name, "cmd": cmd, "custom": True}
         for name, cmd in (("claude", ["claude", "-p", "--output-format",
-                                      "json"]),
+                                      "stream-json", "--verbose"]),
+                          ("codebuddy", ["codebuddy", "-p",
+                                         "--output-format", "stream-json",
+                                         "--permission-mode",
+                                         "acceptEdits"]),
                           ("codex", ["codex", "exec"])):
             path = shutil.which(name)
             if path:
@@ -1971,12 +1977,15 @@ class StudioServer:
             self._chat_log(message, job["reply"], cli)
             return
         tail_lines = []
-        # 流式收集：daemon 轮询读 tail；进程结束取剩余
+        texts = []          # assistant text 块累积（= 回复）
+        tool_steps = []     # 工具步骤（tail 显示）
+        is_error = False
         import selectors
         sel = selectors.DefaultSelector()
         sel.register(proc.stdout, selectors.EVENT_READ)
         deadline = time.time() + self.AGENT_CHAT_TIMEOUT_S
         buf = ""
+        idle = 0   # 无新输出的轮询计数（0.5s/轮，挂起兜底用）
         while True:
             if time.time() > deadline:
                 proc.kill()
@@ -1987,31 +1996,55 @@ class StudioServer:
                 self._chat_log(message, "（agent 运行超时）", cli)
                 return
             events = sel.select(timeout=0.5)
+            eof = False
             for key, _ in events:
-                chunk = key.fileobj.readline()
-                if chunk:
-                    buf += chunk
-                    tail_lines.append(chunk.rstrip())
-                    job["tail"] = "\n".join(tail_lines[-14:])
-            if not events and proc.poll() is not None:
+                line = key.fileobj.readline()
+                if line == "":
+                    eof = True   # stdout 关闭 = agent 输出完成
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                # stream-json 事件流（claude/codebuddy 同构）：逐行 JSON，
+                # assistant 的 text 块实时进 tail（HF 过程可视化）、
+                # tool_use 显示工具步骤、result 是最终回复。
+                obj = None
+                try:
+                    obj = json.loads(line)
+                except (json.JSONDecodeError, ValueError):
+                    tail_lines.append(line[:120])
+                    job["tail"] = "\n".join(tail_lines[-6:])
+                    continue
+                etype = obj.get("type")
+                if etype == "assistant":
+                    msg = obj.get("message") or {}
+                    for c in (msg.get("content") or []):
+                        ctype = c.get("type")
+                        if ctype == "text" and c.get("text"):
+                            texts.append(c["text"])
+                            job["tail"] = c["text"][:300]
+                        elif ctype == "tool_use":
+                            step = "[工具] " + c.get("name", "?")
+                            tool_steps.append(step)
+                            job["tail"] = step
+                elif etype == "result":
+                    texts.append(str(obj.get("result") or ""))
+                    is_error = bool(obj.get("is_error"))
+                    parsed = True
+            if eof or proc.poll() is not None:
+                break
+            if not events:
+                idle += 1
+            # 挂起兜底：stdout 长时间无新行且进程未退（agent 完成后偶发
+            # 挂住，实测）——40s 无新行视为完成，收 tail。
+            if buf and idle >= 80:
+                proc.kill()
                 break
         proc.wait()
-        reply_raw = (buf or "").strip()
-        reply, is_error, parsed = reply_raw, False, False
-        if cli == "claude":
-            payload = None
-            for cand in [reply_raw] + reply_raw.splitlines():
-                try:
-                    obj = json.loads(cand)
-                except (json.JSONDecodeError, ValueError):
-                    continue
-                if isinstance(obj, dict) and "result" in obj:
-                    payload = obj
-                    break
-            if payload is not None:
-                reply = str(payload.get("result") or "")
-                is_error = bool(payload.get("is_error"))
-                parsed = True
+        # stream-json 收集的 texts 最后一条 = agent 的最终回复；
+        # is_error 已在事件流里提取。
+        reply = (texts[-1] if texts else "").strip() or \
+            ("\n".join(tool_steps[-3:]) or "（agent 无文本输出）")
         spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
                         os.path.getmtime(spec_path) > spec_mtime_before)
         job["spec_updated"] = spec_changed
