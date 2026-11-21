@@ -45,6 +45,9 @@ bool ParseBakeArgs(int argc, char** argv, BakeArgs* out) {
     } else if (std::strcmp(argv[i], "--clock") == 0 && !v.empty()) {
       a.clock = v;  // virtual_time | seek | live
       ++i;
+    } else if (std::strcmp(argv[i], "--paint-wait") == 0) {
+      a.paint_wait_ms = std::max(100, std::atoi(v.c_str()));
+      ++i;
     } else if (std::strcmp(argv[i], "--chunks") == 0) {
       a.chunks = std::max(1, std::atoi(v.c_str()));
       ++i;

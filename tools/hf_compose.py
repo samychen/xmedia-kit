@@ -381,42 +381,58 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     content = scene.get("content", [])
     scene_id = f"scene-{idx}"
 
-    # 场景类型 → 内部布局
+    # 场景类型 → 内部布局。设计语言（frame-worker 实测固化为模板默认）：
+    # 左对齐偏置构图（.scene-stack 容器承担，去居中对称模板感）、一根
+    # 发丝线分隔、编号等宽小标、outro 反转强调拍（ink 实块擦入反白）。
+    # 两色纪律：强调只用反转/放大/密度，不引入第三色。
+    HAIRLINE = '<i class="hairline"></i>'
     if typ == "title":
-        inner = f'<h1 class="scene-title">{text}</h1>'
+        inner = (f'<div class="scene-stack">{HAIRLINE}'
+                 f'<h1 class="scene-title">{text}</h1>')
         if subtitle:
             inner += f'<p class="scene-subtitle">{subtitle}</p>'
+        inner += '</div>'
     elif typ == "text":
-        inner = f'<p class="scene-body">{text}</p>'
+        inner = f'<div class="scene-stack">{HAIRLINE}'
+        inner += f'<p class="scene-body">{text}</p>'
         for c in content:
             cc = esc(c.get("text", ""))
             inner += f'<p class="scene-item">{cc}</p>'
+        inner += '</div>'
     elif typ == "quote":
         quote = esc(scene.get("quote", text))
         author = esc(scene.get("author", ""))
-        inner = f'<blockquote class="scene-quote">&ldquo;{quote}&rdquo;</blockquote>'
+        inner = (f'<div class="scene-stack">{HAIRLINE}'
+                 f'<p class="scene-quote"><span class="qmark">&ldquo;</span>'
+                 f'{quote}&rdquo;</p>')
         if author:
             inner += f'<p class="scene-quote-author">&mdash; {author}</p>'
+        inner += '</div>'
     elif typ == "list":
         items = content if content else [{"text": t} for t in scene.get("items", [])]
-        inner = f'<h2 class="scene-heading">{text}</h2>'
+        inner = (f'<div class="scene-stack">{HAIRLINE}'
+                 f'<h2 class="scene-heading">{text}</h2>')
         inner += '<ul class="scene-list">'
-        for c in items:
+        for j, c in enumerate(items):
             cc = esc(c.get("text", "") if isinstance(c, dict) else str(c))
-            inner += f'<li class="scene-list-item">{cc}</li>'
-        inner += '</ul>'
+            inner += (f'<li class="scene-list-item">'
+                      f'<em class="num">{j + 1:02d}</em>{cc}</li>')
+        inner += '</ul></div>'
     elif typ == "stats":
         stat_value = esc(scene.get("value", ""))
         stat_desc = esc(scene.get("description", ""))
-        inner = f'<div class="scene-stat-value">{stat_value}</div>'
+        inner = (f'<div class="scene-stack">{HAIRLINE}'
+                 f'<div class="scene-stat-value">{stat_value}</div>')
         if stat_desc:
             inner += f'<p class="scene-stat-desc">{stat_desc}</p>'
+        inner += '</div>'
     elif typ == "comparison":
         left_col = esc(scene.get("left", ""))
         right_col = esc(scene.get("right", ""))
         left_items = scene.get("left_items", [])
         right_items = scene.get("right_items", [])
-        inner = f'<h2 class="scene-heading">{text}</h2>'
+        inner = (f'<div class="scene-stack">{HAIRLINE}'
+                 f'<h2 class="scene-heading">{text}</h2>')
         inner += '<div class="scene-comparison">'
         inner += f'<div class="comp-col"><h3>{left_col}</h3><ul>'
         for c in left_items:
@@ -425,9 +441,10 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         inner += f'<div class="comp-col"><h3>{right_col}</h3><ul>'
         for c in right_items:
             inner += f'<li>{esc(c)}</li>'
-        inner += '</ul></div></div>'
-    else:  # outro
-        inner = f'<h1 class="scene-title">{text}</h1>'
+        inner += '</ul></div></div></div>'
+    else:  # outro：反转强调拍——ink 实块擦入后文字反白（GSAP 编排）
+        inner = (f'<i class="invert-block"></i>'
+                 f'<h1 class="scene-title scene-inv">{text}</h1>')
 
     # 视频背景元素（场景级 video 字段）：铺满场景层，文本浮在其上；
     # data-start/duration 供烘焙侧逐帧对位（video.currentTime 同步）与
@@ -481,6 +498,51 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     return html, dur
 
 
+def _element_anim_js(idx, typ, base):
+    """场景元素接力编排（frame-worker 的逐元素入场）：发丝线擦入 →
+    主文起 → 次行 stagger。base = 元素编排起点（场景入场大半完成后）。
+    全部 fromTo 挂同一条 paused 时间线（绝对秒）——seek 精确还原。
+    outro 是反转强调拍：ink 实块擦入 → 文字反白。"""
+    t = f"#scene-{idx}"
+    L = []
+    if typ == "outro":
+        blk = f"{t} .invert-block"
+        L.append(
+            f'  tl.fromTo("{blk}", {{scaleX: 0}}, '
+            f'{{scaleX: 1, duration: 0.55, ease: "power3.inOut"}}, '
+            f'{round(base, 3)});')
+        inv = f"{t} .scene-inv"
+        L.append(
+            f'  tl.fromTo("{inv}", {{opacity: 0}}, '
+            f'{{opacity: 1, duration: 0.4, ease: "power2.out"}}, '
+            f'{round(base + 0.42, 3)});')
+        return L
+    # 主文（title/body/heading/stat-value/quote）在发丝线后起
+    prim = {"title": ".scene-title", "text": ".scene-body",
+            "list": ".scene-heading", "stats": ".scene-stat-value",
+            "quote": ".scene-quote", "comparison": ".scene-heading"}.get(typ)
+    secs = {"title": [".scene-subtitle"], "text": [".scene-item"],
+            "list": [".scene-list-item"], "stats": [".scene-stat-desc"],
+            "quote": [".scene-quote-author"],
+            "comparison": [".comp-col"]}.get(typ, [])
+    if typ in ("title", "text", "quote", "list", "stats", "comparison"):
+        L.append(
+            f'  tl.fromTo("{t} .hairline", {{scaleX: 0}}, '
+            f'{{scaleX: 1, duration: 0.45, ease: "power2.out"}}, '
+            f'{round(base, 3)});')
+    if prim:
+        L.append(
+            f'  tl.fromTo("{t} {prim}", {{y: 44, opacity: 0}}, '
+            f'{{y: 0, opacity: 1, duration: 0.55, ease: "power2.out"}}, '
+            f'{round(base + 0.22, 3)});')
+    for j, sel in enumerate(secs):
+        L.append(
+            f'  tl.fromTo("{t} {sel}", {{y: 26, opacity: 0}}, '
+            f'{{y: 0, opacity: 1, duration: 0.4, ease: "power2.out"}}, '
+            f'{round(base + 0.5 + j * 0.14, 3)});')
+    return L
+
+
 def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                     caption_segments=None):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
@@ -491,6 +553,7 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
     因此 --clock seek 烘焙逐帧出图也能拿到正确字幕（不依赖 rAF/CSS 动画）。"""
     lines = []
     for idx, scene in enumerate(scenes):
+        typ = scene.get("type", "text")
         # 场景级转场窗宽（compose 已按场景算好；标量也给，方便外部调用方）。
         trans_dur = (trans_durs[idx] if isinstance(trans_durs, (list, tuple))
                      else trans_durs)
@@ -527,6 +590,11 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
             to_v = to_v[:-1] + f', duration: {enter}, ease: "power2.out"}}'
             lines.append(
                 f'  tl.fromTo("{target}", {from_v}, {to_v}, {starts[idx]});')
+        # 元素接力编排（发丝线/主文/stagger/反转拍）：入场大半完成后
+        # 接力——转场交叉窗内元素动画继续进行，视觉上重叠自然。
+        # anim=="none"（切割接缝）保持无编排。
+        if anim != "none":
+            lines.extend(_element_anim_js(idx, typ, starts[idx] + enter * 0.6))
         # 转场交叉：该场景入场的同时，前一场景按类型出场
         if has_trans:
             prev = f"#scene-{idx-1}"
@@ -821,24 +889,66 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     border-radius: 10px; text-align: center;
   }}
   .scene > .scene-caption.seg {{ opacity: 0; }}
-  .scene-title {{ font-size: 72px; font-weight: 700; }}
-  .scene-subtitle {{ font-size: 36px; opacity: 0.8; margin-top: 16px; }}
-  .scene-body {{ font-size: 42px; line-height: 1.6; }}
-  .scene-item {{ font-size: 28px; opacity: 0.85; margin-top: 12px; }}
-  .scene-quote {{ font-size: 48px; font-style: italic; line-height: 1.4;
-                  max-width: 80%; }}
-  .scene-quote-author {{ font-size: 24px; opacity: 0.7; margin-top: 20px; }}
-  .scene-heading {{ font-size: 48px; font-weight: 600; margin-bottom: 24px; }}
+  /* ---- 模板设计语言（frame-worker 实测固化为默认，design 段可覆盖）----
+     左对齐偏置构图：文字块不居中——上 20vh / 左 8vw 起，视觉重心偏置；
+     发丝线：一根 2px ink 线做呼吸分隔；两色纪律：强调只用反转/放大/
+     密度。字号按竖屏 1920 高的 vh 基准取胆量（title 8vh≈154px）。 */
+  .scene-stack {{
+    width: 84%; max-width: 84%;
+    display: flex; flex-direction: column; align-items: flex-start;
+    text-align: left;
+  }}
+  .hairline {{
+    display: block; width: 64px; height: 2px;
+    background: currentColor; opacity: .85;
+    transform-origin: left center; margin-bottom: 3.2vh;
+  }}
+  .scene-title {{
+    font-size: 8vh; font-weight: 800; line-height: 1.14;
+    letter-spacing: -0.02em; max-width: 100%;
+    text-wrap: balance;
+  }}
+  .scene-subtitle {{ font-size: 2.3vh; opacity: 0.72; margin-top: 2.4vh;
+                     font-weight: 400; }}
+  .scene-body {{ font-size: 3.4vh; line-height: 1.55; max-width: 100%; }}
+  .scene-item {{ font-size: 2.4vh; opacity: 0.82; margin-top: 1.6vh;
+                 font-weight: 400; }}
+  .scene-quote {{ font-size: 4.4vh; line-height: 1.42; font-weight: 700;
+                  max-width: 100%; }}
+  .scene-quote .qmark {{ color: currentColor; opacity: .5; margin-right: .4vh;
+                         font-weight: 800; }}
+  .scene-quote-author {{ font-size: 1.9vh; opacity: 0.62; margin-top: 2.6vh;
+                         font-weight: 400; }}
+  .scene-heading {{ font-size: 4.8vh; font-weight: 800; line-height: 1.2;
+                    margin-bottom: 3.4vh; letter-spacing: -0.01em;
+                    max-width: 100%; }}
   .scene-list {{ list-style: none; text-align: left; }}
-  .scene-list-item {{ font-size: 30px; margin: 16px 0; padding-left: 24px;
-                      border-left: 3px solid currentColor; }}
-  .scene-stat-value {{ font-size: 120px; font-weight: 800; }}
-  .scene-stat-desc {{ font-size: 28px; opacity: 0.8; margin-top: 12px; }}
-  .scene-comparison {{ display: flex; gap: 48px; }}
+  .scene-list-item {{ font-size: 2.9vh; line-height: 1.4; margin: 1.9vh 0;
+                      display: flex; align-items: baseline; }}
+  .scene-list-item .num {{
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 1.7vh; opacity: .5; margin-right: 1.6vh;
+    font-style: normal; flex: none;
+  }}
+  .scene-stat-value {{
+    font-size: 15vh; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.05;
+  }}
+  .scene-stat-desc {{ font-size: 2.4vh; opacity: 0.78; margin-top: 2vh;
+                      font-weight: 400; }}
+  .scene-comparison {{ display: flex; gap: 6vw; width: 100%; }}
   .comp-col {{ flex: 1; text-align: left; }}
-  .comp-col h3 {{ font-size: 32px; font-weight: 600; margin-bottom: 16px;
-                  border-bottom: 2px solid currentColor; padding-bottom: 8px; }}
-  .comp-col li {{ font-size: 26px; margin: 12px 0; }}
+  .comp-col h3 {{ font-size: 2.9vh; font-weight: 800; margin-bottom: 1.8vh;
+                  border-bottom: 2px solid currentColor; padding-bottom: 1.2vh; }}
+  .comp-col li {{ font-size: 2.2vh; margin: 1.4vh 0; opacity: .9; }}
+  /* outro 反转强调拍：ink 实块盖满后文字反白（GSAP 编排驱动）。 */
+  .invert-block {{
+    position: absolute; inset: 0; background: var(--ink);
+    transform: scaleX(0); transform-origin: left center;
+    z-index: 2;
+  }}
+  .scene-inv {{ color: var(--ground); opacity: 0; position: relative;
+                z-index: 3; width: 84%; text-align: left; }}
 {design_scene}
 {style_block}
 </style>

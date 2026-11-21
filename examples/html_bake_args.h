@@ -27,6 +27,10 @@ struct BakeArgs {
   // bake 时钟（MC html_bake_clock 对齐）：virtual_time = VT 步进；
   // seek = 页面 window.seek(t_ms) 契约（MC 默认）；live = 墙钟。
   std::string clock = "virtual_time";
+  // seek/live 时钟下每帧等新 paint 的时长（ms）：页面在 GSAP/字体
+  // 加载期 paint 会迟到，300ms 窗口错过即把旧帧写进产物（好-坏震荡
+  // 的根因）——Python 管线用 1500 提高确定性。
+  int paint_wait_ms = 300;
   // 分块数：时间线均分为 N 窗，每窗独立烘焙（VT 从 0 快进到窗起点——
   // 合成确定性使任意边界成为可能，无 keyframe 对齐约束），Concat 无损
   // 拼接。1 = 单块直通。

@@ -195,13 +195,18 @@ def build(arc, message, audience="", mood="", fmt="9:16", fps=30,
     scenes, frame_records = [], []
     palette = ["#1a1a2e", "#16213e", "#0f3460", "#1a1a2e", "#16213e"]
     for i, fr in enumerate(arc_def["frames"]):
-        scenes.append({
+        sc = {
             "type": fr["scene"],
             "text": _fill_placeholder(fr["placeholder"], message),
             "bg": palette[i % len(palette)],
             "duration": fr["duration"],
             "animation": "fade_in_up" if fr["type"] == "hook" else "fade_in",
-        })
+        }
+        if fr["scene"] == "list":
+            # list 帧补副行占位（frame-worker 语言：主行 + 支撑注释行）
+            # ——骨架画面不至一行孤字，用户/agent 有明确的填空位。
+            sc["subtitle"] = "这一条为什么成立——一句话支撑，或换成具体数字"
+        scenes.append(sc)
         frame_records.append({
             "idx": i, "type": fr["type"],
             "persuasion": fr["persuasion"], "beat": fr["beat"],

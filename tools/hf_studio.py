@@ -1241,7 +1241,7 @@ class StudioServer:
             bake,
             "--url", url, "--out", out,
             "--seconds", f"{total:.2f}", "--fps", str(fps),
-            "--width", str(w), "--height", str(h), "--clock", "seek",
+            "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500",
         ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True)
@@ -1333,7 +1333,7 @@ class StudioServer:
             proc = subprocess.run(
                 [bake, "--url", url, "--out", sb_mp4,
                  "--seconds", f"{total:.2f}", "--fps", "1",
-                 "--width", str(bw), "--height", str(bh), "--clock", "seek"],
+                 "--width", str(bw), "--height", str(bh), "--clock", "seek", "--paint-wait", "1500"],
                 capture_output=True, text=True, timeout=900)
         if proc.returncode != 0:
             raise RuntimeError((proc.stderr or proc.stdout or "")[-300:])
@@ -1434,14 +1434,16 @@ class StudioServer:
             [bake, "--url", "file://" + urllib.parse.quote(html_path),
              "--out", mp4, "--seconds", f"{total:.2f}", "--fps", "1",
              "--width", str(bw), "--height", str(bh),
-             "--clock", "seek"],
+             "--clock", "seek", "--paint-wait", "1500"],
             capture_output=True, text=True, timeout=900)
         if proc.returncode != 0:
             return
         jpg = os.path.join(out_dir, arc + ".jpg")
-        # 抽帧候选（末镜中点/结束前 1.5/3s）：页面加载延迟让内容整体
-        # 后移且幅度不定（实测 2.5-3.5s），timeline 播完后契约页清场
-        # ——按字节大小选优（内容帧 5-11KB vs 空态 ~1KB）。
+        # 全片逐帧采样 + 字节选优：页面加载延迟让内容整体后移且幅度
+        # 不定（实测 2.5-3.5s），timeline 播完后契约页清场——固定候选
+        # 点不可靠，直接每 0.5s 采一遍（fps=1 的 mp4 帧少，12 帧 ≈ 4s），
+        # 取字节最大的帧（内容帧 3-11KB vs 空态 ~1-2KB）。跳过头部
+        # 3s（GSAP 未就绪的纯背景区）。
         probe = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", mp4], capture_output=True, text=True,
@@ -1451,14 +1453,16 @@ class StudioServer:
         except (ValueError, OSError):
             dur = total
         best = None
-        for tt in ((scenes[-1].get("start") or 0) +
-                   (scenes[-1].get("dur") or 3) * 0.5,
-                   dur - 1.5, dur - 3.0):
-            tt = max(1.0, min(tt, dur - 0.5))
-            cand = os.path.join(d, "pick.jpg")
+        k = 3.0
+        while k < dur - 0.3:
+            # 每个候选点独立文件名——共用一个路径会让 os.replace 拿到
+            # 最后一次 ffmpeg 的输出（末尾清场空帧）而非字节最大的帧
+            # （此前"间歇出纯色 tile"的真凶）。
+            cand = os.path.join(d, f"pick-{int(k * 10):03d}.jpg")
             p3 = subprocess.run(
-                ["ffmpeg", "-y", "-ss", f"{tt:.2f}", "-i", mp4,
+                ["ffmpeg", "-y", "-ss", f"{k:.2f}", "-i", mp4,
                  "-frames:v", "1", cand], capture_output=True, timeout=60)
+            k += 0.5
             if p3.returncode != 0 or not os.path.exists(cand):
                 continue
             sz = os.path.getsize(cand)
@@ -1466,6 +1470,12 @@ class StudioServer:
                 best = (sz, cand)
         if best and best[0] > 3000:
             os.replace(best[1], jpg)
+        for f in os.listdir(d):
+            if f.startswith("pick-"):
+                try:
+                    os.remove(os.path.join(d, f))
+                except OSError:
+                    pass
 
     def _projects_root(self):
         """Home 模式的项目根：每个项目 = <root>/<名>/（spec.json +

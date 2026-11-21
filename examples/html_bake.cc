@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
           return false;
         }
       } else {
-        WaitNewFrame(&layer, previous, 300);
+        WaitNewFrame(&layer, previous, args.paint_wait_ms);
       }
       if (record && args.clock == "virtual_time") {
         // 边界帧（元素进/出生效窗）：内容验证式重绘。合成器提交预

@@ -113,7 +113,7 @@ def cmd_render(args):
         sys.exit(1)
     cmd = [bake, "--url", "file://" + html, "--out", args.out,
            "--seconds", f"{seconds:.2f}", "--fps", str(fps),
-           "--width", str(w), "--height", str(h), "--clock", "seek"]
+           "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500"]
     if args.chunks > 1:
         cmd += ["--chunks", str(args.chunks)]
     run(cmd)
