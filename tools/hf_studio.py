@@ -2484,6 +2484,22 @@ def make_handler(server_ref):
                 self._json(srv._brands_list())
             elif path.startswith("/api/brand-logo/"):
                 self._serve_brand_logo(path[len("/api/brand-logo/"):])
+            elif path.startswith("/api/project-thumb/"):
+                # Home 项目卡缩略图（HF Home 卡片的项目截图同款）：
+                # 分镜帧产物（__thumbs__/sb/）直读，无则 404（前端
+                # 色块兜底）。s1 优先（首镜中点可能抽到入场半透明态）。
+                nm = path[len("/api/project-thumb/"):]
+                if not re.fullmatch(r"[\w\-]+", nm or ""):
+                    self._send(404, "not found", "text/plain")
+                    return
+                for f in ("s1.jpg", "s0.jpg"):
+                    jpg = os.path.join(srv._projects_root(), nm,
+                                       "__thumbs__", "sb", f)
+                    if os.path.isfile(jpg):
+                        with open(jpg, "rb") as fh:
+                            self._send(200, fh.read(), "image/jpeg")
+                        return
+                self._send(404, "not found", "text/plain")
             elif path.startswith("/api/arc-preview/"):
                 arc = path[len("/api/arc-preview/"):]
                 if not re.fullmatch(r"[\w\-]+", arc or ""):
@@ -2863,6 +2879,8 @@ def home_html(projects):
     独立小页面（不进 web 构建），风格对齐 studio tokens。"""
     cards = "".join(
         f'<a class="pj" href="/project/{p["name"]}">'
+        f'<div class="pj-thumb"><img src="/api/project-thumb/{p["name"]}"'
+        f' alt="" onerror="this.classList.add(\'miss\')"></div>'
         f'<div class="pj-name">{p["name"]}</div>'
         f'<div class="pj-meta">{p["scenes"]} 场景'
         + (f' · {p["arc"]}' if p["arc"] else "")
@@ -2959,8 +2977,13 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
 .pjs {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
         gap: 14px }}
 .pj {{ display: block; background: var(--panel); border: 1px solid var(--line2);
-       border-radius: 12px; padding: 14px 16px; text-decoration: none;
-       color: var(--ink) }}
+       border-radius: 12px; padding: 10px 14px; text-decoration: none;
+       color: var(--ink); transition: border-color .12s }}
+.pj-thumb {{ margin: -2px -6px 10px; border-radius: 9px; overflow: hidden;
+       background: linear-gradient(135deg, #16213e, #0f3460); min-height: 96px; }}
+.pj-thumb img {{ display: block; width: 100%; height: 110px;
+       object-fit: cover; }}
+.pj-thumb img.miss {{ display: none; }}
 .pj:hover {{ border-color: var(--acc) }}
 .pj-name {{ font-weight: 600; font-size: 14px }}
 .pj-meta {{ font-size: 11px; color: var(--dim); margin: 6px 0 }}

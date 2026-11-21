@@ -198,3 +198,9 @@
 .drop-line { position: absolute; top: 0; bottom: 0; width: 3px;
   background: var(--acc); z-index: 6; border-radius: 2px;
   box-shadow: 0 0 6px var(--acc); }
+
+/* 时间轴底部添加引导（HF 空轨生成提示同款语义） */
+.tl-hint { flex: none; padding: 8px 14px; font-size: 11.5px;
+  color: var(--dim); border-top: 1px dashed var(--line);
+  background: var(--panel); }
+.tl-hint::first-letter { color: var(--acc); font-weight: 700; }
