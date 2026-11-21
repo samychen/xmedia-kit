@@ -113,3 +113,10 @@
   .sbgrid-text { font-size: 12px; color: var(--ink); padding: 4px 9px 8px;
                  line-height: 1.45; min-height: 20px; }
   .sbgrid-card .sb-narrative { padding: 0 9px 9px; }
+
+/* HF 右缘竖工具栏（视觉占位） */
+.edge-rail { position: absolute; right: 8px; top: 84px; display: flex;
+  flex-direction: column; gap: 4px; z-index: 5; }
+.edge-btn { width: 30px; height: 30px; border: 0; border-radius: 8px;
+  background: var(--panel2); color: var(--dim); cursor: default;
+  display: grid; place-items: center; opacity: .8; }

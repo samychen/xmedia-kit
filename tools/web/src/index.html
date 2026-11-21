@@ -63,6 +63,12 @@
         <div id="ask-pending-rows"></div>
       </div>
       <form id="ask-form">
+        <!-- HF 输入区同款品牌 chip：选择即走「应用品牌」对话链 -->
+        <select id="ask-brand-chip" type="button"
+                title="当前项目品牌（选择即应用该品牌 kit）"
+                aria-label="品牌 kit">
+          <option value="">🏷 No brand kit</option>
+        </select>
         <input id="ask-input" autocomplete="off" spellcheck="false"
                placeholder="用一句话描述要改什么…">
         <button class="btn" id="ask-stage" type="button"
@@ -235,6 +241,17 @@
       <span class="tc" id="tc">00:00.00 / 00:00.00 <span class="dim">· 帧 0/0</span></span>
     </div>
     <div id="findings"></div>
+    <!-- HF 右缘竖工具栏（视觉占位：素材/字幕/书签/图层——层级规划中） -->
+    <div class="edge-rail" aria-hidden="true">
+      <button class="edge-btn" disabled title="素材库（规划中）">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 11l3.5-3.5 2.5 2.5L11 7l3 3.5"/></svg></button>
+      <button class="edge-btn" disabled title="字幕样式（规划中）">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="9" width="12" height="4" rx="1"/><path d="M4 5h8M4 7.5h5"/></svg></button>
+      <button class="edge-btn" disabled title="书签（规划中）">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4.5 2.5h7v11L8 10.5 4.5 13.5z"/></svg></button>
+      <button class="edge-btn" disabled title="图层（规划中）">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2.5l6 3-6 3-6-3zM2 8l6 3 6-3M2 10.5l6 3 6-3"/></svg></button>
+    </div>
   </section>
 
   <aside class="right">

@@ -149,3 +149,32 @@ $("crumb-name").onclick = function () {
   };
   inp.onblur = function () { done(true); };
 };
+
+/* 品牌 chip（HF 输入区 "No brand kit" 同款）：/api/brands 填充下拉，
+   选择即发「应用品牌」对话（走现有编辑链，消息在 chat 里可见）。 */
+(function () {
+  var chip = $("ask-brand-chip");
+  if (!chip) return;
+  chip.onchange = function () {
+    var v = this.value;
+    if (!v) return;
+    var form = document.getElementById("ask-form");
+    var input = document.getElementById("ask-input");
+    input.value = "应用品牌 " + v;
+    if (typeof window.requestSubmit === "function" && form.requestSubmit) {
+      form.requestSubmit(document.getElementById("ask-send"));
+    } else {
+      form.dispatchEvent(new Event("submit",
+        { cancelable: true, bubbles: true }));
+    }
+    this.value = "";   // 回到 No brand kit（品牌应用是一次性动作）
+  };
+  api("/api/brands").then(function (r) {
+    (r.brands || []).forEach(function (b) {
+      var o = document.createElement("option");
+      o.value = b.name;
+      o.textContent = "🏷 " + b.name + (b._default ? "（默认）" : "");
+      chip.appendChild(o);
+    });
+  }).catch(function () {});
+})();
