@@ -4,7 +4,7 @@
   #imp-panel { position: fixed; z-index: 81; left: 50%; top: 50%;
                transform: translate(-50%, -50%); width: 568px; margin: 0;
                padding: 0; color: inherit;
-               max-width: calc(100vw - 32px); max-height: min(760px, 88vh);
+               max-width: calc(100vw - 32px); max-height: min(760px, 94vh);
                flex-direction: column;
                background: var(--panel); border: 1px solid var(--line2);
                border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
@@ -53,8 +53,8 @@
                          background: var(--acc); transition: width .4s; }
   #exp-foot { flex: none; display: flex; gap: 8px; justify-content: flex-end;
               padding: 0 16px 14px; }
-  #imp-head { flex: none; display: flex; align-items: center; gap: 11px;
-              padding: 14px 16px; border-bottom: 1px solid var(--line);
+  #imp-head { flex: none; display: flex; align-items: center; gap: 10px;
+              padding: 10px 16px; border-bottom: 1px solid var(--line);
               background: linear-gradient(115deg, rgba(109,139,255,.13),
                                           rgba(139,109,255,.04)); }
   #imp-head .ic { width: 32px; height: 32px; flex: none; border-radius: 9px;
@@ -66,14 +66,14 @@
   #imp-x { background: none; border: 0; color: var(--dim);
            font-size: 19px; line-height: 1; padding: 2px 6px; }
   #imp-x:hover { color: var(--ink); }
-  .imp-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 18px; }
+  .imp-body { flex: 1; min-height: 0; overflow: auto; padding: 10px 16px 12px; }
   .imp-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px;
               background: var(--panel2); border: 1px solid var(--line); }
   .imp-tabs button { flex: 1; padding: 7px 0; font-size: 11.5px; border: 0;
                      border-radius: 7px; background: none; color: var(--dim); }
   .imp-tabs button.on { background: var(--panel3); color: var(--ink);
                         box-shadow: 0 1px 6px rgba(0,0,0,.28); }
-  .imp-sec { margin-top: 14px; }
+  .imp-sec { margin-top: 10px; }
   .imp-label { display: block; font-size: 11px; color: var(--dim);
                margin-bottom: 6px; }
   .imp-input, .imp-select { width: 100%; background: var(--panel2);
@@ -81,7 +81,7 @@
       padding: 9px 10px; font-size: 12px; outline: none; }
   .imp-input:focus, .imp-select:focus { border-color: var(--acc); }
   .imp-input::placeholder { color: #63637a; }
-  .imp-note { font-size: 10.5px; color: var(--dim); line-height: 1.65;
+  .imp-note { font-size: 10.5px; color: var(--dim); line-height: 1.45;
               margin-top: 8px; }
   .imp-quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .imp-quick button { font-size: 10.5px; padding: 4px 9px; border-radius: 12px;
