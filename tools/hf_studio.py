@@ -1994,6 +1994,20 @@ class StudioServer:
                 except (OSError, json.JSONDecodeError):
                     continue
                 b["_default"] = (f[:-5] == pinned)
+                # Files 清单（HF kit 的 Files 分类）：该 kit 专属的
+                # 落盘文件（JSON/logo/截图），相对路径+大小。
+                base_name = f[:-5]
+                files = []
+                for rel in (f, "assets/" + base_name + "-logo.png",
+                            "assets/" + base_name + "-logo.jpg",
+                            "assets/" + base_name + "-logo.svg",
+                            "assets/" + base_name + "-logo.webp",
+                            "shots/" + base_name + "-home.jpg"):
+                    fp = os.path.join(d, rel)
+                    if os.path.isfile(fp):
+                        files.append({"path": rel,
+                                      "bytes": os.path.getsize(fp)})
+                b["_files"] = files
                 kits.append(b)
         return {"brands": kits}
 

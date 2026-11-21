@@ -759,6 +759,31 @@ def cmd_brand(args):
                 f"{len(brand.get('components', []))} components, "
                 f"{len(brand.get('shapes', {}).get('radii', []))} radii. "
                 f"brandkit-v2 capture.")
+            # Rules（自动生成，两色纪律 + 主色/字体/禁用——HF 的
+            # "Rules and sources" 分类的本地对应）
+            pal = brand.get("palette", [])
+            rules = [
+                "主色板按序循环使用，不引入色板外的第三色",
+                "强调只用反转/放大/密度，禁止渐变横幅与投影卡片",
+            ]
+            if pal:
+                rules.insert(0, "主色 " + pal[0] + " 用于钩子与 CTA 反白")
+            if brand.get("fonts"):
+                rules.insert(1, "标题/正文字体族用 "
+                                + (brand["fonts"][0] or "系统默认")
+                                + "，跨平台以系统回退")
+            if brand.get("text_color"):
+                rules.append("正文文字色 " + brand["text_color"]
+                             + "（与背景对比 ≥ 4.5:1）")
+            brand["rules_txt"] = rules
+            brand["sources"] = [
+                {"what": "HTML + 至多 8 个样式表（CSS 变量/颜色/字体/圆角统计）",
+                 "url": brand.get("source_url", "")},
+                {"what": "og:image / apple-touch-icon / favicon（logo 集）",
+                 "url": (brand.get("logos") or [""])[0]},
+                {"what": "theme-color meta / logo 像素采样（主色证据）",
+                 "url": brand.get("logo_image_url", "")},
+            ]
             for c in reversed(brand.get("logo_colors", [])):
                 if not any(x.get("hex", "").lower() == c.lower()
                            for x in brand.get("colors", [])):

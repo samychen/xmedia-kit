@@ -101,3 +101,23 @@
 .brand-shots { display: flex; gap: 8px; flex-wrap: wrap; }
 .brand-shots img { width: 100%; border-radius: 8px; border: 1px solid var(--line);
   display: block; }
+
+/* HF 9 类编号导航（横排 chip + 计数 + 锚点） */
+.brand-nav { display: flex; flex-wrap: wrap; gap: 4px; }
+.brand-navi { display: flex; align-items: baseline; gap: 5px;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 9px; cursor: pointer;
+  color: var(--ink); font: inherit; font-size: 11px; }
+.brand-navi:hover { border-color: var(--acc); }
+.brand-navi em { font-style: normal; color: var(--dim);
+  font-family: ui-monospace, Menlo, monospace; font-size: 9.5px; }
+.brand-navi u { text-decoration: none; color: var(--acc);
+  font-weight: 700; font-size: 10.5px; }
+.brand-rule { display: flex; gap: 8px; align-items: baseline;
+  background: var(--panel2); border-radius: 6px; padding: 7px 9px;
+  font-size: 11.5px; line-height: 1.5; margin-bottom: 5px;
+  color: var(--ink); }
+.brand-rule b { color: var(--acc); flex: none; font-size: 11px; }
+.brand-rule.src b { color: var(--dim); }
+.brand-rule code { color: var(--dim); font-size: 10px;
+  margin-left: auto; }

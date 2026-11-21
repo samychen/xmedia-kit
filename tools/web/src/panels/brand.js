@@ -155,6 +155,36 @@ function renderDetail(view, b) {
   head.appendChild(back); head.appendChild(title); head.appendChild(acts);
   view.appendChild(head);
 
+  /* HF 9 类编号导航（左栏窄宽适配：横排 chip + 锚点滚动） */
+  var filesN = (b._files || []).length;
+  var rulesN = (b.rules_txt || []).length + (b.sources || []).length;
+  var navDefs = [
+    ["sec-logos", "01", "Logos", (b.logos || []).length || (b.logo_image ? 1 : 0)],
+    ["sec-colors", "02", "Colors", kitColorsLen(b)],
+    ["sec-styles", "03", "Text styles", (b.text_styles || []).length],
+    ["sec-bgs", "04", "Backgrounds", (b.backgrounds || []).length],
+    ["sec-shapes", "05", "Shapes & spacing",
+     ((b.shapes || {}).radii || []).length + ((b.shapes || {}).gaps || []).length],
+    ["sec-comps", "06", "Components", (b.components || []).length],
+    ["sec-shots", "07", "Screenshots", b.screenshot ? 1 : 0],
+    ["sec-files", "08", "Files", filesN],
+    ["sec-rules", "09", "Rules & sources", rulesN]
+  ];
+  var nav = document.createElement("div");
+  nav.className = "brand-nav";
+  nav.innerHTML = navDefs.map(function (nd) {
+    return '<button class="brand-navi" data-target="' + nd[0] +
+        '" type="button"><em>' + nd[1] + '</em>' + escHtml(nd[2]) +
+        '<u>' + nd[3] + '</u></button>';
+  }).join("");
+  view.appendChild(nav);
+  nav.onclick = function (ev) {
+    var btn = ev.target.closest(".brand-navi");
+    if (!btn) return;
+    var sec = document.getElementById(btn.dataset.target);
+    if (sec) sec.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+
   /* Colors：v2 colors with roles（角色徽标 + 变量名）优先，
      v1 palette 纯色块兜底 */
   var kitColors = (b.colors || []).length ? b.colors :
@@ -174,7 +204,7 @@ function renderDetail(view, b) {
 
   /* Text styles：字号×字重组合（扫到的真实排版体系） */
   if ((b.text_styles || []).length) {
-    view.appendChild(sectionTitle("Text styles " + b.text_styles.length));
+    view.appendChild(sectionTitle("Text styles " + b.text_styles.length, "sec-styles"));
     var tx = document.createElement("div");
     tx.className = "brand-fonts";
     tx.innerHTML = b.text_styles.map(function (t) {
@@ -188,7 +218,7 @@ function renderDetail(view, b) {
 
   /* Backgrounds：大面积背景色（页面/表面） */
   if ((b.backgrounds || []).length) {
-    view.appendChild(sectionTitle("Backgrounds " + b.backgrounds.length));
+    view.appendChild(sectionTitle("Backgrounds " + b.backgrounds.length, "sec-bgs"));
     var bgs = document.createElement("div");
     bgs.className = "brand-colors";
     bgs.innerHTML = b.backgrounds.map(function (g) {
@@ -202,7 +232,7 @@ function renderDetail(view, b) {
   /* Shapes and spacing：圆角/间距（扫到的真实形状体系） */
   if ((b.shapes || {}).radii && b.shapes.radii.length) {
     var radii = b.shapes.radii.concat(b.shapes.gaps || []);
-    view.appendChild(sectionTitle("Shapes & spacing " + radii.length));
+    view.appendChild(sectionTitle("Shapes & spacing " + radii.length, "sec-shapes"));
     var sh = document.createElement("div");
     sh.className = "brand-shapes";
     sh.innerHTML = radii.map(function (s) {
@@ -219,7 +249,7 @@ function renderDetail(view, b) {
 
   /* Components：扫到的真实组件样式（.btn/.card 类规则） */
   if ((b.components || []).length) {
-    view.appendChild(sectionTitle("Components " + b.components.length));
+    view.appendChild(sectionTitle("Components " + b.components.length, "sec-comps"));
     var comps = document.createElement("div");
     comps.className = "brand-comps";
     comps.innerHTML = b.components.map(function (c) {
@@ -247,7 +277,7 @@ function renderDetail(view, b) {
   /* Logos 集合（og:image / touch icon / favicon；本地下载的排前） */
   if (b.logo_image || (b.logos || []).length) {
     view.appendChild(sectionTitle("Logos " +
-        ((b.logos || []).length || 1)));
+        ((b.logos || []).length || 1), "sec-logos"));
     var lgx = document.createElement("div");
     lgx.className = "brand-logos";
     lgx.innerHTML = (b.logo_image
@@ -307,6 +337,33 @@ function renderDetail(view, b) {
     escHtml(host || name) + "</span></div></div>";
   view.appendChild(cards);
 
+  /* Files：kit 专属落盘文件清单（HF Files 分类） */
+  if ((b._files || []).length) {
+    view.appendChild(sectionTitle("Files " + b._files.length, "sec-files"));
+    var fl = document.createElement("div");
+    fl.className = "brand-ctx";
+    fl.innerHTML = b._files.map(function (f) {
+      return "<div><span>" + escHtml(f.path) + "</span><code>" +
+          (f.bytes / 1024).toFixed(1) + " KB</code></div>";
+    }).join("");
+    view.appendChild(fl);
+  }
+
+  /* Rules and sources：自动规则 + 抓取来源（HF Rules 分类） */
+  if ((b.rules_txt || []).length || (b.sources || []).length) {
+    view.appendChild(sectionTitle("Rules & sources", "sec-rules"));
+    var rl = document.createElement("div");
+    rl.className = "brand-rules";
+    rl.innerHTML = (b.rules_txt || []).map(function (r) {
+      return '<div class="brand-rule"><b>§</b>' + escHtml(r) + "</div>";
+    }).join("") + (b.sources || []).map(function (s) {
+      return '<div class="brand-rule src"><b>⌘</b>' + escHtml(s.what) +
+          (s.url ? ' <code>' + escHtml(String(s.url).slice(0, 40)) +
+           '</code>' : "") + "</div>";
+    }).join("");
+    view.appendChild(rl);
+  }
+
   /* Context：其余字段一行表 + capture 证据行（HF 的
      "Read from bilibili.com · 10 colors · 5 text styles · 54 files"） */
   view.appendChild(sectionTitle("Context"));
@@ -328,9 +385,14 @@ function renderDetail(view, b) {
   view.appendChild(ctx);
 }
 
-function sectionTitle(txt) {
+function kitColorsLen(b) {
+  return (b.colors || []).length || (b.palette || []).length;
+}
+
+function sectionTitle(txt, id) {
   var el = document.createElement("div");
   el.className = "brand-sec";
   el.textContent = txt;
+  if (id) el.id = id;
   return el;
 }
