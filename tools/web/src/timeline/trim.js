@@ -20,6 +20,21 @@ export function reorder(idx, dir) {
   log("场景 " + idx + (dir < 0 ? " 前移" : " 后移") + "，重组合成…");
   recompose();
 }
+/* 拖拽重排落位：把场景 idx 移到插入位 target（0..len，"放到某场景之前"
+   语义）。idx 被移除后右侧目标需要归一（target > idx 时 -1）。 */
+export function reorderTo(idx, target) {
+  var arr = state.spec.scenes;
+  if (target === idx || target === idx + 1) return false;
+  if (target < 0 || target > arr.length) return false;
+  var m = arr.splice(idx, 1)[0];
+  var ins = target > idx ? target - 1 : target;
+  arr.splice(ins, 0, m);
+  selIdx = ins;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  log("场景 " + (idx + 1) + " 拖到第 " + (ins + 1) + " 位，重组合成…");
+  recompose();
+  return true;
+}
 
 /* ---------------- 片段切割（刀口 = 播放头） ----------------
    把一段切成前后两段：后半段继承类型 / 样式 / 文字（同一画面继续），视频

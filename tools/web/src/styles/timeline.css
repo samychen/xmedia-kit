@@ -192,3 +192,9 @@
   #log .ok { color: var(--ok); }
   #log .warn { color: var(--warn); }
 
+
+/* 拖拽重排：跟随态 + 插入位指示线（HF 拖 clip 换位手势） */
+.clip.dragging { opacity: .55; z-index: 5; }
+.drop-line { position: absolute; top: 0; bottom: 0; width: 3px;
+  background: var(--acc); z-index: 6; border-radius: 2px;
+  box-shadow: 0 0 6px var(--acc); }

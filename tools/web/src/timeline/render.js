@@ -6,7 +6,19 @@ import { HEAD_W } from "../shared/state.js";
 import { fmtTime, fps } from "../shared/time.js";
 import { TRACKS, capSegments, capTrackSub, hashSeed, loadThumbsForClip, loadWaveForClip, mk, sceneTexts, snapTime, stripHTML, waveSVG } from "./model.js";
 import { applyRangeGeom, ensureRangeOverlay, startRangeDrag, syncRangeUI } from "./range.js";
-import { reorder, splitScene, trimCommit } from "./trim.js";
+import { reorder, reorderTo, splitScene, trimCommit } from "./trim.js";
+
+/* 拖拽插入位判定：鼠标时间 t 落在哪条边界之前 → 插入位下标。
+   边界取各场景中点（拖到某场景前半 = 放它之前，后半 = 放它之后），
+   被拖场景自身跳过。 */
+function dropIndex(t, dragIdx) {
+  var sc = state.scenes || [];
+  for (var i = 0; i < sc.length; i++) {
+    if (i === dragIdx) continue;
+    if (t < sc[i].start + sc[i].dur / 2) return i;
+  }
+  return sc.length;
+}
 
 export function trackHead(td, sub, val) {
   var h = mk("div", "tl-head",
@@ -345,7 +357,52 @@ export function renderTimeline() {
         b.onclick = function (ev) {
           var cn = ev.target.className || "";
           if (cn.indexOf("trim") >= 0 || cn.indexOf("mv") >= 0) return;
+          if (b._dragged) { b._dragged = false; return; }  // 拖拽后抑制误选
           selectScene(selIdx === idx ? -1 : idx, false);
+        };
+        // 拖拽重排手势（HF 的拖 clip 换位）：非裁剪区按住水平拖过 6px
+        // 阈值 → clip 跟随 + 插入位指示线 → 松手 reorderTo 落位重组。
+        // 重排不改变时长/旁白——旁白锁定场景同样可拖（锁定只约束
+        // 裁剪与文案）。
+        b.onmousedown = function (e) {
+          if (e.button !== 0) return;
+          if (e.target.className &&
+              String(e.target.className).indexOf("trim") >= 0) return;
+          var px0 = e.clientX, dragging = false, target = -1;
+          function mv(e2) {
+            var dx = e2.clientX - px0;
+            if (!dragging && Math.abs(dx) < 6) return;
+            if (!dragging) {
+              dragging = true;
+              b._dragging = true;
+              b.classList.add("dragging");
+              lane._drop = mk("div", "drop-line");
+              lane.appendChild(lane._drop);
+            }
+            b.style.transform = "translateX(" + dx + "px)";
+            var t = (e2.clientX -
+                     lane.getBoundingClientRect().left) / tlPPS;
+            target = dropIndex(t, idx);
+            var ex = target < state.scenes.length ?
+                state.scenes[target].start * tlPPS :
+                (state.scenes[state.scenes.length - 1].start +
+                 state.scenes[state.scenes.length - 1].dur) * tlPPS;
+            lane._drop.style.left = ex + "px";
+          }
+          function up() {
+            document.removeEventListener("mousemove", mv);
+            document.removeEventListener("mouseup", up);
+            b.classList.remove("dragging");
+            b.style.transform = "";
+            if (lane._drop) { lane._drop.remove(); lane._drop = null; }
+            if (dragging) {
+              b._dragged = true;
+              setTimeout(function () { b._dragged = false; }, 250);
+              if (target >= 0) reorderTo(idx, target);
+            }
+          }
+          document.addEventListener("mousemove", mv);
+          document.addEventListener("mouseup", up);
         };
         b.ondblclick = function () { selectScene(idx, false); zoomToScene(idx); };
         // 右键 = 在播放头处切开这一段（刀口不在片段内时给日志提示）。

@@ -125,7 +125,7 @@ $("crumb-name").onclick = function () {
   inp.maxLength = 40; inp.spellcheck = false;
   this.appendChild(inp);
   inp.focus(); inp.select();
-  var done = function (commit) {
+  var done = (commit) => {
     if (!this.dataset.editing) return;
     delete this.dataset.editing;
     var nv = inp.value.trim();
@@ -133,17 +133,16 @@ $("crumb-name").onclick = function () {
       this.textContent = old;
       return;
     }
-    var self = this;
     api("/api/project/rename", { name: old, new_name: nv })
       .then(function (r) {
         log("已重命名 → " + r.name, "ok");
         location.href = r.url + "?fresh=1";
       })
-      .catch(function (e) {
-        self.textContent = old;
+      .catch((e) => {
+        this.textContent = old;
         log("重命名失败：" + e.message, "err");
       });
-  }.bind(this);
+  };
   inp.onkeydown = function (ev) {
     if (ev.key === "Enter") { ev.preventDefault(); done(true); }
     if (ev.key === "Escape") { done(false); }
