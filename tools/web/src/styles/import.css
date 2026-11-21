@@ -122,3 +122,9 @@
   #imp-foot .hint { flex: 1; font-size: 10.5px; color: var(--dim);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #imp-go { min-width: 122px; }
+
+/* 老 Safari dialog API 缺失的降级态：普通 fixed 面板 + 手写 mask */
+#imp-panel.fallback-open { display: flex; }
+#imp-panel.fallback-open::before { content: ""; position: fixed;
+  inset: 0; background: rgba(6, 6, 12, .62); backdrop-filter: blur(5px);
+  z-index: -1; }

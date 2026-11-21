@@ -16,7 +16,10 @@ export function impSetStatus(text, cls) {
 export function impOpen(on) {
   var panel = $("imp-panel");
   if (on) {
-    if (!panel.open) panel.showModal();   // 模态：焦点圈定 + Esc + backdrop
+    if (!panel.open) {
+      try { panel.showModal();   // 模态：焦点圈定 + Esc + backdrop
+      } catch (e) { panel.classList.add("fallback-open"); }  // 老 Safari 无 dialog API
+    }
     panel.classList.add("open");
   } else {
     panel.classList.remove("open");
