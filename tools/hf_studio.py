@@ -2685,6 +2685,20 @@ def make_handler(server_ref):
                     self._json(srv._project_create(body))
                 elif path == "/api/project/rename":
                     self._json(srv._project_rename(body))
+                elif path == "/api/reveal":
+                    # 在 Finder 中定位导出产物（本地产品实用项）。
+                    # realpath 前缀校验项目根（防 open -R 任意路径）。
+                    import shutil
+                    target = str(body.get("path") or "")
+                    real = os.path.realpath(target)
+                    root_real = os.path.realpath(srv._projects_root())
+                    if not real.startswith(root_real + os.sep):
+                        raise RuntimeError("路径不在项目目录内")
+                    if not os.path.isfile(real):
+                        raise RuntimeError("文件不存在")
+                    subprocess.run(["open", "-R", real], timeout=15,
+                                   check=False)
+                    self._json({"ok": True})
                 elif path == "/api/spec-save":
                     # 轻量 spec 保存（Comment/标注类元数据）：写回不重组
                     # ——评论不进契约页，重组是浪费。
@@ -3082,6 +3096,11 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
     }}[arc] || "一句话说你要做什么视频";
     document.getElementById("message").focus();
   }});
+  /* ?new=1（编辑器「＋ New video」入口）：直接聚焦向导 */
+  if (location.search.indexOf("new=1") >= 0) {{
+    document.querySelector(".mk").scrollIntoView({{ behavior: "smooth" }});
+    document.getElementById("message").focus();
+  }}
   /* 品牌 kits 注入（/api/brands 同源数据，default pin 标记） */
   fetch("/api/brands").then(function (r) {{ return r.json(); }}).then(function (r) {{
     var sel = document.getElementById("brand");

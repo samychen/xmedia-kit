@@ -1,0 +1,13 @@
+{
+ "name": "poster-hero",
+ "description": "海报式封面：超大标题居中 + 副行 + 底部域名（封面/开场两用）",
+ "slots": [
+  "title",
+  "sub",
+  "site"
+ ],
+ "css": "#tpl-poster-hero { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ground, #0a0a1a); text-align: center; gap: 2.6vh; padding: 0 8vw; } .ph-t { font-size: 10vh; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; color: var(--ink, #f0f0f5); } .ph-s { font-size: 2.6vh; opacity: .72; color: var(--ink, #f0f0f5); } .ph-site { margin-top: 3vh; font-size: 1.9vh; opacity: .5; font-family: ui-monospace, Menlo, monospace; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"ph-t\">{{title}}</div><div class=\"ph-s\">{{sub}}</div><div class=\"ph-site\">{{site}}</div>",
+ "timeline": "tl.fromTo(\"{tpl} .ph-t\", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.7, ease: \"power3.out\" }, {start});tl.fromTo(\"{tpl} .ph-s\", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5, ease: \"power2.out\" }, {start} + 0.45);tl.fromTo(\"{tpl} .ph-site\", { opacity: 0 }, { opacity: 1, duration: 0.5 }, {start} + 0.9);",
+ "sfx": "whoosh"
+}

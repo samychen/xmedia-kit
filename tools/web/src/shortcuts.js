@@ -63,6 +63,22 @@ document.addEventListener("keydown", function (ev) {
     ev.preventDefault();
   }
 });
+/* 快捷键帮助浮层：?（Shift+/）切换，Esc/× 关闭 */
+function toggleKbdHelp(on) {
+  var el = $("kbd-help");
+  if (el) el.style.display = on ? "grid" : "none";
+}
+document.addEventListener("keydown", function (ev) {
+  if (ev.key === "?" ) {
+    var el = $("kbd-help");
+    toggleKbdHelp(el && el.style.display !== "grid");
+  }
+  if (ev.key === "Escape") toggleKbdHelp(false);
+});
+(function () {
+  var x = $("kbd-close");
+  if (x) x.onclick = function () { toggleKbdHelp(false); };
+})();
 window.addEventListener("resize", fitPreview);
 window.addEventListener("message", function (ev) {
   /* 预览 iframe 与本页同源（/preview 注入）；跨源消息一律丢弃。 */

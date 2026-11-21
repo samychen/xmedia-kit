@@ -68,6 +68,17 @@ $("exp-go").onclick = function () {
         $("exp-progress-text").textContent = "已取消";
       } else if (j.rc === 0) {
         $("exp-progress-text").textContent = "导出完成：" + j.out;
+        var rv = document.createElement("button");
+        rv.className = "btn"; rv.style.marginLeft = "8px";
+        rv.textContent = "在 Finder 中显示";
+        rv.onclick = function () {
+          api("/api/reveal", { path: j.out }).then(function () {
+            log("已在 Finder 中定位：" + j.out, "ok");
+          }).catch(function (e) {
+            log("定位失败：" + e.message, "err");
+          });
+        };
+        $("exp-progress-text").appendChild(rv);
         log("导出完成：" + j.out, "ok");
         log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment",
             "ok");

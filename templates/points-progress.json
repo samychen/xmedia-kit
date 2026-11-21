@@ -1,0 +1,12 @@
+{
+ "name": "points-progress",
+ "description": "完成度横条：进度填充动画 + 大百分比数字",
+ "slots": [
+  "percent",
+  "label"
+ ],
+ "css": "#tpl-points-progress { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); gap: 2.6vh; } .pp-num { font-size: 12vh; font-weight: 800; letter-spacing: -0.02em; color: var(--ink, #f0f0f5); line-height: 1; } .pp-track { height: 3vh; background: currentColor; opacity: .14; position: relative; border-radius: 2vh; overflow: hidden; } .pp-fill { position: absolute; inset: 0; background: var(--ink, #f0f0f5); transform-origin: left center; } .pp-label { font-size: 2.2vh; opacity: .72; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"pp-num\">{{percent}}</div><div class=\"pp-track\"><i class=\"pp-fill\"></i></div><div class=\"pp-label\">{{label}}</div>",
+ "timeline": "var _ppn = document.querySelector(\"{tpl} .pp-num\");var _ppv = parseFloat(String(_ppn.textContent).replace(/[^0-9.]/g, \"\")) || 100;var _ppf = document.querySelector(\"{tpl} .pp-fill\");_ppf.style.width = _ppv + \"%\";tl.fromTo(\"{tpl} .pp-num\", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .pp-fill\", { scaleX: 0 }, { scaleX: 1, duration: Math.min(1.4, {dur} * 0.55), ease: \"power2.inOut\" }, {start} + 0.3);tl.fromTo(\"{tpl} .pp-label\", { opacity: 0 }, { opacity: 1, duration: 0.4 }, {start} + 0.6);",
+ "sfx": "success"
+}

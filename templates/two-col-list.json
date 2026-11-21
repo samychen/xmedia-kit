@@ -1,0 +1,16 @@
+{
+ "name": "two-col-list",
+ "description": "双栏清单：左右各三条逐条入场（密集信息罗列）",
+ "slots": [
+  "l1",
+  "l2",
+  "l3",
+  "r1",
+  "r2",
+  "r3"
+ ],
+ "css": "#tpl-two-col-list { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .tcl { flex: 1; } .tcl li { list-style: none; font-size: 2.5vh; line-height: 1.5; margin: 1.8vh 0; color: var(--ink, #f0f0f5); padding-left: 2.6vh; position: relative; opacity: 0; } .tcl li::before { content: \"·\"; position: absolute; left: .6vh; color: var(--ink, #f0f0f5); font-weight: 800; }",
+ "body": "<ul class=\"tcl\"><li>{{l1}}</li><li>{{l2}}</li><li>{{l3}}</li></ul><ul class=\"tcl\"><li>{{r1}}</li><li>{{r2}}</li><li>{{r3}}</li></ul>",
+ "timeline": "tl.fromTo(\"{tpl} .tcl:first-child li\", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.4, ease: \"power2.out\", stagger: 0.2 }, {start});tl.fromTo(\"{tpl} .tcl:last-child li\", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, ease: \"power2.out\", stagger: 0.2 }, {start} + 0.35);",
+ "sfx": "pop"
+}

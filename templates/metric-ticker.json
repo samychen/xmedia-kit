@@ -1,0 +1,16 @@
+{
+ "name": "metric-ticker",
+ "description": "三数字横排：关键指标一屏看全（数字密度强调）",
+ "slots": [
+  "v1",
+  "k1",
+  "v2",
+  "k2",
+  "v3",
+  "k3"
+ ],
+ "css": "#tpl-metric-ticker { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .mt-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 4vh; transform-origin: left center; } .mt-row { display: flex; gap: 6vw; } .mt { flex: 1; } .mt b { display: block; font-size: 8vh; font-weight: 800; letter-spacing: -0.02em; color: var(--ink, #f0f0f5); } .mt i { font-style: normal; font-size: 1.9vh; opacity: .6; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"mt-hair\"></div><div class=\"mt-row\"><div class=\"mt\"><b>{{v1}}</b><i>{{k1}}</i></div><div class=\"mt\"><b>{{v2}}</b><i>{{k2}}</i></div><div class=\"mt\"><b>{{v3}}</b><i>{{k3}}</i></div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .mt-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .mt\", { opacity: 0, y: 44 }, { opacity: 1, y: 0, duration: 0.5, ease: \"power2.out\", stagger: 0.16 }, {start} + 0.3);",
+ "sfx": "success"
+}

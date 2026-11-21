@@ -31,3 +31,17 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* 快捷键帮助浮层（? 键触发） */
+#kbd-help { position: fixed; inset: 0; background: rgba(0, 0, 0, .55);
+  z-index: 90; display: grid; place-items: center; }
+.kbd-card { background: var(--panel); border: 1px solid var(--line2);
+  border-radius: 14px; padding: 18px 22px; min-width: 340px; }
+.kbd-h { display: flex; align-items: center; font-weight: 700;
+  margin-bottom: 12px; }
+.kbd-h .sp { flex: 1; }
+.kbd-card table { width: 100%; border-collapse: collapse; }
+.kbd-card td { padding: 6px 10px; font-size: 12.5px;
+  border-bottom: 1px solid var(--line); }
+.kbd-card td:first-child { font-family: ui-monospace, Menlo, monospace;
+  color: var(--acc); white-space: nowrap; }
