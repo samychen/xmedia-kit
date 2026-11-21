@@ -5,6 +5,8 @@
  * 规则引擎指令（与模板插入同一编辑链）；默认走 /api/brand/default。 */
 import { api } from "../shared/api-client.js";
 import { $, escHtml, log } from "../shared/dom.js";
+import { mk } from "../timeline/model.js";
+import { fitPreview } from "../preview/zoom.js";
 import { refresh } from "./status.js";
 
 export function brandRender() {
@@ -85,7 +87,7 @@ function renderList(view, kits) {
       colors.length + " 色" +
       ((b.fonts || []).length ? " · " + escHtml(b.fonts[0]) : "") +
       "</div>";
-    var open = function () { renderDetail(view, b); };
+    var open = function () { brandMainOpen(b); };
     card.onclick = open;
     card.onkeydown = function (ev) {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); }
@@ -383,6 +385,204 @@ function renderDetail(view, b) {
     (b.outro_text ? "<div><span>片尾文案</span><code>" +
         escHtml(b.outro_text) + "</code></div>" : "");
   view.appendChild(ctx);
+}
+
+
+/* ---------------- 品牌详情主区大页（HF kit 页同形态） ----------------
+ * center 主区整体切换为品牌详情：左列 01-09 编号导航 + 右侧当前
+ * 分类内容（切换式）。关闭 = 回编辑器预览。 */
+var mainKit = null, mainSection = "sec-colors";
+
+export function brandMainOpen(b) {
+  mainKit = b;
+  mainSection = "sec-colors";
+  var view = $("brand-main");
+  $("pvwrap").style.display = "none";
+  /* kit 页占满主区+右区（HF kit 页形态）——Inspector 暂隐 */
+  document.querySelector(".right").style.display = "none";
+  document.querySelector(".workspace").classList.add("kit-page");
+  view.style.display = "flex";
+  brandMainRender();
+}
+
+export function brandMainClose() {
+  var view = $("brand-main");
+  if (!view || view.style.display === "none") return;
+  view.style.display = "none";
+  $("pvwrap").style.display = "flex";
+  document.querySelector(".right").style.display = "";
+  document.querySelector(".workspace").classList.remove("kit-page");
+  mainKit = null;
+  fitPreview();
+}
+
+function brandMainRender() {
+  var view = $("brand-main");
+  var b = mainKit;
+  if (!view || !b) return;
+  var name = b.name || "";
+  view.replaceChildren();
+
+  var head = mk("div", "bm-head");
+  var close = mk("button", "bm-close");
+  close.type = "button"; close.textContent = "← 返回编辑器";
+  close.onclick = function () { brandMainClose(); };
+  var logo = b.logo_image ?
+    '<img class="bm-logo" src="/api/brand-logo/' + encodeURIComponent(name) +
+    '" alt="" onerror="this.style.display=\'none\'">' : "";
+  head.innerHTML = logo +
+    '<div class="bm-id"><div class="bm-name">' + escHtml(name) + "</div>" +
+    '<div class="bm-src">From ' +
+    escHtml(String(b.source_url || "").replace(/^https?:\/\//, "")) +
+    " · brandkit-v2 capture</div></div>" +
+    '<div class="sp"></div>';
+  head.appendChild(close);
+  view.appendChild(head);
+
+  var wrap = mk("div", "bm-wrap");
+  var navList = navDefsFor(b);
+  var navCol = mk("div", "bm-nav");
+  navCol.innerHTML = navList.map(function (nd) {
+    return '<button class="bm-navi" data-target="' + nd[0] + '" type="button">' +
+      '<em>' + nd[1] + "</em><span>" + escHtml(nd[2]) + "</span><u>" +
+      nd[3] + "</u></button>";
+  }).join("");
+  navCol.onclick = function (ev) {
+    var btn = ev.target.closest(".bm-navi");
+    if (!btn) return;
+    mainSection = btn.dataset.target;
+    brandMainRender();
+  };
+  wrap.appendChild(navCol);
+  var content = mk("div", "bm-content");
+  content.id = "bm-content";
+  wrap.appendChild(content);
+  view.appendChild(wrap);
+
+  renderKitSection(content, b, mainSection);
+}
+
+function navDefsFor(b) {
+  return [
+    ["sec-logos", "01", "Logos", (b.logos || []).length || (b.logo_image ? 1 : 0)],
+    ["sec-colors", "02", "Colors", kitColorsLen(b)],
+    ["sec-styles", "03", "Text styles", (b.text_styles || []).length],
+    ["sec-bgs", "04", "Backgrounds", (b.backgrounds || []).length],
+    ["sec-shapes", "05", "Shapes & spacing",
+     ((b.shapes || {}).radii || []).length + ((b.shapes || {}).gaps || []).length],
+    ["sec-comps", "06", "Components", (b.components || []).length],
+    ["sec-shots", "07", "Screenshots", b.screenshot ? 1 : 0],
+    ["sec-files", "08", "Files", (b._files || []).length],
+    ["sec-rules", "09", "Rules & sources",
+     (b.rules_txt || []).length + (b.sources || []).length]
+  ];
+}
+
+/* 单分类宽版渲染（主区右列） */
+function renderKitSection(box, b, sec) {
+  var name = b.name || "";
+  var colors = (b.colors || []).length ? b.colors :
+      (b.palette || []).map(function (c) { return { hex: c, role: "", var: "" }; });
+  var ink = b.ink || b.text_color || "";
+  var bg = b.background || "";
+  var fonts = b.fonts || [];
+  var host = String(b.source_url || "").replace(/^https?:\/\//, "");
+  box.replaceChildren();
+  var prim = colors.length ? colors[0].hex : "#1d3557";
+
+  if (sec === "sec-logos") {
+    if (b.logo_image) {
+      box.innerHTML = '<div class="bm-big-logo"><img src="/api/brand-logo/' +
+        encodeURIComponent(name) + '" alt="logo"></div>';
+    }
+    var holder = box.querySelector(".bm-big-logo") || box;
+    (b.logos || []).forEach(function (u) {
+      var im = document.createElement("img");
+      im.src = u; im.className = "bm-logo-item";
+      im.onerror = function () { im.remove(); };
+      holder.appendChild(im);
+    });
+    if (!holder.children.length) {
+      box.innerHTML = '<div class="sb-empty">无 logo</div>';
+    }
+    return;
+  }
+  if (sec === "sec-colors") {
+    box.innerHTML = '<div class="bm-colors">' + colors.map(function (c) {
+      return '<div class="bm-color"><i style="background:' + escHtml(c.hex) +
+        '"></i>' + (c.role ? '<em class="brand-role">' + escHtml(c.role) +
+        "</em>" : "") + "<code>" + escHtml(c.hex) +
+        (c.var ? " <u>" + escHtml(c.var) + "</u>" : "") + "</code></div>";
+    }).join("") + "</div>";
+    return;
+  }
+  if (sec === "sec-styles") {
+    box.innerHTML = '<div class="brand-fonts">' + (b.text_styles || []).map(
+      function (f) {
+        return '<div class="brand-font"><span style="font-size:' +
+          Math.min(f.size * 1.4, 46) + 'px;font-weight:' + f.weight + '">' +
+          escHtml("标题 Style " + f.size) + "</span><code>" + f.size +
+          "px · " + f.weight + "</code></div>";
+      }).join("") + "</div>";
+    return;
+  }
+  if (sec === "sec-bgs") {
+    box.innerHTML = '<div class="bm-colors">' + (b.backgrounds || []).map(
+      function (g) {
+        return '<div class="bm-color"><i style="background:' + escHtml(g.hex) +
+          '"></i><code>' + escHtml(g.hex) + " ×" + g.count + "</code></div>";
+      }).join("") + "</div>";
+    return;
+  }
+  if (sec === "sec-shapes") {
+    var all = ((b.shapes || {}).radii || []).concat((b.shapes || {}).gaps || []);
+    box.innerHTML = '<div class="brand-shapes">' + all.map(function (s) {
+      return '<div class="brand-shape"><i style="border-radius:' +
+        escHtml(s.value) + ';width:64px;height:34px;background:var(--acc)">'
+        + "</i><code>" + escHtml(s.value) + " ×" + s.count + "</code></div>";
+    }).join("") + "</div>";
+    return;
+  }
+  if (sec === "sec-comps") {
+    box.innerHTML = (b.components || []).length ?
+      '<div class="brand-comps">' + b.components.map(function (c) {
+        return '<div class="bcomp"><span class="bcomp-tag">' +
+          escHtml(c.kind) + '</span><div class="bcomp-stage">' +
+          '<span style="background:' + escHtml(c.bg || "transparent") +
+          ";color:" + escHtml(c.color || "inherit") + ";border-radius:" +
+          escHtml(c.radius || "4px") + ';padding:4px 10px;font-size:11px">' +
+          escHtml(c.selector.split(" ").pop()) + "</span></div></div>";
+      }).join("") + "</div>" :
+      '<div class="sb-empty">该站类名未匹配到组件启发式——启发式仅认 '
+      + "btn/card/tag 类名</div>";
+    return;
+  }
+  if (sec === "sec-shots") {
+    box.innerHTML = b.screenshot ?
+      '<div class="bm-shot"><img src="/api/brand-shot/' +
+      encodeURIComponent(name) + '" alt="home"></div>' :
+      '<div class="sb-empty">该站对无头渲染反爬——截图不可得（如实）</div>';
+    return;
+  }
+  if (sec === "sec-files") {
+    box.innerHTML = '<div class="brand-ctx">' + (b._files || []).map(
+      function (f) {
+        return "<div><span>" + escHtml(f.path) + "</span><code>" +
+          (f.bytes / 1024).toFixed(1) + " KB</code></div>";
+      }).join("") + "</div>";
+    return;
+  }
+  if (sec === "sec-rules") {
+    box.innerHTML = '<div class="brand-rules">' +
+      (b.rules_txt || []).map(function (r) {
+        return '<div class="brand-rule"><b>§</b>' + escHtml(r) + "</div>";
+      }).join("") + (b.sources || []).map(function (s) {
+        return '<div class="brand-rule src"><b>⌘</b>' + escHtml(s.what) +
+          "</div>";
+      }).join("") + "</div>";
+    return;
+  }
+  box.innerHTML = '<div class="sb-empty">—</div>';
 }
 
 function kitColorsLen(b) {
