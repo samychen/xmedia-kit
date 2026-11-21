@@ -1819,6 +1819,9 @@ class StudioServer:
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr[-400:] or "TTS 失败")
         self.current_spec = self._load_spec()
+        # 旁白字幕依赖 narration——重组契约页把字幕 DOM 带进去
+        # （不重组的话预览/导出里字幕永远不出现，用户观感"TTS 没用"）。
+        self._compose()
         return {"generated": proc.stdout.strip()[-200:],
                 "spec": self.current_spec}
 
