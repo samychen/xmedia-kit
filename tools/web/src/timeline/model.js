@@ -142,6 +142,7 @@ export function paintThumbs(holder, frames) {
     im.className = "tb";
     im.alt = "";
     im.loading = "lazy";
+    im.draggable = false;   // 原生拖拽会劫持 mouse 手势（拖拽跨轨失效）
     holder.appendChild(im);
   }
 }

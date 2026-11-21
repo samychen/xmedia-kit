@@ -210,3 +210,9 @@
   font-size: 11px; background: rgba(0, 0, 0, .55); border-radius: 50%;
   width: 18px; height: 18px; display: grid; place-items: center;
   cursor: pointer; }
+
+
+/* 禁原生拖拽：clip 内缩略图 img 默认 draggable，按住缩略图拖会
+   启动浏览器原生拖拽（mouse 手势死亡 → 松手 drop 误开导入面板） */
+.clip, .clip img, .clip * { -webkit-user-drag: none; user-select: none; }
+.clip img { draggable: false; }

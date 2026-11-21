@@ -30,7 +30,9 @@ var spec = (state.spec.scenes || [])[idx] || {};
 var locked = !!spec.narration;
 /* 原闭包变量补齐（抽出时丢失）：s = 场景 meta；total = 全片长
    （裁剪右界的 Math.min 上界）。 */
-var s = state.scenes[idx] || { start: 0, dur: 3 };
+var s = state.scenes[idx] ||
+    { start: 0, dur: Number(spec.duration) || 3,
+      label: (idx + 1) + " · " + (spec.type || "text") };
 var total = state.duration || (s.start + s.dur);
 var w = Math.max(14, s.dur * tlPPS);
 var b = mk("div", "clip scene" + (locked ? " locked" : "") +
