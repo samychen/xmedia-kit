@@ -2011,35 +2011,6 @@ class StudioServer:
                 kits.append(b)
         return {"brands": kits}
 
-    def _serve_brand_logo(self, name):
-        """品牌 logo 图片（详情页预览）。仅认 kit 名（防路径穿越），
-        实际文件从 brand JSON 的 logo_image 解析且必须仍在品牌目录内。"""
-        if not re.fullmatch(r"[\w\-]+", name or ""):
-            self._send(404, "not found", "text/plain")
-            return
-        d = os.path.realpath(self._brands_dir())
-        try:
-            brand = json.load(open(os.path.join(d, name + ".json"),
-                                   encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            self._send(404, "not found", "text/plain")
-            return
-        li = brand.get("logo_image") or ""
-        if not li or li.startswith(("http://", "https://")):
-            self._send(404, "no local logo", "text/plain")
-            return
-        img = os.path.realpath(os.path.join(d, li))
-        if not img.startswith(d + os.sep) or not os.path.isfile(img):
-            self._send(404, "not found", "text/plain")
-            return
-        ctype = "image/png" if img.endswith(".png") else (
-            "image/jpeg" if img.endswith((".jpg", ".jpeg")) else (
-            "image/svg+xml" if img.endswith(".svg") else (
-            "image/webp" if img.endswith(".webp") else
-            "application/octet-stream")))
-        with open(img, "rb") as fh:
-            self._send(200, fh.read(), ctype)
-
     def _brand_scan_api(self, body):
         """HF Brand kits 的「Scan my site」：抓站点色板/字体/logo 存 kit
         （subprocess 复用 xmedia brand scan，扫描同步、至多 ~60s）。"""
@@ -2847,6 +2818,36 @@ def make_handler(server_ref):
                 return
             with open(jpg, "rb") as f:
                 self._send(200, f.read(), "image/jpeg")
+
+        def _serve_brand_logo(self, name):
+            """品牌 logo 图片（详情页预览）。仅认 kit 名（防路径穿越），
+            实际文件从 brand JSON 的 logo_image 解析且必须仍在品牌目录内。"""
+            if not re.fullmatch(r"[\w\-]+", name or ""):
+                self._send(404, "not found", "text/plain")
+                return
+            d = os.path.realpath(os.path.expanduser(os.environ.get(
+                "XMEDIA_BRAND_DIR", "~/.xmedia/brands")))
+            try:
+                brand = json.load(open(os.path.join(d, name + ".json"),
+                                       encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                self._send(404, "not found", "text/plain")
+                return
+            li = brand.get("logo_image") or ""
+            if not li or li.startswith(("http://", "https://")):
+                self._send(404, "no local logo", "text/plain")
+                return
+            img = os.path.realpath(os.path.join(d, li))
+            if not img.startswith(d + os.sep) or not os.path.isfile(img):
+                self._send(404, "not found", "text/plain")
+                return
+            ctype = "image/png" if img.endswith(".png") else (
+                "image/jpeg" if img.endswith((".jpg", ".jpeg")) else (
+                "image/svg+xml" if img.endswith(".svg") else (
+                "image/webp" if img.endswith(".webp") else
+                "application/octet-stream")))
+            with open(img, "rb") as fh:
+                self._send(200, fh.read(), ctype)
 
         def _serve_thumb(self, path):
             srv = server_ref
