@@ -762,6 +762,11 @@ def studio_ui():
 
 
 
+# 服务内所有 html_bake 的全局串行锁：并发 bake 的 CEF 实例会互相拖死
+# （实测 Arc 预览线程与分镜烘焙并发时整片纯黑）。
+_BAKE_LOCK = threading.Lock()
+
+
 class StudioServer:
     """本地 Studio 服务：预览、重组、TTS、烘焙。仅绑定 127.0.0.1。"""
 
@@ -1324,11 +1329,12 @@ class StudioServer:
         total = parse_total(self.current_html, parse_scenes(self.current_html))
         sb_mp4 = os.path.join(cache, "sb.mp4")
         url = "file://" + urllib.parse.quote(self.contract_path)
-        proc = subprocess.run(
-            [bake, "--url", url, "--out", sb_mp4,
-             "--seconds", f"{total:.2f}", "--fps", "1",
-             "--width", str(bw), "--height", str(bh), "--clock", "seek"],
-            capture_output=True, text=True, timeout=900)
+        with _BAKE_LOCK:
+            proc = subprocess.run(
+                [bake, "--url", url, "--out", sb_mp4,
+                 "--seconds", f"{total:.2f}", "--fps", "1",
+                 "--width", str(bw), "--height", str(bh), "--clock", "seek"],
+                capture_output=True, text=True, timeout=900)
         if proc.returncode != 0:
             raise RuntimeError((proc.stderr or proc.stdout or "")[-300:])
         urls = []
@@ -1343,6 +1349,123 @@ class StudioServer:
         with open(marker, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False)
         return data
+
+    # 每个 Arc 的示例 brief（真帧 tile 的内容——占位文案按它填充，
+    # 展示的是「这个类型做出来长什么样」）
+    ARC_PREVIEW_MESSAGE = {
+        "launch": "给团队的新工作流发布片「一次搞定」",
+        "problem-solution": "切片发布从半天缩短到一分钟",
+        "listicle": "三个理由换掉手工剪辑",
+        "explainer": "我们的视频管线是怎么工作的",
+        "comparison": "手工剪辑对比确定性合成",
+    }
+
+    def _ensure_arc_previews(self):
+        """Arc 示例真帧（Home「做个东西」宫格的真实画面墙，对齐 HF
+        first-cut 的 survey tiles）。两级来源：
+        1) 复用现有项目已验证的分镜帧（thumbs/sb/s*.jpg——分镜管线
+           长期稳定，零烘焙成本）；
+        2) 缺失的 Arc 用示例 spec 现烘（全局 bake 锁串行——并发
+           html_bake 会互相拖死，实测整片纯黑）。
+        单 Arc 失败静默（前端色条兜底）。"""
+        import hf_storyboard
+        import hf_compose
+        import xmedia as _xm
+        out_dir = os.path.expanduser("~/.xmedia/arc-previews")
+        os.makedirs(out_dir, exist_ok=True)
+        # 1) 现有项目分镜帧直接复用（按项目的 Arc 归属）
+        try:
+            projects = self._projects_list()
+        except Exception:
+            projects = []
+        for p in projects:
+            arc = p.get("arc") or ""
+            jpg = os.path.join(out_dir, arc + ".jpg")
+            if not arc or os.path.exists(jpg) or \
+                    arc not in hf_storyboard.ARCS:
+                continue
+            d = os.path.join(self._projects_root(), p["name"])
+            for cand in ("thumbs/sb/s1.jpg", "thumbs/sb/s0.jpg"):
+                src = os.path.join(d, cand)
+                if os.path.isfile(src) and os.path.getsize(src) > 3000:
+                    try:
+                        shutil.copyfile(src, jpg)
+                        break
+                    except OSError:
+                        pass
+        # 2) 缺失的 Arc 现烘（串行）
+        bake = _xm.bake_bin()
+        if not bake:
+            return
+        for arc in hf_storyboard.ARCS:
+            jpg = os.path.join(out_dir, arc + ".jpg")
+            if os.path.exists(jpg):
+                continue
+            try:
+                with _BAKE_LOCK:
+                    self._bake_arc_preview(bake, arc, out_dir)
+            except Exception:
+                continue  # 预览帧是增强不是依赖，失败保持色条兜底
+
+    def _bake_arc_preview(self, bake, arc, out_dir):
+        """单 Arc 示例 spec → compose → bake → 抽帧（调用方持锁）。"""
+        import hf_storyboard
+        import hf_compose
+        d = os.path.join(out_dir, "work", arc)
+        os.makedirs(d, exist_ok=True)
+        spec = hf_storyboard.build(
+            arc, self.ARC_PREVIEW_MESSAGE.get(arc, "示例视频"))
+        with open(os.path.join(d, "spec.json"), "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False, indent=1)
+        html_path = os.path.join(d, "contract.html")
+        html = hf_compose.compose(spec)
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html)
+        w, h = self._dims(spec)
+        scale = 480.0 / max(1, max(w, h))
+        bw = max(2, int(w * scale) // 2 * 2)
+        bh = max(2, int(h * scale) // 2 * 2)
+        scenes = parse_scenes(html)
+        total = parse_total(html, scenes)
+        if not scenes or total <= 0:
+            return
+        mp4 = os.path.join(d, "sb.mp4")
+        proc = subprocess.run(
+            [bake, "--url", "file://" + urllib.parse.quote(html_path),
+             "--out", mp4, "--seconds", f"{total:.2f}", "--fps", "1",
+             "--width", str(bw), "--height", str(bh),
+             "--clock", "seek"],
+            capture_output=True, text=True, timeout=900)
+        if proc.returncode != 0:
+            return
+        jpg = os.path.join(out_dir, arc + ".jpg")
+        # 抽帧候选（末镜中点/结束前 1.5/3s）：页面加载延迟让内容整体
+        # 后移且幅度不定（实测 2.5-3.5s），timeline 播完后契约页清场
+        # ——按字节大小选优（内容帧 5-11KB vs 空态 ~1KB）。
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", mp4], capture_output=True, text=True,
+            timeout=60)
+        try:
+            dur = float(probe.stdout.strip())
+        except (ValueError, OSError):
+            dur = total
+        best = None
+        for tt in ((scenes[-1].get("start") or 0) +
+                   (scenes[-1].get("dur") or 3) * 0.5,
+                   dur - 1.5, dur - 3.0):
+            tt = max(1.0, min(tt, dur - 0.5))
+            cand = os.path.join(d, "pick.jpg")
+            p3 = subprocess.run(
+                ["ffmpeg", "-y", "-ss", f"{tt:.2f}", "-i", mp4,
+                 "-frames:v", "1", cand], capture_output=True, timeout=60)
+            if p3.returncode != 0 or not os.path.exists(cand):
+                continue
+            sz = os.path.getsize(cand)
+            if best is None or sz > best[0]:
+                best = (sz, cand)
+        if best and best[0] > 3000:
+            os.replace(best[1], jpg)
 
     def _projects_root(self):
         """Home 模式的项目根：每个项目 = <root>/<名>/（spec.json +
@@ -1463,9 +1586,20 @@ class StudioServer:
         self._register_spec_paths(spec)
         self._compose()   # 写项目目录的 contract.html
         findings, errors, _, _ = hf_validate.validate(self.current_html)
+        # 首剪的听觉维度（HF first-cut 产出"能看能听"的一条）：旁白
+        # 后台生成——用户跳进编辑器时分镜已就绪，TTS 完成后刷新即见。
+        # 线程失败静默（无 say/音色环境 TTS 失败是常态）。
+        threading.Thread(target=self._safe_tts, daemon=True).start()
         return {"name": name, "url": "/project/" + name,
                 "scenes": len(spec.get("scenes") or []),
                 "errors": errors}
+
+    def _safe_tts(self):
+        try:
+            self._run_tts()
+            self._compose()
+        except Exception:
+            pass
 
     def _cancel_bake(self):
         """终止进行中的导出（Export 面板的取消渲染）。"""
@@ -2285,6 +2419,18 @@ def make_handler(server_ref):
                 self._json(srv._brands_list())
             elif path.startswith("/api/brand-logo/"):
                 self._serve_brand_logo(path[len("/api/brand-logo/"):])
+            elif path.startswith("/api/arc-preview/"):
+                arc = path[len("/api/arc-preview/"):]
+                if not re.fullmatch(r"[\w\-]+", arc or ""):
+                    self._send(404, "not found", "text/plain")
+                    return
+                jpg = os.path.expanduser(
+                    f"~/.xmedia/arc-previews/{arc}.jpg")
+                if not os.path.isfile(jpg):
+                    self._send(404, "not found", "text/plain")
+                    return
+                with open(jpg, "rb") as f:
+                    self._send(200, f.read(), "image/jpeg")
             elif path == "/api/agent/chat/status":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(
                     self.path).query)
@@ -2656,10 +2802,16 @@ def home_html(projects):
         + f' · {p["updated"]}</div>'
         f'<div class="pj-msg">{p["message"]}</div></a>'
         for p in projects)
-    # 类型宫格（HF survey 的 grid-cols-4 形态）：Arc 清单 → 卡片
+    # 类型宫格（HF survey 的 grid-cols-4 形态）：Arc 清单 → 卡片。
+    # tile = 真实渲染帧（/api/arc-preview，后台线程生成；未就绪时
+    # onerror 藏图显渐变色条兜底）——HF survey tiles 的本地对应物。
     arc_cards = "".join(
         f'<button type="button" class="mk-arc" data-arc="{a["id"]}">'
+        f'<span class="mk-arc-tile">'
+        f'<img src="/api/arc-preview/{a["id"]}" alt="" '
+        f'onerror="this.classList.add(\'miss\')">'
         f'<span class="mk-arc-strip s-{i % 5}"></span>'
+        f'</span>'
         f'<b>{a["label"].split("（")[0]}</b>'
         f'<i>{a["label"].split("（")[1].rstrip("）") if "（" in a["label"] else ""}</i>'
         f'</button>'
@@ -2697,8 +2849,13 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
 .mk-arc b {{ font-size: 13px }}
 .mk-arc i {{ font-style: normal; font-size: 10.5px; color: var(--dim);
       line-height: 1.4 }}
-.mk-arc-strip {{ display: flex; height: 22px; border-radius: 5px;
-      overflow: hidden }}
+.mk-arc-tile {{ display: block; position: relative; height: 64px;
+      border-radius: 8px; overflow: hidden; background: var(--panel2) }}
+.mk-arc-tile img {{ position: absolute; inset: 0; width: 100%;
+      height: 100%; object-fit: cover; z-index: 2 }}
+.mk-arc-tile img.miss {{ display: none }}
+.mk-arc-strip {{ display: flex; height: 100%; min-height: 22px;
+      border-radius: 5px; overflow: hidden }}
 .mk-arc-strip::before {{ content: ""; flex: 2 }}
 .mk-arc-strip::after {{ content: ""; flex: 1 }}
 .s-0 {{ background: linear-gradient(90deg, #ffcc00, #00a3ff) }}
@@ -2789,6 +2946,15 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
     fields.style.display = "flex";
     label.textContent = "已选「" + btn.querySelector("b").textContent +
                         "」· 2 of 3 这条片子说什么";
+    /* sentence 引导（HF 把挑选合成一句话的本地对应）：按 Arc 换
+       完整例句作 placeholder——用户改句子而不是从空白填表 */
+    document.getElementById("message").placeholder = {{
+      "launch": "给{{受众}}的一条 20 秒发布片：{{钩子}}「{{一句话主张}}」→ 三点证明 → 立即开始",
+      "problem-solution": "{{受众}}还在被{{旧流程}}拖慢？我们把它从{{耗时}}缩到{{结果}}",
+      "listicle": "换掉{{旧方案}}的三个理由：{{理由一}} · {{理由二}} · {{理由三}}",
+      "explainer": "一分钟讲清{{主题}}：它是什么 → 为什么重要 → 怎么用",
+      "comparison": "还在用{{旧方案}}？{{新方案}}在{{关键指标}}上快{{N}}倍"
+    }}[arc] || "一句话说你要做什么视频";
     document.getElementById("message").focus();
   }});
   /* 品牌 kits 注入（/api/brands 同源数据，default pin 标记） */
@@ -2827,7 +2993,7 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
           btn.disabled = false;
           return;
         }}
-        location.href = r.url;
+        location.href = r.url + "?fresh=1";
       }})
       .catch(function (e) {{
         msg.textContent = "失败：" + e.message;
@@ -2856,6 +3022,10 @@ def serve(contract_path, spec_path, port, no_sfx, home=False):
     if contract_path is None:
         # Home 模式：上面那段自动发现跳过，spec 维持 None。
         srv = StudioServer(None, None, port, no_sfx, home=True)
+        # Arc 示例真帧后台生成（Home 宫格的"画面墙"，几秒后就位；
+        # 已缓存则跳过）。
+        threading.Thread(target=srv._ensure_arc_previews,
+                         daemon=True).start()
     else:
         srv = StudioServer(contract_path, spec_path, port, no_sfx)
 
