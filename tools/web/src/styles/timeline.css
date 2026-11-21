@@ -204,3 +204,9 @@
   color: var(--dim); border-top: 1px dashed var(--line);
   background: var(--panel); }
 .tl-hint::first-letter { color: var(--acc); font-weight: 700; }
+
+/* 评论角标（该镜留过评论即显示） */
+.clip .cmt-badge { position: absolute; top: 4px; right: 4px; z-index: 3;
+  font-size: 11px; background: rgba(0, 0, 0, .55); border-radius: 50%;
+  width: 18px; height: 18px; display: grid; place-items: center;
+  cursor: pointer; }

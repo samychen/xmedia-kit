@@ -1,0 +1,13 @@
+{
+ "name": "testimonial",
+ "description": "证言墙：大引述 + 头像圈 + 姓名（用户声音）",
+ "slots": [
+  "quote",
+  "who",
+  "role"
+ ],
+ "css": "#tpl-testimonial { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ground, #0a0a1a); gap: 2.6vh; padding: 0 10vw; text-align: center; } .ts-q { font-size: 4.2vh; font-weight: 700; line-height: 1.4; color: var(--ink, #f0f0f5); } .ts-q::before { content: \"“\"; color: var(--ink, #f0f0f5); opacity: .4; font-size: 6vh; line-height: 0; } .ts-av { width: 10vh; height: 10vh; border-radius: 50%; background: var(--ink, #f0f0f5); opacity: .9; } .ts-who { font-size: 2.4vh; font-weight: 700; color: var(--ink, #f0f0f5); } .ts-role { font-size: 1.9vh; opacity: .6; color: var(--ink, #f0f0f5); }",
+ "body": "<p class=\"ts-q\">{{quote}}</p><div class=\"ts-av\"></div><div class=\"ts-who\">{{who}}</div><div class=\"ts-role\">{{role}}</div>",
+ "timeline": "tl.fromTo(\"{tpl} .ts-q\", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.55, ease: \"power2.out\" }, {start} + 0.1);tl.fromTo(\"{tpl} .ts-av\", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: \"back.out(1.6)\" }, {start} + 0.5);tl.fromTo(\"{tpl} .ts-who\", { opacity: 0 }, { opacity: 1, duration: 0.4 }, {start} + 0.85);tl.fromTo(\"{tpl} .ts-role\", { opacity: 0 }, { opacity: 1, duration: 0.4 }, {start} + 1.0);",
+ "sfx": "pop"
+}

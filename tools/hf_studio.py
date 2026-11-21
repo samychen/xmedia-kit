@@ -2685,6 +2685,15 @@ def make_handler(server_ref):
                     self._json(srv._project_create(body))
                 elif path == "/api/project/rename":
                     self._json(srv._project_rename(body))
+                elif path == "/api/spec-save":
+                    # 轻量 spec 保存（Comment/标注类元数据）：写回不重组
+                    # ——评论不进契约页，重组是浪费。
+                    import hf_validate
+                    srv.current_spec = body["spec"]
+                    srv._write_spec(srv.current_spec)
+                    findings, errors, _, _ = hf_validate.validate(
+                        srv.current_html, spec=srv.current_spec)
+                    self._json({"ok": True, "errors": errors})
                 elif path == "/api/tts":
                     srv.current_spec = body["spec"]
                     srv._write_spec(srv.current_spec)

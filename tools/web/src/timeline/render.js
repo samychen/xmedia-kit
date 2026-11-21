@@ -451,6 +451,22 @@ export function renderTimeline() {
           };
           b.appendChild(mvL); b.appendChild(mvR);
         }
+        // 评论角标（HF Comment 同款）：该镜留过评论即显示，点击直达
+        // Inspector 的评论编辑区。
+        if (spec.comment) {
+          var cmt = mk("div", "cmt-badge", "💬");
+          cmt.title = "评论：" + spec.comment.slice(0, 80);
+          cmt.onclick = function (e) {
+            e.stopPropagation();
+            selectScene(idx, false);
+            var ta = $("insp-comment");
+            if (ta) {
+              ta.scrollIntoView({ block: "center" });
+              ta.focus({ preventScroll: true });
+            }
+          };
+          b.appendChild(cmt);
+        }
         lane.appendChild(b);
       });
     } else if (td.kind === "caption") {

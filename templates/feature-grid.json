@@ -1,0 +1,15 @@
+{
+ "name": "feature-grid",
+ "description": "特性网格：2×2 打勾特性卡，逐格点亮",
+ "slots": [
+  "title",
+  "f1",
+  "f2",
+  "f3",
+  "f4"
+ ],
+ "css": "#tpl-feature-grid { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .fg-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 3vh; transform-origin: left center; } .fg-title { font-size: 4.4vh; font-weight: 800; margin-bottom: 4vh; color: var(--ink, #f0f0f5); } .fg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.4vh 4vw; } .fg-item { display: flex; align-items: center; gap: 1.6vh; font-size: 2.5vh; color: var(--ink, #f0f0f5); } .fg-check { width: 3.4vh; height: 3.4vh; border-radius: 50%; background: var(--ink, #f0f0f5); color: var(--ground, #0a0a1a); display: grid; place-items: center; font-weight: 800; flex: none; }",
+ "body": "<div class=\"fg-hair\"></div><div class=\"fg-title\">{{title}}</div><div class=\"fg-grid\"><div class=\"fg-item\"><span class=\"fg-check\">✓</span>{{f1}}</div><div class=\"fg-item\"><span class=\"fg-check\">✓</span>{{f2}}</div><div class=\"fg-item\"><span class=\"fg-check\">✓</span>{{f3}}</div><div class=\"fg-item\"><span class=\"fg-check\">✓</span>{{f4}}</div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .fg-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .fg-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, {start} + 0.2);tl.fromTo(\"{tpl} .fg-item\", { opacity: 0, x: -34 }, { opacity: 1, x: 0, duration: 0.45, ease: \"power2.out\", stagger: 0.16 }, {start} + 0.5);",
+ "sfx": "pop"
+}

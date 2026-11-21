@@ -1,0 +1,14 @@
+{
+ "name": "points-check",
+ "description": "打勾清单：条件逐条满足（✓ 逐条盖章式出现）",
+ "slots": [
+  "title",
+  "p1",
+  "p2",
+  "p3"
+ ],
+ "css": "#tpl-points-check { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .pc-title { font-size: 4vh; font-weight: 800; margin-bottom: 4.5vh; color: var(--ink, #f0f0f5); } .pc-row { display: flex; align-items: center; gap: 2vh; font-size: 2.8vh; margin: 2vh 0; color: var(--ink, #f0f0f5); opacity: 0; } .pc-box { width: 3.6vh; height: 3.6vh; border-radius: 8px; border: 2px solid var(--ink, #f0f0f5); display: grid; place-items: center; font-weight: 800; flex: none; }",
+ "body": "<div class=\"pc-title\">{{title}}</div><div class=\"pc-row\"><span class=\"pc-box\">✓</span>{{p1}}</div><div class=\"pc-row\"><span class=\"pc-box\">✓</span>{{p2}}</div><div class=\"pc-row\"><span class=\"pc-box\">✓</span>{{p3}}</div>",
+ "timeline": "tl.fromTo(\"{tpl} .pc-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, {start});tl.fromTo(\"{tpl} .pc-row\", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.4, ease: \"power2.out\", stagger: 0.35 }, {start} + 0.45);",
+ "sfx": "pop"
+}

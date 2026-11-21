@@ -1,0 +1,12 @@
+{
+ "name": "faq-accordion",
+ "description": "FAQ 问答：问句反白条 + 答句渐入（产品答疑镜）",
+ "slots": [
+  "question",
+  "answer"
+ ],
+ "css": "#tpl-faq-accordion { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); gap: 3vh; } .fq-q { background: var(--ink, #f0f0f5); color: var(--ground, #0a0a1a); padding: 1.6vh 2.4vh; font-size: 3vh; font-weight: 800; border-radius: 10px; width: fit-content; max-width: 84%; } .fq-a { font-size: 2.4vh; line-height: 1.55; opacity: .85; color: var(--ink, #f0f0f5); padding-left: 2.4vh; }",
+ "body": "<div class=\"fq-q\">{{question}}</div><p class=\"fq-a\">{{answer}}</p>",
+ "timeline": "tl.fromTo(\"{tpl} .fq-q\", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .fq-a\", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: \"power2.out\" }, {start} + 0.45);",
+ "sfx": "pop"
+}

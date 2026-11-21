@@ -13,6 +13,7 @@ import { tplRender } from "./panels/templates.js";
 import { brandRender } from "./panels/brand.js";
 import { projectsRender } from "./panels/projects.js";
 import { sbGridShow } from "./preview/sbgrid.js";
+import { drawInit } from "./preview/draw.js";
 
 /* ---------------- 交互绑定 ---------------- */
 $("btn-play").innerHTML = ICON.play;
@@ -139,6 +140,7 @@ function switchLeftPanel(name) {
   if (name === "brand") brandRender();
   if (name === "projects") projectsRender();
 }
+drawInit();
 $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-projects").onclick = function () { switchLeftPanel("projects"); };
 $("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };

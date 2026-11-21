@@ -1,6 +1,7 @@
 import { renderSceneList, sceneFields } from "./scenes.js";
 import { recompose } from "./status.js";
 import { escHtml, log, $ } from "../shared/dom.js";
+import { api } from "../shared/api-client.js";
 import { renderTimeline } from "../timeline/render.js";
 import { sameSourceSeam } from "../timeline/trim.js";
 
@@ -23,6 +24,9 @@ export function renderInspector() {
       sc.text_color : "#ffffff";
   $("insp-anim").value = sc.animation || "fade_in";
   $("insp-trans").value = sc.transition || "";
+  /* 片段评论（HF Comment 同款）：元数据随 spec 保存，不进契约页 */
+  $("insp-comment").value = sc.comment || "";
+  $("insp-cmt-badge").textContent = sc.comment ? "· 已留" : "";
   var fields = sceneFields(sc);
   curFields = fields;
   // 视频场景暴露「源内起点」：切割产出的 video_from 在这里看得见、改得动
@@ -133,4 +137,22 @@ $("insp-del").onclick = function () {
   renderSceneList(); renderTimeline(); renderInspector();
   log("场景已删除，重组合成…");
   recompose();
+};
+
+/* 评论保存（轻量 /api/spec-save：写回不重组——评论不进契约页） */
+$("insp-cmt-save").onclick = function () {
+  if (selIdx < 0 || !state.spec.scenes[selIdx]) return;
+  var text = $("insp-comment").value.trim();
+  if (text) state.spec.scenes[selIdx].comment = text;
+  else delete state.spec.scenes[selIdx].comment;
+  $("insp-cmt-badge").textContent = text ? "· 已留" : "";
+  this.disabled = true;
+  api("/api/spec-save", { spec: state.spec }).then(() => {
+    this.disabled = false;
+    log(r.errors ? "评论已保存（校验 " + r.errors + " errors）" : "评论已保存",
+        r.errors ? "err" : "ok");
+  }).catch((e) => {
+    this.disabled = false;
+    log("评论保存失败：" + e.message, "err");
+  });
 };

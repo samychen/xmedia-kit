@@ -1,0 +1,11 @@
+{
+ "name": "big-quote-full",
+ "description": "全屏大引言：单句占满画面（4.5vh 级别的呼吸感）",
+ "slots": [
+  "text",
+  "source"
+ ],
+ "css": "#tpl-big-quote-full { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .bq-text { font-size: 5.6vh; font-weight: 800; line-height: 1.35; color: var(--ink, #f0f0f5); max-width: 84%; } .bq-src { font-size: 2vh; opacity: .6; margin-top: 4vh; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"bq-text\">{{text}}</div><div class=\"bq-src\">{{source}}</div>",
+ "timeline": "tl.fromTo(\"{tpl} .bq-text\", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.7, ease: \"power2.out\" }, {start} + 0.1);tl.fromTo(\"{tpl} .bq-src\", { opacity: 0 }, { opacity: 1, duration: 0.5 }, {start} + 0.9);"
+}

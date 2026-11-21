@@ -214,10 +214,12 @@
       <div class="pv-tools" role="group" aria-label="画布工具">
         <button class="pvtool on" id="pvtool-select" type="button"
                 title="Select：点画面元素定位字段">✦</button>
+        <button class="pvtool" id="pvtool-draw" type="button"
+                title="Draw：在画面上画标注（表达修改意图，会话级）">✎</button>
+        <button class="pvtool" id="pvtool-clear" type="button"
+                title="清除画布标注" style="display:none">⌫ 清除</button>
         <button class="pvtool" type="button" disabled
-                title="Draw：手绘标注（规划中）">✎</button>
-        <button class="pvtool" type="button" disabled
-                title="Comment：协作评论（规划中）">💬</button>
+                title="Comment：片段评论已支持——选中片段在 Inspector 底部留言">💬</button>
       </div>
       <button class="tbtn" id="btn-first" title="跳到开头 (Home)" aria-label="跳到开头 (Home)">
         <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><path d="M3 2.5h1.8v11H3zM14 2.5v11L6 8z"/></svg>
@@ -307,6 +309,14 @@
           <button class="btn" id="insp-dup">复制</button>
           <button class="btn" id="insp-del"
                   style="color:var(--err);border-color:rgba(255,92,108,.4)">删除</button>
+        </div>
+        <!-- 片段评论（HF Comment 同款语义）：只写元数据，不重组 -->
+        <div class="insp-section">
+          <div class="sec-h">💬 评论 <span id="insp-cmt-badge"></span></div>
+          <textarea id="insp-comment" rows="2" style="width:100%"
+                    placeholder="给这一镜留条评论（修改意图/待办）…"></textarea>
+          <button class="btn" id="insp-cmt-save" type="button"
+                  style="margin-top:6px">保存评论</button>
         </div>
       </div>
     </div>

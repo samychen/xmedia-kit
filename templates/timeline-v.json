@@ -1,0 +1,14 @@
+{
+ "name": "timeline-v",
+ "description": "时间线：垂直三节点（线擦下 + 节点点亮），里程碑/流程",
+ "slots": [
+  "title",
+  "s1",
+  "s2",
+  "s3"
+ ],
+ "css": "#tpl-timeline-v { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .tv-title { font-size: 4vh; font-weight: 800; margin-bottom: 4vh; color: var(--ink, #f0f0f5); } .tv-line { position: relative; padding-left: 4vh; } .tv-spine { position: absolute; left: 1.6vh; top: 1vh; bottom: 1vh; width: 2px; background: currentColor; opacity: .35; transform-origin: top center; } .tv-node { position: relative; margin: 2.6vh 0; font-size: 2.6vh; color: var(--ink, #f0f0f5); opacity: 0; } .tv-node::before { content: \"\"; position: absolute; left: -3.4vh; top: .6vh; width: 1.8vh; height: 1.8vh; border-radius: 50%; background: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"tv-title\">{{title}}</div><div class=\"tv-line\"><i class=\"tv-spine\"></i><div class=\"tv-node\">{{s1}}</div><div class=\"tv-node\">{{s2}}</div><div class=\"tv-node\">{{s3}}</div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .tv-spine\", { scaleY: 0 }, { scaleY: 1, duration: 0.7, ease: \"power2.inOut\" }, {start} + 0.2);tl.fromTo(\"{tpl} .tv-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, {start});tl.fromTo(\"{tpl} .tv-node\", { opacity: 0, x: -26 }, { opacity: 1, x: 0, duration: 0.4, ease: \"power2.out\", stagger: 0.3 }, {start} + 0.45);",
+ "sfx": "pop"
+}

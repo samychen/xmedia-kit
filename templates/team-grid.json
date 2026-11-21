@@ -1,0 +1,17 @@
+{
+ "name": "team-grid",
+ "description": "团队介绍：三人网格（头像圈 + 名字 + 职务），逐个入场",
+ "slots": [
+  "title",
+  "p1",
+  "r1",
+  "p2",
+  "r2",
+  "p3",
+  "r3"
+ ],
+ "css": "#tpl-team-grid { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .tg-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 3vh; transform-origin: left center; } .tg-title { font-size: 4.4vh; font-weight: 800; margin-bottom: 5vh; color: var(--ink, #f0f0f5); } .tg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4vw; } .tg-p { display: flex; flex-direction: column; align-items: center; gap: 1.2vh; } .tg-av { width: 12vh; height: 12vh; border-radius: 50%; background: var(--ink, #f0f0f5); opacity: .9; } .tg-p b { font-size: 2.4vh; color: var(--ink, #f0f0f5); } .tg-p i { font-style: normal; font-size: 1.8vh; opacity: .6; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"tg-hair\"></div><div class=\"tg-title\">{{title}}</div><div class=\"tg-grid\"><div class=\"tg-p\"><div class=\"tg-av\"></div><b>{{p1}}</b><i>{{r1}}</i></div><div class=\"tg-p\"><div class=\"tg-av\"></div><b>{{p2}}</b><i>{{r2}}</i></div><div class=\"tg-p\"><div class=\"tg-av\"></div><b>{{p3}}</b><i>{{r3}}</i></div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .tg-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .tg-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, {start} + 0.2);tl.fromTo(\"{tpl} .tg-p\", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: \"power2.out\", stagger: 0.18 }, {start} + 0.5);",
+ "sfx": "pop"
+}
