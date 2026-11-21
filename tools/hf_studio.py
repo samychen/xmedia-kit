@@ -109,7 +109,7 @@ def build_chrome(total_s, scenes, mix_url=""):
   .mc-studio-sel {{ outline: 3px solid #ff5c7a; outline-offset: -3px; }}
   /* Studio 实时预览是真实浏览器，没有 CEF 烘焙侧的原生视频层，
      必须让 .scene-video 可见；烘焙侧不注入本 chrome，不受影响。 */
-  html.mc-studio .scene-video {{ visibility: visible; }}
+  html.mc-studio .scene-video {{ visibility: inherit; }}
 </style>
 <div id="__mc-studio-chrome">
   <button id="__mc-studio-play">▶</button>
@@ -386,6 +386,18 @@ def build_chrome(total_s, scenes, mix_url=""):
     }} else if (typeof window.seek === "function") {{
       try {{ window.seek(sec * 1000); }} catch (e) {{}}
     }}
+    // 场景窗口可见性（预览与 bake 同源语义）：按 data-start/duration 切
+    // 每个 clip 的 visibility——animation="none" 的场景（导入接缝/叠加
+    // 轨）没有入场 tween，可见性只能在这里按窗口切换，否则它们从 t=0
+    // 就叠在最上层盖住主轨（预览与导出不一致的根因）。
+    for (var si = 0; si < SCENES.length; si++) {{
+      var scE = document.getElementById(SCENES[si].id);
+      if (!scE) {{ continue; }}
+      var stS = parseFloat(scE.getAttribute("data-start") || "0");
+      var duS = parseFloat(scE.getAttribute("data-duration") || "0");
+      scE.style.visibility =
+        (sec >= stS - 0.02 && sec <= stS + duS + 0.05) ? "visible" : "hidden";
+    }}
     // 视频元素同步到时间轴位置（Studio 实时预览是真实浏览器，需显式
     // play/pause；烘焙侧由 CEF 原生视频层供给画面，不依赖此逻辑）。
     // 播放态只在进入本窗口时 play 一次、离开时 pause——绝不逐帧 seek，
@@ -403,6 +415,9 @@ def build_chrome(total_s, scenes, mix_url=""):
         var loc = sec - vs;
         var at = Math.max(0, loc + vf);
         var inWin = loc >= -0.02 && loc <= vd + 0.05;
+        // video 可见性跟随窗口（visibility inherit 语义下父场景
+        // hidden 时 video 也该 hidden——强制 visible 会盖住主轨）。
+        v.style.visibility = inWin ? "visible" : "hidden";
         if (playing && inWin) {{
           if (v.paused) {{
             if (Math.abs(v.currentTime - at) > 0.05) {{
