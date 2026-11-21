@@ -1,11 +1,22 @@
 /* ---------------- Draw 手绘标注（HF 的画布手绘同款语义） ----------------
- * 预览区叠加 canvas：激活画笔后直接在画面上画标注（表达修改意图），
- * 会话级（不进 spec/成片）。坐标 = canvas 内部像素，随窗口缩放重设
- * 尺寸时清空（标注是临时笔迹）。 */
+ * 预览区叠加 canvas：激活画笔后直接在画面上画标注——**标注进成片**：
+ * 笔划按画面（pvframe）归一化收集进 spec.annotations，防抖 1.2s 提交
+ * recompose（契约页生成 SVG 标注层）→ 预览与导出都带标注。画布上的
+ * 笔迹在提交后清空（由契约页 SVG 接管显示，避免双份）。 */
 import { $, log } from "../shared/dom.js";
+import { api } from "../shared/api-client.js";
+import { renderTimeline } from "../timeline/render.js";
 
 let cv = null, ctx = null, drawing = false, on = false;
 let last = null;
+let curStroke = null;          // 当前笔划（归一化点数组）
+let pendingStrokes = [];       // 待提交笔划
+let commitTimer = null;
+
+function frameRect() {
+  var f = document.querySelector("#pvframe");
+  return f ? f.getBoundingClientRect() : null;
+}
 
 function ensureCanvas() {
   if (cv) return cv;
@@ -24,7 +35,8 @@ function ensureCanvas() {
     if (!on) return;
     drawing = true;
     last = pos(e);
-    cv.setPointerCapture(e.pointerId);
+    curStroke = { points: [norm(e)], color: "#ff4d9d", width: 4 };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 无所谓：capture 只是拖出画布也持续收点 */ }
   });
   cv.addEventListener("pointermove", function (e) {
     if (!on || !drawing) return;
@@ -34,11 +46,51 @@ function ensureCanvas() {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last = p;
+    curStroke.points.push(norm(e));
   });
   ["pointerup", "pointerleave", "pointercancel"].forEach(function (ev) {
-    cv.addEventListener(ev, function () { drawing = false; });
+    cv.addEventListener(ev, function () {
+      if (drawing && curStroke && curStroke.points.length > 1) {
+        pendingStrokes.push(curStroke);
+        scheduleCommit();
+      }
+      drawing = false;
+      curStroke = null;
+    });
   });
   return cv;
+}
+
+/* 画笔点 → 画面归一化坐标（0-1，以 pvframe 为基准，黑边笔迹裁掉） */
+function norm(e) {
+  var f = frameRect();
+  if (!f) return [0, 0];
+  return [
+    Math.max(0, Math.min(1, (e.clientX - f.left) / f.width)),
+    Math.max(0, Math.min(1, (e.clientY - f.top) / f.height))
+  ];
+}
+
+/* 笔划提交：防抖 1.2s 合并多笔划 → spec.annotations → recompose
+   （契约页 SVG 接管显示）→ 画布清空。 */
+function scheduleCommit() {
+  if (commitTimer) clearTimeout(commitTimer);
+  commitTimer = setTimeout(function () {
+    commitTimer = null;
+    if (!pendingStrokes.length) return;
+    var strokes = pendingStrokes;
+    pendingStrokes = [];
+    state.spec.annotations = (state.spec.annotations || []).concat(strokes);
+    drawClear();
+    api("/api/recompose", { spec: state.spec, no_sfx:
+        !document.querySelector("#sfx").checked })
+      .then(function () {
+        log("标注已画入视频（" + strokes.length + " 笔）", "ok");
+      })
+      .catch(function (e) {
+        log("标注提交失败：" + e.message, "err");
+      });
+  }, 1200);
 }
 
 function resize() {
@@ -64,7 +116,7 @@ export function drawToggle(on_) {
     /* 布局 flush 后再取尺寸——同 tick 内 rect 是 canvas 默认 300×150，
        内容会被 CSS 拉伸错位（用户观感"画了没反应"） */
     requestAnimationFrame(resize);
-    log("画笔已激活——直接在画面上画标注（表达修改意图，会话级）", "ok");
+    log("画笔已激活——画在画面上的标注将导出到视频", "ok");
   }
 }
 
@@ -86,5 +138,17 @@ export function drawInit() {
     if (clr) clr.style.display = on ? "" : "none";
   };
   var clearBtn = $("pvtool-clear");
-  if (clearBtn) clearBtn.onclick = function () { drawClear(); };
+  if (clearBtn) clearBtn.onclick = function () {
+    if (state.spec.annotations && state.spec.annotations.length) {
+      delete state.spec.annotations;
+      api("/api/recompose", { spec: state.spec, no_sfx:
+          !document.querySelector("#sfx").checked })
+        .then(function () {
+          log("标注已清除", "ok");
+        }).catch(function (e) {
+          log("清除失败：" + e.message, "err");
+        });
+    }
+    drawClear();
+  };
 }

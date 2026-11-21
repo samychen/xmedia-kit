@@ -815,6 +815,37 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                                   cap_by_scene, registry=registry)
 
+    # 手绘标注层（Draw 画笔 → 成片）：spec.annotations = [{points:
+    # [[x,y]…]（0-1 归一化）, color, width}]——契约页 SVG 叠加
+    # （viewBox 1000、preserveAspectRatio none 与画面比例无关），
+    # 全片窗口（data-start=0 / duration=total）——预览与导出同源。
+    ann = spec.get("annotations") or []
+    ann_svg = ""
+    polys = []
+    for a in ann:
+        pts = a.get("points") or []
+        if len(pts) < 2:
+            continue
+        pts_s = " ".join(
+            "{:.0f},{:.0f}".format(
+                max(0, min(1, float(p[0]))) * 1000,
+                max(0, min(1, float(p[1]))) * 1000)
+            for p in pts if isinstance(p, (list, tuple)) and len(p) >= 2)
+        if not pts_s:
+            continue
+        polys.append(
+            '<polyline points="' + pts_s + '" fill="none" stroke="' +
+            esc(a.get("color", "#ff4d9d")) + '" stroke-width="' +
+            esc(str(a.get("width", 4))) + '" stroke-linecap="round"'
+            ' stroke-linejoin="round"/>')
+    if polys:
+        ann_svg = ('  <svg class="ann-layer" data-start="0" data-duration="' +
+                   str(total_duration) + '" viewBox="0 0 1000 1000"'
+                   ' preserveAspectRatio="none" style="position:absolute;'
+                   ' inset:0; width:100%; height:100%; z-index:5;'
+                   ' pointer-events:none">\n    ' + "".join(polys) +
+                   "\n  </svg>\n")
+
     # 音频
     audio = spec.get("audio", {})
     audio_tag = ""
@@ -1032,7 +1063,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
        data-height="{height}" data-time-unit="s" data-fps="{fps}">
 {chr(10).join(scene_html_parts)}
   </div>
-{audio_tag}{''.join(narr_audio)}{''.join(sfx_audio)}  <script>{_gsap_src}</script>
+{ann_svg}{audio_tag}{''.join(narr_audio)}{''.join(sfx_audio)}  <script>{_gsap_src}</script>
   <script>
     window.__timelines = window.__timelines || {{}};
     if (window.SplitText) {{ gsap.registerPlugin(SplitText); }}
