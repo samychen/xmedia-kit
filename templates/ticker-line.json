@@ -5,8 +5,8 @@
   "text",
   "sub"
  ],
- "css": "#tpl-ticker-line { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.6vh; padding: 0 8vw; background: var(--ground, #0a0a1a); } .tk-line { font-size: 6vh; font-weight: 800; line-height: 1.18; color: var(--ink, #f0f0f5); clip-path: inset(0% 100% 0% 0%); transform-origin: left center; } .tk-sub { font-size: 2.3vh; opacity: .7; color: var(--ink, #f0f0f5); clip-path: inset(0% 100% 0% 0%); }",
+ "css": "#tpl-ticker-line { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.6vh; padding: 0 8vw; background: var(--ground, #0a0a1a); } .tk-line { font-size: 6vh; font-weight: 800; line-height: 1.18; color: var(--ink, #f0f0f5); transform-origin: left center; } .tk-sub { font-size: 2.3vh; opacity: .7; color: var(--ink, #f0f0f5); clip-path: inset(0% 100% 0% 0%); }",
  "body": "<div class=\"tk-line\">{{text}}</div><div class=\"tk-sub\">{{sub}}</div>",
- "timeline": "tl.fromTo(\"{tpl} .tk-line\", { clipPath: \"inset(0% 100% 0% 0%)\" }, { clipPath: \"inset(0% 0% 0% 0%)\", duration: 0.7, ease: \"power3.inOut\" }, {start} + 0.15);tl.fromTo(\"{tpl} .tk-sub\", { clipPath: \"inset(0% 100% 0% 0%)\" }, { clipPath: \"inset(0% 0% 0% 0%)\", duration: 0.5, ease: \"power3.inOut\" }, {start} + 0.85);",
+ "timeline": "if (window.ScrambleTextPlugin) { tl.to(\"{tpl} .tk-line\", { duration: 1.1, scrambleText: { text: {{text}}, chars: \"零一二三四五六七八九十ABCDEF0123456789●\", speed: 1.4 } }, {start} + 0.15);} else { tl.fromTo(\"{tpl} .tk-line\", { clipPath: \"inset(0% 100% 0% 0%)\" }, { clipPath: \"inset(0% 0% 0% 0%)\", duration: 0.7, ease: \"power3.inOut\" }, {start} + 0.15);}tl.fromTo(\"{tpl} .tk-sub\", { clipPath: \"inset(0% 100% 0% 0%)\" }, { clipPath: \"inset(0% 0% 0% 0%)\", duration: 0.5, ease: \"power3.inOut\" }, {start} + 1.0);",
  "sfx": "transition"
 }

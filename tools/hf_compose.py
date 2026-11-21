@@ -549,6 +549,27 @@ def _element_anim_js(idx, typ, base):
     return L
 
 
+def _render_template_timeline(defn, scene):
+    """模板 timeline 片段的 slot 替换：{{slot}} → JS 字符串字面量
+    （json 转义，与 body 的 HTML 转义不同通道——timeline 里是 JS 代码
+    上下文）。列表值 join 成逗号分隔的字符串字面量序列。"""
+    frag = defn.get("timeline") or ""
+    if not frag:
+        return ""
+
+    def sub(m):
+        slot = m.group(1)
+        val = scene.get(slot)
+        if val is None:
+            return '""'
+        if isinstance(val, (list, tuple)):
+            return ", ".join(json.dumps(str(x), ensure_ascii=False)
+                             for x in val)
+        return json.dumps(str(val), ensure_ascii=False)
+
+    return SLOT_RE.sub(sub, frag)
+
+
 def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                     caption_segments=None, registry=None):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
@@ -602,11 +623,12 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
         if anim != "none":
             lines.extend(_element_anim_js(idx, typ, starts[idx] + enter * 0.6))
         # 自定义模板编排：模板 JSON 的 timeline 字段（GSAP 语句片段，
-        # {tpl}=#tpl-<name>、{start}=场景绝对起点、{dur}=场景时长）——
-        # 数字滚动/条形增长等模板级动效也走同一条 paused 主时间线，
-        # seek 确定性还原。anim=="none"（切割接缝）同样跳过。
+        # {{slot}}=场景字段 JS 字面量、{tpl}=#tpl-<name>、{start}=场景
+        # 绝对起点、{dur}=场景时长）——数字滚动/条形增长/逐字/乱码等
+        # 模板级动效也走同一条 paused 主时间线，seek 确定性还原。
+        # anim=="none"（切割接缝）同样跳过。
         if anim != "none" and registry and typ in registry:
-            frag = (registry[typ].get("timeline") or "")
+            frag = _render_template_timeline(registry[typ], scene)
             if frag:
                 frag = (frag.replace("{tpl}", f"#tpl-{typ}")
                             .replace("{start}", str(starts[idx]))
@@ -649,17 +671,35 @@ def _load_gsap():
     份，最后才回落到 tests/testdata/（源码树的路径）。tools/ 那份是为
     npm 包准备的——`npx xmedia-kit` 装出来没有 tests/ 目录，以前会静默
     生成 `/* gsap not found */`，产物能动但所有动画都不跑。
+
+    gsap-plugins.min.js（SplitText/ScrambleText 等，GSAP 3.13 起官方
+    免费开源）存在则追加——文字逐字/乱码揭示动效（HF glyph-scramble
+    同款）的依赖；缺失时静默降级（模板 timeline 里的引用由页面
+    typeof 守卫兜底）。
     """
     tools_dir = os.path.dirname(os.path.abspath(__file__))
-    for candidate in [
-        os.path.join(_spec_dir, "gsap.min.js"),
-        os.path.join(tools_dir, "gsap.min.js"),
-        os.path.join(tools_dir, "..", "tests", "testdata", "gsap.min.js"),
-    ]:
-        if os.path.isfile(candidate):
-            with open(candidate, "r", encoding="utf-8") as f:
-                return f.read()
-    return "/* gsap not found */"
+
+    def _find(name):
+        for candidate in [
+            os.path.join(_spec_dir, name),
+            os.path.join(tools_dir, name),
+            os.path.join(tools_dir, "..", "tests", "testdata", name),
+        ]:
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
+    core = _find("gsap.min.js")
+    if not core:
+        return "/* gsap not found */"
+    src = ""
+    with open(core, "r", encoding="utf-8") as f:
+        src += f.read()
+    plugins = _find("gsap-plugins.min.js")
+    if plugins:
+        with open(plugins, "r", encoding="utf-8") as f:
+            src += "\n" + f.read()
+    return src
 
 
 def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
@@ -979,6 +1019,8 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
 {audio_tag}{''.join(narr_audio)}{''.join(sfx_audio)}  <script>{_gsap_src}</script>
   <script>
     window.__timelines = window.__timelines || {{}};
+    if (window.SplitText) {{ gsap.registerPlugin(SplitText); }}
+    if (window.ScrambleTextPlugin) {{ gsap.registerPlugin(ScrambleTextPlugin); }}
     const tl = gsap.timeline({{ paused: true }});
 {timeline_js}
     window.__timelines["{comp_id}"] = tl;

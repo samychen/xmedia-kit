@@ -7,6 +7,6 @@
  ],
  "css": "#tpl-word-huge { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .wh-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 3.2vh; transform-origin: left center; } .wh-word { font-size: 13vh; font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; color: var(--ink, #f0f0f5); max-width: 84%; } .wh-note { font-size: 2.3vh; opacity: .7; margin-top: 3vh; color: var(--ink, #f0f0f5); }",
  "body": "<i class=\"wh-hair\"></i><div class=\"wh-word\">{{word}}</div><div class=\"wh-note\">{{note}}</div>",
- "timeline": "tl.fromTo(\"{tpl} .wh-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .wh-word\", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: \"power2.out\" }, {start} + 0.25);tl.fromTo(\"{tpl} .wh-note\", { opacity: 0 }, { opacity: 1, duration: 0.45 }, {start} + 0.8);",
+ "timeline": "tl.fromTo(\"{tpl} .wh-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});if (window.SplitText) { var _wh = new SplitText(\"{tpl} .wh-word\", { type: \"chars\" }); tl.from(_wh.chars, { y: 110, opacity: 0, duration: 0.5, ease: \"power2.out\", stagger: 0.07 }, {start} + 0.25);} else { tl.fromTo(\"{tpl} .wh-word\", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: \"power2.out\" }, {start} + 0.25);}tl.fromTo(\"{tpl} .wh-note\", { opacity: 0 }, { opacity: 1, duration: 0.45 }, {start} + 0.9);",
  "sfx": "whoosh"
 }
