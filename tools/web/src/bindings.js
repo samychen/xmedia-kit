@@ -11,6 +11,7 @@ import { splitAtPlayhead } from "./timeline/trim.js";
 import { storyboardIsOpen, storyboardOpen, storyboardRender } from "./panels/storyboard.js";
 import { tplRender } from "./panels/templates.js";
 import { brandRender } from "./panels/brand.js";
+import { projectsRender } from "./panels/projects.js";
 import { sbGridShow } from "./preview/sbgrid.js";
 
 /* ---------------- 交互绑定 ---------------- */
@@ -119,10 +120,12 @@ $("btn-log").onclick = function () {
 /* 左栏五面板统一切换（对话/场景/脚本/分镜/源码）：tab 高亮 + 面板互斥。
    对话（chat）是主面板——HF 的 chat 左栏形态。 */
 function switchLeftPanel(name) {
-  var tabs = { chat: "tab-chat", scenes: "tab-scenes", script: "tab-script",
+  var tabs = { projects: "tab-projects", chat: "tab-chat",
+               scenes: "tab-scenes", script: "tab-script",
                storyboard: "tab-storyboard", templates: "tab-templates",
                brand: "tab-brand", source: "tab-source" };
-  var panels = { chat: "chat-panel", scenes: "scenes-panel",
+  var panels = { projects: "projects-panel", chat: "chat-panel",
+                 scenes: "scenes-panel",
                  script: "script-panel", storyboard: "sb-panel",
                  templates: "templates-panel", brand: "brand-panel",
                  source: "source-panel" };
@@ -134,8 +137,10 @@ function switchLeftPanel(name) {
   if (name === "storyboard") storyboardOpen(true);
   if (name === "templates") tplRender();
   if (name === "brand") brandRender();
+  if (name === "projects") projectsRender();
 }
 $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
+$("tab-projects").onclick = function () { switchLeftPanel("projects"); };
 $("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
 $("tab-script").onclick = function () { switchLeftPanel("script"); };
 $("tab-storyboard").onclick = function () {

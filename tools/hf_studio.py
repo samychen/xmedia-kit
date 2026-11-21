@@ -2480,6 +2480,32 @@ def make_handler(server_ref):
                      "slots": d.get("slots", [])}
                     for d in sorted(registry.values(),
                                     key=lambda x: x.get("name", ""))]})
+            elif path == "/api/inspirations":
+                # 灵感库（HF Inspirations 的本地对应）：内置示例 brief
+                # 一键新建——冷启动不用从零想 brief。
+                self._json({"inspirations": [
+                    {"id": "launch-20s", "arc": "launch",
+                     "title": "20 秒产品发布片",
+                     "hint": "Hook → 亮点 → 证明 → CTA 的标准四段",
+                     "message": "给团队发布我们的新工作流「一次搞定」，"
+                                "把发布节奏压缩到 20 秒"},
+                    {"id": "explainer-101", "arc": "explainer",
+                     "title": "一分钟讲清一件事",
+                     "hint": "What → Why → How 的科普节奏",
+                     "message": "讲清楚我们的确定性视频管线是怎么工作的"},
+                    {"id": "listicle-3", "arc": "listicle",
+                     "title": "三个理由清单体",
+                     "hint": "numbered enumeration，条目逐一点亮",
+                     "message": "换掉手工剪辑的三个理由"},
+                    {"id": "compare-orbit", "arc": "comparison",
+                     "title": "新旧方案对比",
+                     "hint": "之前/之后 双列擦入，证明差异化",
+                     "message": "手工剪辑对比确定性合成「一次合成永不翻车」"},
+                    {"id": "problem-fix", "arc": "problem-solution",
+                     "title": "痛点-方案钩子",
+                     "hint": "Hook 抛问题 → 方案反转 → 证明",
+                     "message": "切片发布还在被手工流程拖慢「从半天到一分钟」"},
+                ]})
             elif path == "/api/brands":
                 self._json(srv._brands_list())
             elif path.startswith("/api/brand-logo/"):

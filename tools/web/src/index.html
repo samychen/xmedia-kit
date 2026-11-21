@@ -25,6 +25,7 @@
 <main class="workspace">
   <aside class="left">
     <div class="tabs">
+      <button class="tab" id="tab-projects" title="项目导航（HF 左栏形态）">⌂</button>
       <button class="tab active" id="tab-chat">对话</button>
       <button class="tab" id="tab-scenes">场景</button>
       <button class="tab" id="tab-script">脚本</button>
@@ -32,6 +33,12 @@
       <button class="tab" id="tab-templates">模板</button>
       <button class="tab" id="tab-brand">品牌</button>
       <button class="tab" id="tab-source">源码 JSON</button>
+    </div>
+    <div class="left-panel" id="projects-panel" style="display:none">
+      <div id="projects-view"></div>
+      <div class="left-foot">
+        <span>⌂ 项目导航 · 灵感一键新建 · 不离开编辑器切换项目</span>
+      </div>
     </div>
     <div class="left-panel" id="chat-panel">
       <div id="ask-head">

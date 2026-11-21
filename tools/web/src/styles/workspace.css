@@ -132,3 +132,37 @@ body.docking .left .tab:nth-child(6) { animation-delay: .2s; }
 body.docking .left .tab:nth-child(7) { animation-delay: .24s; }
 body.docking .center { animation: dock-in .6s .1s cubic-bezier(.2, .8, .3, 1) backwards; }
 @keyframes dock-tab { from { opacity: 0; transform: translateY(-10px); } }
+
+/* ---- 项目导航面板（HF 左栏 Projects 形态）---- */
+#projects-view { display: flex; flex-direction: column; flex: 1;
+  min-height: 0; overflow-y: auto; padding: 10px; gap: 12px; }
+.pj-new { display: flex; flex-direction: column; gap: 3px;
+  background: var(--panel2); border: 1px solid var(--acc);
+  border-radius: 10px; padding: 11px 13px; text-decoration: none;
+  color: var(--ink); }
+.pj-new b { font-size: 13px; }
+.pj-new i { font-style: normal; font-size: 10.5px; color: var(--dim); }
+.pj-sec { font-size: 11px; color: var(--dim); letter-spacing: .05em;
+  text-transform: uppercase; margin-top: 2px; }
+.pj-insp-row { display: flex; flex-direction: column; gap: 6px; }
+.pj-insp-card { display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 9px 11px; cursor: pointer; text-align: left;
+  color: var(--ink); font: inherit; }
+.pj-insp-card:hover { border-color: var(--acc); }
+.pj-insp-card b { font-size: 12px; }
+.pj-insp-card i { font-style: normal; font-size: 10.5px; color: var(--dim); }
+.pj-nav { display: flex; flex-direction: column; gap: 8px; }
+.pj-nav-card { display: block; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px;
+  text-decoration: none; color: var(--ink); }
+.pj-nav-card:hover, .pj-nav-card.cur { border-color: var(--acc); }
+.pj-nav-card.cur { box-shadow: 0 0 0 1px var(--acc); }
+.pj-nav-card .pj-thumb { margin: 0 0 8px; min-height: 60px; }
+.pj-nav-card .pj-thumb img { height: 72px; }
+.pj-nname { font-size: 12.5px; font-weight: 700; }
+.pj-nmeta { font-size: 10.5px; color: var(--dim); margin-top: 3px; }
+/* 8 tab 宽度适配：压缩 padding/字号 */
+.tabs { gap: 1px; }
+.tab { padding: 7px 0 !important; font-size: 11px !important;
+  letter-spacing: -0.01em; }
