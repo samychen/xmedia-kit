@@ -96,3 +96,8 @@
 .brand-logos img.local { max-height: 56px; }
 .brand-capture { font-size: 10.5px; color: var(--dim); background:
   var(--panel2); border-radius: 5px; padding: 6px 8px; }
+
+/* Screenshots：网页首屏视觉证据 */
+.brand-shots { display: flex; gap: 8px; flex-wrap: wrap; }
+.brand-shots img { width: 100%; border-radius: 8px; border: 1px solid var(--line);
+  display: block; }

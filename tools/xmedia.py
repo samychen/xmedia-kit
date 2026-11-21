@@ -648,6 +648,8 @@ def cmd_brand(args):
             "components": draft.get("components", []),
             "logos": draft.get("logos", []),
             "capture": draft.get("capture", {}),
+            "screenshot": "",
+            "context": "",
         }
         d = _brand_dir()
         os.makedirs(d, exist_ok=True)
@@ -682,11 +684,91 @@ def cmd_brand(args):
                     f.write(data)
                 logo_local = os.path.relpath(dest, _brand_dir())
                 brand["logo_image"] = logo_local
+                # logo 主色提取（ffmpeg 8×8 像素采样）：logo 是品牌色
+                # 最强载体（bilibili 粉 #fb7299 就藏在 logo 里，CSS 抓
+                # 不到）——top3 进 logo_colors（role="logo" 入 colors）。
+                try:
+                    pal = subprocess.run(
+                        ["ffmpeg", "-y", "-i", dest, "-vf", "scale=8:8",
+                         "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                        capture_output=True, timeout=30)
+                    px = pal.stdout
+                    freq = {}
+                    for k in range(0, len(px) - 2, 3):
+                        r, g, b = px[k], px[k + 1], px[k + 2]
+                        if r + g + b > 720 or r + g + b < 60:
+                            continue
+                        hit = next((kk for kk in freq
+                                    if max(abs(kk[0] - r), abs(kk[1] - g),
+                                           abs(kk[2] - b)) < 24), None)
+                        if hit:
+                            freq[hit] += 1
+                        else:
+                            freq[(r, g, b)] = 1
+                    logo_cols = sorted(freq.items(), key=lambda kv: -kv[1])[:3]
+                    brand["logo_colors"] = [f"#{r:02x}{g:02x}{b:02x}"
+                                            for (r, g, b), _ in logo_cols]
+                except Exception as e:
+                    print(f"  logo 主色提取失败：{e}", file=sys.stderr)
+                # 网页首屏截图（HF Screenshots 的单张视觉证据）：
+                # html_bake 烘 URL 首屏 → ffmpeg 抽帧。
+                try:
+                    shots = os.path.join(_brand_dir(), "shots")
+                    os.makedirs(shots, exist_ok=True)
+                    shot_jpg = os.path.join(shots, args.name + "-home.jpg")
+                    bake = bake_bin()
+                    if bake:
+                        bake_url = args.url if args.url.startswith(
+                            ("http://", "https://", "file://")) \
+                            else "https://" + args.url
+                        mp4 = shot_jpg + ".mp4"
+                        subprocess.run(
+                            [bake, "--url", bake_url, "--out", mp4,
+                             "--seconds", "2.5", "--fps", "2",
+                             "--width", "1280", "--height", "720",
+                             "--clock", "seek", "--paint-wait", "1500"],
+                            capture_output=True, timeout=180)
+                        subprocess.run(
+                            ["ffmpeg", "-y", "-ss", "1.5", "-i", mp4,
+                             "-frames:v", "1", shot_jpg],
+                            capture_output=True, timeout=60)
+                        if os.path.isfile(shot_jpg) and \
+                                os.path.getsize(shot_jpg) > 8000:
+                            brand["screenshot"] = os.path.relpath(
+                                shot_jpg, _brand_dir())
+                            print(f"  截图   {shot_jpg}")
+                        else:
+                            print("  截图   未产出（网站反爬或超时）",
+                                  file=sys.stderr)
+                except Exception as e:
+                    print(f"  网页截图失败：{e}", file=sys.stderr)
                 with open(path, "w", encoding="utf-8") as f:
                     json.dump(brand, f, ensure_ascii=False, indent=1)
                     f.write("\n")
             except Exception as e:
                 print(f"  logo 下载失败（保留 URL）：{e}", file=sys.stderr)
+        # Context 描述（HF 的 design system 总结行）+ colors 吃 logo
+        # 主色（role="logo" 前插——logo 是品牌色最强证据）。
+        try:
+            host = brand["source_url"].split("//")[-1].split("/")[0]
+            brand["context"] = (
+                f"Brand system scanned from {host} on "
+                f"{time.strftime('%Y-%m-%d')} — "
+                f"{len(brand.get('colors', []))} colors with roles, "
+                f"{len(brand.get('fonts', []))} font families, "
+                f"{len(brand.get('components', []))} components, "
+                f"{len(brand.get('shapes', {}).get('radii', []))} radii. "
+                f"brandkit-v2 capture.")
+            for c in reversed(brand.get("logo_colors", [])):
+                if not any(x.get("hex", "").lower() == c.lower()
+                           for x in brand.get("colors", [])):
+                    brand["colors"].insert(0, {"hex": c, "role": "logo",
+                                               "var": "logo 主色"})
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(brand, f, ensure_ascii=False, indent=1)
+                f.write("\n")
+        except Exception as e:
+            print(f"  context 生成失败：{e}", file=sys.stderr)
         if logo_local:
             print(f"  logo   {brand['logo_image_url']} → {logo_local}")
         print(f"  已保存 {path} —— brand apply {args.name} --spec <spec> 生效")

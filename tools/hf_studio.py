@@ -2516,6 +2516,20 @@ def make_handler(server_ref):
                 ]})
             elif path == "/api/brands":
                 self._json(srv._brands_list())
+            elif path.startswith("/api/brand-shot/"):
+                # 品牌网页截图（scan 时 html_bake 烘的首屏视觉证据）
+                nm = path[len("/api/brand-shot/"):]
+                if not re.fullmatch(r"[\w\-]+", nm or ""):
+                    self._send(404, "not found", "text/plain")
+                    return
+                broot = os.path.expanduser(os.environ.get(
+                    "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+                jpg = os.path.join(broot, "shots", nm + "-home.jpg")
+                if not os.path.isfile(jpg):
+                    self._send(404, "not found", "text/plain")
+                    return
+                with open(jpg, "rb") as fh:
+                    self._send(200, fh.read(), "image/jpeg")
             elif path.startswith("/api/brand-logo/"):
                 self._serve_brand_logo(path[len("/api/brand-logo/"):])
             elif path.startswith("/api/project-thumb/"):

@@ -234,6 +234,16 @@ function renderDetail(view, b) {
     view.appendChild(comps);
   }
 
+  /* Screenshots：网页首屏视觉证据（scan 时 html_bake 烘的截图） */
+  if (b.screenshot) {
+    view.appendChild(sectionTitle("Screenshots 1"));
+    var sh2 = document.createElement("div");
+    sh2.className = "brand-shots";
+    sh2.innerHTML = '<img src="/api/brand-shot/' + encodeURIComponent(name) +
+        '" alt="home screenshot">';
+    view.appendChild(sh2);
+  }
+
   /* Logos 集合（og:image / touch icon / favicon；本地下载的排前） */
   if (b.logo_image || (b.logos || []).length) {
     view.appendChild(sectionTitle("Logos " +
