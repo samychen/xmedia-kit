@@ -1,7 +1,7 @@
   /* ---------- 传输条 ---------- */
-  .transport { height: 54px; flex: none; display: flex; align-items: center;
+  .transport { min-height: 54px; flex: none; display: flex; align-items: center;
                gap: 8px; padding: 0 14px; border-top: 1px solid var(--line);
-               background: var(--panel); }
+               background: var(--panel); flex-wrap: wrap; row-gap: 4px; }
   .tbtn { width: 30px; height: 30px; flex: none; display: flex;
           align-items: center; justify-content: center; border-radius: 6px;
           border: 1px solid transparent; background: transparent;
@@ -39,3 +39,9 @@
   cursor: pointer; }
 .pvtool.on { background: var(--acc); color: #fff; }
 .pvtool:disabled { opacity: .45; cursor: default; }
+
+.pvtool { width: 30px; padding: 6px 0; text-align: center; }
+.pvtool[disabled] { width: 30px; }
+/* 窄屏：滑块/时间码弹性收缩 */
+.transport input[type=range] { flex: 0 1 auto; min-width: 40px; }
+.transport .tc { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

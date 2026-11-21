@@ -87,7 +87,7 @@
 
 /* HF 输入区同款品牌 chip（form 内首个元素，样式化为胶囊） */
 #ask-brand-chip { background: var(--panel2); color: var(--dim);
-  border: 1px solid var(--line); border-radius: 16px; padding: 5px 10px;
-  font: 12px/1.4 -apple-system, sans-serif; max-width: 150px; flex: none;
-  cursor: pointer; outline: none; }
+  border: 1px solid var(--line); border-radius: 12px; padding: 4px 9px;
+  font: 12px/1.4 -apple-system, sans-serif; max-width: 148px; flex: none;
+  cursor: pointer; outline: none; height: 26px; }
 #ask-brand-chip:focus { border-color: var(--acc); color: var(--ink); }
