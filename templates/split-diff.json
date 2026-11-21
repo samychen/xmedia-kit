@@ -1,0 +1,15 @@
+{
+ "name": "split-diff",
+ "description": "对比双列：中缝发丝线 + 左右列按序入场（之前/之后，旧/新）",
+ "slots": [
+  "left",
+  "right",
+  "left_items",
+  "right_items",
+  "title"
+ ],
+ "css": "#tpl-split-diff { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .sd-title { font-size: 3.6vh; font-weight: 800; margin-bottom: 4vh; color: var(--ink, #f0f0f5); } .sd-cols { display: flex; gap: 5vw; position: relative; } .sd-col { flex: 1; opacity: 0; } .sd-sep { position: absolute; left: 50%; top: -2vh; bottom: -2vh; width: 2px; background: currentColor; opacity: .3; transform: scaleY(0); transform-origin: top center; } .sd-col h3 { font-size: 2.9vh; font-weight: 800; margin-bottom: 2vh; color: var(--ink, #f0f0f5); } .sd-col li { font-size: 2.1vh; line-height: 1.6; margin: 1.2vh 0; list-style: none; color: var(--ink, #f0f0f5); opacity: .85; }",
+ "body": "<div class=\"sd-title\">{{title}}</div><div class=\"sd-cols\"><i class=\"sd-sep\"></i><div class=\"sd-col\"><h3>{{left}}</h3><ul>{{left_items}}</ul></div><div class=\"sd-col\"><h3>{{right}}</h3><ul>{{right_items}}</ul></div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .sd-sep\", { scaleY: 0 }, { scaleY: 1, duration: 0.5, ease: \"power2.out\" }, {start} + 0.15);tl.fromTo(\"{tpl} .sd-col:first-child\", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.5, ease: \"power2.out\" }, {start} + 0.4);tl.fromTo(\"{tpl} .sd-col:last-child\", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.5, ease: \"power2.out\" }, {start} + 0.62);",
+ "sfx": "transition"
+}

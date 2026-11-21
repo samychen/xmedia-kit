@@ -95,7 +95,13 @@ def render_custom_template(defn, scene, idx):
     def sub(m):
         slot = m.group(1)
         val = scene.get(slot)
-        return esc(str(val)) if val is not None else ""
+        if val is None:
+            return ""
+        if isinstance(val, (list, tuple)):
+            # 列表值 = 无序列表条目（每项转义后包 <li>）——对比/清单类
+            # 模板的 items slot 约定。
+            return "".join(f"<li>{esc(str(x))}</li>" for x in val)
+        return esc(str(val))
 
     body = SLOT_RE.sub(sub, body)
     name = defn.get("name", "custom")
@@ -544,7 +550,7 @@ def _element_anim_js(idx, typ, base):
 
 
 def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
-                    caption_segments=None):
+                    caption_segments=None, registry=None):
     """GSAP 时间线：每场景入场动画（duration 进 toVars，4 参数正确形）。
     游标与 clip 窗口同源（starts/durs 由 compose 的场景计划传入，含
     转场重叠）。转场类型 → 前一场景的出场动画（fade/slide/wipe）。
@@ -595,6 +601,17 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
         # anim=="none"（切割接缝）保持无编排。
         if anim != "none":
             lines.extend(_element_anim_js(idx, typ, starts[idx] + enter * 0.6))
+        # 自定义模板编排：模板 JSON 的 timeline 字段（GSAP 语句片段，
+        # {tpl}=#tpl-<name>、{start}=场景绝对起点、{dur}=场景时长）——
+        # 数字滚动/条形增长等模板级动效也走同一条 paused 主时间线，
+        # seek 确定性还原。anim=="none"（切割接缝）同样跳过。
+        if anim != "none" and registry and typ in registry:
+            frag = (registry[typ].get("timeline") or "")
+            if frag:
+                frag = (frag.replace("{tpl}", f"#tpl-{typ}")
+                            .replace("{start}", str(starts[idx]))
+                            .replace("{dur}", str(round(durs[idx], 3))))
+                lines.append(f"  /* tl[{typ}] */\n" + frag)
         # 转场交叉：该场景入场的同时，前一场景按类型出场
         if has_trans:
             prev = f"#scene-{idx-1}"
@@ -740,7 +757,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
 
     # GSAP 时间线（含分段字幕的点亮/熄灭 tween）
     timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_durs,
-                                  cap_by_scene)
+                                  cap_by_scene, registry=registry)
 
     # 音频
     audio = spec.get("audio", {})

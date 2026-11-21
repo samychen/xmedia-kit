@@ -1,0 +1,17 @@
+{
+ "name": "bars-grow",
+ "description": "条形对比图：三条按序增长（scaleX stagger），名称+数值标签",
+ "slots": [
+  "title",
+  "n1",
+  "v1",
+  "n2",
+  "v2",
+  "n3",
+  "v3"
+ ],
+ "css": "#tpl-bars-grow { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .bg-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 3vh; transform-origin: left center; } .bg-title { font-size: 4.6vh; font-weight: 800; margin-bottom: 4vh; color: var(--ink, #f0f0f5); } .bg-row { display: flex; align-items: center; margin: 1.7vh 0; } .bg-name { width: 9em; font-size: 2.1vh; opacity: .78; color: var(--ink, #f0f0f5); flex: none; } .bg-track { flex: 1; height: 3.2vh; background: currentColor; opacity: .14; position: relative; } .bg-fill { position: absolute; inset: 0; background: var(--ink, #f0f0f5); transform-origin: left center; } .bg-val { width: 4em; text-align: right; font-size: 2.1vh; color: var(--ink, #f0f0f5); flex: none; }",
+ "body": "<div class=\"bg-hair\"></div><div class=\"bg-title\">{{title}}</div><div class=\"bg-row\"><span class=\"bg-name\">{{n1}}</span><span class=\"bg-track\"><i class=\"bg-fill\" style=\"width:{{v1}}%\"></i></span><span class=\"bg-val\">{{v1}}</span></div><div class=\"bg-row\"><span class=\"bg-name\">{{n2}}</span><span class=\"bg-track\"><i class=\"bg-fill\" style=\"width:{{v2}}%\"></i></span><span class=\"bg-val\">{{v2}}</span></div><div class=\"bg-row\"><span class=\"bg-name\">{{n3}}</span><span class=\"bg-track\"><i class=\"bg-fill\" style=\"width:{{v3}}%\"></i></span><span class=\"bg-val\">{{v3}}</span></div>",
+ "timeline": "tl.fromTo(\"{tpl} .bg-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .bg-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: \"power2.out\" }, {start} + 0.2);tl.fromTo(\"{tpl} .bg-fill\", { scaleX: 0 }, { scaleX: 1, duration: Math.min(1.3, {dur} * 0.45), ease: \"power3.out\", stagger: 0.18 }, {start} + 0.5);",
+ "sfx": "pop"
+}

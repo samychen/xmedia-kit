@@ -1,0 +1,14 @@
+{
+ "name": "step-meter",
+ "description": "步骤进度：01/02/03 逐条点亮，当前步（第二步）反白编号强调",
+ "slots": [
+  "title",
+  "s1",
+  "s2",
+  "s3"
+ ],
+ "css": "#tpl-step-meter { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .sm-title { font-size: 4vh; font-weight: 800; margin-bottom: 4.5vh; color: var(--ink, #f0f0f5); } .sm-steps { display: flex; flex-direction: column; gap: 2.4vh; } .sm-step { display: flex; align-items: baseline; font-size: 2.7vh; color: var(--ink, #f0f0f5); opacity: .38; } .sm-step .n { font-family: ui-monospace, Menlo, monospace; font-size: 1.9vh; margin-right: 1.8vh; flex: none; font-style: normal; } .sm-step.on { opacity: 1; } .sm-step.on .n { background: var(--ink, #f0f0f5); color: var(--ground, #0a0a1a); padding: 0.3vh 1.1vh; }",
+ "body": "<div class=\"sm-title\">{{title}}</div><div class=\"sm-steps\"><div class=\"sm-step\"><em class=\"n\">01</em>{{s1}}</div><div class=\"sm-step on\"><em class=\"n\">02</em>{{s2}}</div><div class=\"sm-step\"><em class=\"n\">03</em>{{s3}}</div></div>",
+ "timeline": "tl.fromTo(\"{tpl} .sm-title\", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: \"power2.out\" }, {start});tl.fromTo(\"{tpl} .sm-step\", { opacity: 0, y: 22 }, { opacity: 0.38, y: 0, duration: 0.35, ease: \"power2.out\", stagger: 0.16 }, {start} + 0.3);var _on = document.querySelector(\"{tpl} .sm-step.on\");if (_on) { tl.to(_on, { opacity: 1, duration: 0.3 }, {start} + Math.min({dur} * 0.5, 1.4)); }",
+ "sfx": "pop"
+}

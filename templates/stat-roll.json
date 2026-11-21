@@ -1,0 +1,12 @@
+{
+ "name": "stat-roll",
+ "description": "数字滚动强调：大数字从 0 滚到目标值 + 发丝线 + 标签行（确定性 seek 插值）",
+ "slots": [
+  "value",
+  "label"
+ ],
+ "css": "#tpl-stat-roll { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8vw; background: var(--ground, #0a0a1a); } .sr-stack { display: flex; flex-direction: column; align-items: flex-start; width: 100%; } .sr-hair { width: 64px; height: 2px; background: currentColor; opacity: .85; margin-bottom: 3vh; transform-origin: left center; } .sr-num { font-size: 17vh; font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; color: var(--ink, #f0f0f5); font-variant-numeric: tabular-nums; } .sr-label { font-size: 2.4vh; opacity: .72; margin-top: 2vh; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"sr-stack\"><i class=\"sr-hair\"></i><div class=\"sr-num\">{{value}}</div><div class=\"sr-label\">{{label}}</div></div>",
+ "timeline": "var _srEl = document.querySelector(\"{tpl} .sr-num\");var _srT = parseFloat(String(_srEl.textContent).replace(/[^0-9.\\-]/g, \"\")) || 100;var _srSuf = String(_srEl.textContent).replace(/[^%+]/g, \"\");var _srO = { v: 0 };tl.set(_srEl, { autoAlpha: 0 }, 0);tl.to(_srO, { v: _srT, duration: Math.min(1.6, {dur} * 0.6), ease: \"power2.out\", onUpdate: function () { _srEl.textContent = Math.round(_srO.v) + _srSuf; }}, {start} + 0.35);tl.set(_srEl, { autoAlpha: 1 }, {start} + 0.35);tl.fromTo(\"{tpl} .sr-hair\", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: \"power2.out\" }, {start});",
+ "sfx": "success"
+}

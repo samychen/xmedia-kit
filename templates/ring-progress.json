@@ -1,0 +1,12 @@
+{
+ "name": "ring-progress",
+ "description": "进度环：SVG 圆环按百分比擦入 + 中心数字 + 说明行",
+ "slots": [
+  "percent",
+  "label"
+ ],
+ "css": "#tpl-ring-progress { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ground, #0a0a1a); gap: 3vh; } .rp-wrap { position: relative; width: 38vh; height: 38vh; } .rp-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); } .rp-track { fill: none; stroke: currentColor; opacity: .18; stroke-width: 10; } .rp-bar { fill: none; stroke: var(--ink, #f0f0f5); stroke-width: 10; stroke-linecap: butt; } .rp-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 7vh; font-weight: 800; color: var(--ink, #f0f0f5); } .rp-label { font-size: 2.4vh; opacity: .72; color: var(--ink, #f0f0f5); }",
+ "body": "<div class=\"rp-wrap\"><svg viewBox=\"0 0 100 100\"><circle class=\"rp-track\" cx=\"50\" cy=\"50\" r=\"45\"></circle><circle class=\"rp-bar\" cx=\"50\" cy=\"50\" r=\"45\"></circle></svg><div class=\"rp-num\">{{percent}}</div></div><div class=\"rp-label\">{{label}}</div>",
+ "timeline": "var _rp = document.querySelector(\"{tpl} .rp-bar\");var _rpC = 2 * Math.PI * 45;var _rpV = parseFloat(String(document.querySelector(\"{tpl} .rp-num\").textContent).replace(/[^0-9.]/g, \"\")) || 100;_rp.style.strokeDasharray = _rpC;tl.set(_rp, { strokeDashoffset: _rpC }, {start});tl.to(_rp, { strokeDashoffset: _rpC * (1 - Math.min(1, _rpV / 100)), duration: Math.min(1.5, {dur} * 0.55), ease: \"power2.inOut\" }, {start} + 0.3);tl.fromTo(\"{tpl} .rp-num\", { opacity: 0 }, { opacity: 1, duration: 0.4 }, {start} + 0.5);",
+ "sfx": "success"
+}

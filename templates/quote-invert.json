@@ -1,0 +1,12 @@
+{
+ "name": "quote-invert",
+ "description": "金句反转拍：ink 实块擦入 → 反白金句（两色纪律的强调镜）",
+ "slots": [
+  "quote",
+  "author"
+ ],
+ "css": "#tpl-quote-invert { position: absolute; inset: 0; background: var(--ground, #0a0a1a); overflow: hidden; } .qi-block { position: absolute; inset: 0; background: var(--ink, #f0f0f5); transform: scaleX(0); transform-origin: left center; } .qi-text { position: absolute; left: 8vw; right: 8vw; top: 34vh; font-size: 6.4vh; font-weight: 800; line-height: 1.3; color: var(--ground, #0a0a1a); opacity: 0; } .qi-author { position: absolute; left: 8vw; bottom: 10vh; font-size: 2vh; color: var(--ground, #0a0a1a); opacity: .7; }",
+ "body": "<i class=\"qi-block\"></i><p class=\"qi-text\">&ldquo;{{quote}}&rdquo;</p><p class=\"qi-author\">&mdash; {{author}}</p>",
+ "timeline": "tl.fromTo(\"{tpl} .qi-block\", { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: \"power3.inOut\" }, {start} + 0.2);tl.fromTo(\"{tpl} .qi-text\", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: \"power2.out\" }, {start} + 0.72);tl.fromTo(\"{tpl} .qi-author\", { opacity: 0 }, { opacity: 1, duration: 0.4 }, {start} + 1.05);",
+ "sfx": "whoosh"
+}
