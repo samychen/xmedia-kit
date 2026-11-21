@@ -7,7 +7,10 @@
 <body>
 <header class="topbar">
   <div class="logo"></div>
-  <span class="brand">xmedia Studio</span>
+  <!-- HF 式面包屑：‹ Home / 项目名（项目名 = 路径推导，可点 Home 返回） -->
+  <a class="crumb-home" href="/" title="返回项目列表">‹ Home</a>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-name" id="crumb-name"></span>
   <span class="file" id="fileinfo"></span>
   <span class="status" id="status">校验中</span>
   <span class="sp"></span>
@@ -15,7 +18,7 @@
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10.5v-8M5 5.5 8 2.5l3 3M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>导入素材</button>
   <button class="btn" id="btn-tts" title="对 spec 全场景生成旁白" aria-label="对 spec 全场景生成旁白">生成旁白</button>
   <button class="btn acc" id="btn-recompose" title="Ctrl/Cmd + Enter" aria-label="Ctrl/Cmd + Enter">重组合成</button>
-  <button class="btn" id="btn-bake" title="导出 MP4（尺寸 / 时长由 spec 自动推导）" aria-label="导出 MP4（尺寸 / 时长由 spec 自动推导）">导出 MP4</button>
+  <button class="btn export" id="btn-bake" title="导出 MP4（尺寸 / 时长由 spec 自动推导）" aria-label="导出 MP4（尺寸 / 时长由 spec 自动推导）">导出 MP4</button>
   <span class="job" id="job"></span>
 </header>
 

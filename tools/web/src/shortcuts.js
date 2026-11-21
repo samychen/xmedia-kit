@@ -74,6 +74,19 @@ window.addEventListener("message", function (ev) {
   if (typeof d.mcStudioSelect === "number" &&
       d.mcStudioSelect < ((state.spec.scenes || []).length)) {
     selectScene(d.mcStudioSelect, false);
+    /* 元素级画布：预览里点中的元素 → Inspector 定位对应字段并短暂
+       高亮（HF 的"点画面直接改"闭环）。字段可能不存在（类型不同/
+       自定义模板），静默忽略。 */
+    var f = d.mcStudioField;
+    if (f) {
+      var el = $("insp-f-" + f);
+      if (el && f !== "narration") {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        el.focus({ preventScroll: true });
+        el.classList.add("insp-flash");
+        setTimeout(function () { el.classList.remove("insp-flash"); }, 900);
+      }
+    }
   }
   if (d.mcStudioKey) {
     shortcut(d.mcStudioKey, d.shiftKey, d.metaKey, d.ctrlKey, false);
@@ -83,5 +96,12 @@ $("pv").addEventListener("load", function () { fitPreview(); pushRange(); });
 refresh().then(function () {
   if (window.ResizeObserver) {
     new ResizeObserver(function () { fitPreview(); }).observe($("pvwrap"));
+  }
+  /* docking 入场：Home 创建流（?fresh=1）跳进编辑器的一次性仪式感。 */
+  if (location.search.indexOf("fresh=1") >= 0) {
+    document.body.classList.add("docking");
+    setTimeout(function () { document.body.classList.remove("docking"); },
+               1400);
+    history.replaceState(null, "", location.pathname);
   }
 }).catch(function (e) { log("状态加载失败：" + e.message, "err"); });

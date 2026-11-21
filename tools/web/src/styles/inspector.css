@@ -22,3 +22,7 @@
   .insp-actions .btn { flex: 1; }
   .locknote { font-size: 11px; color: var(--warn); margin-top: 8px; }
 
+
+/* 元素级画布：预览点中的字段短暂高亮 */
+.insp-flash { outline: 2px solid var(--acc); outline-offset: 2px;
+  border-radius: 4px; transition: outline-color .6s; }

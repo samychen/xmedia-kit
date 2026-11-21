@@ -118,3 +118,17 @@
   .tpl-slots { font-size: 10px; color: var(--dim); opacity: .8;
                margin-bottom: 8px; word-break: break-all; }
   .tpl-ins { font-size: 11px; padding: 4px 12px; }
+
+/* docking 入场（HF first-cut 的"合成首剪跳进编辑器"仪式感）：
+   Home 创建流跳转（?fresh=1）时一次性播放，动画完移除类。 */
+body.docking .workspace { animation: dock-in .55s cubic-bezier(.2, .8, .3, 1); }
+@keyframes dock-in { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+body.docking .left .tab { animation: dock-tab .4s ease-out backwards; }
+body.docking .left .tab:nth-child(2) { animation-delay: .04s; }
+body.docking .left .tab:nth-child(3) { animation-delay: .08s; }
+body.docking .left .tab:nth-child(4) { animation-delay: .12s; }
+body.docking .left .tab:nth-child(5) { animation-delay: .16s; }
+body.docking .left .tab:nth-child(6) { animation-delay: .2s; }
+body.docking .left .tab:nth-child(7) { animation-delay: .24s; }
+body.docking .center { animation: dock-in .6s .1s cubic-bezier(.2, .8, .3, 1) backwards; }
+@keyframes dock-tab { from { opacity: 0; transform: translateY(-10px); } }

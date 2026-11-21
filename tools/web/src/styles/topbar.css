@@ -23,3 +23,16 @@
           border-radius: 50%; animation: sp .8s linear infinite; }
   @keyframes sp { to { transform: rotate(360deg); } }
 
+
+/* HF 式面包屑：‹ Home / 项目名 + Export 主按钮（渐变胶囊） */
+.crumb-home { font-size: 12px; color: var(--dim); text-decoration: none;
+  padding: 4px 8px; border-radius: 7px; margin-left: 2px; }
+.crumb-home:hover { color: var(--ink); background: var(--panel2); }
+.crumb-sep { color: var(--dim); opacity: .5; font-size: 12px; }
+.crumb-name { font-size: 12.5px; font-weight: 700; color: var(--ink);
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.btn.export { background: linear-gradient(135deg, var(--acc), #8b6dff);
+  color: #0d1122; font-weight: 700; border: 0; padding: 6px 16px;
+  border-radius: 18px; }
+.btn.export:hover { filter: brightness(1.08); }

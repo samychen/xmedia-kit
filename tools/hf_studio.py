@@ -624,8 +624,19 @@ def build_chrome(total_s, scenes, mix_url=""):
     }}
   }});
   var lastSel = null;
+  // 元素语义类 → spec 字段映射（元素级画布：点哪个元素，编辑器就
+  // 定位到哪个字段）。自定义模板元素（data-tpl）按类名近似映射。
+  var FIELD_BY_CLASS = [
+    ["scene-title", "text"], ["scene-subtitle", "subtitle"],
+    ["scene-body", "text"], ["scene-item", "content"],
+    ["scene-heading", "text"], ["scene-list-item", "content"],
+    ["scene-stat-value", "value"], ["scene-stat-desc", "description"],
+    ["scene-quote", "quote"], ["scene-quote-author", "author"],
+    ["scene-caption", "narration"]
+  ];
   // 预览点选联动：点击场景元素 → 高亮 + 上报父页选中（Remotion 式
-  // "预览里点 → 编辑器选中"闭环）。
+  // "预览里点 → 编辑器选中"闭环）；元素级：命中的具体元素类名一并
+  // 上报（父页定位 Inspector 对应字段）。
   document.addEventListener("click", function (ev) {{
     var el = ev.target.closest("[data-start]");
     if (!el || el.tagName === "AUDIO") {{ return; }}
@@ -639,8 +650,22 @@ def build_chrome(total_s, scenes, mix_url=""):
       lastSel.classList.remove("mc-studio-sel");
     }}
     lastSel = el;
+    var field = "";
+    var hit = ev.target.closest(
+      ".scene-title,.scene-subtitle,.scene-body,.scene-item," +
+      ".scene-heading,.scene-list-item,.scene-stat-value," +
+      ".scene-stat-desc,.scene-quote,.scene-quote-author,.scene-caption");
+    if (hit) {{
+      for (var j = 0; j < FIELD_BY_CLASS.length; j++) {{
+        if (hit.classList.contains(FIELD_BY_CLASS[j][0])) {{
+          field = FIELD_BY_CLASS[j][1];
+          break;
+        }}
+      }}
+    }}
     if (window.parent !== window) {{
-      try {{ window.parent.postMessage({{ mcStudioSelect: idx }}, "*");
+      try {{ window.parent.postMessage({{ mcStudioSelect: idx,
+        mcStudioField: field }}, "*");
       }} catch (e) {{}}
     }}
   }}, true);

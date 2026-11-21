@@ -48,6 +48,9 @@ export function refresh(keepSpec) {
     if (!keepSpec) $("spec").value = JSON.stringify(s.spec, null, 2);
     $("sfx").checked = !(s.spec.sfx && s.spec.sfx.enabled === false);
     $("fileinfo").textContent = (s.spec_path || "未绑定 spec").split("/").pop();
+    /* 面包屑项目名：spec 路径两级上级 = 项目目录名（Home 模式）。 */
+    var pp = (s.spec_path || "").split("/");
+    $("crumb-name").textContent = pp.length >= 2 ? pp[pp.length - 2] : "";
     var comp = s.spec.composition || {};
     $("comp-name").textContent = comp.id || "composition";
     $("comp-meta").textContent = s.width + " × " + s.height + " · " +
