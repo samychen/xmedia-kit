@@ -442,6 +442,7 @@ function brandMainRender() {
     api("/api/brand/delete", { name: name }).then(function () {
       log("品牌 kit 已删除：" + name, "ok");
       brandMainClose();
+      brandRender();   // 左栏列表即时更新（删除项消失）
     }).catch(function (e) {
       log("删除失败：" + e.message, "err");
     });
