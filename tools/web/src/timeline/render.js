@@ -7,6 +7,7 @@ import { fmtTime, fps } from "../shared/time.js";
 import { TRACKS, capSegments, capTrackSub, hashSeed, loadThumbsForClip, loadWaveForClip, mk, sceneTexts, snapTime, stripHTML, waveSVG } from "./model.js";
 import { applyRangeGeom, ensureRangeOverlay, startRangeDrag, syncRangeUI } from "./range.js";
 import { reorder, reorderTo, splitScene, trimCommit } from "./trim.js";
+import { recompose } from "../panels/status.js";
 
 /* 拖拽插入位判定：鼠标时间 t 落在哪条边界之前 → 插入位下标。
    边界取各场景中点（拖到某场景前半 = 放它之前，后半 = 放它之后），
