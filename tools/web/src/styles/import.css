@@ -19,6 +19,7 @@
                transform: translate(-50%, -50%); width: 400px; margin: 0;
                padding: 0; color: inherit;
                max-width: calc(100vw - 32px);
+               height: min(560px, 94vh);
                flex-direction: column;
                background: var(--panel); border: 1px solid var(--line2);
                border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.68);
