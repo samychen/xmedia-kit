@@ -634,10 +634,15 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                             .replace("{start}", str(starts[idx]))
                             .replace("{dur}", str(round(durs[idx], 3))))
                 lines.append(f"  /* tl[{typ}] */\n" + frag)
-        # 转场交叉：该场景入场的同时，前一场景按类型出场
+        # 转场交叉：该场景入场的同时，前一场景按类型出场。prev 取上一个
+        # 非显式定位场景——多轨叠加层（scene.start 显式）不吃主轨交叉
+        # 动画（它有自己的独立淡入），否则会被主轨场景的入场误淡出。
         if has_trans:
-            prev = f"#scene-{idx-1}"
-            ov = min(trans_dur, durs[idx - 1])
+            prev_idx = idx - 1
+            while prev_idx > 0 and scenes[prev_idx].get("start") is not None:
+                prev_idx -= 1
+            prev = f"#scene-{prev_idx}"
+            ov = min(trans_dur, durs[prev_idx])
             if trans[idx] == "slide-left":
                 lines.append(
                     f'  tl.to("{prev}", {{x: -120, opacity: 0, duration: {ov}, '
@@ -751,7 +756,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     durs = []
     trans = []
     trans_durs = []
-    start = 0.0
+    cursor = 0.0
     registry = load_custom_templates(_spec_dir)
     tpl_css = []
     for idx, scene in enumerate(scenes):
@@ -765,12 +770,20 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         sdur = trans_dur
         if sdur <= 0 and scene.get("transition") and ttype != "none":
             sdur = 0.5
-        if idx > 0:
-            # 转场归属进入侧：本场景提前 sdur 进入前一场景的尾窗
-            start -= (sdur if ttype != "none" else 0.0)
-        trans_durs.append(sdur)
-        scene_starts.append(start)
-        starts.append(start)
+        # 多轨显式定位（HF 多视频轨语义）：scene.start 存在 = 该场景绝对
+        # 定位（叠加层，可与主轨重叠），不占主轨游标、转场交叉跳过。
+        explicit = scene.get("start")
+        if explicit is not None:
+            pos_start = float(explicit)
+            trans_durs.append(0.0)
+        else:
+            if idx > 0:
+                # 转场归属进入侧：本场景提前 sdur 进入前一场景的尾窗
+                cursor -= (sdur if ttype != "none" else 0.0)
+            pos_start = cursor
+            trans_durs.append(sdur)
+        scene_starts.append(pos_start)
+        starts.append(pos_start)
         caption = None
         cap_segs = None
         if captions_on:
@@ -779,12 +792,13 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
             if isinstance(local, list) and local:
                 cap_segs = _norm_caption_segments(local, hint)
             elif global_caps:
-                cap_segs = _clip_caption_segments(global_caps, start, hint)
+                cap_segs = _clip_caption_segments(global_caps, pos_start,
+                                                  hint)
             if not cap_segs and scene.get("narration"):
                 cap_text = tts_text(scene)
                 if cap_text:
                     caption = cap_text
-        html, dur = gen_scene_html(scene, start, idx, caption=caption,
+        html, dur = gen_scene_html(scene, pos_start, idx, caption=caption,
                                    registry=registry, css_out=tpl_css,
                                    caption_segments=cap_segs)
         if cap_segs:
@@ -792,8 +806,10 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         scene_html_parts.append(html)
         durs.append(dur)
         trans.append(ttype)
-        start += dur
-    total_duration = start
+        if explicit is None:
+            cursor = pos_start + dur
+    total_duration = max([cursor] + [starts[i] + durs[i]
+                                     for i in range(len(scenes))])
 
     # GSAP 时间线（含分段字幕的点亮/熄灭 tween）
     timeline_js = gen_timeline_js(scenes, starts, durs, trans, trans_durs,

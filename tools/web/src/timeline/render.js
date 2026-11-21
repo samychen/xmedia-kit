@@ -20,6 +20,167 @@ function dropIndex(t, dragIdx) {
   return sc.length;
 }
 
+
+/* 单个场景 clip 构建（多轨各行共用）。tr = 该行轨道号；拖拽松手时
+   若垂直拖过 48px 且落在另一轨道行上 → 跨轨（改 spec.track + 重组），
+   否则按水平位移重排（reorderTo）。 */
+function buildSceneClip(idx, lane, tr) {
+
+var spec = (state.spec.scenes || [])[idx] || {};
+var locked = !!spec.narration;
+/* 原闭包变量补齐（抽出时丢失）：s = 场景 meta；total = 全片长
+   （裁剪右界的 Math.min 上界）。 */
+var s = state.scenes[idx] || { start: 0, dur: 3 };
+var total = state.duration || (s.start + s.dur);
+var w = Math.max(14, s.dur * tlPPS);
+var b = mk("div", "clip scene" + (locked ? " locked" : "") +
+           (idx === selIdx ? " sel" : ""));
+b.style.left = (s.start * tlPPS) + "px";
+b.style.width = w + "px";
+b.title = (locked ? "旁白锁定：时长随旁白拟合"
+                  : "点选；拖右缘裁剪时长；右键在播放头处切割") +
+          " · " + s.label;
+b.innerHTML = '<div class="cap">' + (idx + 1) + " · " + s.label +
+  '<span class="dur">' + s.dur.toFixed(2) + "s</span></div>" +
+  stripHTML(s, idx, w);
+if (spec.video) {
+  var _strip = b.querySelector(".strip");
+  if (_strip) {
+    loadThumbsForClip(_strip, spec.video,
+                      spec.video_from || 0, s.dur);
+  }
+}
+b.onclick = function (ev) {
+  var cn = ev.target.className || "";
+  if (cn.indexOf("trim") >= 0 || cn.indexOf("mv") >= 0) return;
+  if (b._dragged) { b._dragged = false; return; }  // 拖拽后抑制误选
+  selectScene(selIdx === idx ? -1 : idx, false);
+};
+// 拖拽重排手势（HF 的拖 clip 换位）：非裁剪区按住水平拖过 6px
+// 阈值 → clip 跟随 + 插入位指示线 → 松手 reorderTo 落位重组。
+// 重排不改变时长/旁白——旁白锁定场景同样可拖（锁定只约束
+// 裁剪与文案）。
+b.onmousedown = function (e) {
+  if (e.button !== 0) return;
+  if (e.target.className &&
+      String(e.target.className).indexOf("trim") >= 0) return;
+  var px0 = e.clientX, dragging = false, target = -1;
+  function mv(e2) {
+    var dx = e2.clientX - px0;
+    if (!dragging && Math.abs(dx) < 6) return;
+    if (!dragging) {
+      dragging = true;
+      b._dragging = true;
+      b.classList.add("dragging");
+      lane._drop = mk("div", "drop-line");
+      lane.appendChild(lane._drop);
+    }
+    b.style.transform = "translateX(" + dx + "px)";
+    var t = (e2.clientX -
+             lane.getBoundingClientRect().left) / tlPPS;
+    target = dropIndex(t, idx);
+    var ex = target < state.scenes.length ?
+        state.scenes[target].start * tlPPS :
+        (state.scenes[state.scenes.length - 1].start +
+         state.scenes[state.scenes.length - 1].dur) * tlPPS;
+    lane._drop.style.left = ex + "px";
+  }
+  function up(e2) {
+    document.removeEventListener("mousemove", mv);
+    document.removeEventListener("mouseup", up);
+    b.classList.remove("dragging");
+    b.style.transform = "";
+    if (lane._drop) { lane._drop.remove(); lane._drop = null; }
+    if (!dragging) return;
+    b._dragged = true;
+    setTimeout(function () { b._dragged = false; }, 250);
+    /* 跨轨判定：松手点落在另一条视频轨行 → 改 spec.track（叠加层
+       语义），优先于水平重排。 */
+    var over = document.elementFromPoint(e2.clientX, e2.clientY);
+    var lane2 = over && over.closest ? over.closest(".tl-lane") : null;
+    var t2 = lane2 && lane2.dataset.track !== undefined ?
+        Number(lane2.dataset.track) : null;
+    if (t2 !== null && t2 !== tr) {
+      state.spec.scenes[idx].track = t2;
+      selIdx = idx;
+      $("spec").value = JSON.stringify(state.spec, null, 2);
+      log("场景 " + (idx + 1) + " → " +
+          (t2 === 0 ? "主轨" : "叠加轨 " + t2) + "，重组合成…");
+      recompose();
+      return;
+    }
+    if (target >= 0) reorderTo(idx, target);
+  }
+  document.addEventListener("mousemove", mv);
+  document.addEventListener("mouseup", up);
+};
+b.ondblclick = function () { selectScene(idx, false); zoomToScene(idx); };
+// 右键 = 在播放头处切开这一段（刀口不在片段内时给日志提示）。
+b.oncontextmenu = function (ev) {
+  ev.preventDefault();
+  if (locked) {
+    log("scene-" + idx + " 旁白锁定，不支持切割", "err");
+    return;
+  }
+  selectScene(idx, false);
+  splitScene(idx, lastTime);
+};
+if (!locked) {
+  var trim = mk("div", "trim");
+  trim.onmousedown = function (e) {
+    e.stopPropagation();
+    var px0 = e.clientX, d0 = s.dur;
+    function mv(e2) {
+      var d = d0 + (e2.clientX - px0) / tlPPS;
+      d = Math.max(0.3, Math.min(d, total - s.start));
+      b.style.width = Math.max(14, d * tlPPS) + "px";
+      b._newDur = d;
+    }
+    function up() {
+      document.removeEventListener("mousemove", mv);
+      document.removeEventListener("mouseup", up);
+      if (b._newDur && Math.abs(b._newDur - d0) > 0.05) {
+        trimCommit(idx, b._newDur);
+      }
+    }
+    document.addEventListener("mousemove", mv);
+    document.addEventListener("mouseup", up);
+  };
+  b.appendChild(trim);
+}
+if (idx === selIdx && !locked) {
+  var mvL = mk("div", "mv left", "‹");
+  mvL.title = "前移一位";
+  mvL.onclick = function (e) {
+    e.stopPropagation(); reorder(idx, -1);
+  };
+  var mvR = mk("div", "mv right", "›");
+  mvR.title = "后移一位";
+  mvR.onclick = function (e) {
+    e.stopPropagation(); reorder(idx, 1);
+  };
+  b.appendChild(mvL); b.appendChild(mvR);
+}
+// 评论角标（HF Comment 同款）：该镜留过评论即显示，点击直达
+// Inspector 的评论编辑区。
+if (spec.comment) {
+  var cmt = mk("div", "cmt-badge", "💬");
+  cmt.title = "评论：" + spec.comment.slice(0, 80);
+  cmt.onclick = function (e) {
+    e.stopPropagation();
+    selectScene(idx, false);
+    var ta = $("insp-comment");
+    if (ta) {
+      ta.scrollIntoView({ block: "center" });
+      ta.focus({ preventScroll: true });
+    }
+  };
+  b.appendChild(cmt);
+}
+lane.appendChild(b);
+
+}
+
 export function trackHead(td, sub, val) {
   var h = mk("div", "tl-head",
     '<div class="h-name"><span class="eye" title="显示 / 隐藏轨道">●</span>' +
@@ -312,6 +473,41 @@ export function renderTimeline() {
   grid.appendChild(rulerRow);
 
   TRACKS.forEach(function (td, ri) {
+    if (td.kind === "scene") {
+      // 多视频轨（HF 多轨语义）：按 spec.scenes[i].track 分组动态行——
+      // 轨 0 主轨 + 有 clip 的叠加轨。行内 clip 构建共用 buildSceneClip。
+      var vTracks = {};
+      state.scenes.forEach(function (s, idx) {
+        var tr = Number(((state.spec.scenes || [])[idx] || {}).track) || 0;
+        (vTracks[tr] = vTracks[tr] || []).push(idx);
+      });
+      var vKeys = Object.keys(vTracks).sort(function (a, b) { return a - b; });
+      vKeys.forEach(function (tr, vi) {
+        var row2 = mk("div", "tl-row v-scene" + (vi % 2 ? " alt" : "") +
+                      (tr !== "0" ? " overlay-row" : ""));
+        row2.dataset.kind = "scene";
+        row2.dataset.track = tr;
+        row2.appendChild(trackHead(
+          { kind: "scene",
+            name: tr === "0" ? "场景 / Video" : "叠加轨 " + tr,
+            row: "v-scene" },
+          vTracks[tr].length + " clips · " + state.width + "×" +
+            state.height, ""));
+        var lane = mk("div", "tl-lane");
+        lane.style.width = cw + "px";
+        lane.dataset.kind = "scene";
+        lane.dataset.track = tr;
+        row2.appendChild(lane);
+        grid.appendChild(row2);
+        if (!vTracks[tr].length) {
+          lane.appendChild(mk("div", "lane-hint",
+            "＋ 拖片段到此轨（叠加层），或在「对话」追加场景"));
+        }
+        vTracks[tr].forEach(function (idx) { buildSceneClip(idx, lane, tr); });
+      });
+      return;
+    }
+
     var row = mk("div", "tl-row " + td.row + (ri % 2 ? " alt" : ""));
     row.dataset.kind = td.kind;
     var audio = td.kind === "narration" || td.kind === "sfx" ||
@@ -332,144 +528,7 @@ export function renderTimeline() {
     row.appendChild(lane);
     grid.appendChild(row);
 
-    if (td.kind === "scene") {
-      state.scenes.forEach(function (s, idx) {
-        var spec = (state.spec.scenes || [])[idx] || {};
-        var locked = !!spec.narration;
-        var w = Math.max(14, s.dur * tlPPS);
-        var b = mk("div", "clip scene" + (locked ? " locked" : "") +
-                   (idx === selIdx ? " sel" : ""));
-        b.style.left = (s.start * tlPPS) + "px";
-        b.style.width = w + "px";
-        b.title = (locked ? "旁白锁定：时长随旁白拟合"
-                          : "点选；拖右缘裁剪时长；右键在播放头处切割") +
-                  " · " + s.label;
-        b.innerHTML = '<div class="cap">' + (idx + 1) + " · " + s.label +
-          '<span class="dur">' + s.dur.toFixed(2) + "s</span></div>" +
-          stripHTML(s, idx, w);
-        if (spec.video) {
-          var _strip = b.querySelector(".strip");
-          if (_strip) {
-            loadThumbsForClip(_strip, spec.video,
-                              spec.video_from || 0, s.dur);
-          }
-        }
-        b.onclick = function (ev) {
-          var cn = ev.target.className || "";
-          if (cn.indexOf("trim") >= 0 || cn.indexOf("mv") >= 0) return;
-          if (b._dragged) { b._dragged = false; return; }  // 拖拽后抑制误选
-          selectScene(selIdx === idx ? -1 : idx, false);
-        };
-        // 拖拽重排手势（HF 的拖 clip 换位）：非裁剪区按住水平拖过 6px
-        // 阈值 → clip 跟随 + 插入位指示线 → 松手 reorderTo 落位重组。
-        // 重排不改变时长/旁白——旁白锁定场景同样可拖（锁定只约束
-        // 裁剪与文案）。
-        b.onmousedown = function (e) {
-          if (e.button !== 0) return;
-          if (e.target.className &&
-              String(e.target.className).indexOf("trim") >= 0) return;
-          var px0 = e.clientX, dragging = false, target = -1;
-          function mv(e2) {
-            var dx = e2.clientX - px0;
-            if (!dragging && Math.abs(dx) < 6) return;
-            if (!dragging) {
-              dragging = true;
-              b._dragging = true;
-              b.classList.add("dragging");
-              lane._drop = mk("div", "drop-line");
-              lane.appendChild(lane._drop);
-            }
-            b.style.transform = "translateX(" + dx + "px)";
-            var t = (e2.clientX -
-                     lane.getBoundingClientRect().left) / tlPPS;
-            target = dropIndex(t, idx);
-            var ex = target < state.scenes.length ?
-                state.scenes[target].start * tlPPS :
-                (state.scenes[state.scenes.length - 1].start +
-                 state.scenes[state.scenes.length - 1].dur) * tlPPS;
-            lane._drop.style.left = ex + "px";
-          }
-          function up() {
-            document.removeEventListener("mousemove", mv);
-            document.removeEventListener("mouseup", up);
-            b.classList.remove("dragging");
-            b.style.transform = "";
-            if (lane._drop) { lane._drop.remove(); lane._drop = null; }
-            if (dragging) {
-              b._dragged = true;
-              setTimeout(function () { b._dragged = false; }, 250);
-              if (target >= 0) reorderTo(idx, target);
-            }
-          }
-          document.addEventListener("mousemove", mv);
-          document.addEventListener("mouseup", up);
-        };
-        b.ondblclick = function () { selectScene(idx, false); zoomToScene(idx); };
-        // 右键 = 在播放头处切开这一段（刀口不在片段内时给日志提示）。
-        b.oncontextmenu = function (ev) {
-          ev.preventDefault();
-          if (locked) {
-            log("scene-" + idx + " 旁白锁定，不支持切割", "err");
-            return;
-          }
-          selectScene(idx, false);
-          splitScene(idx, lastTime);
-        };
-        if (!locked) {
-          var trim = mk("div", "trim");
-          trim.onmousedown = function (e) {
-            e.stopPropagation();
-            var px0 = e.clientX, d0 = s.dur;
-            function mv(e2) {
-              var d = d0 + (e2.clientX - px0) / tlPPS;
-              d = Math.max(0.3, Math.min(d, total - s.start));
-              b.style.width = Math.max(14, d * tlPPS) + "px";
-              b._newDur = d;
-            }
-            function up() {
-              document.removeEventListener("mousemove", mv);
-              document.removeEventListener("mouseup", up);
-              if (b._newDur && Math.abs(b._newDur - d0) > 0.05) {
-                trimCommit(idx, b._newDur);
-              }
-            }
-            document.addEventListener("mousemove", mv);
-            document.addEventListener("mouseup", up);
-          };
-          b.appendChild(trim);
-        }
-        if (idx === selIdx && !locked) {
-          var mvL = mk("div", "mv left", "‹");
-          mvL.title = "前移一位";
-          mvL.onclick = function (e) {
-            e.stopPropagation(); reorder(idx, -1);
-          };
-          var mvR = mk("div", "mv right", "›");
-          mvR.title = "后移一位";
-          mvR.onclick = function (e) {
-            e.stopPropagation(); reorder(idx, 1);
-          };
-          b.appendChild(mvL); b.appendChild(mvR);
-        }
-        // 评论角标（HF Comment 同款）：该镜留过评论即显示，点击直达
-        // Inspector 的评论编辑区。
-        if (spec.comment) {
-          var cmt = mk("div", "cmt-badge", "💬");
-          cmt.title = "评论：" + spec.comment.slice(0, 80);
-          cmt.onclick = function (e) {
-            e.stopPropagation();
-            selectScene(idx, false);
-            var ta = $("insp-comment");
-            if (ta) {
-              ta.scrollIntoView({ block: "center" });
-              ta.focus({ preventScroll: true });
-            }
-          };
-          b.appendChild(cmt);
-        }
-        lane.appendChild(b);
-      });
-    } else if (td.kind === "caption") {
+    if (td.kind === "caption") {
       var segs = capSegments();
       if (segs.length) {
         // ASR / 外部字幕：按真实时间戳一段一块
