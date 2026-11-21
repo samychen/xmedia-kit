@@ -80,12 +80,11 @@ function scheduleCommit() {
     if (!pendingStrokes.length) return;
     var strokes = pendingStrokes;
     pendingStrokes = [];
-    state.spec.annotations = (state.spec.annotations || []).concat(strokes);
     drawClear();
-    api("/api/recompose", { spec: state.spec, no_sfx:
-        !document.querySelector("#sfx").checked })
-      .then(function () {
-        log("标注已画入视频（" + strokes.length + " 笔）", "ok");
+    /* 服务端原子 append：连续快速笔划不再互相覆盖丢笔划 */
+    api("/api/annotation/add", { strokes: strokes })
+      .then(function (r) {
+        log("标注已画入视频（共 " + r.count + " 笔）", "ok");
       })
       .catch(function (e) {
         log("标注提交失败：" + e.message, "err");
@@ -139,16 +138,11 @@ export function drawInit() {
   };
   var clearBtn = $("pvtool-clear");
   if (clearBtn) clearBtn.onclick = function () {
-    if (state.spec.annotations && state.spec.annotations.length) {
-      delete state.spec.annotations;
-      api("/api/recompose", { spec: state.spec, no_sfx:
-          !document.querySelector("#sfx").checked })
-        .then(function () {
-          log("标注已清除", "ok");
-        }).catch(function (e) {
-          log("清除失败：" + e.message, "err");
-        });
-    }
     drawClear();
+    api("/api/annotation/clear", {}).then(function () {
+      log("标注已清除", "ok");
+    }).catch(function (e) {
+      log("清除失败：" + e.message, "err");
+    });
   };
 }

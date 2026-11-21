@@ -2771,6 +2771,36 @@ def make_handler(server_ref):
                     self._json(srv._project_delete(body))
                 elif path == "/api/brand/delete":
                     self._json(srv._brand_delete(body))
+                elif path == "/api/annotation/add":
+                    if not isinstance(srv.current_spec, dict):
+                        raise RuntimeError("未绑定 spec 文件")
+                    # 手绘标注原子追加（Draw 笔划的持久化）：服务端
+                    # append 消除前端 read-modify-write 竞态——连续
+                    # 快速笔划不再互相覆盖丢笔划。
+                    import hf_agent
+                    strokes = body.get("strokes") or []
+                    if not isinstance(strokes, list) or not strokes:
+                        raise ValueError("strokes 必须是非空数组")
+                    spec = srv.current_spec
+                    spec["annotations"] = (spec.get("annotations") or []) + \
+                        [s for s in strokes if isinstance(s, dict) and
+                         isinstance(s.get("points"), list) and
+                         len(s["points"]) >= 2]
+                    hf_agent.validate_spec(spec, srv._spec_root())
+                    srv._write_spec(spec)
+                    srv._compose()
+                    self._json({"ok": True,
+                                "count": len(spec["annotations"])})
+                elif path == "/api/annotation/clear":
+                    if not isinstance(srv.current_spec, dict):
+                        raise RuntimeError("未绑定 spec 文件")
+                    import hf_agent
+                    spec = srv.current_spec
+                    spec["annotations"] = []
+                    hf_agent.validate_spec(spec, srv._spec_root())
+                    srv._write_spec(spec)
+                    srv._compose()
+                    self._json({"ok": True})
                 elif path == "/api/reveal":
                     # 在 Finder 中定位导出产物（本地产品实用项）。
                     # realpath 前缀校验项目根（防 open -R 任意路径）。
