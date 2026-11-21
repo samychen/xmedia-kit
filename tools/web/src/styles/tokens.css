@@ -1,6 +1,6 @@
   :root {
     --bg: #0b0b11; --panel: #14141c; --panel2: #1b1b25; --panel3: #23232f;
     --line: #282838; --line2: #37374a; --ink: #e9e9f2; --dim: #8b8ba0;
-    --acc: #6d8bff; --acc2: #8b6dff; --ok: #3ecf8e; --err: #ff5c6c;
-    --warn: #e8b64c; --play: #ff5c7a;
+    --acc: #ff4d9d; --acc2: #e8468f; --ok: #3ecf8e; --err: #ff5c6c;
+    --warn: #e8b64c; --play: #ff4d9d;
   }

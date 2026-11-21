@@ -48,9 +48,14 @@ export function refresh(keepSpec) {
     if (!keepSpec) $("spec").value = JSON.stringify(s.spec, null, 2);
     $("sfx").checked = !(s.spec.sfx && s.spec.sfx.enabled === false);
     $("fileinfo").textContent = (s.spec_path || "未绑定 spec").split("/").pop();
-    /* 面包屑项目名：spec 路径两级上级 = 项目目录名（Home 模式）。 */
+    /* 面包屑项目名：spec 路径两级上级 = 项目目录名（Home 模式）。
+       行内重命名（HF 顶栏铅笔）：点击变输入框，Enter/失焦提交。 */
     var pp = (s.spec_path || "").split("/");
-    $("crumb-name").textContent = pp.length >= 2 ? pp[pp.length - 2] : "";
+    var cname = pp.length >= 2 ? pp[pp.length - 2] : "";
+    if (!$("crumb-name").dataset.editing) {
+      $("crumb-name").textContent = cname;
+      $("crumb-name").dataset.proj = cname;
+    }
     var comp = s.spec.composition || {};
     $("comp-name").textContent = comp.id || "composition";
     $("comp-meta").textContent = s.width + " × " + s.height + " · " +
@@ -105,4 +110,43 @@ $("btn-tts").onclick = function () {
 };
 $("btn-bake").onclick = function () {
   expOpen(true);
+};
+
+/* 项目名行内重命名（HF 顶栏铅笔）：点击面包屑项目名变输入框，
+   Enter/失焦提交 → /api/project/rename → 跳新地址。 */
+$("crumb-name").onclick = function () {
+  if (this.dataset.editing) return;
+  var old = this.dataset.proj || "";
+  if (!old) return;
+  this.dataset.editing = "1";
+  this.textContent = "";
+  var inp = document.createElement("input");
+  inp.className = "crumb-edit"; inp.value = old;
+  inp.maxLength = 40; inp.spellcheck = false;
+  this.appendChild(inp);
+  inp.focus(); inp.select();
+  var done = function (commit) {
+    if (!this.dataset.editing) return;
+    delete this.dataset.editing;
+    var nv = inp.value.trim();
+    if (!commit || !nv || nv === old) {
+      this.textContent = old;
+      return;
+    }
+    var self = this;
+    api("/api/project/rename", { name: old, new_name: nv })
+      .then(function (r) {
+        log("已重命名 → " + r.name, "ok");
+        location.href = r.url + "?fresh=1";
+      })
+      .catch(function (e) {
+        self.textContent = old;
+        log("重命名失败：" + e.message, "err");
+      });
+  }.bind(this);
+  inp.onkeydown = function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); done(true); }
+    if (ev.key === "Escape") { done(false); }
+  };
+  inp.onblur = function () { done(true); };
 };

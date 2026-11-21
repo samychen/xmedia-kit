@@ -1533,6 +1533,36 @@ class StudioServer:
                             time.localtime(os.path.getmtime(spec_file)))})
         return out
 
+    def _project_rename(self, body):
+        """项目重命名（HF 顶栏的铅笔行内编辑）：目录改名 + 返回新 url。
+        服务实例状态由前端跳转新 url 时的 open_project 重建，无需原地
+        重绑——但当前打开的就是该项目时，先解绑避免父页残留引用。"""
+        import shutil
+        name = str(body.get("name") or "").strip()
+        new_name = str(body.get("new_name") or "").strip()
+        if not re.fullmatch(r"[\w\-]+", new_name or ""):
+            raise RuntimeError("项目名只能是字母/数字/下划线/连字符")
+        if name == new_name:
+            return {"ok": True, "name": new_name,
+                    "url": "/project/" + new_name}
+        root = self._projects_root()
+        d_old = os.path.join(root, name)
+        d_new = os.path.join(root, new_name)
+        if not os.path.isdir(d_old):
+            raise RuntimeError(f"项目 {name} 不存在")
+        if os.path.isdir(d_new):
+            raise RuntimeError(f"项目 {new_name} 已存在")
+        os.rename(d_old, d_new)
+        # 打开中的项目被改名：解绑契约/spec 引用（前端随即跳新地址）。
+        if self.spec_path and \
+                os.path.dirname(os.path.abspath(self.spec_path)) == \
+                os.path.abspath(d_old):
+            self.contract_path = os.path.join(d_new, "contract.html")
+            self.spec_path = os.path.join(d_new, "spec.json")
+            self.spec_dir = d_new
+        return {"ok": True, "name": new_name,
+                "url": "/project/" + new_name}
+
     def open_project(self, name):
         """Home → 编辑视图：重绑到项目目录的契约页/spec（单用户本地
         服务，直接重绑实例状态可接受）。"""
@@ -2611,6 +2641,8 @@ def make_handler(server_ref):
                     self._json({"cleared": True})
                 elif path == "/api/project/create":
                     self._json(srv._project_create(body))
+                elif path == "/api/project/rename":
+                    self._json(srv._project_rename(body))
                 elif path == "/api/tts":
                     srv.current_spec = body["spec"]
                     srv._write_spec(srv.current_spec)

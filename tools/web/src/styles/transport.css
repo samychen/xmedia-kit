@@ -31,3 +31,11 @@
   #findings .f.warn { color: var(--warn); }
   #findings .f.info { color: var(--dim); }
 
+
+/* HF 式画布工具组：Select 粉胶囊选中态 + 占位工具 */
+.pv-tools { display: flex; gap: 6px; margin-right: 10px; }
+.pvtool { background: var(--panel2); color: var(--dim); border: 0;
+  border-radius: 16px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; }
+.pvtool.on { background: var(--acc); color: #fff; }
+.pvtool:disabled { opacity: .45; cursor: default; }
