@@ -1232,7 +1232,9 @@ class StudioServer:
     def _start_bake(self, opts=None):
         opts = opts or {}
         if self.job and self.job["proc"].poll() is None:
-            raise RuntimeError("已有导出任务在跑")
+            raise RuntimeError(
+                "上一次导出还在进行中——导出面板已恢复进度显示，"
+                "请等它完成后再点渲染")
         import hf_compose
         spec = self.current_spec or {}
         w, h = self._dims(spec)
@@ -2643,6 +2645,14 @@ def make_handler(server_ref):
                                        mix_url=mix_url,
                                        external_files=srv.external_files),
                            "text/html; charset=utf-8")
+            elif path == "/api/job/current":
+                # 进行中的导出任务（expOpen 恢复进度显示用）：
+                # job 还在跑 → {job: id}；无/已结束 → {job: None}。
+                j = srv.job
+                if j and j.get("proc") and j["proc"].poll() is None:
+                    self._json({"job": j["id"], "out": j.get("out", "")})
+                else:
+                    self._json({"job": None})
             elif path == "/api/job":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                 try:

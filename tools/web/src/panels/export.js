@@ -5,6 +5,16 @@ import { fps } from "../shared/time.js";
 /* ---------------- 导出面板（对齐 HF Export） ---------------- */
 export var expJob = -1, expPolling = false;
 export function expOpen(on) {
+  /* 打开面板时恢复进行中任务的进度显示（否则任务在跑但界面看不到，
+     再点渲染会撞「已有导出任务在跑」——用户感知为「无法导出」）。 */
+  if (on) {
+    api("/api/job/current").then(function (r) {
+      if (r.job !== null && r.job !== undefined && !expPolling) {
+        expSetBusy(true);
+        expPoll(r.job);
+      }
+    }).catch(function () {});
+  }
   var panel = $("exp-panel");
   panel.classList.toggle("open", !!on);
   if (on) {
