@@ -790,9 +790,9 @@ def studio_ui():
     return html.replace(
         "</body>",
         '<div id="build-tag">build ' + tag + '</div>'
-        '<script>(function(){if(location.search.indexOf("diag=1")>=0){'
-        'var b=document.querySelector("#btn-import");'
-        'if(b)setTimeout(function(){b.click()},600);}})();</script></body>')
+        '<script>(function(){'
+        'if(location.search.indexOf("diag=1")>=0){'
+        'history.replaceState(null,"",location.pathname);}})();</script></body>')
 
 
 # 服务内所有 html_bake 的全局串行锁：并发 bake 的 CEF 实例会互相拖死

@@ -45,3 +45,8 @@
   border-bottom: 1px solid var(--line); }
 .kbd-card td:first-child { font-family: ui-monospace, Menlo, monospace;
   color: var(--acc); white-space: nowrap; }
+
+/* 构建版本角标（诊断「旧页面 vs bug」用，不显眼常驻） */
+#build-tag { position: fixed; left: 6px; bottom: 4px; font: 9px
+  ui-monospace, Menlo, monospace; color: var(--dim); opacity: .5;
+  z-index: 99; pointer-events: none; }
