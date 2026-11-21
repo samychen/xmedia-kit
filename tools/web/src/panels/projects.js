@@ -84,7 +84,18 @@ function renderList(view, projects) {
       'onerror="this.classList.add(\'miss\')"></div>' +
       '<div class="pj-nname">' + escHtml(p.name) + "</div>" +
       '<div class="pj-nmeta">' + p.scenes + " 场景 · " +
-      escHtml(p.updated) + "</div>";
+      escHtml(p.updated) + "</div>" +
+      '<button class="pj-del" type="button" title="删除项目">⌫</button>';
+    card.querySelector(".pj-del").onclick = function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      if (!confirm("删除项目「" + p.name + "」？全部内容不可恢复。")) return;
+      api("/api/project/delete", { name: p.name }).then(function () {
+        log("项目已删除：" + p.name, "ok");
+        projectsRender();
+      }).catch(function (e) {
+        log("删除失败：" + e.message, "err");
+      });
+    };
     grid.appendChild(card);
   });
   view.appendChild(grid);

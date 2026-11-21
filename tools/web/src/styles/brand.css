@@ -172,3 +172,9 @@
 .bm-shot img { width: 100%; border-radius: 8px; display: block; }
 .bm-content .brand-fonts .brand-font span { font-size: 26px; }
 .bm-content .brand-shape i { width: 90px; height: 48px; }
+
+/* brand 大页删除钮（danger） */
+.bm-del { background: none; border: 1px solid rgba(255, 92, 108, .4);
+  color: var(--err); border-radius: 18px; padding: 8px 14px;
+  font-size: 12px; cursor: pointer; margin-right: 10px; }
+.bm-del:hover { background: rgba(255, 92, 108, .12); }

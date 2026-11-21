@@ -1571,6 +1571,53 @@ class StudioServer:
         return {"ok": True, "name": new_name,
                 "url": "/project/" + new_name}
 
+    def _project_delete(self, body):
+        """项目删除（HF 管理能力）：整目录 rmtree。当前打开的项目
+        被删时解绑引用（前端随即跳 Home）。"""
+        import shutil
+        name = str(body.get("name") or "").strip()
+        if not re.fullmatch(r"[\w\-]+", name or ""):
+            raise RuntimeError("项目名不合法")
+        d = os.path.realpath(os.path.join(self._projects_root(), name))
+        root = os.path.realpath(self._projects_root())
+        if not d.startswith(root + os.sep) or not os.path.isdir(d):
+            raise RuntimeError(f"项目 {name} 不存在")
+        if self.spec_path and os.path.dirname(
+                os.path.abspath(self.spec_path)) == d:
+            # 打开中的项目：解绑（前端跳 Home 重建上下文）
+            self.contract_path = None
+            self.spec_path = None
+            self.spec_dir = None
+            self.current_spec = {}
+            self.current_html = ""
+        shutil.rmtree(d)
+        return {"ok": True, "name": name}
+
+    def _brand_delete(self, body):
+        """品牌 kit 删除：JSON + 专属 logo/截图文件；default pin 指向
+        该 kit 时一并清除。"""
+        import shutil
+        name = str(body.get("name") or "").strip()
+        if not re.fullmatch(r"[\w\-]+", name or ""):
+            raise RuntimeError("品牌名不合法")
+        d = os.path.expanduser(os.environ.get(
+            "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
+        d = os.path.realpath(d)
+        removed = []
+        for rel in (name + ".json", "assets/" + name + "-logo.png",
+                    "assets/" + name + "-logo.jpg",
+                    "assets/" + name + "-logo.svg",
+                    "assets/" + name + "-logo.webp",
+                    "shots/" + name + "-home.jpg"):
+            fp = os.path.realpath(os.path.join(d, rel))
+            if fp.startswith(d + os.sep) and os.path.isfile(fp):
+                os.remove(fp)
+                removed.append(rel)
+        pin = os.path.join(d, ".default")
+        if os.path.isfile(pin) and open(pin, encoding="utf-8").read().strip() == name:
+            os.remove(pin)
+        return {"ok": True, "name": name, "removed": removed}
+
     def open_project(self, name):
         """Home → 编辑视图：重绑到项目目录的契约页/spec（单用户本地
         服务，直接重绑实例状态可接受）。"""
@@ -2692,6 +2739,10 @@ def make_handler(server_ref):
                     self._json(srv._project_create(body))
                 elif path == "/api/project/rename":
                     self._json(srv._project_rename(body))
+                elif path == "/api/project/delete":
+                    self._json(srv._project_delete(body))
+                elif path == "/api/brand/delete":
+                    self._json(srv._brand_delete(body))
                 elif path == "/api/reveal":
                     # 在 Finder 中定位导出产物（本地产品实用项）。
                     # realpath 前缀校验项目根（防 open -R 任意路径）。

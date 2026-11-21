@@ -435,7 +435,17 @@ function brandMainRender() {
     '<div class="bm-src">From ' +
     escHtml(String(b.source_url || "").replace(/^https?:\/\//, "")) +
     " · brandkit-v2 capture</div></div>" +
-    '<div class="sp"></div>';
+    '<div class="sp"></div>' +
+    '<button class="bm-del" type="button" title="删除此品牌 kit">删除 kit</button>';
+  head.querySelector(".bm-del").onclick = function () {
+    if (!confirm("删除品牌 kit「" + name + "」？logo/截图等文件一并删除。")) return;
+    api("/api/brand/delete", { name: name }).then(function () {
+      log("品牌 kit 已删除：" + name, "ok");
+      brandMainClose();
+    }).catch(function (e) {
+      log("删除失败：" + e.message, "err");
+    });
+  };
   head.appendChild(close);
   view.appendChild(head);
 

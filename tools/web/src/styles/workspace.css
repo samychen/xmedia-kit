@@ -167,3 +167,12 @@ body.docking .center { animation: dock-in .6s .1s cubic-bezier(.2, .8, .3, 1) ba
 .tabs { gap: 1px; }
 .tab { padding: 7px 0 !important; font-size: 11px !important;
   letter-spacing: -0.01em; }
+
+/* 项目卡删除钮（hover 显示） */
+.pj-nav-card { position: relative; }
+.pj-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px;
+  border: 0; border-radius: 6px; background: rgba(0, 0, 0, .55);
+  color: var(--err); font-size: 11px; cursor: pointer; display: none;
+  place-items: center; }
+.pj-nav-card:hover .pj-del { display: grid; }
+.pj-del:hover { background: var(--err); color: #fff; }
