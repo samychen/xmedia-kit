@@ -3,10 +3,16 @@ import { log, $ } from "../shared/dom.js";
 import { fps } from "../shared/time.js";
 import { splitSceneData } from "./model.js";
 import { tlTotal } from "./range.js";
+import { renderTimeline } from "./render.js";
 
 export function trimCommit(idx, newDur) {
   state.spec.scenes[idx].duration = Math.round(newDur * 100) / 100;
+  /* 乐观渲染（HF 同款）：本地 meta 同步改 + 立即重渲时间轴——不等
+     服务端重组往返；recompose 后台跑，完成后 refresh 校正。 */
+  var meta = state.scenes[idx];
+  if (meta) meta.dur = state.spec.scenes[idx].duration;
   $("spec").value = JSON.stringify(state.spec, null, 2);
+  renderTimeline();
   log("裁剪 scene-" + idx + " → " +
       state.spec.scenes[idx].duration + "s，重组合成…");
   recompose();
@@ -31,6 +37,7 @@ export function reorderTo(idx, target) {
   arr.splice(ins, 0, m);
   selIdx = ins;
   $("spec").value = JSON.stringify(state.spec, null, 2);
+  renderTimeline();   // 乐观渲染：重排立即反映（HF 同款），重组后台跑
   log("场景 " + (idx + 1) + " 拖到第 " + (ins + 1) + " 位，重组合成…");
   recompose();
   return true;

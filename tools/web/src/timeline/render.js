@@ -107,6 +107,7 @@ b.onmousedown = function (e) {
       state.spec.scenes[idx].track = t2;
       selIdx = idx;
       $("spec").value = JSON.stringify(state.spec, null, 2);
+      renderTimeline();   // 乐观渲染：跨轨立即反映（重组后台）
       log("场景 " + (idx + 1) + " → " +
           (t2 === 0 ? "主轨" : "叠加轨 " + t2) + "，重组合成…");
       recompose();
