@@ -779,12 +779,20 @@ def _ff_env():
 
 
 def studio_ui():
+    """构建版本角标（右下 build <hash6>）：内容寻址——页面渲染的角标
+    直接暴露浏览器加载的是哪个构建，判定「旧页面 vs bug」一锤定音。"""
     try:
         with open(STUDIO_UI_PATH, "r", encoding="utf-8") as f:
-            return f.read()
+            html = f.read()
     except OSError:
         return "<html><body><p>studio_ui.html 缺失</p></body></html>"
-
+    tag = hashlib.md5(html.encode("utf-8")).hexdigest()[:6]
+    return html.replace(
+        "</body>",
+        '<div id="build-tag">build ' + tag + '</div>'
+        '<script>(function(){if(location.search.indexOf("diag=1")>=0){'
+        'var b=document.querySelector("#btn-import");'
+        'if(b)setTimeout(function(){b.click()},600);}})();</script></body>')
 
 
 # 服务内所有 html_bake 的全局串行锁：并发 bake 的 CEF 实例会互相拖死
