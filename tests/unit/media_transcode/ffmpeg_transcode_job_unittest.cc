@@ -644,6 +644,107 @@ TEST(TranscodeJobTest, CancelStopsTheJobWithCancelledStatus) {
   std::remove(output.c_str());
 }
 
+// E3c: Pause() parks the worker between packets; Resume() lets it finish.
+// While parked the pump must not advance (progress callbacks stop), the
+// completion status stays a real success, and the output is a complete
+// container — pause is a checkpoint, not a truncation.
+TEST(TranscodeJobTest, PauseParksThenResumeCompletes) {
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+  const std::string input = CreateTestAudioFile("pause");
+  const std::string output = testing::TempDir() + "transcode_out_pause.mp4";
+
+  TranscodeParams params;
+  params.output_path = output;
+  params.audio_codec.codec = "copy";
+  params.video_codec.codec = "";
+
+  TranscodeJob job;
+  std::atomic<bool> done{false};
+  std::atomic<int> progress_calls{0};
+  Status final_status = Err(ErrorCode::kNotImplemented, "", {}, {});
+  ASSERT_TRUE(job.Start(
+      input, params,
+      [&job, &progress_calls](int /*pct*/) {
+        if (progress_calls.fetch_add(1) == 0) {
+          job.Pause();  // parks at the next packet boundary
+        }
+      },
+      [&final_status, &done](Status s) {
+        final_status = std::move(s);
+        done.store(true);
+      }));
+
+  // The worker parks; once it has, callbacks stop arriving entirely.
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (!job.IsPaused() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  ASSERT_TRUE(job.IsPaused()) << "worker never parked";
+  const int frozen = progress_calls.load();
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(progress_calls.load(), frozen) << "progress advanced while parked";
+
+  job.Resume();
+  job.Wait();
+
+  ASSERT_TRUE(done.load());
+  ASSERT_TRUE(final_status) << final_status.error().ToString();
+  EXPECT_FALSE(job.IsRunning());
+  // Resume must have carried the run to the end, not stopped early.
+  EXPECT_GT(Probe(&env, output).duration.InMillisecondsF(), 100.0);
+
+  std::remove(input.c_str());
+  std::remove(output.c_str());
+}
+
+// E3c: Cancel() while parked wakes the worker and still reports kCancelled —
+// a host must never need to Resume() before cancelling.
+TEST(TranscodeJobTest, CancelWhilePausedReportsCancelled) {
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::kRealTime);
+  const std::string input = CreateTestAudioFile("pause_cancel");
+  const std::string output = testing::TempDir() + "transcode_out_pause_cancel.mp4";
+
+  TranscodeParams params;
+  params.output_path = output;
+  params.audio_codec.codec = "copy";
+  params.video_codec.codec = "";
+
+  TranscodeJob job;
+  std::atomic<bool> done{false};
+  std::atomic<int> progress_calls{0};
+  Status final_status = Err(ErrorCode::kNotImplemented, "", {}, {});
+  ASSERT_TRUE(job.Start(
+      input, params,
+      [&job, &progress_calls](int /*pct*/) {
+        if (progress_calls.fetch_add(1) == 0) {
+          job.Pause();
+        }
+      },
+      [&final_status, &done](Status s) {
+        final_status = std::move(s);
+        done.store(true);
+      }));
+
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (!job.IsPaused() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  ASSERT_TRUE(job.IsPaused()) << "worker never parked";
+
+  job.Cancel();  // must wake the parked worker, not deadlock it
+  job.Wait();
+
+  ASSERT_TRUE(done.load());
+  ASSERT_FALSE(final_status);
+  EXPECT_EQ(final_status.error().code(), ErrorCode::kCancelled);
+  EXPECT_FALSE(job.IsRunning());
+
+  std::remove(input.c_str());
+  std::remove(output.c_str());
+}
+
 }  // namespace// --- HyperFrames 对齐的输出格式扩展（2026-11-04 移植） -------------------
 // GIF：扩展名即裁决——video 编码器默认 gif，音频腿直接不建（gif 容器没有
 // 音频轨）。判据钉产物形态：单视频流、gif 容器、时长与输入一致。

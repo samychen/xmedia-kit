@@ -6,9 +6,11 @@
 #define XMEDIA_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -147,19 +149,61 @@ struct XMEDIA_MEDIA_EXPORT TranscodeParams {
 // (the caller's thread for Transcode(), the worker for TranscodeJob).
 using TranscodeProgressCB = std::function<void(int)>;
 
-// E3b: cooperative cancellation. Cancel() is thread-safe and may be called
-// while a job runs on another thread; a null token never cancels, which is
-// what keeps Transcode()'s synchronous callers (and every existing test)
-// unchanged.
+// E3b: cooperative cancellation, extended with a cooperative pause (E3c).
+// Cancel() is thread-safe and may be called while a job runs on another
+// thread; a null token never cancels or pauses, which is what keeps
+// Transcode()'s synchronous callers (and every existing test) unchanged.
+//
+// Pause is cooperative the same way: the worker parks BETWEEN packets, so a
+// pause request never aborts in-flight I/O — a blocking network read finishes
+// before the park lands (only Cancel() interrupts a blocked read, via the
+// AVIO interrupt callback). Cancel() also wakes a parked worker immediately.
 class XMEDIA_MEDIA_EXPORT TranscodeCancelToken {
  public:
-  void Cancel() { cancelled_.store(true, std::memory_order_relaxed); }
+  void Cancel() {
+    cancelled_.store(true, std::memory_order_relaxed);
+    // Notify under |mu_|: a waiter between its predicate check and cv_.wait()
+    // would otherwise miss the wakeup (lost-wakeup race).
+    std::lock_guard<std::mutex> lock(mu_);
+    cv_.notify_all();
+  }
   bool IsCancelled() const {
     return cancelled_.load(std::memory_order_relaxed);
   }
 
+  // Park the next WaitWhilePaused() until Resume()/Cancel(). Idempotent;
+  // safe from any thread (including a progress callback on the worker).
+  void Pause() {
+    std::lock_guard<std::mutex> lock(mu_);
+    paused_ = true;
+  }
+  void Resume() {
+    std::lock_guard<std::mutex> lock(mu_);
+    paused_ = false;
+    cv_.notify_all();
+  }
+  bool IsPaused() const {
+    std::lock_guard<std::mutex> lock(mu_);
+    return paused_;
+  }
+
+  // Worker-side gate, called at the packet boundary: blocks while paused and
+  // returns as soon as Resume() fires or the token is cancelled. Never blocks
+  // on a token nobody paused.
+  void WaitWhilePaused() const {
+    std::unique_lock<std::mutex> lock(mu_);
+    cv_.wait(lock, [this] {
+      return !paused_ || cancelled_.load(std::memory_order_relaxed);
+    });
+  }
+
  private:
   std::atomic<bool> cancelled_{false};
+  // Guards |paused_| and the gate. mutable because the worker holds the token
+  // as `const TranscodeCancelToken*` and parks through it.
+  mutable std::mutex mu_;
+  mutable std::condition_variable cv_;
+  bool paused_ = false;
 };
 
 // Runs the transcode synchronously. Returns OkStatus on success and
@@ -203,8 +247,20 @@ class XMEDIA_MEDIA_EXPORT TranscodeJob {
   // Requests cancellation; returns immediately. Safe from any thread.
   void Cancel();
 
+  // Cooperative pause/resume: the worker parks at the next packet boundary
+  // (an in-flight blocking read still completes first). No-op before Start()
+  // or after the run ended; safe from any thread.
+  void Pause();
+  void Resume();
+
+  // True while the worker is parked, or a pause has been requested but the
+  // worker has not reached its gate yet.
+  bool IsPaused() const;
+
   // Blocks until the worker has exited. Do NOT call it (nor Start()) from
-  // inside a callback: that is the very thread it would wait for.
+  // inside a callback: that is the very thread it would wait for. NOTE: Wait()
+  // does NOT resume a paused job — a host must Resume() (or Cancel()) first or
+  // park forever.
   void Wait();
 
   // True between Start() and the worker's last instruction.

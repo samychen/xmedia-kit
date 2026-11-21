@@ -356,7 +356,15 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
     return ret >= 0;
   };
 
-  while (!cancelled() && av_read_frame(in_ctx.get(), pkt.get()) >= 0) {
+  while (!cancelled()) {
+    // Cooperative pause (E3c): parks between packets. A blocking AVIO read
+    // still finishes first — unlike Cancel(), pause does NOT abort in-flight
+    // I/O. Null-token callers (synchronous Transcode()) never pause.
+    if (cancel != nullptr) {
+      cancel->WaitWhilePaused();
+      if (cancelled()) break;  // Cancel() wins even while parked
+    }
+    if (av_read_frame(in_ctx.get(), pkt.get()) < 0) break;
     const int idx = pkt->stream_index;
     AVStream* stream = in_ctx->streams[static_cast<unsigned>(idx)];
 

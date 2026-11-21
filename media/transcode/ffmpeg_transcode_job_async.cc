@@ -20,9 +20,10 @@ namespace xmedia::media {
 struct TranscodeJob::Impl {
   std::thread worker;
   std::atomic<bool> running{false};
-  // |token| is read by Cancel() and written by Start(); the worker holds its
-  // own shared_ptr, so this lock only serialises Start() against Cancel().
-  std::mutex mu;
+  // |token| is read by Cancel()/Pause()/Resume() and written by Start(); the
+  // worker holds its own shared_ptr, so this lock only serialises Start()
+  // against the control verbs. mutable so the const IsPaused() can take it.
+  mutable std::mutex mu;
   std::shared_ptr<TranscodeCancelToken> token;
 
   ~Impl() {
@@ -81,6 +82,25 @@ void TranscodeJob::Cancel() {
   if (impl_->token) {
     impl_->token->Cancel();
   }
+}
+
+void TranscodeJob::Pause() {
+  std::lock_guard<std::mutex> lock(impl_->mu);
+  if (impl_->token) {
+    impl_->token->Pause();
+  }
+}
+
+void TranscodeJob::Resume() {
+  std::lock_guard<std::mutex> lock(impl_->mu);
+  if (impl_->token) {
+    impl_->token->Resume();
+  }
+}
+
+bool TranscodeJob::IsPaused() const {
+  std::lock_guard<std::mutex> lock(impl_->mu);
+  return impl_->token && impl_->token->IsPaused();
 }
 
 void TranscodeJob::Wait() {
