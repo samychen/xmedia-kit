@@ -11,8 +11,8 @@ function ensureCanvas() {
   if (cv) return cv;
   cv = document.createElement("canvas");
   cv.id = "draw-canvas";
-  cv.style.cssText = "position:absolute;inset:0;z-index:8;display:none;" +
-      "cursor:crosshair;touch-action:none;";
+  cv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;"
+      + "z-index:8;display:none;cursor:crosshair;touch-action:none;";
   $("pvwrap").appendChild(cv);
   ctx = cv.getContext("2d");
   ctx.lineCap = "round";
@@ -42,10 +42,11 @@ function ensureCanvas() {
 }
 
 function resize() {
-  if (!cv || !cv.style.display || cv.style.display === "none") return;
+  if (!cv) return;
   var r = cv.getBoundingClientRect();
-  cv.width = Math.max(2, r.width);
-  cv.height = Math.max(2, r.height);
+  if (r.width < 2 || r.height < 2) return;  // 布局未就绪（rAF 后重试）
+  cv.width = Math.max(2, Math.round(r.width));
+  cv.height = Math.max(2, Math.round(r.height));
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 }
@@ -60,7 +61,9 @@ export function drawToggle(on_) {
   var c = ensureCanvas();
   c.style.display = on ? "block" : "none";
   if (on) {
-    resize();
+    /* 布局 flush 后再取尺寸——同 tick 内 rect 是 canvas 默认 300×150，
+       内容会被 CSS 拉伸错位（用户观感"画了没反应"） */
+    requestAnimationFrame(resize);
     log("画笔已激活——直接在画面上画标注（表达修改意图，会话级）", "ok");
   }
 }

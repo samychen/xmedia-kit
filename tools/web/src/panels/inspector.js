@@ -147,10 +147,11 @@ $("insp-cmt-save").onclick = function () {
   else delete state.spec.scenes[selIdx].comment;
   $("insp-cmt-badge").textContent = text ? "· 已留" : "";
   this.disabled = true;
-  api("/api/spec-save", { spec: state.spec }).then(() => {
+  api("/api/spec-save", { spec: state.spec }).then((r) => {
     this.disabled = false;
     log(r.errors ? "评论已保存（校验 " + r.errors + " errors）" : "评论已保存",
         r.errors ? "err" : "ok");
+    renderTimeline();   // 💬 角标即时出现
   }).catch((e) => {
     this.disabled = false;
     log("评论保存失败：" + e.message, "err");

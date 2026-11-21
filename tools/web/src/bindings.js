@@ -140,6 +140,16 @@ function switchLeftPanel(name) {
   if (name === "brand") brandRender();
   if (name === "projects") projectsRender();
 }
+var pc = $("pvtool-comment");
+if (pc) pc.onclick = function () {
+  var ta = $("insp-comment");
+  if (ta) {
+    ta.scrollIntoView({ block: "center", behavior: "smooth" });
+    ta.focus({ preventScroll: true });
+    ta.classList.add("insp-flash");
+    setTimeout(function () { ta.classList.remove("insp-flash"); }, 900);
+  }
+};
 drawInit();
 $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-projects").onclick = function () { switchLeftPanel("projects"); };
