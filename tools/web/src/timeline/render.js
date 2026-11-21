@@ -484,6 +484,13 @@ export function renderTimeline() {
         (vTracks[tr] = vTracks[tr] || []).push(idx);
       });
       var vKeys = Object.keys(vTracks).sort(function (a, b) { return a - b; });
+      /* 轨 0/1 常驻（空叠加轨显示拖放提示）——HF 空轨生成语义。
+         空轨补空分组（否则 vTracks[tr] undefined → .length 崩）。 */
+      ["0", "1"].forEach(function (tr) {
+        vTracks[tr] = vTracks[tr] || [];
+        if (vKeys.indexOf(tr) < 0) vKeys.push(tr);
+      });
+      vKeys.sort(function (a, b) { return a - b; });
       vKeys.forEach(function (tr, vi) {
         var row2 = mk("div", "tl-row v-scene" + (vi % 2 ? " alt" : "") +
                       (tr !== "0" ? " overlay-row" : ""));

@@ -99,7 +99,7 @@ export function impUpload() {
 }
 export function impRun() {
   if (impBusy) return;
-  var append = $("imp-append").checked;
+  var append = !$("imp-replace").checked;   // 默认追加（保留现有），显式勾选才替换
   var opts = {
     format: $("imp-format").value,
     asr: $("imp-asr").checked,

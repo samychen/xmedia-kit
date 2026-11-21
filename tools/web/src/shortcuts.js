@@ -120,4 +120,7 @@ refresh().then(function () {
                1400);
     history.replaceState(null, "", location.pathname);
   }
-}).catch(function (e) { log("状态加载失败：" + e.message, "err"); });
+}).catch(function (e) {
+  log("状态加载失败：" + e.message, "err");
+  log((e.stack || "").split(String.fromCharCode(10)).slice(0, 4).join(String.fromCharCode(10)), "err");
+});
