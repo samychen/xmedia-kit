@@ -7,15 +7,22 @@
 #include <cstring>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
+#include "media/transcode/flv_rtmp_reassembler.h"
 
 namespace xmedia::media {
 namespace {
 
 namespace ff = ::xmedia::media::ffmpeg;
+
+struct FlvRtmpWriter {
+  AVIOContext* real_pb = nullptr;
+  FlvRtmpReassembler reassembler;
+};
 
 }  // namespace
 
@@ -32,7 +39,46 @@ struct FFmpegEncodeMuxer::Context {
   // Stored separately from stream->time_base because the container's
   // timebase may differ (avformat_write_header can change it).
   std::vector<AVRational> stream_src_tb;
+
+  // RTMP outputs are backed by librtmp, whose RTMP_Write() only accepts
+  // complete FLV tags. FFmpeg's AVIO flushes on 32 KiB boundaries that can
+  // split a tag header/body; librtmp then returns 0 and FFmpeg maps that to
+  // AVERROR_EOF ("End of file"). FlvRtmpReassembler owns that boundary
+  // contract (and its own unit test); this context only wires it to AVIO.
+  AVIOContext* outer_pb = nullptr;   // AVIO handed to the muxer
+  std::unique_ptr<FlvRtmpWriter> rtmp_writer;
 };
+
+namespace {
+
+int WriteRawToUrl(AVIOContext* pb, const uint8_t* data, int size) {
+  if (!pb || !pb->write_packet) {
+    return -1;
+  }
+  const int ret = pb->write_packet(pb->opaque, data, size);
+  if (ret < 0) {
+    pb->error = ret;
+  }
+  return ret;
+}
+
+int WriteFlvTagsToRtmp(void* opaque, const uint8_t* buf, int buf_size) {
+  auto* w = static_cast<FlvRtmpWriter*>(opaque);
+  if (!w || !w->real_pb || buf_size <= 0) {
+    return -1;
+  }
+  const int ready = w->reassembler.Feed(buf, static_cast<size_t>(buf_size));
+  if (ready < 0) {
+    return -1;
+  }
+  if (ready > 0) {
+    WriteRawToUrl(w->real_pb, w->reassembler.buffer().data(), ready);
+    w->reassembler.Consume(static_cast<size_t>(ready));
+  }
+  return w->real_pb->error ? -1 : buf_size;
+}
+
+}  // namespace
 
 FFmpegEncodeMuxer::FFmpegEncodeMuxer() = default;
 
@@ -41,7 +87,17 @@ FFmpegEncodeMuxer::~FFmpegEncodeMuxer() {
     if (ctx_->header_written && !ctx_->finished) {
       av_write_trailer(ctx_->fmt);
     }
-    if (!(ctx_->fmt->oformat->flags & AVFMT_NOFILE) && ctx_->fmt->pb) {
+    if (ctx_->outer_pb) {
+      // Flush any partial tag into the reassembler before tearing down.
+      avio_flush(ctx_->outer_pb);
+      av_freep(&ctx_->outer_pb->buffer);
+      avio_context_free(&ctx_->outer_pb);
+      ctx_->fmt->pb = nullptr;
+    }
+    if (ctx_->rtmp_writer && ctx_->rtmp_writer->real_pb) {
+      avio_closep(&ctx_->rtmp_writer->real_pb);
+      ctx_->fmt->pb = nullptr;
+    } else if (!(ctx_->fmt->oformat->flags & AVFMT_NOFILE) && ctx_->fmt->pb) {
       avio_closep(&ctx_->fmt->pb);
     }
     avformat_free_context(ctx_->fmt);
@@ -66,15 +122,46 @@ bool FFmpegEncodeMuxer::Open(
   // For containers that need a file (everything except raw streams like ADTS),
   // open the AVIOContext now: avformat_write_header writes through fmt->pb and
   // crashes if it is null.
+  ctx_ = std::make_unique<Context>();
+  ctx_->fmt = fmt;
   if (!(fmt->oformat->flags & AVFMT_NOFILE)) {
-    if (avio_open(&fmt->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
+    const bool rtmp_output = path.rfind("rtmp", 0) == 0;
+    if (rtmp_output) {
+      if (avio_open(&fmt->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
+        LOG(ERROR) << "encode muxer: cannot open output file " << path;
+        ctx_.reset();
+        avformat_free_context(fmt);
+        return false;
+      }
+      ctx_->rtmp_writer = std::make_unique<FlvRtmpWriter>();
+      ctx_->rtmp_writer->real_pb = fmt->pb;
+      constexpr int kOuterBufferSize = 64 * 1024;
+      uint8_t* outer_buffer =
+          static_cast<uint8_t*>(av_malloc(kOuterBufferSize));
+      if (!outer_buffer) {
+        avio_closep(&ctx_->rtmp_writer->real_pb);
+        ctx_.reset();
+        avformat_free_context(fmt);
+        return false;
+      }
+      ctx_->outer_pb = avio_alloc_context(
+          outer_buffer, kOuterBufferSize, 1, ctx_->rtmp_writer.get(), nullptr,
+          &WriteFlvTagsToRtmp, nullptr);
+      if (!ctx_->outer_pb) {
+        av_freep(&outer_buffer);
+        avio_closep(&ctx_->rtmp_writer->real_pb);
+        ctx_.reset();
+        avformat_free_context(fmt);
+        return false;
+      }
+      fmt->pb = ctx_->outer_pb;
+    } else if (avio_open(&fmt->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
       LOG(ERROR) << "encode muxer: cannot open output file " << path;
+      ctx_.reset();
       avformat_free_context(fmt);
       return false;
     }
   }
-  ctx_ = std::make_unique<Context>();
-  ctx_->fmt = fmt;
   // G5: stash the header options so WriteHeader can apply them.
   // "meta:" 前缀的条目走容器 metadata（mp4 udta，ffprobe -show_format
   // 可见）——产物来源锚点用，不是 muxer/编码选项。
@@ -242,8 +329,12 @@ bool FFmpegEncodeMuxer::WritePacket(int stream_index,
   const AVRational& src_tb =
       ctx_->stream_src_tb[static_cast<size_t>(stream_index)];
   av_packet_rescale_ts(pkt.get(), src_tb, stream->time_base);
-  if (av_interleaved_write_frame(ctx_->fmt, pkt.get()) < 0) {
-    LOG(ERROR) << "encode muxer: write_frame failed";
+  const int write_ret = av_interleaved_write_frame(ctx_->fmt, pkt.get());
+  if (write_ret < 0) {
+    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {};
+    av_strerror(write_ret, errbuf, sizeof(errbuf));
+    LOG(ERROR) << "encode muxer: write_frame failed ret=" << write_ret
+               << " (" << errbuf << ")";
     return false;
   }
   return true;
