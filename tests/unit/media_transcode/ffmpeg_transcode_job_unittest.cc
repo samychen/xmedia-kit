@@ -676,7 +676,8 @@ TEST(TranscodeJobTest, PauseParksThenResumeCompletes) {
       }));
 
   // The worker parks; once it has, callbacks stop arriving entirely.
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(5);
   while (!job.IsPaused() && std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
@@ -704,7 +705,8 @@ TEST(TranscodeJobTest, CancelWhilePausedReportsCancelled) {
   base::test::TaskEnvironment env(
       base::test::TaskEnvironment::TimeSource::kRealTime);
   const std::string input = CreateTestAudioFile("pause_cancel");
-  const std::string output = testing::TempDir() + "transcode_out_pause_cancel.mp4";
+  const std::string output =
+      testing::TempDir() + "transcode_out_pause_cancel.mp4";
 
   TranscodeParams params;
   params.output_path = output;
@@ -727,7 +729,8 @@ TEST(TranscodeJobTest, CancelWhilePausedReportsCancelled) {
         done.store(true);
       }));
 
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(5);
   while (!job.IsPaused() && std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }

@@ -15,6 +15,7 @@
 
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "media/base/media_constants.h"
 #include "media/ffmpeg/audio_convert.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
@@ -285,7 +286,8 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
         // (sample-level slicing would need an AudioBuffer cut API). The cost
         // is a gap of at most one codec frame (~21 ms at 48 kHz) at a chunk
         // seam, against the overlap it prevents.
-        if (trim_start && buf->timestamp() < base::Microseconds(start_us)) {
+        if (trim_start && buf->timestamp() != kNoTimestamp &&
+            buf->timestamp() < base::Microseconds(start_us)) {
           continue;
         }
         std::vector<EncodedPacket> out_packets;
@@ -315,7 +317,7 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       auto vf =
           AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
                               video.decoder->pkt_timebase);
-      if (vf && trim_start &&
+      if (vf && trim_start && vf->timestamp() != kNoTimestamp &&
           vf->timestamp() < base::Microseconds(start_us)) {
         av_frame_unref(frame.get());
         continue;  // before the window: decoded then dropped, GOP intact
@@ -396,7 +398,11 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
           pace_anchor_wall + std::chrono::microseconds(pkt_us - pace_anchor_us);
       const auto now = std::chrono::steady_clock::now();
       if (due > now) {
-        std::this_thread::sleep_until(due);
+        if (cancel != nullptr) {
+          cancel->WaitUntilOrCancelled(due);
+        } else {
+          std::this_thread::sleep_until(due);
+        }
       }
     }
 
@@ -488,25 +494,9 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       return CancelledStatus(input_uri);
     }
     avcodec_send_packet(audio.decoder.get(), nullptr);
-    while (avcodec_receive_frame(audio.decoder.get(), frame.get()) >= 0) {
-      auto buf = AvFrameToAudioBuffer(frame.get(), audio.in_sample_rate,
-                                      audio.in_channels);
-      if (buf && trim_start &&
-          buf->timestamp() < base::Microseconds(start_us)) {
-        av_frame_unref(frame.get());
-        continue;
-      }
-      if (buf) {
-        std::vector<EncodedPacket> out_packets;
-        if (audio.encoder.Encode(std::move(buf), &out_packets)) {
-          for (const auto& ep : out_packets) {
-            if (!write_audio(ep)) {
-              return write_failed("a trailing audio packet");
-            }
-          }
-        }
-      }
-      av_frame_unref(frame.get());
+    const Status drain_st = drain_audio();
+    if (!drain_st) {
+      return drain_st;
     }
     // Drain the resampler before the encoder: everything it is still
     // holding belongs on the timeline ahead of the encoder's own delay.
@@ -537,27 +527,9 @@ Status Transcode(const std::string& input_uri, const TranscodeParams& params,
       return CancelledStatus(input_uri);
     }
     avcodec_send_packet(video.decoder.get(), nullptr);
-    while (avcodec_receive_frame(video.decoder.get(), frame.get()) >= 0) {
-      auto vf =
-          AvFrameToVideoFrame(frame.get(), video.in_width, video.in_height,
-                              video.decoder->pkt_timebase);
-      if (vf && trim_start &&
-          vf->timestamp() < base::Microseconds(start_us)) {
-        av_frame_unref(frame.get());
-        continue;
-      }
-      if (vf) {
-        capture_verify_sample(*vf);
-        std::vector<EncodedPacket> out_packets;
-        if (video.encoder.Encode(std::move(vf), &out_packets)) {
-          for (const auto& ep : out_packets) {
-            if (!write_video(ep)) {
-              return write_failed("a trailing video packet");
-            }
-          }
-        }
-      }
-      av_frame_unref(frame.get());
+    const Status drain_st = drain_video();
+    if (!drain_st) {
+      return drain_st;
     }
     std::vector<EncodedPacket> flushed;
     video.encoder.Flush(&flushed);

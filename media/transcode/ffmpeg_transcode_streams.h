@@ -85,6 +85,9 @@ struct AudioState {
   std::unique_ptr<ffmpeg::AudioConverter> resampler;
   AVAudioFifo* fifo = nullptr;
   AvFramePtr framed;
+  // Running output-sample PTS (in 1/out_sample_rate) for frames emitted via
+  // the resampler/FIFO path, anchored from the first timestamped input frame.
+  int64_t next_resampled_pts = INT64_MIN;  // AV_NOPTS_VALUE without <libav*>
   // Not defined inline: releasing SwrContext needs libav, and this header
   // deliberately does not include it.
   ~AudioState();

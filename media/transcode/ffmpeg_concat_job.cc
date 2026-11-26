@@ -112,42 +112,44 @@ ProbeResult ProbeInput(const std::string& uri) {
 
 // Check whether two probe results have compatible codec parameters (so the
 // fast/copy path is viable).
+bool AudioCompatible(const ProbeResult& a, const ProbeResult& b) {
+  if ((a.audio_stream_index >= 0) != (b.audio_stream_index >= 0)) return false;
+  if (a.audio_stream_index < 0) return true;
+  return a.audio_codec_id == b.audio_codec_id &&
+         a.audio_sample_rate == b.audio_sample_rate &&
+         a.audio_channels == b.audio_channels;
+}
+
+bool VideoCompatible(const ProbeResult& a, const ProbeResult& b) {
+  if ((a.video_stream_index >= 0) != (b.video_stream_index >= 0)) return false;
+  if (a.video_stream_index < 0) return true;
+  return a.video_codec_id == b.video_codec_id &&
+         a.video_width == b.video_width && a.video_height == b.video_height;
+}
+
 bool CodecsCompatible(const ProbeResult& a, const ProbeResult& b) {
-  // Audio.
-  if (a.audio_stream_index >= 0 && b.audio_stream_index >= 0) {
-    if (a.audio_codec_id != b.audio_codec_id ||
-        a.audio_sample_rate != b.audio_sample_rate ||
-        a.audio_channels != b.audio_channels) {
-      return false;
-    }
+  return AudioCompatible(a, b) && VideoCompatible(a, b);
+}
+
+BsfCtxPtr InitSegmentBsf(const char* bsf_name, AVStream* vs) {
+  const AVBitStreamFilter* bsf =
+      bsf_name ? av_bsf_get_by_name(bsf_name) : nullptr;
+  AVBSFContext* raw = nullptr;
+  if (!bsf || av_bsf_alloc(bsf, &raw) != 0) return nullptr;
+  avcodec_parameters_copy(raw->par_in, vs->codecpar);
+  raw->time_base_in = vs->time_base;
+  if (av_bsf_init(raw) != 0) {
+    av_bsf_free(&raw);
+    return nullptr;
   }
-  // Video.
-  if (a.video_stream_index >= 0 && b.video_stream_index >= 0) {
-    if (a.video_codec_id != b.video_codec_id ||
-        a.video_width != b.video_width || a.video_height != b.video_height) {
-      return false;
-    }
-  }
-  return true;
+  return BsfCtxPtr(raw);
 }
 
 // --- Timestamp rebase ------------------------------------------------
-// Why this exists (measured, not assumed): a segment read back from a
-// container does NOT start at 0 whenever the codec has priming samples. An
-// AAC MP4 written by our own muxer reads back as
-//   pkt[0] pts=-1024 dts=-1024, ..., max_pts=14336  (16 packets)
-// The obvious rebase for the next segment is "offset = previous max_pts +
-// 1" = 14337, which puts that segment's first packet at -1024 + 14337 =
-// 13313 — *behind* the previous segment's last dts of 14336. FFmpeg rejects
-// it ("non monotonically increasing dts to muxer in stream 0: 14336 >=
-// 13313") and drops the packet. Because WritePacket()'s result was ignored,
-// every seam silently lost one frame and the test still measured a duration
-// that merely looked close enough (619ms where 2x320ms wanted ~683ms).
-//
-// So each segment is *normalized onto the running output timeline* instead:
-// its first packet lands exactly where the previous segment ended (0 for the
-// very first), and intra-segment deltas are preserved. That also fixes the
-// related defect that the output timeline used to start at -1024.
+// Segments read from containers often begin at negative priming DTS (e.g.
+// AAC -1024); rebasing against previous max_pts+1 triggers non-monotonic DTS
+// errors at seams. Normalize each segment so its first packet lands where the
+// previous segment ended (0 for the first), preserving intra-segment deltas.
 struct StreamRebase {
   bool seen_any = false;     // Anything written yet (across all segments).
   bool seg_started = false;  // This segment's first packet already placed.
@@ -317,24 +319,33 @@ Status Concat(const ConcatParams& params) {
     const bool slow_path = !can_fast_path && seg > 0;
 
     if (slow_path) {
-      // Re-encode this segment to a temp file, then read it back.
-      //
-      // Audio is re-encoded rather than re-muxed: a segment whose sample
-      // rate differs from the reference's cannot be copied into the output
-      // track without the audio coming out at the wrong speed — copying
-      // 44100 packets into a track declared 48000 makes them play 8.9%
-      // fast. Video is still copied, because a resolution mismatch would
-      // need a scaled re-encode this job does not yet have a scale stage
-      // for; it is registered as a known gap rather than faked.
+      // Re-encode incompatible segments to a temp file matching |ref|'s
+      // geometry and codec before muxing into the output.
       const std::string tmp_path =
           params.output_path + ".seg" + std::to_string(seg) + ".tmp.mp4";
       TranscodeParams tp;
       tp.output_path = tmp_path;
       tp.muxer_options = params.muxer_options;
-      tp.audio_codec.codec = "aac";
-      tp.audio_codec.sample_rate = ref.audio_sample_rate;
-      tp.audio_codec.channels = ref.audio_channels;
-      tp.video_codec.codec = "copy";
+      if (AudioCompatible(ref, probes[seg])) {
+        tp.audio_codec.codec = ref.audio_stream_index >= 0 ? "copy" : "";
+      } else if (ref.audio_stream_index >= 0) {
+        const AVCodec* aenc = avcodec_find_encoder(ref.audio_codec_id);
+        tp.audio_codec.codec = aenc ? aenc->name : "aac";
+        tp.audio_codec.sample_rate = ref.audio_sample_rate;
+        tp.audio_codec.channels = ref.audio_channels;
+      } else {
+        tp.audio_codec.codec.clear();
+      }
+      if (VideoCompatible(ref, probes[seg])) {
+        tp.video_codec.codec = ref.video_stream_index >= 0 ? "copy" : "";
+      } else if (ref.video_stream_index >= 0) {
+        const AVCodec* venc = avcodec_find_encoder(ref.video_codec_id);
+        tp.video_codec.codec = venc ? venc->name : "libx264";
+        tp.video_codec.width = ref.video_width;
+        tp.video_codec.height = ref.video_height;
+      } else {
+        tp.video_codec.codec.clear();
+      }
       Status st = Transcode(uri, tp);
       if (!st) {
         return st;
@@ -412,23 +423,11 @@ Status Concat(const ConcatParams& params) {
       }
     }
 
-    // Set up bsf for video if needed (first segment only).
-    if (seg == 0 && bsf_name && seg_video >= 0) {
-      const AVBitStreamFilter* bsf = av_bsf_get_by_name(bsf_name);
-      if (bsf) {
-        AVBSFContext* raw_bsf = nullptr;
-        if (av_bsf_alloc(bsf, &raw_bsf) == 0) {
-          AVStream* vs = seg_ctx->streams[static_cast<unsigned>(seg_video)];
-          avcodec_parameters_copy(raw_bsf->par_in, vs->codecpar);
-          raw_bsf->time_base_in = vs->time_base;
-          if (av_bsf_init(raw_bsf) == 0) {
-            video_bsf.reset(raw_bsf);
-          } else {
-            av_bsf_free(&raw_bsf);
-          }
-        }
-      }
-    }
+    video_bsf = seg_video >= 0
+                    ? InitSegmentBsf(
+                          bsf_name,
+                          seg_ctx->streams[static_cast<unsigned>(seg_video)])
+                    : nullptr;
 
     const AVRational seg_a_tb =
         seg_audio >= 0
@@ -469,6 +468,18 @@ Status Concat(const ConcatParams& params) {
                    "concat: writing a copied segment failed", uri,
                    "the packets could not be placed on a continuous "
                    "timeline");
+      }
+    }
+    if (video_bsf && out_video_idx >= 0 &&
+        av_bsf_send_packet(video_bsf.get(), nullptr) == 0) {
+      while (av_bsf_receive_packet(video_bsf.get(), bsf_out.get()) == 0) {
+        const bool ok_tail = emit(out_video_idx, &video_rb, bsf_out.get(),
+                                  video_bsf->time_base_out, video_dst_tb);
+        av_packet_unref(bsf_out.get());
+        if (!ok_tail) {
+          return Err(ErrorCode::kInvalidState,
+                     "concat: writing trailing segment packet failed", uri, {});
+        }
       }
     }
 

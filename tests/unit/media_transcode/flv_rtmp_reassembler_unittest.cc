@@ -135,9 +135,8 @@ TEST(FlvRtmpReassemblerTest, RejectsOversizedStash) {
   FlvRtmpReassembler r;
   std::vector<uint8_t> chunk(4096, 0);
   int result = 0;
-  for (size_t i = 0; i < FlvRtmpReassembler::kMaxStashBytes / chunk.size() + 2 &&
-                     result >= 0;
-       ++i) {
+  const size_t limit = FlvRtmpReassembler::kMaxStashBytes / chunk.size() + 2;
+  for (size_t i = 0; i < limit && result >= 0; ++i) {
     result = FeedAll(r, chunk);
   }
   EXPECT_EQ(result, -1);

@@ -51,6 +51,14 @@ struct FFmpegEncodeMuxer::Context {
 
 namespace {
 
+bool IsRtmpUrl(const std::string& path) {
+  const size_t scheme_end = path.find("://");
+  if (scheme_end == std::string::npos) {
+    return false;
+  }
+  return path.compare(0, 4, "rtmp") == 0;
+}
+
 int WriteRawToUrl(AVIOContext* pb, const uint8_t* data, int size) {
   if (!pb || !pb->write_packet) {
     return -1;
@@ -72,10 +80,17 @@ int WriteFlvTagsToRtmp(void* opaque, const uint8_t* buf, int buf_size) {
     return -1;
   }
   if (ready > 0) {
-    WriteRawToUrl(w->real_pb, w->reassembler.buffer().data(), ready);
+    const int written =
+        WriteRawToUrl(w->real_pb, w->reassembler.buffer().data(), ready);
+    if (written != ready) {
+      if (w->real_pb->error == 0) {
+        w->real_pb->error = written < 0 ? written : AVERROR(EIO);
+      }
+      return written < 0 ? written : AVERROR(EIO);
+    }
     w->reassembler.Consume(static_cast<size_t>(ready));
   }
-  return w->real_pb->error ? -1 : buf_size;
+  return w->real_pb->error ? w->real_pb->error : buf_size;
 }
 
 }  // namespace
@@ -125,7 +140,7 @@ bool FFmpegEncodeMuxer::Open(
   ctx_ = std::make_unique<Context>();
   ctx_->fmt = fmt;
   if (!(fmt->oformat->flags & AVFMT_NOFILE)) {
-    const bool rtmp_output = path.rfind("rtmp", 0) == 0;
+    const bool rtmp_output = IsRtmpUrl(path);
     if (rtmp_output) {
       if (avio_open(&fmt->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
         LOG(ERROR) << "encode muxer: cannot open output file " << path;

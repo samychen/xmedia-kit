@@ -6,6 +6,7 @@
 #define XMEDIA_MEDIA_TRANSCODE_TRANSCODE_JOB_H_
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
@@ -194,6 +195,25 @@ class XMEDIA_MEDIA_EXPORT TranscodeCancelToken {
     std::unique_lock<std::mutex> lock(mu_);
     cv_.wait(lock, [this] {
       return !paused_ || cancelled_.load(std::memory_order_relaxed);
+    });
+  }
+
+  // Interruptible sleep for realtime pacing: returns early (true) if
+  // Cancel() fires before |deadline|.
+  bool WaitUntilOrCancelled(std::chrono::steady_clock::time_point deadline)
+      const {
+    std::unique_lock<std::mutex> lock(mu_);
+    return cv_.wait_until(lock, deadline, [this] {
+      return cancelled_.load(std::memory_order_relaxed);
+    });
+  }
+
+  // Sleeps until |due| or returns early if Cancel() fires. Returns true when
+  // cancelled, false when |due| elapsed.
+  bool WaitUntilOrCancelled(std::chrono::steady_clock::time_point due) const {
+    std::unique_lock<std::mutex> lock(mu_);
+    return cv_.wait_until(lock, due, [this] {
+      return cancelled_.load(std::memory_order_relaxed);
     });
   }
 

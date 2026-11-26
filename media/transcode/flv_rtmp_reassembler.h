@@ -26,7 +26,8 @@ namespace xmedia::media {
 // the tests include it directly without adding a link dependency.
 class FlvRtmpReassembler {
  public:
-  static constexpr size_t kFlvHeaderBytes = 13;  // 9-byte header + PreviousTagSize0
+  // 9-byte FLV header + 4-byte PreviousTagSize0.
+  static constexpr size_t kFlvHeaderBytes = 13;
   static constexpr size_t kTagHeaderBytes = 11;
   static constexpr size_t kPrevTagSizeBytes = 4;
   static constexpr size_t kMaxStashBytes = 16u << 20;

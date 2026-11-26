@@ -4,14 +4,48 @@ import { fps } from "../shared/time.js";
 
 /* ---------------- 导出面板（对齐 HF Export） ---------------- */
 export var expJob = -1, expPolling = false;
+function handleBakeDone(j) {
+  expSetBusy(false);
+  $("exp-bar").style.width = "100%";
+  if (j.cancelled) {
+    $("exp-progress-text").textContent = "已取消";
+  } else if (j.rc === 0) {
+    $("exp-progress-text").textContent = "导出完成：" + j.out;
+    var rv = document.createElement("button");
+    rv.className = "btn"; rv.style.marginLeft = "8px";
+    rv.textContent = "在 Finder 中显示";
+    rv.onclick = function () {
+      api("/api/reveal", { path: j.out }).then(function () {
+        log("已在 Finder 中定位：" + j.out, "ok");
+      }).catch(function (e) {
+        log("定位失败：" + e.message, "err");
+      });
+    };
+    $("exp-progress-text").appendChild(rv);
+    log("导出完成：" + j.out, "ok");
+    log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment", "ok");
+  } else {
+    $("exp-progress-text").textContent = "导出失败 rc=" + j.rc;
+    log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
+  }
+  expPolling = false;
+}
+function handleBakeError(e) {
+  expSetBusy(false);
+  expPolling = false;
+  $("exp-progress-text").textContent = "导出失败：" + e.message;
+  log("导出失败：" + e.message, "err");
+}
 export function expOpen(on) {
   /* 打开面板时恢复进行中任务的进度显示（否则任务在跑但界面看不到，
      再点渲染会撞「已有导出任务在跑」——用户感知为「无法导出」）。 */
   if (on) {
     api("/api/job/current").then(function (r) {
       if (r.job !== null && r.job !== undefined && !expPolling) {
+        expJob = r.job;
+        expPolling = true;
         expSetBusy(true);
-        expPoll(r.job);
+        expPoll(r.job).then(handleBakeDone).catch(handleBakeError);
       }
     }).catch(function () {});
   }
@@ -71,39 +105,8 @@ $("exp-go").onclick = function () {
   log("导出开始：" + quality + " / " + fmt + " / " + fps + "fps");
   api("/api/bake", { quality: quality, fmt: fmt, fps: fps })
     .then(function (r) { expJob = r.job; return expPoll(r.job); })
-    .then(function (j) {
-      expSetBusy(false);
-      $("exp-bar").style.width = "100%";
-      if (j.cancelled) {
-        $("exp-progress-text").textContent = "已取消";
-      } else if (j.rc === 0) {
-        $("exp-progress-text").textContent = "导出完成：" + j.out;
-        var rv = document.createElement("button");
-        rv.className = "btn"; rv.style.marginLeft = "8px";
-        rv.textContent = "在 Finder 中显示";
-        rv.onclick = function () {
-          api("/api/reveal", { path: j.out }).then(function () {
-            log("已在 Finder 中定位：" + j.out, "ok");
-          }).catch(function (e) {
-            log("定位失败：" + e.message, "err");
-          });
-        };
-        $("exp-progress-text").appendChild(rv);
-        log("导出完成：" + j.out, "ok");
-        log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment",
-            "ok");
-      } else {
-        $("exp-progress-text").textContent = "导出失败 rc=" + j.rc;
-        log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
-      }
-      expPolling = false;
-    })
-    .catch(function (e) {
-      expSetBusy(false);
-      expPolling = false;
-      $("exp-progress-text").textContent = "导出失败：" + e.message;
-      log("导出失败：" + e.message, "err");
-    });
+    .then(handleBakeDone)
+    .catch(handleBakeError);
 };
 export function pollJob(id) {
   return api("/api/job?id=" + id).then(function (j) {

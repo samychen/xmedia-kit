@@ -5,7 +5,7 @@
  * 笔迹在提交后清空（由契约页 SVG 接管显示，避免双份）。 */
 import { $, log } from "../shared/dom.js";
 import { api } from "../shared/api-client.js";
-import { renderTimeline } from "../timeline/render.js";
+import { refresh } from "../panels/status.js";
 
 let cv = null, ctx = null, drawing = false, on = false;
 let last = null;
@@ -80,11 +80,13 @@ function scheduleCommit() {
     if (!pendingStrokes.length) return;
     var strokes = pendingStrokes;
     pendingStrokes = [];
-    drawClear();
     /* 服务端原子 append：连续快速笔划不再互相覆盖丢笔划 */
     api("/api/annotation/add", { strokes: strokes })
       .then(function (r) {
-        log("标注已画入视频（共 " + r.count + " 笔）", "ok");
+        drawClear();
+        return refresh().then(function () {
+          log("标注已画入视频（共 " + r.count + " 笔）", "ok");
+        });
       })
       .catch(function (e) {
         log("标注提交失败：" + e.message, "err");
@@ -138,9 +140,16 @@ export function drawInit() {
   };
   var clearBtn = $("pvtool-clear");
   if (clearBtn) clearBtn.onclick = function () {
+    if (commitTimer) {
+      clearTimeout(commitTimer);
+      commitTimer = null;
+    }
+    pendingStrokes = [];
     drawClear();
     api("/api/annotation/clear", {}).then(function () {
-      log("标注已清除", "ok");
+      return refresh().then(function () {
+        log("标注已清除", "ok");
+      });
     }).catch(function (e) {
       log("清除失败：" + e.message, "err");
     });

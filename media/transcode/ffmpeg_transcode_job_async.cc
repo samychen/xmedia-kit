@@ -20,6 +20,10 @@ namespace xmedia::media {
 struct TranscodeJob::Impl {
   std::thread worker;
   std::atomic<bool> running{false};
+  // Serializes Start() and Wait() against concurrent callers so |worker| is
+  // never joined or overwritten simultaneously by two threads. Kept separate
+  // from |mu| so Cancel()/Pause()/Resume() never block behind worker.join().
+  mutable std::mutex lifecycle_mu;
   // |token| is read by Cancel()/Pause()/Resume() and written by Start(); the
   // worker holds its own shared_ptr, so this lock only serialises Start()
   // against the control verbs. mutable so the const IsPaused() can take it.
@@ -44,6 +48,7 @@ bool TranscodeJob::Start(const std::string& input_uri,
                          const TranscodeParams& params,
                          TranscodeProgressCB progress_cb,
                          TranscodeDoneCB done_cb) {
+  std::lock_guard<std::mutex> life_lock(impl_->lifecycle_mu);
   if (impl_->running.load(std::memory_order_acquire)) {
     return false;  // one job at a time
   }
@@ -104,6 +109,7 @@ bool TranscodeJob::IsPaused() const {
 }
 
 void TranscodeJob::Wait() {
+  std::lock_guard<std::mutex> life_lock(impl_->lifecycle_mu);
   if (impl_->worker.joinable() &&
       impl_->worker.get_id() != std::this_thread::get_id()) {
     impl_->worker.join();

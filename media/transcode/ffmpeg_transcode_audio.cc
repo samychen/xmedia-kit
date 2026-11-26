@@ -22,12 +22,22 @@
 
 #include "base/check.h"
 #include "base/logging.h"
+#include "media/base/media_constants.h"
 #include "media/ffmpeg/audio_convert.h"
 #include "media/ffmpeg/av_includes.h"
 #include "media/ffmpeg/compat.h"
 
 namespace xmedia::media {
 namespace {
+
+void AssignFifoPts(AudioState* st, AVFrame* f) {
+  if (st->next_resampled_pts != AV_NOPTS_VALUE) {
+    f->pts = st->next_resampled_pts;
+    st->next_resampled_pts += f->nb_samples;
+  } else {
+    f->pts = AV_NOPTS_VALUE;
+  }
+}
 
 // (Re)allocates |*slot| as a planar-float scratch frame of |nb_samples|.
 AVFrame* ScratchFrame(AvFramePtr* slot, int nb_samples, int rate,
@@ -67,6 +77,7 @@ void DrainWholeFrames(AudioState* st, int frame_size,
                            frame_size) < frame_size) {
       return;
     }
+    AssignFifoPts(st, f);
     auto buf = AvFrameToAudioBuffer(f, st->out_sample_rate, st->out_channels);
     if (buf) {
       out->push_back(std::move(buf));
@@ -134,7 +145,9 @@ AvFrameToAudioBuffer(AVFrame* frame, int sample_rate, int channels) {
   const ChannelLayout layout =
       channels == 1 ? ChannelLayout::kMono : ChannelLayout::kStereo;
   const base::TimeDelta timestamp =
-      base::SecondsD(static_cast<double>(frame->pts) / sample_rate);
+      frame->pts != AV_NOPTS_VALUE
+          ? base::SecondsD(static_cast<double>(frame->pts) / sample_rate)
+          : kNoTimestamp;
   const base::TimeDelta dur =
       base::SecondsD(static_cast<double>(nb_samples) / sample_rate);
   // Encode the channel count in the data layout. AudioBuffer::Create takes
@@ -147,24 +160,37 @@ AvFrameToAudioBuffer(AVFrame* frame, int sample_rate, int channels) {
 std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
     AudioState* st, AVFrame* frame, int frame_size) {
   std::vector<base::scoped_refptr<AudioBuffer>> out;
-  const bool needs_conversion = st->in_sample_rate != st->out_sample_rate ||
+  if (st->in_sample_rate <= 0 || st->out_sample_rate <= 0 ||
+      st->in_channels <= 0 || st->out_channels <= 0 || frame->nb_samples <= 0) {
+    return out;
+  }
+  const AVRational src_tb = st->decoder ? st->decoder->pkt_timebase
+                                        : AVRational{1, st->in_sample_rate};
+  if (st->next_resampled_pts == AV_NOPTS_VALUE &&
+      frame->pts != AV_NOPTS_VALUE && src_tb.num > 0 && src_tb.den > 0) {
+    st->next_resampled_pts = av_rescale_q(
+        frame->pts, src_tb, AVRational{1, st->out_sample_rate});
+  }
+  const bool needs_resampling = st->in_sample_rate != st->out_sample_rate ||
                                 st->in_channels != st->out_channels;
-  if (!needs_conversion || frame_size <= 0) {
+  const bool needs_fmt_convert = frame->format != AV_SAMPLE_FMT_FLTP;
+  if (!needs_resampling && !needs_fmt_convert) {
+    const int64_t saved_pts = frame->pts;
+    if (frame->pts != AV_NOPTS_VALUE && src_tb.num > 0 && src_tb.den > 0) {
+      frame->pts = av_rescale_q(
+          frame->pts, src_tb, AVRational{1, st->out_sample_rate});
+    }
     auto buf =
         AvFrameToAudioBuffer(frame, st->out_sample_rate, st->out_channels);
+    frame->pts = saved_pts;
     if (buf) {
       out.push_back(std::move(buf));
     }
     return out;
   }
-  if (st->in_sample_rate <= 0 || st->out_sample_rate <= 0 ||
-      st->in_channels <= 0 || st->out_channels <= 0 || frame->nb_samples <= 0) {
-    return out;
-  }
   // Lazily create and configure the resampler (media/ffmpeg/audio_convert.h),
   // replacing the old inline SwrContext setup. It is only built when decoder
-  // and encoder disagree on rate/channels -- matching the prior EnsureResampler
-  // guard, but now reusing the ff::MakeSwrContext factory (Round46 convention).
+  // and encoder disagree on rate/channels/format.
   if (!st->resampler) {
     st->resampler = std::make_unique<ffmpeg::AudioConverter>();
   }
@@ -172,6 +198,19 @@ std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
                                 static_cast<AVSampleFormat>(frame->format),
                                 st->out_sample_rate, st->out_channels,
                                 AV_SAMPLE_FMT_FLTP)) {
+    return out;
+  }
+  auto converted = st->resampler->Push(*frame);
+  if (frame_size <= 0) {
+    // Variable-size encoders (e.g. PCM): emit converted FLTP frames directly.
+    for (auto& f : converted) {
+      AssignFifoPts(st, f.get());
+      auto buf =
+          AvFrameToAudioBuffer(f.get(), st->out_sample_rate, st->out_channels);
+      if (buf) {
+        out.push_back(std::move(buf));
+      }
+    }
     return out;
   }
   if (!st->fifo) {
@@ -185,7 +224,6 @@ std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
   // Push() may return zero, one, or several output frames; each is already in
   // the output geometry (FLTP / out_rate / out_channels), so it goes straight
   // into the FIFO.
-  auto converted = st->resampler->Push(*frame);
   for (auto& f : converted) {
     // AVFrame.data is uint8_t*[]; av_audio_fifo_write takes void** for the same
     // plane layout the FIFO was configured with (safe reinterpret, FFmpeg ABI).
@@ -202,7 +240,20 @@ std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
 std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
                                                              int frame_size) {
   std::vector<base::scoped_refptr<AudioBuffer>> out;
-  if (!st->fifo || frame_size <= 0) {
+  if (frame_size <= 0) {
+    if (st->resampler) {
+      for (auto& f : st->resampler->Flush()) {
+        AssignFifoPts(st, f.get());
+        auto buf = AvFrameToAudioBuffer(f.get(), st->out_sample_rate,
+                                        st->out_channels);
+        if (buf) {
+          out.push_back(std::move(buf));
+        }
+      }
+    }
+    return out;
+  }
+  if (!st->fifo) {
     return out;
   }
   if (st->resampler) {
@@ -229,6 +280,7 @@ std::vector<base::scoped_refptr<AudioBuffer>> FlushResampler(AudioState* st,
           av_audio_fifo_read(st->fifo, reinterpret_cast<void**>(f->data), left);
       if (got > 0) {
         f->nb_samples = got;
+        AssignFifoPts(st, f);
         auto buf =
             AvFrameToAudioBuffer(f, st->out_sample_rate, st->out_channels);
         if (buf) {

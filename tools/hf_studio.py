@@ -832,6 +832,7 @@ class StudioServer:
                          if self.contract_path else ".")
         self.port = port
         self.no_sfx = no_sfx
+        self._lock = threading.RLock()
         self.job = None
         self.job_seq = 0
         self.agent_jobs = {}       # agent chat job 表（id → 状态）
@@ -1211,30 +1212,31 @@ class StudioServer:
 
     def _compose(self):
         """当前 spec → 契约 HTML（进程内复用 hf_compose），写回契约文件。"""
-        import hf_compose
-        import hf_validate
-        spec = self.current_spec
-        if spec is None:
-            raise RuntimeError("未绑定 spec")
-        sha = hashlib.sha256(json.dumps(
-            spec, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
-        hf_compose._spec_dir = os.path.dirname(self.spec_path) or "."
-        hf_compose._gsap_src = hf_compose._load_gsap()
-        html = hf_compose.compose(spec, spec_sha=sha, no_sfx=self.no_sfx)
-        findings, errors, warnings, infos = hf_validate.validate(html)
-        with open(self.contract_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        self.current_html = html
-        scenes = parse_scenes(html)
-        total = parse_total(html, scenes)
-        return {
-            "ok": errors == 0,
-            "errors": errors,
-            "duration": total,
-            "scenes": scenes,
-            "sha": sha[:16],
-            "findings": [{"level": lv, "message": msg} for lv, msg in findings],
-        }
+        with self._lock:
+            import hf_compose
+            import hf_validate
+            spec = self.current_spec
+            if spec is None:
+                raise RuntimeError("未绑定 spec")
+            sha = hashlib.sha256(json.dumps(
+                spec, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+            hf_compose._spec_dir = os.path.dirname(self.spec_path) or "."
+            hf_compose._gsap_src = hf_compose._load_gsap()
+            html = hf_compose.compose(spec, spec_sha=sha, no_sfx=self.no_sfx)
+            findings, errors, warnings, infos = hf_validate.validate(html)
+            with open(self.contract_path, "w", encoding="utf-8") as f:
+                f.write(html)
+            self.current_html = html
+            scenes = parse_scenes(html)
+            total = parse_total(html, scenes)
+            return {
+                "ok": errors == 0,
+                "errors": errors,
+                "duration": total,
+                "scenes": scenes,
+                "sha": sha[:16],
+                "findings": [{"level": lv, "message": msg} for lv, msg in findings],
+            }
 
     def _dims(self, spec):
         import hf_compose
@@ -1246,59 +1248,55 @@ class StudioServer:
 
     def _start_bake(self, opts=None):
         opts = opts or {}
-        if self.job and self.job["proc"].poll() is None:
-            raise RuntimeError(
-                "上一次导出还在进行中——导出面板已恢复进度显示，"
-                "请等它完成后再点渲染")
-        import hf_compose
-        spec = self.current_spec or {}
-        w, h = self._dims(spec)
-        fps = int(opts.get("fps") or spec.get("composition", {}).get("fps", 30))
-        fps = min(max(fps, 12), 60)
-        # 质量档：540p/720p/1080p/项目尺寸——按画幅比例等比缩放（偶数对齐，
-        # 编码器要求）；非法值回退项目尺寸。
-        quality = str(opts.get("quality") or "project")
-        targets = {"540p": 540, "720p": 720, "1080p": 1080}
-        if quality in targets:
-            short = min(w, h)
-            if short > 0:
-                scale = targets[quality] / short
-                w = max(2, int(w * scale) // 2 * 2)
-                h = max(2, int(h * scale) // 2 * 2)
-        fmt = str(opts.get("fmt") or "mp4").lower()
-        if fmt not in ("mp4", "webm", "mov"):
-            fmt = "mp4"
-        total = parse_total(self.current_html, parse_scenes(self.current_html))
-        stem = self.spec_path and os.path.splitext(
-            os.path.basename(self.spec_path))[0].replace(".narrated", "") or "out"
-        # 产物命名对齐 HF Export：<项目> <日期 时间>.<ext>
-        stamp = time.strftime("%Y-%m-%d %H.%M")
-        out = os.path.join(os.path.dirname(self.contract_path),
-                           f"{stem} {stamp}.{fmt}")
-        url = "file://" + urllib.parse.quote(self.contract_path)
-        # 烘焙二进制由 xmedia 统一探测（build/bin → build/<preset>/bin）。
-        # 以前这里硬编码 build/bin/html_bake.app：干净 clone 首次构建后
-        # 二进制在 build/<preset>/bin，导出会以 FileNotFoundError 失败，
-        # 而 CEF 关掉的构建里根本没有这个目标。探测不到就明确说怎么办，
-        # 不要让用户从 errno 里猜。
-        import xmedia
-        bake = xmedia.bake_bin()
-        if not bake:
-            raise RuntimeError(
-                "找不到 html_bake——先构建（cmake --build build --target "
-                "html_bake；需要 XMEDIA_ENABLE_CEF=ON + CEF distro）")
-        cmd = [
-            bake,
-            "--url", url, "--out", out,
-            "--seconds", f"{total:.2f}", "--fps", str(fps),
-            "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500",
-        ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True)
-        self.job = {"id": self.job_seq, "proc": proc, "out": out,
-                    "start": time.time(), "tail": ""}
-        self.job_seq += 1
-        return self.job["id"]
+        with self._lock:
+            if self.job and self.job["proc"].poll() is None:
+                raise RuntimeError(
+                    "上一次导出还在进行中——导出面板已恢复进度显示，"
+                    "请等它完成后再点渲染")
+            import hf_compose
+            spec = self.current_spec or {}
+            w, h = self._dims(spec)
+            fps = int(opts.get("fps") or spec.get("composition", {}).get("fps", 30))
+            fps = min(max(fps, 12), 60)
+            # 质量档：540p/720p/1080p/项目尺寸——按画幅比例等比缩放（偶数对齐，
+            # 编码器要求）；非法值回退项目尺寸。
+            quality = str(opts.get("quality") or "project")
+            targets = {"540p": 540, "720p": 720, "1080p": 1080}
+            if quality in targets:
+                short = min(w, h)
+                if short > 0:
+                    scale = targets[quality] / short
+                    w = max(2, int(w * scale) // 2 * 2)
+                    h = max(2, int(h * scale) // 2 * 2)
+            fmt = str(opts.get("fmt") or "mp4").lower()
+            if fmt not in ("mp4", "webm", "mov"):
+                fmt = "mp4"
+            total = parse_total(self.current_html, parse_scenes(self.current_html))
+            stem = self.spec_path and os.path.splitext(
+                os.path.basename(self.spec_path))[0].replace(".narrated", "") or "out"
+            # 产物命名对齐 HF Export：<项目> <日期 时间>.<ext>
+            stamp = time.strftime("%Y-%m-%d %H.%M")
+            out = os.path.join(os.path.dirname(self.contract_path),
+                               f"{stem} {stamp}.{fmt}")
+            url = "file://" + urllib.parse.quote(self.contract_path)
+            import xmedia
+            bake = xmedia.bake_bin()
+            if not bake:
+                raise RuntimeError(
+                    "找不到 html_bake——先构建（cmake --build build --target "
+                    "html_bake；需要 XMEDIA_ENABLE_CEF=ON + CEF distro）")
+            cmd = [
+                bake,
+                "--url", url, "--out", out,
+                "--seconds", f"{total:.2f}", "--fps", str(fps),
+                "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500",
+            ]
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, text=True)
+            self.job = {"id": self.job_seq, "proc": proc, "out": out,
+                        "start": time.time(), "tail": ""}
+            self.job_seq += 1
+            return self.job["id"]
 
     def _set_ref_video(self, path):
         """双屏同钟对照的参考视频：登记进外部素材白名单（预览页可直接
@@ -1599,15 +1597,16 @@ class StudioServer:
         root = os.path.realpath(self._projects_root())
         if not d.startswith(root + os.sep) or not os.path.isdir(d):
             raise RuntimeError(f"项目 {name} 不存在")
-        if self.spec_path and os.path.dirname(
-                os.path.abspath(self.spec_path)) == d:
-            # 打开中的项目：解绑（前端跳 Home 重建上下文）
-            self.contract_path = None
-            self.spec_path = None
-            self.spec_dir = None
-            self.current_spec = {}
-            self.current_html = ""
-        shutil.rmtree(d)
+        with self._lock:
+            if self.spec_path and os.path.realpath(
+                    os.path.dirname(self.spec_path)) == d:
+                # 打开中的项目：解绑（前端跳 Home 重建上下文）
+                self.contract_path = None
+                self.spec_path = None
+                self.spec_dir = None
+                self.current_spec = {}
+                self.current_html = ""
+            shutil.rmtree(d)
         return {"ok": True, "name": name}
 
     def _brand_delete(self, body):
@@ -1644,14 +1643,15 @@ class StudioServer:
         if not (re.fullmatch(r"[\w\-]+", name or "")
                 and os.path.isfile(html) and os.path.isfile(spec)):
             raise RuntimeError(f"项目 {name} 不存在")
-        self.contract_path = html
-        self.spec_path = spec
-        self.spec_dir = d
-        with open(html, "r", encoding="utf-8") as f:
-            self.current_html = f.read()
-        self.current_spec = self._load_spec()
-        self._register_spec_paths(self.current_spec)
-        self._mix_key = None
+        with self._lock:
+            self.contract_path = html
+            self.spec_path = spec
+            self.spec_dir = d
+            with open(html, "r", encoding="utf-8") as f:
+                self.current_html = f.read()
+            self.current_spec = self._load_spec()
+            self._register_spec_paths(self.current_spec)
+            self._mix_key = None
 
     def _project_create(self, body):
         """一句话新建项目：Arc 叙事计划 → 骨架 spec → 契约页 → 可编辑。"""
@@ -1716,52 +1716,56 @@ class StudioServer:
             json.dump(spec, f, ensure_ascii=False, indent=1)
             f.write("\n")
         # 手动绑定（open_project 要求契约页已生成，而这里正是要生成它）
-        self.contract_path = os.path.join(d, "contract.html")
-        self.spec_path = spec_file
-        self.spec_dir = d
-        self.current_spec = spec
-        self._register_spec_paths(spec)
-        self._compose()   # 写项目目录的 contract.html
-        findings, errors, _, _ = hf_validate.validate(self.current_html)
+        with self._lock:
+            self.contract_path = os.path.join(d, "contract.html")
+            self.spec_path = spec_file
+            self.spec_dir = d
+            self.current_spec = spec
+            self._register_spec_paths(spec)
+            self._compose()   # 写项目目录的 contract.html
+            findings, errors, _, _ = hf_validate.validate(self.current_html)
         # 首剪的听觉维度（HF first-cut 产出"能看能听"的一条）：旁白
         # 后台生成——用户跳进编辑器时分镜已就绪，TTS 完成后刷新即见。
         # 线程失败静默（无 say/音色环境 TTS 失败是常态）。
-        threading.Thread(target=self._safe_tts, daemon=True).start()
+        threading.Thread(target=self._safe_tts, args=(spec_file,),
+                         daemon=True).start()
         return {"name": name, "url": "/project/" + name,
                 "scenes": len(spec.get("scenes") or []),
                 "errors": errors}
 
-    def _safe_tts(self):
+    def _safe_tts(self, expected_spec_path=None):
         try:
-            self._run_tts()
-            self._compose()
+            self._run_tts(expected_spec_path=expected_spec_path)
         except Exception:
             pass
 
     def _cancel_bake(self):
         """终止进行中的导出（Export 面板的取消渲染）。"""
-        if not self.job or self.job["proc"].poll() is not None:
-            raise RuntimeError("无进行中的导出任务")
-        self.job["cancelled"] = True
-        self.job["proc"].terminate()
-        return {"cancelled": True}
+        with self._lock:
+            if not self.job or self.job["proc"].poll() is not None:
+                raise RuntimeError("无进行中的导出任务")
+            self.job["cancelled"] = True
+            self.job["proc"].terminate()
+            return {"cancelled": True}
 
     def _job_status(self, job_id):
-        if not self.job or self.job["id"] != job_id:
-            raise RuntimeError("无此任务")
-        proc = self.job["proc"]
-        running = proc.poll() is None
-        if not running and self.job["tail"] == "":
-            out = proc.stdout.read()
-            self.job["rc"] = proc.returncode
-            self.job["tail"] = out.strip()[-800:]
-            m = re.search(r"html_bake: (\S+\.mp4)", self.job["tail"])
-            if m:
-                self.job["out"] = m.group(1)
-        return {"running": running, "rc": self.job.get("rc", -1),
-                "cancelled": bool(self.job.get("cancelled")),
-                "out": self.job["out"], "elapsed": time.time() - self.job["start"],
-                "tail": self.job["tail"]}
+        with self._lock:
+            if not self.job or self.job["id"] != job_id:
+                raise RuntimeError("无此任务")
+            proc = self.job["proc"]
+            running = proc.poll() is None
+            if not running and self.job["tail"] == "":
+                out = proc.stdout.read()
+                self.job["rc"] = proc.returncode
+                self.job["tail"] = out.strip()[-800:]
+                m = re.search(r"html_bake: (\S+\.mp4)", self.job["tail"])
+                if m:
+                    self.job["out"] = m.group(1)
+            return {"running": running, "rc": self.job.get("rc", -1),
+                    "cancelled": bool(self.job.get("cancelled")),
+                    "out": self.job["out"],
+                    "elapsed": time.time() - self.job["start"],
+                    "tail": self.job["tail"]}
 
     # ---- Agent / ASR / 素材导入（对位 Remotion「Make videos agentically」）----
     def _spec_root(self):
@@ -1826,21 +1830,28 @@ class StudioServer:
         self._save_runs(runs)
         return self._apply_spec(spec_before)
 
-    def _run_tts(self):
-        if self.spec_path is None:
-            raise RuntimeError("未绑定 spec 文件")
+    def _run_tts(self, expected_spec_path=None):
+        with self._lock:
+            spec_path = self.spec_path
+            if spec_path is None:
+                raise RuntimeError("未绑定 spec 文件")
+            if expected_spec_path and spec_path != expected_spec_path:
+                return {"generated": "", "spec": self.current_spec}
         proc = subprocess.run(
             [sys.executable, os.path.join(TOOLS_DIR, "hf_tts.py"),
-             self.spec_path, "-o", self.spec_path],
+             spec_path, "-o", spec_path],
             capture_output=True, text=True, timeout=600)
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr[-400:] or "TTS 失败")
-        self.current_spec = self._load_spec()
-        # 旁白字幕依赖 narration——重组契约页把字幕 DOM 带进去
-        # （不重组的话预览/导出里字幕永远不出现，用户观感"TTS 没用"）。
-        self._compose()
-        return {"generated": proc.stdout.strip()[-200:],
-                "spec": self.current_spec}
+        with self._lock:
+            if expected_spec_path and self.spec_path != expected_spec_path:
+                return {"generated": "", "spec": self.current_spec}
+            self.current_spec = self._load_spec()
+            # 旁白字幕依赖 narration——重组契约页把字幕 DOM 带进去
+            # （不重组的话预览/导出里字幕永远不出现，用户观感"TTS 没用"）。
+            self._compose()
+            return {"generated": proc.stdout.strip()[-200:],
+                    "spec": self.current_spec}
 
     def _run_import(self, opts):
         import hf_import
@@ -2084,6 +2095,8 @@ class StudioServer:
         url = str(body.get("url") or "").strip()
         if not url:
             raise ValueError("需要 url")
+        if url.lower().startswith("file://"):
+            raise ValueError("HTTP 接口不允许扫描本地 file:// URL")
         name = re.sub(r"[^\w\-]", "", str(body.get("name") or ""))[:24]
         if not name:
             host = url.split("//", 1)[-1].split("/", 1)[0]
@@ -2112,6 +2125,8 @@ class StudioServer:
         """default pin（HF brand kits 的 default 语义）：新项目创建时
         自动应用该品牌；name 为空 = 取消 pin。"""
         name = str(body.get("name") or "").strip()
+        if name and not re.fullmatch(r"[\w\-]+", name):
+            raise ValueError("品牌名不合法")
         d = self._brands_dir()
         os.makedirs(d, exist_ok=True)
         pin = os.path.join(d, ".default")
@@ -2621,14 +2636,24 @@ def make_handler(server_ref):
                 self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
                 import hf_validate
+                with srv._lock:
+                    cur_html = srv.current_html
+                    cur_spec = copy.deepcopy(srv.current_spec)
+                    cur_spec_path = srv.spec_path
+                    ref_video = srv.ref_video
+                    last_import_dir = srv.last_import_dir
+                    spec_root = srv._spec_root()
+                    runs = srv._load_runs()
+                    can_undo = bool(srv._undo_spec)
+                    undo_label = srv._undo_label
                 findings, errors, _, _ = hf_validate.validate(
-                    srv.current_html, spec=srv.current_spec)
-                scenes = parse_scenes(srv.current_html)
-                audios = parse_audio_tracks(srv.current_html)
-                total = parse_total(srv.current_html, scenes)
-                w, h = srv._dims(srv.current_spec or {})
-                self._json({"spec": srv.current_spec,
-                            "spec_path": srv.spec_path,
+                    cur_html, spec=cur_spec)
+                scenes = parse_scenes(cur_html)
+                audios = parse_audio_tracks(cur_html)
+                total = parse_total(cur_html, scenes)
+                w, h = srv._dims(cur_spec or {})
+                self._json({"spec": cur_spec,
+                            "spec_path": cur_spec_path,
                             "duration": total, "scenes": scenes,
                             "audios": audios,
                             "width": w, "height": h,
@@ -2637,37 +2662,41 @@ def make_handler(server_ref):
                                 "XMEDIA_LLM_ENDPOINT")), "mcp": True,
                                 "cli": srv._agent_probe()["cli"]},
                             "ref_video": (EXTERNAL_ASSET_PREFIX +
-                                          srv.ref_video)
-                                          if srv.ref_video else None,
+                                          ref_video)
+                                          if ref_video else None,
                             "runs": [{"idx": i, "ts": r.get("ts", ""),
                                       "message": r.get("message", ""),
                                       "backend": r.get("backend", "")}
-                                     for i, r in enumerate(srv._load_runs())],
+                                     for i, r in enumerate(runs)],
                             "import": {
-                                "last_dir": srv.last_import_dir,
-                                "spec_dir": srv._spec_root(),
+                                "last_dir": last_import_dir,
+                                "spec_dir": spec_root,
                                 "upload_max_mb":
                                     MAX_UPLOAD_BYTES // (1024 * 1024),
-                                "can_undo": bool(srv._undo_spec),
-                                "undo_label": srv._undo_label},
+                                "can_undo": can_undo,
+                                "undo_label": undo_label},
                             "findings": [{"level": lv, "message": msg}
                                          for lv, msg in findings]})
             elif path == PREVIEW_MIX_URL:
                 self._serve_mix()
             elif path == "/preview":
-                mix_url = PREVIEW_MIX_URL if srv.preview_mix() else ""
-                self._send(200, inject(srv.current_html, for_http=True,
+                with srv._lock:
+                    mix_url = PREVIEW_MIX_URL if srv.preview_mix() else ""
+                    cur_html = srv.current_html
+                    ext_files = set(srv.external_files)
+                self._send(200, inject(cur_html, for_http=True,
                                        mix_url=mix_url,
-                                       external_files=srv.external_files),
+                                       external_files=ext_files),
                            "text/html; charset=utf-8")
             elif path == "/api/job/current":
                 # 进行中的导出任务（expOpen 恢复进度显示用）：
                 # job 还在跑 → {job: id}；无/已结束 → {job: None}。
-                j = srv.job
-                if j and j.get("proc") and j["proc"].poll() is None:
-                    self._json({"job": j["id"], "out": j.get("out", "")})
-                else:
-                    self._json({"job": None})
+                with srv._lock:
+                    j = srv.job
+                    if j and j.get("proc") and j["proc"].poll() is None:
+                        self._json({"job": j["id"], "out": j.get("out", "")})
+                    else:
+                        self._json({"job": None})
             elif path == "/api/job":
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                 try:
@@ -2733,7 +2762,14 @@ def make_handler(server_ref):
         def do_POST(self):
             path = urllib.parse.urlparse(self.path).path
             srv = server_ref
-            length = int(self.headers.get("Content-Length", 0))
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+            except ValueError:
+                self._json({"error": "无效 Content-Length"}, 400)
+                return
+            if length < 0:
+                self._json({"error": "无效 Content-Length"}, 400)
+                return
             # 文件选择器走 multipart，不是 JSON——先于 JSON 解析单独处理。
             if path == "/api/import/upload":
                 if length > MAX_UPLOAD_BYTES:
@@ -2747,6 +2783,9 @@ def make_handler(server_ref):
                 except (RuntimeError, OSError, ValueError) as e:
                     self._json({"error": str(e)}, 400)
                 return
+            if length > 10 * 1024 * 1024:
+                self._json({"error": "请求体过大"}, 400)
+                return
             try:
                 body = json.loads(self.rfile.read(length) or b"{}")
             except json.JSONDecodeError as e:
@@ -2754,9 +2793,10 @@ def make_handler(server_ref):
                 return
             try:
                 if path == "/api/recompose":
-                    srv.current_spec = body["spec"]
-                    srv._write_spec(srv.current_spec)
-                    self._json(srv._compose())
+                    with srv._lock:
+                        srv.current_spec = body["spec"]
+                        srv._write_spec(srv.current_spec)
+                        self._json(srv._compose())
                 elif path == "/api/reference/video":
                     self._json(srv._set_ref_video(
                         str(body.get("path") or "")))
@@ -2772,34 +2812,33 @@ def make_handler(server_ref):
                 elif path == "/api/brand/delete":
                     self._json(srv._brand_delete(body))
                 elif path == "/api/annotation/add":
-                    if not isinstance(srv.current_spec, dict):
-                        raise RuntimeError("未绑定 spec 文件")
-                    # 手绘标注原子追加（Draw 笔划的持久化）：服务端
-                    # append 消除前端 read-modify-write 竞态——连续
-                    # 快速笔划不再互相覆盖丢笔划。
                     import hf_agent
                     strokes = body.get("strokes") or []
                     if not isinstance(strokes, list) or not strokes:
                         raise ValueError("strokes 必须是非空数组")
-                    spec = srv.current_spec
-                    spec["annotations"] = (spec.get("annotations") or []) + \
-                        [s for s in strokes if isinstance(s, dict) and
-                         isinstance(s.get("points"), list) and
-                         len(s["points"]) >= 2]
-                    hf_agent.validate_spec(spec, srv._spec_root())
-                    srv._write_spec(spec)
-                    srv._compose()
-                    self._json({"ok": True,
-                                "count": len(spec["annotations"])})
+                    with srv._lock:
+                        if not isinstance(srv.current_spec, dict):
+                            raise RuntimeError("未绑定 spec 文件")
+                        spec = srv.current_spec
+                        spec["annotations"] = (spec.get("annotations") or []) + \
+                            [s for s in strokes if isinstance(s, dict) and
+                             isinstance(s.get("points"), list) and
+                             len(s["points"]) >= 2]
+                        hf_agent.validate_spec(spec, srv._spec_root())
+                        srv._write_spec(spec)
+                        srv._compose()
+                        self._json({"ok": True,
+                                    "count": len(spec["annotations"])})
                 elif path == "/api/annotation/clear":
-                    if not isinstance(srv.current_spec, dict):
-                        raise RuntimeError("未绑定 spec 文件")
                     import hf_agent
-                    spec = srv.current_spec
-                    spec["annotations"] = []
-                    hf_agent.validate_spec(spec, srv._spec_root())
-                    srv._write_spec(spec)
-                    srv._compose()
+                    with srv._lock:
+                        if not isinstance(srv.current_spec, dict):
+                            raise RuntimeError("未绑定 spec 文件")
+                        spec = srv.current_spec
+                        spec["annotations"] = []
+                        hf_agent.validate_spec(spec, srv._spec_root())
+                        srv._write_spec(spec)
+                        srv._compose()
                     self._json({"ok": True})
                 elif path == "/api/reveal":
                     # 在 Finder 中定位导出产物（本地产品实用项）。
