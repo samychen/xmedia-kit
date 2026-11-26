@@ -7,6 +7,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -18,7 +20,6 @@
 #include "media/base/encoded_packet.h"
 #include "media/base/media_log.h"
 #include "media/ffmpeg/av_includes.h"
-#include <cstring>
 
 namespace xmedia::media {
 namespace {
@@ -199,27 +200,50 @@ TEST(AudioEncoderTest, DefaultCodecNameIsAac) {
 // only AAC (the base pinned build), and exercises real second codecs (Opus,
 // MP3, FLAC, AC3, ...) wherever they are compiled in.
 TEST(AudioEncoderTest, EveryAvailableEncoderInitializes) {
+  // Probe common (rate, channels, bit_rate) configs so codecs restricted to
+  // telephony (8kHz/mono/6.3kbps) or legacy formats still open cleanly.
+  constexpr struct {
+    int rate;
+    int channels;
+    int bit_rate;  // <0 keeps Params default (128 kbps).
+  } kConfigs[] = {{48000, 2, -1}, {48000, 1, -1}, {22050, 2, -1},
+                  {22050, 1, -1}, {16000, 1, -1}, {8000, 1, -1},
+                  {8000, 1, 6300}};
   void* iter = nullptr;
   const AVCodec* codec = nullptr;
   int tried = 0;
   int opened = 0;
+  std::string failures;
   while ((codec = av_codec_iterate(&iter)) != nullptr) {
     if (!av_codec_is_encoder(codec) || codec->type != AVMEDIA_TYPE_AUDIO) {
       continue;
     }
-    // The AAC default path is already covered above.
-    if (std::strcmp(codec->name, "aac") == 0) {
+    // Skip AAC (covered above) and experimental encoders requiring -strict -2.
+    if (std::strcmp(codec->name, "aac") == 0 ||
+        (codec->capabilities & AV_CODEC_CAP_EXPERIMENTAL) != 0) {
       continue;
     }
     ++tried;
-    FFmpegAudioEncoder encoder;
-    FFmpegAudioEncoder::Params params;
-    params.codec_name = codec->name;
-    params.sample_rate = kRate;
-    params.channels = kChannels;
-    if (encoder.Initialize(params)) {
+    bool ok = false;
+    for (const auto& cfg : kConfigs) {
+      FFmpegAudioEncoder encoder;
+      FFmpegAudioEncoder::Params params;
+      params.codec_name = codec->name;
+      params.sample_rate = cfg.rate;
+      params.channels = cfg.channels;
+      if (cfg.bit_rate >= 0) {
+        params.bit_rate = cfg.bit_rate;
+      }
+      if (encoder.Initialize(params)) {
+        EXPECT_GE(encoder.frame_size(), 0);
+        ok = true;
+        break;
+      }
+    }
+    if (ok) {
       ++opened;
-      EXPECT_GE(encoder.frame_size(), 0);
+    } else {
+      failures += std::string(codec->name) + " ";
     }
   }
   // No other audio encoder in this build: nothing to prove beyond the AAC
@@ -228,8 +252,7 @@ TEST(AudioEncoderTest, EveryAvailableEncoderInitializes) {
     GTEST_SKIP() << "only AAC is built into this FFmpeg; codec-name "
                     "selection is exercised by the AAC default path";
   }
-  EXPECT_EQ(opened, tried)
-      << "every available audio encoder should initialize at 48kHz/2ch";
+  EXPECT_EQ(opened, tried) << "failed audio encoders: " << failures;
 }
 
 }  // namespace

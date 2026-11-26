@@ -348,9 +348,9 @@ Status Concat(const ConcatParams& params) {
       }
       Status st = Transcode(uri, tp);
       if (!st) {
+        std::remove(tmp_path.c_str());
         return st;
       }
-      // Now read the temp file and mux into output.
       AVFormatContext* raw = nullptr;
       if (avformat_open_input(&raw, tmp_path.c_str(), nullptr, nullptr) < 0) {
         std::remove(tmp_path.c_str());

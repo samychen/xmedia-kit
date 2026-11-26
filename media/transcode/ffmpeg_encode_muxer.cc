@@ -80,13 +80,17 @@ int WriteFlvTagsToRtmp(void* opaque, const uint8_t* buf, int buf_size) {
     return -1;
   }
   if (ready > 0) {
-    const int written =
-        WriteRawToUrl(w->real_pb, w->reassembler.buffer().data(), ready);
-    if (written != ready) {
-      if (w->real_pb->error == 0) {
-        w->real_pb->error = written < 0 ? written : AVERROR(EIO);
+    int offset = 0;
+    while (offset < ready) {
+      const int written = WriteRawToUrl(
+          w->real_pb, w->reassembler.buffer().data() + offset, ready - offset);
+      if (written <= 0) {
+        if (w->real_pb->error == 0) {
+          w->real_pb->error = written < 0 ? written : AVERROR(EIO);
+        }
+        return written < 0 ? written : AVERROR(EIO);
       }
-      return written < 0 ? written : AVERROR(EIO);
+      offset += written;
     }
     w->reassembler.Consume(static_cast<size_t>(ready));
   }

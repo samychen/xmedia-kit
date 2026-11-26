@@ -168,8 +168,10 @@ std::vector<base::scoped_refptr<AudioBuffer>> FramesForEncoder(  // NOLINT
                                         : AVRational{1, st->in_sample_rate};
   if (st->next_resampled_pts == AV_NOPTS_VALUE &&
       frame->pts != AV_NOPTS_VALUE && src_tb.num > 0 && src_tb.den > 0) {
+    const int64_t queued =
+        (frame_size > 0 && st->fifo) ? av_audio_fifo_size(st->fifo) : 0;
     st->next_resampled_pts = av_rescale_q(
-        frame->pts, src_tb, AVRational{1, st->out_sample_rate});
+        frame->pts, src_tb, AVRational{1, st->out_sample_rate}) - queued;
   }
   const bool needs_resampling = st->in_sample_rate != st->out_sample_rate ||
                                 st->in_channels != st->out_channels;

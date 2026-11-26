@@ -6,6 +6,7 @@
 # 一致，产物落 tempdir。
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -134,7 +135,16 @@ def main():
         # whoosh/success/ding）
         assert html.count("<audio") == 6, f"SFX+旁白 <audio> 数量不符"
         assert 'data-time-unit="s"' in html, "秒制声明缺失"
-        assert html.count("tl.fromTo") == 3, "GSAP 入场数量不符"
+        scene_count = len(narrated["scenes"])
+        for i in range(scene_count):
+            assert f'tl.fromTo("#scene-{i}",' in html, \
+                f"scene-{i} 入场动画缺失"
+        assert len(re.findall(r'^\s*tl\.fromTo\("#scene-\d+",',
+                              html, re.M)) == scene_count, \
+            "GSAP 场景入场数量不符"
+        assert len(re.findall(r'^\s*tl\.fromTo\("#scene-\d+\s+',
+                              html, re.M)) >= scene_count, \
+            "GSAP 元素接力入场数量不符"
 
     server.shutdown()
     print("hf_tts_smoke: PASS")

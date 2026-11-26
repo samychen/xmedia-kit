@@ -208,15 +208,6 @@ class XMEDIA_MEDIA_EXPORT TranscodeCancelToken {
     });
   }
 
-  // Sleeps until |due| or returns early if Cancel() fires. Returns true when
-  // cancelled, false when |due| elapsed.
-  bool WaitUntilOrCancelled(std::chrono::steady_clock::time_point due) const {
-    std::unique_lock<std::mutex> lock(mu_);
-    return cv_.wait_until(lock, due, [this] {
-      return cancelled_.load(std::memory_order_relaxed);
-    });
-  }
-
  private:
   std::atomic<bool> cancelled_{false};
   // Guards |paused_| and the gate. mutable because the worker holds the token
