@@ -29,7 +29,6 @@
       <button class="tab active" id="tab-chat">对话</button>
       <button class="tab" id="tab-scenes">场景</button>
       <button class="tab" id="tab-script">脚本</button>
-      <button class="tab" id="tab-storyboard">分镜</button>
       <button class="tab" id="tab-templates">模板</button>
       <button class="tab" id="tab-brand">品牌</button>
       <button class="tab" id="tab-source">源码 JSON</button>
@@ -154,16 +153,6 @@
       <div class="sc-list" id="script-words"
            style="line-height:2;padding:10px;font-size:12.5px"></div>
     </div>
-    <div class="left-panel" id="sb-panel" style="display:none">
-      <div class="comp-card">
-        <div class="comp-name">Storyboard 逐镜审阅</div>
-        <div class="comp-meta" id="sb-count"></div>
-      </div>
-      <div class="sb-list" id="sb-list"></div>
-      <div class="left-foot">
-        <span>逐镜真实帧 ·「改这镜」定位编辑</span>
-      </div>
-    </div>
     <div class="left-panel" id="templates-panel" style="display:none">
       <div class="comp-card">
         <div class="comp-name">场景模板库</div>
@@ -171,7 +160,7 @@
       </div>
       <div class="sc-list" id="tpl-list"></div>
       <div class="left-foot">
-        <span>「插入」= 追加到时间轴末尾（占位 slot 在分镜/Inspector 里填）</span>
+        <span>「插入」= 追加到时间轴末尾（占位 slot 在 Inspector 里填）</span>
       </div>
     </div>
     <div class="left-panel" id="brand-panel" style="display:none">
@@ -400,7 +389,7 @@
   <div class="dock-head">
     <span class="cap">时间轴</span>
     <span id="tlabel">00:00.00 · 帧 0/0</span>
-    <span class="hint">点选片段 · 拖右缘裁剪 · S 切割 · Shift+拖拽框选区间 · I/O 打点 · ⌘+滚轮缩放</span>
+    <span class="hint">点选片段 · 拖动重排/跨轨 · 拖左右缘裁剪 · S 切割 · Shift+拖拽框选 · ⌘+滚轮居中缩放</span>
     <span class="sp"></span>
     <button class="mini" id="btn-log">日志</button>
   </div>

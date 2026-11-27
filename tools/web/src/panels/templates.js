@@ -1,7 +1,7 @@
 /* ---------------- 场景模板库（templates/ 目录的可发现性） ----------------
  * 19+ 个场景模板此前只能手写 spec 用——这里变成可浏览、可一键插入的
  * 卡片网格。「插入」走 Ask AI 规则引擎指令（"加一个 <名> 模板场景"），
- * 与对话/待应用队列同一编辑链；占位 slot 在分镜/Inspector 里填。
+ * 与对话/待应用队列同一编辑链；占位 slot 在 Inspector 里填。
  */
 import { api } from "../shared/api-client.js";
 import { $, escHtml, log } from "../shared/dom.js";

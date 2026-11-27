@@ -23,7 +23,9 @@
   .hint { color: var(--dim); font-size: 11px; }
   .dock-head .sp { flex: 1; }
   #timeline { position: relative; flex: 1; overflow: hidden; min-height: 0;
-              cursor: crosshair; }
+              cursor: default; }
+  body.tl-dragging { user-select: none; }
+  body.tl-dragging iframe { pointer-events: none !important; }
   .tl-scroll { position: absolute; inset: 0; overflow: auto; }
   .tl-scroll { scrollbar-color: #34344c #0d0d14;
                scrollbar-width: thin; }
@@ -61,16 +63,19 @@
   .tl-row.ruler-row .tl-lane { background: #171722;
                                background-image: none; }
   .tl-row.alt .tl-lane { background-color: #13131e; }
-  .tl-ruler { position: relative; height: 100%; }
+  .tl-ruler { position: relative; height: 100%; cursor: ew-resize; }
   .tl-ruler .minor { position: absolute; bottom: 0; height: 6px;
                      border-left: 1px solid #33334a; }
   .tl-ruler .major { position: absolute; top: 0; height: 100%;
     border-left: 1px solid #454560; padding-left: 5px;
     font: 9.5px ui-monospace, Menlo, monospace; color: #9a9ab2;
     line-height: 24px; }
-  .clip { position: absolute; top: 3px; bottom: 3px; border-radius: 3px;
+  .clip { position: absolute; top: 3px; bottom: 3px; border-radius: 4px;
     overflow: hidden; border: 1px solid rgba(255,255,255,.16);
-    cursor: pointer; color: #f2f2fa; }
+    cursor: grab; color: #f2f2fa; touch-action: none; }
+  .clip.locked { cursor: default; }
+  .clip.scene { cursor: grab; }
+  .clip.scene:active { cursor: grabbing; }
   .clip:hover { filter: brightness(1.18); }
   .clip .cap { height: 14px; line-height: 14px; font-size: 9.5px;
     padding: 0 6px; white-space: nowrap; overflow: hidden;
@@ -125,14 +130,17 @@
   .clip.audio.slim .cap { display: none; }
   .clip.audio.slim .wave { top: 0; }
   .clip.locked { cursor: default; }
-  .clip .trim { position: absolute; right: 0; top: 0; bottom: 0; width: 7px;
-    cursor: ew-resize; background: rgba(255,255,255,.18); z-index: 4; }
-  .clip .trim:hover { background: rgba(140,175,255,.7); }
-  .clip .mv { position: absolute; top: 0; bottom: 0; width: 14px; z-index: 4;
-    cursor: pointer; font-size: 12px; display: flex; align-items: center;
-    justify-content: center; background: rgba(9,12,24,.82); color: #dce6ff; }
-  .clip .mv.left { left: 0; }
-  .clip .mv.right { right: 7px; }
+  .clip.scene.locked { cursor: grab; }
+  .clip .trim { position: absolute; top: 0; bottom: 0; width: 10px;
+    cursor: ew-resize; z-index: 4; display: flex; align-items: center;
+    justify-content: center; background: transparent; transition: background .12s; }
+  .clip .trim.left { left: 0; }
+  .clip .trim.right { right: 0; }
+  .clip .trim::after { content: ""; width: 2.5px; height: 18px; border-radius: 2px;
+    background: rgba(255,255,255,.28); transition: background .12s, height .12s; }
+  .clip:hover .trim::after, .clip.sel .trim::after { background: rgba(210,226,255,.78); }
+  .clip .trim:hover { background: rgba(109,139,255,.28); }
+  .clip .trim:hover::after, .clip .trim.active::after { background: #fff; height: 26px; }
   /* 红色播放头贯穿标尺与所有轨道（参考 NLE）。位置用 transform 推进，
      走合成层，避免每帧改 left 触发时间轴整块重排。 */
   #playhead { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
@@ -141,9 +149,9 @@
   #playhead::before { content: ""; position: absolute; top: 0; bottom: 0;
     left: -1px; width: 2px; background: #ff5f4d;
     box-shadow: 0 0 7px rgba(255,95,77,.55); }
-  #playhead::after { content: ""; position: absolute; top: 0; left: -6px;
-    width: 12px; height: 12px; border-radius: 2px 2px 5px 5px;
-    background: #ff5f4d; }
+  #playhead::after { content: ""; position: absolute; top: 0; left: -7px;
+    width: 14px; height: 14px; border-radius: 2px 2px 6px 6px;
+    background: #ff5f4d; pointer-events: auto; cursor: ew-resize; }
   #playhead .ph-tc { position: absolute; top: 13px; left: 7px;
     font: 9.5px ui-monospace, Menlo, monospace; color: #fff;
     background: #b93b2c; padding: 1px 5px; border-radius: 3px;
@@ -193,11 +201,32 @@
   #log .warn { color: var(--warn); }
 
 
-/* 拖拽重排：跟随态 + 插入位指示线（HF 拖 clip 换位手势） */
-.clip.dragging { opacity: .55; z-index: 5; }
-.drop-line { position: absolute; top: 0; bottom: 0; width: 3px;
-  background: var(--acc); z-index: 6; border-radius: 2px;
-  box-shadow: 0 0 6px var(--acc); }
+/* 拖拽重排/跨轨/裁剪：跟随浮层 + 目标轨高亮 + 磁吸竖线 + 气泡 HUD */
+.clip.dragging { opacity: .82; z-index: 20; pointer-events: none !important;
+  cursor: grabbing; box-shadow: 0 10px 28px rgba(0, 0, 0, .6), 0 0 0 1.5px var(--acc); }
+.tl-row.drop-target .tl-lane { background-color: rgba(109, 139, 255, .12) !important;
+  box-shadow: inset 0 0 0 1px rgba(109, 139, 255, .45); }
+.drop-line { position: absolute; top: 1px; bottom: 1px; width: 3px;
+  background: var(--acc); z-index: 12; border-radius: 2px;
+  box-shadow: 0 0 8px var(--acc); pointer-events: none; }
+.clip-ghost { position: absolute; top: 3px; bottom: 3px; border-radius: 4px;
+  border: 1.5px dashed #8cb0ff; background: rgba(109, 139, 255, .16);
+  z-index: 11; pointer-events: none; }
+#tl-snap-guide { position: absolute; top: 26px; bottom: 0; width: 1.5px;
+  background: #6ee7b7; box-shadow: 0 0 8px rgba(110, 231, 183, .75);
+  z-index: 19; pointer-events: none; display: none; }
+#tl-snap-guide.playhead { background: #ff7e6b;
+  box-shadow: 0 0 8px rgba(255, 126, 107, .85); }
+#tl-drag-hud { position: fixed; z-index: 9999; pointer-events: none;
+  display: none; padding: 3px 8px; border-radius: 5px;
+  background: rgba(15, 18, 30, .94); color: #eef3ff;
+  border: 1px solid rgba(159, 192, 255, .5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .55);
+  font: 10.5px/1.35 ui-monospace, Menlo, monospace; white-space: nowrap;
+  transform: translate(-50%, -100%); font-variant-numeric: tabular-nums; }
+.lane-hint { position: absolute; inset: 0; display: flex; align-items: center;
+  padding-left: 14px; font-size: 11px; color: rgba(255, 255, 255, .36);
+  pointer-events: none; }
 
 /* 时间轴底部添加引导（HF 空轨生成提示同款语义） */
 .tl-hint { flex: none; padding: 8px 14px; font-size: 11.5px;

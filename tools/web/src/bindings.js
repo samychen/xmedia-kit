@@ -8,7 +8,6 @@ import { fps } from "./shared/time.js";
 import { clearRange, pushRange, rangeOpen, syncRangeUI } from "./timeline/range.js";
 import { fitTimeline, zoomTimeline, zoomToScene } from "./timeline/render.js";
 import { splitAtPlayhead } from "./timeline/trim.js";
-import { storyboardIsOpen, storyboardOpen, storyboardRender } from "./panels/storyboard.js";
 import { tplRender } from "./panels/templates.js";
 import { brandRender } from "./panels/brand.js";
 import { projectsRender } from "./panels/projects.js";
@@ -118,16 +117,16 @@ $("btn-log").onclick = function () {
   el.classList.toggle("open");
   this.classList.toggle("on", el.classList.contains("open"));
 };
-/* 左栏五面板统一切换（对话/场景/脚本/分镜/源码）：tab 高亮 + 面板互斥。
+/* 左栏七面板统一切换（项目/对话/场景/脚本/模板/品牌/源码）：tab 高亮 + 面板互斥。
    对话（chat）是主面板——HF 的 chat 左栏形态。 */
 function switchLeftPanel(name) {
   var tabs = { projects: "tab-projects", chat: "tab-chat",
                scenes: "tab-scenes", script: "tab-script",
-               storyboard: "tab-storyboard", templates: "tab-templates",
+               templates: "tab-templates",
                brand: "tab-brand", source: "tab-source" };
   var panels = { projects: "projects-panel", chat: "chat-panel",
                  scenes: "scenes-panel",
-                 script: "script-panel", storyboard: "sb-panel",
+                 script: "script-panel",
                  templates: "templates-panel", brand: "brand-panel",
                  source: "source-panel" };
   for (var k in tabs) {
@@ -135,7 +134,6 @@ function switchLeftPanel(name) {
     $(panels[k]).style.display = k === name ? "flex" : "none";
   }
   if (name === "script") scriptRender();
-  if (name === "storyboard") storyboardOpen(true);
   if (name === "templates") tplRender();
   if (name === "brand") brandRender();
   if (name === "projects") projectsRender();
@@ -155,9 +153,6 @@ $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-projects").onclick = function () { switchLeftPanel("projects"); };
 $("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
 $("tab-script").onclick = function () { switchLeftPanel("script"); };
-$("tab-storyboard").onclick = function () {
-  switchLeftPanel("storyboard");
-};
 $("tab-templates").onclick = function () { switchLeftPanel("templates"); };
 $("tab-brand").onclick = function () { switchLeftPanel("brand"); };
 $("tab-source").onclick = function () { switchLeftPanel("source"); };

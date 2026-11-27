@@ -228,6 +228,69 @@ export function snapTime(t) {
   return Math.max(0, Math.min(state.duration, best));
 }
 
+/* 像素级自适应吸附目标收集：播放头 + 其他所有片段起止边。 */
+export function snapTargets(excludeIdx) {
+  var list = [];
+  if (typeof lastTime === "number" && isFinite(lastTime) && lastTime >= 0) {
+    list.push({ time: lastTime, type: "playhead" });
+  }
+  (state.scenes || []).forEach(function (s, i) {
+    if (i === excludeIdx || !s) return;
+    list.push({ time: Number(s.start) || 0, type: "edge" });
+    list.push({ time: (Number(s.start) || 0) + (Number(s.dur) || 0), type: "edge" });
+  });
+  return list;
+}
+
+/* 单点磁吸（支持播放头 / 片段边 / 帧栅格，8px 容差随缩放自适应）。 */
+export function snapDetail(t, excludeIdx, maxSec) {
+  var pps = Math.max(12, Number(tlPPS) || 60);
+  var thr = Math.min(0.35, 8 / pps);
+  var raw = Math.max(0, maxSec != null ? Math.min(maxSec, t) : t);
+  if (!tlSnap) return { time: raw, snapped: false, type: null };
+  var best = null;
+  var bestDist = thr;
+  var pri = { playhead: 0, edge: 1 };
+  snapTargets(excludeIdx).forEach(function (item) {
+    var d = Math.abs(item.time - raw);
+    if (d < bestDist - 1e-6 ||
+        (Math.abs(d - bestDist) <= 1e-6 && best && pri[item.type] < pri[best.type])) {
+      bestDist = d;
+      best = item;
+    }
+  });
+  if (best) {
+    var snapped = Math.max(0, maxSec != null ? Math.min(maxSec, best.time) : best.time);
+    return { time: snapped, snapped: true, type: best.type };
+  }
+  var fr = Math.round(raw * fps()) / fps();
+  return {
+    time: Math.max(0, maxSec != null ? Math.min(maxSec, fr) : fr),
+    snapped: false,
+    type: null
+  };
+}
+
+/* 区间双边磁吸（叠加轨拖放时同时比对左缘与右缘，取更近的吸附边）。 */
+export function snapRangeDetail(start, dur, excludeIdx) {
+  var sRaw = Math.max(0, start);
+  if (!tlSnap) return { start: sRaw, snapTime: null, snapType: null };
+  var pps = Math.max(12, Number(tlPPS) || 60);
+  var thr = Math.min(0.35, 8 / pps);
+  var a = snapDetail(sRaw, excludeIdx, null);
+  var b = snapDetail(sRaw + dur, excludeIdx, null);
+  var da = a.snapped ? Math.abs(a.time - sRaw) : Infinity;
+  var db = b.snapped ? Math.abs(b.time - (sRaw + dur)) : Infinity;
+  if (da <= thr && da <= db) {
+    return { start: Math.max(0, a.time), snapTime: a.time, snapType: a.type };
+  }
+  if (db <= thr) {
+    return { start: Math.max(0, b.time - dur), snapTime: b.time, snapType: b.type };
+  }
+  var fr = Math.round(sRaw * fps()) / fps();
+  return { start: Math.max(0, fr), snapTime: null, snapType: null };
+}
+
 export function splitSceneData(sc, cut, total) {
   var tail = structuredClone(sc);
   var c = Math.round(cut * 100) / 100;

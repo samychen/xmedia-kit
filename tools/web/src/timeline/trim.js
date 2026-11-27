@@ -6,17 +6,71 @@ import { tlTotal } from "./range.js";
 import { renderTimeline } from "./render.js";
 
 export function trimCommit(idx, newDur) {
-  state.spec.scenes[idx].duration = Math.round(newDur * 100) / 100;
+  var dur = Math.max(0.3, Math.round(newDur * 100) / 100);
+  state.spec.scenes[idx].duration = dur;
   /* 乐观渲染（HF 同款）：本地 meta 同步改 + 立即重渲时间轴——不等
      服务端重组往返；recompose 后台跑，完成后 refresh 校正。 */
   var meta = state.scenes[idx];
-  if (meta) meta.dur = state.spec.scenes[idx].duration;
+  var oldDur = meta ? Number(meta.dur) || dur : dur;
+  if (meta) {
+    meta.dur = dur;
+    // 顺序主轨片段延长/缩短时，乐观推进后续主轨片段起点，避免刷新前重叠闪烁
+    var sc = state.spec.scenes[idx];
+    if ((Number(sc.track) || 0) === 0 && sc.start === undefined) {
+      var dd = dur - oldDur;
+      for (var j = idx + 1; j < state.scenes.length; j++) {
+        var sj = state.spec.scenes[j] || {};
+        if ((Number(sj.track) || 0) === 0 && sj.start === undefined && state.scenes[j]) {
+          state.scenes[j].start = Math.max(0, (Number(state.scenes[j].start) || 0) + dd);
+        }
+      }
+      state.duration = Math.max(0.1, (Number(state.duration) || 0) + dd);
+    }
+  }
   $("spec").value = JSON.stringify(state.spec, null, 2);
   renderTimeline();
-  log("裁剪 scene-" + idx + " → " +
-      state.spec.scenes[idx].duration + "s，重组合成…");
+  log("裁剪 scene-" + (idx + 1) + " → " + dur + "s，重组合成…");
   recompose();
 }
+
+export function trimLeftCommit(idx, opts) {
+  var sc = state.spec.scenes[idx];
+  if (!sc) return;
+  var dur = Math.max(0.3, Math.round((opts.newDur || 0.3) * 100) / 100);
+  sc.duration = dur;
+  if (opts.newStart !== undefined && isFinite(opts.newStart)) {
+    sc.start = Math.max(0, Math.round(opts.newStart * 100) / 100);
+  }
+  if (opts.newVideoFrom !== undefined && isFinite(opts.newVideoFrom) && sc.video) {
+    var vf = Math.max(0, Math.round(opts.newVideoFrom * 1000) / 1000);
+    if (typeof sc.video === "object" && sc.video.from !== undefined) delete sc.video.from;
+    if (vf > 0) sc.video_from = vf;
+    else delete sc.video_from;
+  }
+  var meta = state.scenes[idx];
+  if (meta) {
+    var oldDur = Number(meta.dur) || dur;
+    meta.dur = dur;
+    if (opts.newStart !== undefined && isFinite(opts.newStart)) {
+      meta.start = sc.start;
+    } else if ((Number(sc.track) || 0) === 0 && sc.start === undefined) {
+      var dd = dur - oldDur;
+      for (var j = idx + 1; j < state.scenes.length; j++) {
+        var sj = state.spec.scenes[j] || {};
+        if ((Number(sj.track) || 0) === 0 && sj.start === undefined && state.scenes[j]) {
+          state.scenes[j].start = Math.max(0, (Number(state.scenes[j].start) || 0) + dd);
+        }
+      }
+      state.duration = Math.max(0.1, (Number(state.duration) || 0) + dd);
+    }
+  }
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  renderTimeline();
+  log("左缘裁剪 scene-" + (idx + 1) + " → " + dur + "s" +
+      (sc.start !== undefined ? " @" + sc.start.toFixed(2) + "s" : "") + "，重组合成…");
+  recompose();
+}
+
 export function reorder(idx, dir) {
   var arr = state.spec.scenes, j = idx + dir;
   if (j < 0 || j >= arr.length) return;
@@ -26,19 +80,47 @@ export function reorder(idx, dir) {
   log("场景 " + idx + (dir < 0 ? " 前移" : " 后移") + "，重组合成…");
   recompose();
 }
+
 /* 拖拽重排落位：把场景 idx 移到插入位 target（0..len，"放到某场景之前"
-   语义）。idx 被移除后右侧目标需要归一（target > idx 时 -1）。 */
+   语义）。若原本在叠加轨（有 track>0 或 start），拖回主轨时清除绝对定位。 */
 export function reorderTo(idx, target) {
   var arr = state.spec.scenes;
-  if (target === idx || target === idx + 1) return false;
+  var sc = arr[idx];
+  if (!sc) return false;
+  var wasOverlay = (Number(sc.track) || 0) !== 0 || sc.start !== undefined;
+  if (!wasOverlay && (target === idx || target === idx + 1)) return false;
   if (target < 0 || target > arr.length) return false;
+  sc.track = 0;
+  delete sc.start;
   var m = arr.splice(idx, 1)[0];
   var ins = target > idx ? target - 1 : target;
   arr.splice(ins, 0, m);
   selIdx = ins;
   $("spec").value = JSON.stringify(state.spec, null, 2);
   renderTimeline();   // 乐观渲染：重排立即反映（HF 同款），重组后台跑
-  log("场景 " + (idx + 1) + " 拖到第 " + (ins + 1) + " 位，重组合成…");
+  log((wasOverlay ? "场景移回主轨第 " : "场景拖到第 ") + (ins + 1) + " 位，重组合成…");
+  recompose();
+  return true;
+}
+
+/* 拖放到叠加轨或在同一叠加轨内自由平移时间起点（设置 track 与 start）。 */
+export function moveClipToTrack(idx, trackNum, newStart) {
+  var arr = state.spec.scenes;
+  var sc = arr[idx];
+  if (!sc) return false;
+  var tr = Math.max(0, Number(trackNum) || 0);
+  var st = Math.max(0, Math.round(newStart * 100) / 100);
+  sc.track = tr;
+  sc.start = st;
+  if (state.scenes[idx]) {
+    state.scenes[idx].start = st;
+    state.duration = Math.max(state.duration || 0, st + (state.scenes[idx].dur || sc.duration || 3));
+  }
+  selIdx = idx;
+  $("spec").value = JSON.stringify(state.spec, null, 2);
+  renderTimeline();
+  log("场景 " + (idx + 1) + " → " + (tr === 0 ? "主轨" : "叠加轨 " + tr) +
+      " @" + st.toFixed(2) + "s，重组合成…");
   recompose();
   return true;
 }

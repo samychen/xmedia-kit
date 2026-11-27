@@ -48,11 +48,11 @@ export function askMarkBackendPicked() { backendPickedByUser = true; }
 export function askOpen(on) {
   var tabs = { projects: "tab-projects", chat: "tab-chat",
                scenes: "tab-scenes", script: "tab-script",
-               storyboard: "tab-storyboard", templates: "tab-templates",
+               templates: "tab-templates",
                brand: "tab-brand", source: "tab-source" };
   var panels = { projects: "projects-panel", chat: "chat-panel",
                  scenes: "scenes-panel", script: "script-panel",
-                 storyboard: "sb-panel", templates: "templates-panel",
+                 templates: "templates-panel",
                  brand: "brand-panel", source: "source-panel" };
   var name = on ? "chat" : "scenes";
   for (var k in tabs) {

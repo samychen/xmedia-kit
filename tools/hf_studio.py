@@ -4044,7 +4044,7 @@ h1 {{ font-size: 22px; margin: 0 0 4px }}
 </div>
 <div class="guide">
   <div class="g-step"><b>1</b> 选一个叙事类型 → 一句话 brief →「合成首剪」（5 个商业叙事 Arc）</div>
-  <div class="g-step"><b>2</b> 编辑页左栏「对话」说一句话改内容 ·「分镜」逐镜看真实帧（卡上直接改文案/时长）</div>
+  <div class="g-step"><b>2</b> 编辑页左栏「对话」说一句话改内容 · 预览区「Storyboard」全局逐镜审阅真实帧</div>
   <div class="g-step"><b>3</b> 顶栏「导出 MP4」选画质/格式/帧率出片（全部本地、确定性管线）</div>
 </div>
 <h2 style="font-size:15px">项目</h2>

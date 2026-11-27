@@ -50,8 +50,8 @@ export function ensureRangeOverlay() {
   var hl = el("", "tl-ih left"), hr = el("", "tl-ih right");
   hl.appendChild(el("", "tc"));
   hr.appendChild(el("", "tc"));
-  hl.onmousedown = function (ev) { dragRangeHandle(ev, "a"); };
-  hr.onmousedown = function (ev) { dragRangeHandle(ev, "b"); };
+  hl.addEventListener("pointerdown", function (ev) { dragRangeHandle(ev, "a"); });
+  hr.addEventListener("pointerdown", function (ev) { dragRangeHandle(ev, "b"); });
   g.appendChild(hl);
   g.appendChild(hr);
 }
@@ -146,8 +146,15 @@ export function dragRangeHandle(ev, which) {
   if (!rangeOpen()) return;
   ev.preventDefault();
   ev.stopPropagation();
+  var target = ev.currentTarget;
+  var pid = ev.pointerId;
+  if (target && target.setPointerCapture && pid !== undefined) {
+    try { target.setPointerCapture(pid); } catch { /* ignore */ }
+  }
+  document.body.classList.add("tl-dragging");
   var minGap = 1 / fps();
   function mv(e2) {
+    if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
     var t = rangeTimeAt(e2);
     if (tlSnap) t = snapTime(t);
     var r = { a: tlRange.a, b: tlRange.b };
@@ -157,17 +164,27 @@ export function dragRangeHandle(ev, which) {
     applyRangeGeom();
     syncRangeUI();
   }
-  function up() {
-    document.removeEventListener("mousemove", mv);
-    document.removeEventListener("mouseup", up);
+  function up(e2) {
+    if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+    document.body.classList.remove("tl-dragging");
+    window.removeEventListener("pointermove", mv);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
     pushRange();
     log("选区 " + rangeLabel());
   }
-  document.addEventListener("mousemove", mv);
-  document.addEventListener("mouseup", up);
+  window.addEventListener("pointermove", mv);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
 }
 /* 从按下点拖出一个新区间；不足 1.5 帧视作单击定位。 */
 export function startRangeDrag(ev) {
+  var pid = ev.pointerId;
+  var capEl = $("timeline");
+  if (capEl && capEl.setPointerCapture && pid !== undefined) {
+    try { capEl.setPointerCapture(pid); } catch { /* ignore */ }
+  }
+  document.body.classList.add("tl-dragging");
   var t0 = rangeTimeAt(ev);
   if (tlSnap) t0 = snapTime(t0);
   var moved = false;
@@ -176,6 +193,7 @@ export function startRangeDrag(ev) {
   applyRangeGeom();
   syncRangeUI();
   function mv(e2) {
+    if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
     var t = rangeTimeAt(e2);
     if (tlSnap) t = snapTime(t);
     if (Math.abs(t - t0) > 1.5 / fps()) moved = true;
@@ -183,9 +201,12 @@ export function startRangeDrag(ev) {
     applyRangeGeom();
     syncRangeUI();
   }
-  function up() {
-    document.removeEventListener("mousemove", mv);
-    document.removeEventListener("mouseup", up);
+  function up(e2) {
+    if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+    document.body.classList.remove("tl-dragging");
+    window.removeEventListener("pointermove", mv);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
     if (!moved || !rangeOpen()) {
       tlRange = null;
       applyRangeGeom();
@@ -197,6 +218,7 @@ export function startRangeDrag(ev) {
     pushRange();
     log("选区 " + rangeLabel());
   }
-  document.addEventListener("mousemove", mv);
-  document.addEventListener("mouseup", up);
+  window.addEventListener("pointermove", mv);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
 }

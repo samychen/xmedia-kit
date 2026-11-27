@@ -4,185 +4,600 @@ import { startPhAnim } from "../preview/playhead.js";
 import { log, $ } from "../shared/dom.js";
 import { HEAD_W } from "../shared/state.js";
 import { fmtTime, fps } from "../shared/time.js";
-import { TRACKS, capSegments, capTrackSub, hashSeed, loadThumbsForClip, loadWaveForClip, mk, sceneTexts, snapTime, stripHTML, waveSVG } from "./model.js";
+import {
+  TRACKS, capSegments, capTrackSub, hashSeed, loadThumbsForClip,
+  loadWaveForClip, mk, sceneTexts, snapDetail, snapRangeDetail,
+  snapTime, stripHTML, waveSVG
+} from "./model.js";
 import { applyRangeGeom, ensureRangeOverlay, startRangeDrag, syncRangeUI } from "./range.js";
-import { reorder, reorderTo, splitScene, trimCommit } from "./trim.js";
-import { recompose } from "../panels/status.js";
+import { moveClipToTrack, reorderTo, splitScene, trimCommit, trimLeftCommit } from "./trim.js";
 
-/* 拖拽插入位判定：鼠标时间 t 落在哪条边界之前 → 插入位下标。
-   边界取各场景中点（拖到某场景前半 = 放它之前，后半 = 放它之后），
-   被拖场景自身跳过。 */
-function dropIndex(t, dragIdx) {
-  var sc = state.scenes || [];
-  for (var i = 0; i < sc.length; i++) {
-    if (i === dragIdx) continue;
-    if (t < sc[i].start + sc[i].dur / 2) return i;
-  }
-  return sc.length;
+/* ---------------- 视觉辅助：磁吸线 / 浮动 HUD / 自动滚屏 / iframe 隔离 ---------------- */
+function dragShield(on) {
+  document.body.classList.toggle("tl-dragging", !!on);
 }
 
-
-/* 单个场景 clip 构建（多轨各行共用）。tr = 该行轨道号；拖拽松手时
-   若垂直拖过 48px 且落在另一轨道行上 → 跨轨（改 spec.track + 重组），
-   否则按水平位移重排（reorderTo）。 */
-function buildSceneClip(idx, lane, tr) {
-
-var spec = (state.spec.scenes || [])[idx] || {};
-var locked = !!spec.narration;
-/* 原闭包变量补齐（抽出时丢失）：s = 场景 meta；total = 全片长
-   （裁剪右界的 Math.min 上界）。 */
-var s = state.scenes[idx] ||
-    { start: 0, dur: Number(spec.duration) || 3,
-      label: (idx + 1) + " · " + (spec.type || "text") };
-var total = state.duration || (s.start + s.dur);
-var w = Math.max(14, s.dur * tlPPS);
-var b = mk("div", "clip scene" + (locked ? " locked" : "") +
-           (idx === selIdx ? " sel" : ""));
-b.style.left = (s.start * tlPPS) + "px";
-b.style.width = w + "px";
-b.title = (locked ? "旁白锁定：时长随旁白拟合"
-                  : "点选；拖右缘裁剪时长；右键在播放头处切割") +
-          " · " + s.label;
-b.innerHTML = '<div class="cap">' + (idx + 1) + " · " + s.label +
-  '<span class="dur">' + s.dur.toFixed(2) + "s</span></div>" +
-  stripHTML(s, idx, w);
-if (spec.video) {
-  var _strip = b.querySelector(".strip");
-  if (_strip) {
-    loadThumbsForClip(_strip, spec.video,
-                      spec.video_from || 0, s.dur);
+function getSnapGuide() {
+  var g = $("tl-grid");
+  if (!g) return null;
+  var el = $("tl-snap-guide");
+  if (!el || el.parentNode !== g) {
+    el = mk("div", "");
+    el.id = "tl-snap-guide";
+    g.appendChild(el);
   }
+  return el;
 }
-b.onclick = function (ev) {
-  var cn = ev.target.className || "";
-  if (cn.indexOf("trim") >= 0 || cn.indexOf("mv") >= 0) return;
-  if (b._dragged) { b._dragged = false; return; }  // 拖拽后抑制误选
-  selectScene(selIdx === idx ? -1 : idx, false);
-};
-// 拖拽重排手势（HF 的拖 clip 换位）：非裁剪区按住水平拖过 6px
-// 阈值 → clip 跟随 + 插入位指示线 → 松手 reorderTo 落位重组。
-// 重排不改变时长/旁白——旁白锁定场景同样可拖（锁定只约束
-// 裁剪与文案）。
-b.onmousedown = function (e) {
-  if (e.button !== 0) return;
-  if (e.target.className &&
-      String(e.target.className).indexOf("trim") >= 0) return;
-  var px0 = e.clientX, dragging = false, target = -1;
-  function mv(e2) {
-    var dx = e2.clientX - px0;
-    if (!dragging && Math.abs(dx) < 6) return;
-    if (!dragging) {
-      dragging = true;
-      b._dragging = true;
-      b.classList.add("dragging");
-      lane._drop = mk("div", "drop-line");
-      lane.appendChild(lane._drop);
-    }
-    b.style.transform = "translateX(" + dx + "px)";
-    var t = (e2.clientX -
-             lane.getBoundingClientRect().left) / tlPPS;
-    target = dropIndex(t, idx);
-    var ex = target < state.scenes.length ?
-        state.scenes[target].start * tlPPS :
-        (state.scenes[state.scenes.length - 1].start +
-         state.scenes[state.scenes.length - 1].dur) * tlPPS;
-    lane._drop.style.left = ex + "px";
-  }
-  function up(e2) {
-    document.removeEventListener("mousemove", mv);
-    document.removeEventListener("mouseup", up);
-    b.classList.remove("dragging");
-    b.style.transform = "";
-    if (lane._drop) { lane._drop.remove(); lane._drop = null; }
-    if (!dragging) return;
-    b._dragged = true;
-    setTimeout(function () { b._dragged = false; }, 250);
-    /* 跨轨判定：松手点落在另一条视频轨行 → 改 spec.track（叠加层
-       语义），优先于水平重排。 */
-    var over = document.elementFromPoint(e2.clientX, e2.clientY);
-    var lane2 = over && over.closest ? over.closest(".tl-lane") : null;
-    var t2 = lane2 && lane2.dataset.track !== undefined ?
-        Number(lane2.dataset.track) : null;
-    if (t2 !== null && t2 !== tr) {
-      state.spec.scenes[idx].track = t2;
-      selIdx = idx;
-      $("spec").value = JSON.stringify(state.spec, null, 2);
-      renderTimeline();   // 乐观渲染：跨轨立即反映（重组后台）
-      log("场景 " + (idx + 1) + " → " +
-          (t2 === 0 ? "主轨" : "叠加轨 " + t2) + "，重组合成…");
-      recompose();
-      return;
-    }
-    if (target >= 0) reorderTo(idx, target);
-  }
-  document.addEventListener("mousemove", mv);
-  document.addEventListener("mouseup", up);
-};
-b.ondblclick = function () { selectScene(idx, false); zoomToScene(idx); };
-// 右键 = 在播放头处切开这一段（刀口不在片段内时给日志提示）。
-b.oncontextmenu = function (ev) {
-  ev.preventDefault();
-  if (locked) {
-    log("scene-" + idx + " 旁白锁定，不支持切割", "err");
+
+function showSnapGuide(timeSec, kind) {
+  var el = getSnapGuide();
+  if (!el) return;
+  if (timeSec == null || !isFinite(timeSec)) {
+    el.style.display = "none";
+    el.classList.remove("playhead");
     return;
   }
-  selectScene(idx, false);
-  splitScene(idx, lastTime);
-};
-if (!locked) {
-  var trim = mk("div", "trim");
-  trim.onmousedown = function (e) {
-    e.stopPropagation();
-    var px0 = e.clientX, d0 = s.dur;
-    function mv(e2) {
-      var d = d0 + (e2.clientX - px0) / tlPPS;
-      d = Math.max(0.3, Math.min(d, total - s.start));
-      b.style.width = Math.max(14, d * tlPPS) + "px";
-      b._newDur = d;
-    }
-    function up() {
-      document.removeEventListener("mousemove", mv);
-      document.removeEventListener("mouseup", up);
-      if (b._newDur && Math.abs(b._newDur - d0) > 0.05) {
-        trimCommit(idx, b._newDur);
+  el.style.display = "block";
+  el.style.left = (HEAD_W + Math.max(0, timeSec) * tlPPS) + "px";
+  el.classList.toggle("playhead", kind === "playhead");
+}
+
+function showDragHud(clientX, clientY, text) {
+  var hud = $("tl-drag-hud");
+  if (!hud) {
+    hud = mk("div", "");
+    hud.id = "tl-drag-hud";
+    document.body.appendChild(hud);
+  }
+  if (!text) { hud.style.display = "none"; return; }
+  hud.textContent = text;
+  hud.style.display = "block";
+  hud.style.left = Math.max(60, Math.min(window.innerWidth - 60, clientX)) + "px";
+  hud.style.top = Math.max(28, clientY - 14) + "px";
+}
+
+function hideDragOverlays() {
+  dragShield(false);
+  showSnapGuide(null, null);
+  showDragHud(0, 0, "");
+  document.querySelectorAll(".tl-row.drop-target").forEach(function (r) {
+    r.classList.remove("drop-target");
+  });
+}
+
+function makeAutoScroller(onScrollTick, canExpandRight) {
+  var raf = 0;
+  var vx = 0;
+  var lastEv = null;
+  function step() {
+    raf = 0;
+    var sc = $("tl-scroll");
+    if (!sc || !vx) return;
+    if (vx > 0 && canExpandRight) {
+      var gridEl = $("tl-grid");
+      var needW = sc.scrollLeft + sc.clientWidth + vx + 40;
+      if (gridEl && parseFloat(gridEl.style.width || "0") < needW) {
+        gridEl.style.width = needW + "px";
       }
     }
-    document.addEventListener("mousemove", mv);
-    document.addEventListener("mouseup", up);
-  };
-  b.appendChild(trim);
-}
-if (idx === selIdx && !locked) {
-  var mvL = mk("div", "mv left", "‹");
-  mvL.title = "前移一位";
-  mvL.onclick = function (e) {
-    e.stopPropagation(); reorder(idx, -1);
-  };
-  var mvR = mk("div", "mv right", "›");
-  mvR.title = "后移一位";
-  mvR.onclick = function (e) {
-    e.stopPropagation(); reorder(idx, 1);
-  };
-  b.appendChild(mvL); b.appendChild(mvR);
-}
-// 评论角标（HF Comment 同款）：该镜留过评论即显示，点击直达
-// Inspector 的评论编辑区。
-if (spec.comment) {
-  var cmt = mk("div", "cmt-badge", "💬");
-  cmt.title = "评论：" + spec.comment.slice(0, 80);
-  cmt.onclick = function (e) {
-    e.stopPropagation();
-    selectScene(idx, false);
-    var ta = $("insp-comment");
-    if (ta) {
-      ta.scrollIntoView({ block: "center" });
-      ta.focus({ preventScroll: true });
+    var next = Math.max(0, Math.min(sc.scrollWidth - sc.clientWidth, sc.scrollLeft + vx));
+    if (next !== sc.scrollLeft) {
+      sc.scrollLeft = next;
+      if (onScrollTick && lastEv) onScrollTick(lastEv);
+    }
+    raf = requestAnimationFrame(step);
+  }
+  return {
+    update: function (ev) {
+      lastEv = ev;
+      var sc = $("tl-scroll");
+      if (!sc) return;
+      var rect = sc.getBoundingClientRect();
+      var leftEdge = rect.left + HEAD_W + 32;
+      var rightEdge = rect.right - 32;
+      if (ev.clientX < leftEdge && sc.scrollLeft > 0) {
+        vx = -Math.max(4, Math.min(18, (leftEdge - ev.clientX) * 0.45));
+      } else if (ev.clientX > rightEdge &&
+                 (canExpandRight || sc.scrollLeft < sc.scrollWidth - sc.clientWidth)) {
+        vx = Math.max(4, Math.min(18, (ev.clientX - rightEdge) * 0.45));
+      } else {
+        vx = 0;
+      }
+      if (vx && !raf) raf = requestAnimationFrame(step);
+    },
+    stop: function () {
+      vx = 0;
+      lastEv = null;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
     }
   };
-  b.appendChild(cmt);
 }
-lane.appendChild(b);
 
+/* 主轨（track 0 顺序流）拖拽插入位判定：仅统计顺序主轨片段，忽略叠加轨。 */
+function dropInfoTrack0(t, dragIdx) {
+  var specs = (state.spec && state.spec.scenes) || [];
+  var sc = state.scenes || [];
+  var seq = [];
+  for (var i = 0; i < sc.length; i++) {
+    var sp = specs[i] || {};
+    if ((Number(sp.track) || 0) !== 0 || sp.start !== undefined) continue;
+    seq.push({ idx: i, start: sc[i].start || 0, dur: sc[i].dur || 0 });
+  }
+  var ord = 0;
+  for (var j = 0; j < seq.length; j++) {
+    var item = seq[j];
+    if (item.idx === dragIdx) continue;
+    if (t < item.start + item.dur / 2) {
+      return { target: item.idx, ord: ord + 1, lineX: item.start * tlPPS };
+    }
+    ord++;
+  }
+  var last = seq.length ? seq[seq.length - 1] : null;
+  return {
+    target: specs.length,
+    ord: ord + 1,
+    lineX: last ? (last.start + last.dur) * tlPPS : 0
+  };
+}
+
+/* 单个场景 clip 构建（多轨各行共用）。 */
+function buildSceneClip(idx, lane, tr) {
+  var spec = (state.spec.scenes || [])[idx] || {};
+  var locked = !!spec.narration;
+  var s = state.scenes[idx] ||
+      { start: 0, dur: Number(spec.duration) || 3,
+        label: (idx + 1) + " · " + (spec.type || "text") };
+  var total = Math.max(state.duration || (s.start + s.dur), 0.1);
+  var w = Math.max(14, s.dur * tlPPS);
+  var b = mk("div", "clip scene" + (locked ? " locked" : "") +
+             (idx === selIdx ? " sel" : ""));
+  b.dataset.idx = String(idx);
+  b.dataset.seq = ((Number(spec.track) || 0) === 0 && spec.start === undefined) ? "1" : "0";
+  b.style.left = (s.start * tlPPS) + "px";
+  b.style.width = w + "px";
+  b.title = (locked ? "旁白锁定：可拖动重排或跨轨 · 右键切割禁用"
+                    : "点选 · 拖动重排/跨轨 · 拖左右缘裁剪 · 右键播放头切割") +
+            " · " + s.label;
+  b.innerHTML = '<div class="cap">' + (idx + 1) + " · " + s.label +
+    '<span class="dur">' + s.dur.toFixed(2) + "s</span></div>" +
+    stripHTML(s, idx, w);
+  if (spec.video) {
+    var _strip = b.querySelector(".strip");
+    if (_strip) {
+      loadThumbsForClip(_strip, spec.video, spec.video_from || 0, s.dur);
+    }
+  }
+
+  b.addEventListener("dblclick", function (ev) {
+    if (ev.target.closest(".trim")) return;
+    selectScene(idx, false);
+    zoomToScene(idx);
+  });
+
+  // 右键 = 在播放头处切开这一段
+  b.addEventListener("contextmenu", function (ev) {
+    ev.preventDefault();
+    if (locked) {
+      log("scene-" + (idx + 1) + " 旁白锁定，不支持切割", "err");
+      return;
+    }
+    selectScene(idx, false);
+    splitScene(idx, lastTime);
+  });
+
+  /* ---------- 1. 片段主体拖动（水平重排 / 自由平移 / 跨轨投放） ---------- */
+  b.addEventListener("pointerdown", function (e) {
+    if (e.button !== 0 || e.shiftKey || tlRangeMode) return;
+    if (e.target.closest(".trim") || e.target.closest(".cmt-badge")) return;
+    e.stopPropagation();
+
+    var pid = e.pointerId;
+    var px0 = e.clientX, py0 = e.clientY;
+    var scEl = $("tl-scroll");
+    var scroll0 = scEl ? scEl.scrollLeft : 0;
+    var grabOffPx = e.clientX - b.getBoundingClientRect().left;
+    var dragging = false;
+    var cancelled = false;
+    var dropLine = null;
+    var ghost = null;
+    var activeLane = null;
+    var curTargetTrack = Number(tr);
+    var curDropInfo = null;
+    var curOverlayStart = s.start;
+
+    if (b.setPointerCapture && pid !== undefined) {
+      try { b.setPointerCapture(pid); } catch { /* ignore */ }
+    }
+
+    function clearVisualTargets() {
+      if (dropLine) { dropLine.remove(); dropLine = null; }
+      if (ghost) { ghost.remove(); ghost = null; }
+      document.querySelectorAll(".tl-row.drop-target").forEach(function (r) {
+        r.classList.remove("drop-target");
+      });
+    }
+
+    function evaluatePointer(e2) {
+      var dx = e2.clientX - px0;
+      var dy = e2.clientY - py0;
+      var dScroll = scEl ? (scEl.scrollLeft - scroll0) : 0;
+      if (!dragging && Math.hypot(dx, dy) < 5) return;
+      if (!dragging) {
+        dragging = true;
+        b.classList.add("dragging");
+        dragShield(true);
+      }
+      b.style.transform = "translate3d(" + (dx + dScroll) + "px, " + dy + "px, 0)";
+
+      var over = document.elementFromPoint(e2.clientX, e2.clientY);
+      var lane2 = over && over.closest ? over.closest(".tl-lane[data-kind='scene']") : null;
+      if (!lane2) lane2 = activeLane || lane;
+      activeLane = lane2;
+      var t2 = lane2 && lane2.dataset.track !== undefined ? Number(lane2.dataset.track) : Number(tr);
+      curTargetTrack = t2;
+
+      clearVisualTargets();
+      if (lane2 && lane2.parentNode) lane2.parentNode.classList.add("drop-target");
+
+      var laneRect = lane2.getBoundingClientRect();
+      var cursorT = (e2.clientX - laneRect.left) / tlPPS;
+      if (t2 === 0) {
+        showSnapGuide(null, null);
+        curDropInfo = dropInfoTrack0(cursorT, idx);
+        dropLine = mk("div", "drop-line");
+        dropLine.style.left = curDropInfo.lineX + "px";
+        lane2.appendChild(dropLine);
+        showDragHud(e2.clientX, laneRect.top,
+          "主轨 · 移至第 " + curDropInfo.ord + " 位 (" + s.dur.toFixed(2) + "s)");
+      } else {
+        var rawStart = Math.max(0, (e2.clientX - laneRect.left - grabOffPx) / tlPPS);
+        var res = e2.altKey
+          ? { start: rawStart, snapTime: null, snapType: null }
+          : snapRangeDetail(rawStart, s.dur, idx);
+        curOverlayStart = res.start;
+        ghost = mk("div", "clip-ghost");
+        ghost.style.left = (res.start * tlPPS) + "px";
+        ghost.style.width = Math.max(14, s.dur * tlPPS) + "px";
+        lane2.appendChild(ghost);
+        showSnapGuide(res.snapTime, res.snapType);
+        showDragHud(e2.clientX, laneRect.top,
+          "叠加轨 " + t2 + " · @" + res.start.toFixed(2) + "s" +
+          (res.snapType === "playhead" ? " [吸附播放头]" : res.snapType === "edge" ? " [吸附边]" : ""));
+      }
+    }
+
+    var scroller = makeAutoScroller(evaluatePointer);
+
+    function onKey(kev) {
+      if (kev.key === "Escape") {
+        kev.preventDefault();
+        cancelled = true;
+        cleanup();
+      }
+    }
+
+    function cleanup() {
+      scroller.stop();
+      window.removeEventListener("pointermove", mv);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("keydown", onKey, true);
+      b.classList.remove("dragging");
+      b.style.transform = "";
+      clearVisualTargets();
+      hideDragOverlays();
+    }
+
+    function mv(e2) {
+      if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+      evaluatePointer(e2);
+      if (dragging) scroller.update(e2);
+    }
+
+    function cancel(e2) {
+      if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+      cancelled = true;
+      cleanup();
+    }
+
+    function up(e2) {
+      if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+      var wasDragging = dragging;
+      cleanup();
+      if (cancelled) return;
+      if (!wasDragging) {
+        if (selIdx !== idx) selectScene(idx, false);
+        return;
+      }
+      if (curTargetTrack === 0) {
+        if (curDropInfo) reorderTo(idx, curDropInfo.target);
+      } else {
+        moveClipToTrack(idx, curTargetTrack, curOverlayStart);
+      }
+    }
+
+    window.addEventListener("pointermove", mv);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("keydown", onKey, true);
+  });
+
+  /* ---------- 2. 左右双缘裁剪（左缘调整起点/入点 · 右缘自由延长并波纹推开后续） ---------- */
+  if (!locked) {
+    var trimL = mk("div", "trim left");
+    trimL.title = "拖左缘裁剪起点" + (spec.video ? "（同步顺延视频入点）" : "");
+    var trimR = mk("div", "trim right");
+    trimR.title = "拖右缘裁剪或延长时长（Alt 临时关闭吸附 · Esc 取消）";
+
+    // 2a. 右缘裁剪：突破原 total - s.start 封顶，顺序主轨实时波纹平移后续片段
+    trimR.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      var pid = e.pointerId;
+      var px0 = e.clientX;
+      var scEl = $("tl-scroll");
+      var scroll0 = scEl ? scEl.scrollLeft : 0;
+      var d0 = s.dur;
+      var curDur = d0;
+      var cancelled = false;
+      var isSeq = ((Number(spec.track) || 0) === 0 && spec.start === undefined);
+      var durLabel = b.querySelector(".dur");
+      var gridEl = $("tl-grid");
+      var rulerEl = gridEl ? gridEl.querySelector(".tl-ruler") : null;
+      var laneEls = gridEl ? Array.from(gridEl.querySelectorAll(".tl-lane")) : [];
+      var downstream = [];
+      if (isSeq) {
+        lane.querySelectorAll('.clip.scene[data-seq="1"]').forEach(function (el) {
+          if (Number(el.dataset.idx) > idx) downstream.push(el);
+        });
+      }
+
+      trimR.classList.add("active");
+      dragShield(true);
+      if (trimR.setPointerCapture && pid !== undefined) {
+        try { trimR.setPointerCapture(pid); } catch { /* ignore */ }
+      }
+
+      function evalRight(e2) {
+        var dScroll = scEl ? (scEl.scrollLeft - scroll0) : 0;
+        var rawDur = Math.max(0.3, Math.min(300, d0 + (e2.clientX - px0 + dScroll) / tlPPS));
+        var endCandidate = s.start + rawDur;
+        var res = e2.altKey
+          ? { time: endCandidate, snapped: false, type: null }
+          : snapDetail(endCandidate, idx, s.start + 300);
+        curDur = Math.max(0.3, res.time - s.start);
+        var dd = curDur - d0;
+
+        b.style.width = Math.max(14, curDur * tlPPS) + "px";
+        if (durLabel) durLabel.textContent = curDur.toFixed(2) + "s";
+
+        if (isSeq) {
+          downstream.forEach(function (el) {
+            el.style.transform = "translateX(" + (dd * tlPPS) + "px)";
+          });
+          var expTotal = Math.max(total, total + dd);
+          var expCw = Math.max(220, Math.round(expTotal * tlPPS));
+          if (gridEl) gridEl.style.width = (HEAD_W + expCw) + "px";
+          if (rulerEl) rulerEl.style.width = expCw + "px";
+          laneEls.forEach(function (ln) { ln.style.width = expCw + "px"; });
+        }
+
+        showSnapGuide(res.snapped ? s.start + curDur : null, res.type);
+        var deltaSign = dd >= 0 ? "+" : "";
+        var bRect = b.getBoundingClientRect();
+        showDragHud(bRect.right, bRect.top,
+          curDur.toFixed(2) + "s (" + deltaSign + dd.toFixed(2) + "s)" +
+          (res.snapped ? (res.type === "playhead" ? " [播放头]" : " [对齐]") : ""));
+      }
+
+      var scroller = makeAutoScroller(evalRight, true);
+
+      function restore() {
+        b.style.width = w + "px";
+        if (durLabel) durLabel.textContent = d0.toFixed(2) + "s";
+        downstream.forEach(function (el) { el.style.transform = ""; });
+        var baseCw = Math.max(220, Math.round(total * tlPPS));
+        if (gridEl) gridEl.style.width = (HEAD_W + baseCw) + "px";
+        if (rulerEl) rulerEl.style.width = baseCw + "px";
+        laneEls.forEach(function (ln) { ln.style.width = baseCw + "px"; });
+      }
+
+      function onKey(kev) {
+        if (kev.key === "Escape") {
+          kev.preventDefault();
+          cancelled = true;
+          restore();
+          cleanup();
+        }
+      }
+
+      function cleanup() {
+        scroller.stop();
+        trimR.classList.remove("active");
+        hideDragOverlays();
+        window.removeEventListener("pointermove", mv);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("keydown", onKey, true);
+      }
+
+      function mv(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        evalRight(e2);
+        scroller.update(e2);
+      }
+
+      function cancel(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        cancelled = true;
+        restore();
+        cleanup();
+      }
+
+      function up(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        cleanup();
+        if (cancelled) return;
+        if (Math.abs(curDur - d0) > 0.03) {
+          trimCommit(idx, curDur);
+        } else {
+          restore();
+        }
+      }
+
+      window.addEventListener("pointermove", mv);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", cancel);
+      window.addEventListener("keydown", onKey, true);
+    });
+
+    // 2b. 左缘裁剪：叠加轨调整 start + duration（并顺延 video_from）；顺序主轨裁剪入点与时长
+    trimL.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      var pid = e.pointerId;
+      var px0 = e.clientX;
+      var scEl = $("tl-scroll");
+      var scroll0 = scEl ? scEl.scrollLeft : 0;
+      var origStart = s.start;
+      var d0 = s.dur;
+      var origEnd = origStart + d0;
+      var origVideoFrom = spec.video
+        ? (Number(spec.video_from) ||
+           (typeof spec.video === "object" ? Number(spec.video.from) || 0 : 0))
+        : 0;
+      var isPositioned = spec.start !== undefined || (Number(spec.track) || 0) !== 0;
+      var minStart = isPositioned ? 0 : Math.max(-origVideoFrom, -60);
+      if (isPositioned && spec.video) minStart = Math.max(0, origStart - origVideoFrom);
+      var maxStart = origEnd - 0.3;
+
+      var curStart = origStart;
+      var curDur = d0;
+      var curDelta = 0;
+      var cancelled = false;
+      var durLabel = b.querySelector(".dur");
+
+      trimL.classList.add("active");
+      dragShield(true);
+      if (trimL.setPointerCapture && pid !== undefined) {
+        try { trimL.setPointerCapture(pid); } catch { /* ignore */ }
+      }
+
+      function evalLeft(e2) {
+        var dScroll = scEl ? (scEl.scrollLeft - scroll0) : 0;
+        var rawStart = Math.max(minStart, Math.min(maxStart, origStart + (e2.clientX - px0 + dScroll) / tlPPS));
+        if (!isPositioned && spec.video) {
+          rawStart = Math.max(origStart - origVideoFrom, rawStart);
+        }
+        var res = e2.altKey
+          ? { time: rawStart, snapped: false, type: null }
+          : snapDetail(rawStart, idx, maxStart);
+        var snapped = Math.max(minStart, Math.min(maxStart, res.time));
+        if (!isPositioned && spec.video) {
+          snapped = Math.max(origStart - origVideoFrom, snapped);
+        }
+        curStart = snapped;
+        curDelta = curStart - origStart;
+        curDur = Math.max(0.3, origEnd - curStart);
+
+        b.style.left = (Math.max(0, curStart) * tlPPS) + "px";
+        b.style.width = Math.max(14, curDur * tlPPS) + "px";
+        if (durLabel) durLabel.textContent = curDur.toFixed(2) + "s";
+
+        showSnapGuide(res.snapped && curStart >= 0 ? curStart : null, res.type);
+        var bRect = b.getBoundingClientRect();
+        var note = isPositioned
+          ? "@" + curStart.toFixed(2) + "s · " + curDur.toFixed(2) + "s"
+          : "时长 " + curDur.toFixed(2) + "s" +
+            (spec.video ? " · 入点 " + Math.max(0, origVideoFrom + curDelta).toFixed(2) + "s" : "");
+        showDragHud(bRect.left, bRect.top, note);
+      }
+
+      var scroller = makeAutoScroller(evalLeft);
+
+      function restore() {
+        b.style.left = (origStart * tlPPS) + "px";
+        b.style.width = w + "px";
+        if (durLabel) durLabel.textContent = d0.toFixed(2) + "s";
+      }
+
+      function onKey(kev) {
+        if (kev.key === "Escape") {
+          kev.preventDefault();
+          cancelled = true;
+          restore();
+          cleanup();
+        }
+      }
+
+      function cleanup() {
+        scroller.stop();
+        trimL.classList.remove("active");
+        hideDragOverlays();
+        window.removeEventListener("pointermove", mv);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("keydown", onKey, true);
+      }
+
+      function mv(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        evalLeft(e2);
+        scroller.update(e2);
+      }
+
+      function cancel(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        cancelled = true;
+        restore();
+        cleanup();
+      }
+
+      function up(e2) {
+        if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+        cleanup();
+        if (cancelled) return;
+        if (Math.abs(curDur - d0) > 0.03) {
+          trimLeftCommit(idx, {
+            newDur: curDur,
+            newStart: isPositioned ? curStart : undefined,
+            newVideoFrom: spec.video ? Math.max(0, origVideoFrom + curDelta) : undefined
+          });
+        } else {
+          restore();
+        }
+      }
+
+      window.addEventListener("pointermove", mv);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", cancel);
+      window.addEventListener("keydown", onKey, true);
+    });
+
+    b.appendChild(trimL);
+    b.appendChild(trimR);
+  }
+
+  // 评论角标（HF Comment 同款）：该镜留过评论即显示，点击直达 Inspector 评论编辑区
+  if (spec.comment) {
+    var cmt = mk("div", "cmt-badge", "💬");
+    cmt.title = "评论：" + spec.comment.slice(0, 80);
+    cmt.addEventListener("click", function (e) {
+      e.stopPropagation();
+      selectScene(idx, false);
+      var ta = $("insp-comment");
+      if (ta) {
+        ta.scrollIntoView({ block: "center" });
+        ta.focus({ preventScroll: true });
+      }
+    });
+    b.appendChild(cmt);
+  }
+  lane.appendChild(b);
 }
 
 export function trackHead(td, sub, val) {
@@ -198,6 +613,7 @@ export function trackHead(td, sub, val) {
   };
   return h;
 }
+
 export function fitTimeline() {
   var view = Math.max(240, $("timeline").clientWidth - HEAD_W - 16);
   tlFitPPS = view / Math.max(state.duration, 0.1);
@@ -205,18 +621,23 @@ export function fitTimeline() {
   tlFitted = true;
   renderTimeline();
 }
-export function zoomTimeline(factor) {
+
+/* 以指针位置为锚点缩放时间轴（未传入 clientX 时退回视口中点） */
+export function zoomTimeline(factor, clientX) {
   var sc = $("tl-scroll");
-  var anchor = (sc.scrollLeft + sc.clientWidth / 2 - HEAD_W) / tlPPS;
+  var rect = sc.getBoundingClientRect();
+  var vpX = (typeof clientX === "number" && isFinite(clientX))
+    ? Math.max(HEAD_W, clientX - rect.left)
+    : sc.clientWidth / 2;
+  var anchor = Math.max(0, (sc.scrollLeft + vpX - HEAD_W) / tlPPS);
   tlPPS = Math.max(12, Math.min(600, tlPPS * factor));
   renderTimeline();
-  sc.scrollLeft = Math.max(0,
-    HEAD_W + anchor * tlPPS - sc.clientWidth / 2);
+  sc.scrollLeft = Math.max(0, HEAD_W + anchor * tlPPS - vpX);
   $("tl-zoom-label").textContent =
       Math.round(tlPPS / (tlFitPPS || tlPPS) * 100) + "%";
 }
-/* 放大到某个片段：让该片段占据视图约 70%，便于精细裁剪 / 编辑短素材。
-   双击片段或点工具栏「所选」触发；不改变其他片段的逻辑。 */
+
+/* 放大到某个片段：让该片段占据视图约 70%，便于精细裁剪 / 编辑短素材。 */
 export function zoomToScene(idx) {
   var s = state.scenes[idx];
   if (!s) return;
@@ -230,212 +651,6 @@ export function zoomToScene(idx) {
   sc.scrollLeft = Math.max(0, center - sc.clientWidth / 2);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function renderTimeline() {
   var total = Math.max(state.duration, 0.1);
   if (!tlFitted) {
@@ -448,7 +663,6 @@ export function renderTimeline() {
   var grid = $("tl-grid");
   grid.style.width = (HEAD_W + cw) + "px";
   grid.replaceChildren();
-  // 轨道 DOM 重建后清掉写入缓存，否则新元素会因「值没变」而留空。
   lastTcHtml = lastLabel = lastBadge = lastTlTc = "";
   $("tl-zoom-label").textContent =
       Math.round(tlPPS / (tlFitPPS || tlPPS) * 100) + "%";
@@ -478,21 +692,15 @@ export function renderTimeline() {
 
   TRACKS.forEach(function (td, ri) {
     if (td.kind === "scene") {
-      // 多视频轨（HF 多轨语义）：按 spec.scenes[i].track 分组动态行——
-      // 轨 0 主轨 + 有 clip 的叠加轨。行内 clip 构建共用 buildSceneClip。
       var vTracks = {};
       state.scenes.forEach(function (s, idx) {
         var tr = Number(((state.spec.scenes || [])[idx] || {}).track) || 0;
         (vTracks[tr] = vTracks[tr] || []).push(idx);
       });
-      var vKeys = Object.keys(vTracks).sort(function (a, b) { return a - b; });
-      /* 轨 0/1 常驻（空叠加轨显示拖放提示）——HF 空轨生成语义。
-         空轨补空分组（否则 vTracks[tr] undefined → .length 崩）。 */
       ["0", "1"].forEach(function (tr) {
         vTracks[tr] = vTracks[tr] || [];
-        if (vKeys.indexOf(tr) < 0) vKeys.push(tr);
       });
-      vKeys.sort(function (a, b) { return a - b; });
+      var vKeys = Object.keys(vTracks).sort(function (a, b) { return Number(a) - Number(b); });
       vKeys.forEach(function (tr, vi) {
         var row2 = mk("div", "tl-row v-scene" + (vi % 2 ? " alt" : "") +
                       (tr !== "0" ? " overlay-row" : ""));
@@ -502,8 +710,7 @@ export function renderTimeline() {
           { kind: "scene",
             name: tr === "0" ? "场景 / Video" : "叠加轨 " + tr,
             row: "v-scene" },
-          vTracks[tr].length + " clips · " + state.width + "×" +
-            state.height, ""));
+          vTracks[tr].length + " clips · " + state.width + "×" + state.height, ""));
         var lane = mk("div", "tl-lane");
         lane.style.width = cw + "px";
         lane.dataset.kind = "scene";
@@ -512,7 +719,7 @@ export function renderTimeline() {
         grid.appendChild(row2);
         if (!vTracks[tr].length) {
           lane.appendChild(mk("div", "lane-hint",
-            "＋ 拖片段到此轨（叠加层），或在「对话」追加场景"));
+            "＋ 拖片段到此轨自由放置时间（叠加层），或从「对话」追加场景"));
         }
         vTracks[tr].forEach(function (idx) { buildSceneClip(idx, lane, tr); });
       });
@@ -521,18 +728,13 @@ export function renderTimeline() {
 
     var row = mk("div", "tl-row " + td.row + (ri % 2 ? " alt" : ""));
     row.dataset.kind = td.kind;
-    var audio = td.kind === "narration" || td.kind === "sfx" ||
-                td.kind === "bgm";
+    var audio = td.kind === "narration" || td.kind === "sfx" || td.kind === "bgm";
     var clips = audio ? state.audios.filter(function (a) {
       return a.kind === td.kind;
     }) : [];
-    var sub = td.kind === "scene"
-      ? state.scenes.length + " clips · " + state.width + "×" + state.height
-      : td.kind === "caption" ? capTrackSub()
-      : clips.length + " clips · " +
-        (td.kind === "narration" ? "voice/" : "assets/");
-    row.appendChild(trackHead(td, sub,
-      td.kind === "narration" ? "1.00" : ""));
+    var sub = td.kind === "caption" ? capTrackSub()
+      : clips.length + " clips · " + (td.kind === "narration" ? "voice/" : "assets/");
+    row.appendChild(trackHead(td, sub, td.kind === "narration" ? "1.00" : ""));
     var lane = mk("div", "tl-lane");
     lane.style.width = cw + "px";
     lane.dataset.kind = td.kind;
@@ -542,7 +744,6 @@ export function renderTimeline() {
     if (td.kind === "caption") {
       var segs = capSegments();
       if (segs.length) {
-        // ASR / 外部字幕：按真实时间戳一段一块
         segs.forEach(function (seg) {
           var a = Math.max(0, Number(seg.start) || 0);
           var z = Math.max(a + 0.05, Number(seg.end) || a + 0.05);
@@ -573,8 +774,7 @@ export function renderTimeline() {
     } else {
       clips.forEach(function (a) {
         var w = Math.max(14, Math.min(a.dur || total, total) * tlPPS);
-        var b = mk("div", "clip audio locked" +
-                   (td.kind === "narration" ? "" : " slim"));
+        var b = mk("div", "clip audio locked" + (td.kind === "narration" ? "" : " slim"));
         b.style.left = (a.start * tlPPS) + "px";
         b.style.width = w + "px";
         var nm = a.src.split("/").pop();
@@ -586,164 +786,85 @@ export function renderTimeline() {
         b.title = a.src + " · " + (a.dur || 0).toFixed(2) + "s";
         b.onclick = function () { seekTo(a.start + 0.01); };
         lane.appendChild(b);
-        // 真实峰值是异步来的（ffmpeg 抽一次，之后走服务端缓存）。
-        // 拿到就替换示意波形；没有音轨则保持原样。
         loadWaveForClip(b.querySelector(".wave"), a.src, w, wh,
                         td.kind === "narration", a.media_start || 0, a.dur || 0);
       });
     }
   });
+
   var ph = mk("div", "", '<span class="ph-tc"></span>');
   ph.id = "playhead";
   grid.appendChild(ph);
-  // 区间覆盖层：整块重排后必须重建（innerHTML 清空会把旧节点连同选区一起丢掉）。
+
   ensureRangeOverlay();
   applyRangeGeom();
   syncRangeUI();
-  if (!playing) phVisual = lastTime;  // 暂停态恢复真实位置
+  if (!playing) phVisual = lastTime;
   updatePlayhead(phVisual, total);
-  // 播放头元素被重建，必须重新挂上合成层过渡，否则会停在起点。
   if (playing) startPhAnim(phVisual);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ---------------- 全局标尺 / 空白区 Scrub 与滚轮居中缩放 ---------------- */
 (function () {
   function scrubAt(ev) {
     var rect = $("tl-grid").getBoundingClientRect();
     var total = Math.max(state.duration, 0.1);
-    var t = Math.max(0, Math.min(total,
-      (ev.clientX - rect.left - HEAD_W) / tlPPS));
-    seekTo(tlSnap ? snapTime(t) : Math.round(t * fps()) / fps());
+    var t = Math.max(0, Math.min(total, (ev.clientX - rect.left - HEAD_W) / tlPPS));
+    var val = ev.altKey
+      ? Math.round(t * fps()) / fps()
+      : (tlSnap ? snapTime(t) : Math.round(t * fps()) / fps());
+    seekTo(val);
   }
-  $("timeline").addEventListener("mousedown", function (ev) {
+
+  $("timeline").addEventListener("pointerdown", function (ev) {
+    if (ev.button !== 0) return;
     if (ev.target.closest(".tl-head") || ev.target.closest(".tl-ih")) return;
-    var onTrim = ev.target.closest(".trim") || ev.target.closest(".mv");
-    if (!onTrim && (tlRangeMode || ev.shiftKey)) { startRangeDrag(ev); return; }
-    if (ev.target.closest(".clip")) return;
-    scrubAt(ev);
-    function mv(e2) { scrubAt(e2); }
-    function up() {
-      document.removeEventListener("mousemove", mv);
-      document.removeEventListener("mouseup", up);
+    var onClip = ev.target.closest(".clip");
+    var onTrim = ev.target.closest(".trim");
+    if (!onTrim && !onClip && (tlRangeMode || ev.shiftKey)) {
+      startRangeDrag(ev);
+      return;
     }
-    document.addEventListener("mousemove", mv);
-    document.addEventListener("mouseup", up);
+    // 允许直接拖标尺、#playhead 顶盖、或非场景空白轨道，不抢场景 clip 的拖动
+    if (onClip && !ev.target.closest(".tl-ruler") && ev.target.id !== "playhead") return;
+
+    var pid = ev.pointerId;
+    var tl = $("timeline");
+    dragShield(true);
+    if (tl && tl.setPointerCapture && pid !== undefined) {
+      try { tl.setPointerCapture(pid); } catch { /* ignore */ }
+    }
+    scrubAt(ev);
+    var scroller = makeAutoScroller(scrubAt);
+
+    function mv(e2) {
+      if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+      scrubAt(e2);
+      scroller.update(e2);
+    }
+    function up(e2) {
+      if (pid !== undefined && e2.pointerId !== undefined && e2.pointerId !== pid) return;
+      scroller.stop();
+      dragShield(false);
+      window.removeEventListener("pointermove", mv);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    }
+    window.addEventListener("pointermove", mv);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   });
+
   $("timeline").addEventListener("wheel", function (ev) {
-    if (!(ev.ctrlKey || ev.metaKey)) return;
-    ev.preventDefault();
-    zoomTimeline(ev.deltaY < 0 ? 1.25 : 0.8);
+    if (ev.ctrlKey || ev.metaKey) {
+      ev.preventDefault();
+      zoomTimeline(ev.deltaY < 0 ? 1.25 : 0.8, ev.clientX);
+      return;
+    }
+    if (ev.shiftKey && ev.deltaY && !ev.deltaX) {
+      ev.preventDefault();
+      var sc = $("tl-scroll");
+      if (sc) sc.scrollLeft += ev.deltaY;
+    }
   }, { passive: false });
 })();

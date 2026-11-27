@@ -136,49 +136,31 @@ try {
   await page.screenshot({ path: join(outDir, "e2e-05-import.png") });
   await page.mouse.click(10, 10); // dialog ::backdrop 点击关闭
 
-  // 5. Storyboard 逐镜审阅（first-video "approve the storyboard" 本地版；
-  //    M5+：第四个 tab「分镜」+ 点画面选中（不跳走）+ 卡上内联编辑）
-  await page.click("#tab-storyboard");
+  // 5. Storyboard 全局网格（预览区 Main/Storyboard 双 tab）
+  await page.click("#pv-tab-sb");
   await page.waitForTimeout(400);
-  const sbCards = await page.locator("#sb-list .sb-card").count();
+  const sbCards = await page.locator("#sbgrid-view .sbgrid-card").count();
   const apiSceneCount = await page.evaluate(async () => {
     const st = await (await fetch("/api/state")).json();
     return (st.scenes || []).length;
   });
   if (sbCards !== apiSceneCount) fail(`storyboard 卡数 ${sbCards} ≠ 场景数 ${apiSceneCount}`);
-  else ok(`storyboard 逐镜卡 ${sbCards} 张（与 /api/state 一致）`);
+  else ok(`storyboard 全局网格 ${sbCards} 张（与 /api/state 一致）`);
   await page.screenshot({ path: join(outDir, "e2e-06-storyboard.png") });
-  // 点画面 = 选中该镜（面板保持打开，Inspector 联动不跳走）
-  await page.locator("#sb-list .sb-card .sb-shot").first().click();
+  // 点卡 = 选中该镜（Inspector + 场景列表联动）
+  await page.locator("#sbgrid-view .sbgrid-card").first().click();
   await page.waitForTimeout(300);
-  const shotSel = await page.locator("#sb-list .sb-card.sel").count() &&
+  const shotSel = await page.locator("#sbgrid-view .sbgrid-card.sel").count() &&
       (await page.locator(".sc-card.sel").count());
-  if (!shotSel) fail("点画面后分镜卡/场景卡未选中");
-  else ok("点画面选中该镜（分镜保持打开 + Inspector 联动）");
-  // 「改这镜」= 定位 + 面板收起
-  await page.locator("#sb-list .sb-card .sb-edit").first().click();
+  if (!shotSel) fail("点网格卡后分镜卡/场景卡未选中");
+  else ok("点网格卡选中该镜（Inspector 联动）");
+  // 切回 Main 预览
+  await page.click("#pv-tab-main");
   await page.waitForTimeout(300);
-  const sbHidden = await page.locator("#sb-panel")
+  const sbHidden = await page.locator("#sbgrid-view")
     .evaluate((el) => el.style.display === "none");
-  if (!sbHidden) fail("「改这镜」后 storyboard 面板未收起");
-  else if (!(await page.locator(".sc-card.sel").count()))
-    fail("「改这镜」后场景卡未选中");
-  else ok("「改这镜」定位链（面板收起 + 场景选中）");
-  // 内联编辑：卡上改文案 → 应用 → /api/recompose → spec 同步
-  await page.click("#tab-storyboard");
-  await page.waitForTimeout(400);
-  const editText = `e2e 内联编辑 ${Date.now()}`;
-  await page.locator("#sb-list .sb-card .sb-edit-text").first()
-    .fill(editText);
-  await page.locator("#sb-list .sb-card .sb-apply").first().click();
-  await page.waitForTimeout(1500);
-  const after = await page.evaluate(async () => {
-    const st = await (await fetch("/api/state")).json();
-    return (st.spec.scenes[0].text || "");
-  });
-  if (after !== editText)
-    fail(`内联编辑未写回 spec（${JSON.stringify(after)}）`);
-  else ok("分镜卡内联编辑 → /api/recompose → spec 同步");
+  if (!sbHidden) fail("切回 Main 后 sbgrid-view 未隐藏");
+  else ok("Storyboard ↔ Main 预览切换正常");
 
   // 6. /api/state 可用
   const state = await page.evaluate(async () => {

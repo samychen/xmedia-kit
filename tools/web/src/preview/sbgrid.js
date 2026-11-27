@@ -1,17 +1,71 @@
 /* ---------------- 中央 Storyboard 网格（HF 预览区 Main/Storyboard
  * 双 tab 的 Storyboard 形态）----------------
  * 预览区顶部双 tab：Main = 成片预览；Storyboard = 全镜大图网格总览
- * （与左栏逐镜审阅分工：左栏看节奏/内联编辑，中央一屏看全部镜头的
- * 叙事流）。画面填充复用 panels/storyboard.js 的 fillSceneVisual；
- * 点卡 = 选中该镜 + seek 到镜头起点（Main 回去即看到该帧）。 */
-import { $, escHtml, log } from "../shared/dom.js";
-import { mk } from "../timeline/model.js";
+ * （一屏看全部镜头的叙事流）。
+ * 点卡 = 选中该镜（联动 Inspector）+ seek 到镜头起点（Main 回去即看到该帧）。 */
+import { $, escHtml } from "../shared/dom.js";
+import { api } from "../shared/api-client.js";
+import { loadThumbsForClip, mk } from "../timeline/model.js";
 import { selectScene } from "../panels/scenes.js";
 import { seekTo } from "./driver.js";
 import { fitPreview } from "./zoom.js";
-import { sceneFlatText, fillSceneVisual } from "../panels/storyboard.js";
 
 let sbGridOn = false;
+
+/* 无 video 场景的真实帧：html_bake 低分辨率全段烘焙 → 场景中点抽帧
+ * （服务端 /api/sb-frames，契约页 mtime 失效，URL 自带版本号——重组合
+ * 成后浏览器缓存自然失效）。 */
+export function sbFrames() {
+  return api("/api/sb-frames");
+}
+
+export function sceneMedia(sc) {
+  var v = sc.video;
+  if (!v) return null;
+  var src = typeof v === "string" ? v : String(v.src || "");
+  if (!src || /^https?:/i.test(src)) return null; // 站外源不走本地 thumbs
+  return { src: src, from: Number(sc.video_from) || 0 };
+}
+
+export function sceneFlatText(sc) {
+  return sc.subtitle || sc.text || sc.quote ||
+      (Array.isArray(sc.items) ? sc.items.join(" · ") : "") ||
+      "（无文案）";
+}
+
+/* 场景画面填充：视频场景 4 连拍网格；无视频场景先色块+文案兜底，再异步换 /api/sb-frames 真实帧 */
+export function fillSceneVisual(shot, sc, i, dur) {
+  var media = sceneMedia(sc);
+  var bg = /^#[0-9a-fA-F]{6}$/.test(sc.bg || "") ? sc.bg : "#23232f";
+  if (!media) shot.classList.add("flat");
+  shot.style.background = media ? "" : bg;
+  if (media) {
+    loadThumbsForClip(shot, media.src, media.from, dur);
+  } else {
+    var txt = mk("div", "sb-flat-text");
+    txt.textContent = sceneFlatText(sc);
+    shot.appendChild(txt);
+    (function (shotEl, idx) {
+      sbFrames().then(function (data) {
+        var url = data && data.urls ? data.urls[idx] : null;
+        if (!url) return;
+        var img = new Image();
+        img.onload = function () {
+          if (shotEl.isConnected && !shotEl.querySelector("img")) {
+            shotEl.textContent = "";   // 清掉色块+文字兜底
+            shotEl.style.background = "";
+            img.style.width = "100%";
+            img.style.height = "100%";
+            img.style.objectFit = "cover";
+            shotEl.appendChild(img);
+          }
+        };
+        img.src = url;
+      }).catch(function () { /* 帧渲染失败保持色块兜底 */ });
+    })(shot, i);
+  }
+  return media;
+}
 
 export function sbGridShow(on) {
   sbGridOn = !!on;
@@ -80,6 +134,8 @@ export function sbGridRender() {
       var badges = mk("div", "sb-narrative");
       badges.innerHTML =
         '<span class="sb-badge t">' + escHtml(frame.type) + "</span>" +
+        (frame.persuasion ? '<span class="sb-badge p">' +
+          escHtml(frame.persuasion) + "</span>" : "") +
         (frame.beat ? '<span class="sb-badge b">' +
           escHtml(frame.beat) + "</span>" : "");
       card.appendChild(badges);

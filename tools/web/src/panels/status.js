@@ -8,7 +8,7 @@ import { escHtml, log, $ } from "../shared/dom.js";
 import { fps } from "../shared/time.js";
 import { rangeClamp, rangeOpen } from "../timeline/range.js";
 import { renderTimeline } from "../timeline/render.js";
-import { storyboardIsOpen, storyboardRender } from "./storyboard.js";
+import { sbGridIsOn, sbGridRender } from "../preview/sbgrid.js";
 
 /* ---------------- 校验 / 状态 ---------------- */
 export function renderFindings(f) {
@@ -70,7 +70,7 @@ export function refresh(keepSpec) {
         return '<option value="' + escHtml(m) + '"></option>';
       }).join("");
     }
-    if (storyboardIsOpen()) storyboardRender();
+    if (sbGridIsOn()) sbGridRender();
     renderFindings(s.findings);
     pendingSeek = lastTime;
     pendingApplied = false;

@@ -58,17 +58,7 @@
                align-items: center; gap: 7px; }
 
 
-/* ---------- Storyboard 逐镜审阅（first-video "Approve the storyboard" 本地版） ---------- */
-  #sb-panel { display: none; flex-direction: column; }
-  #sb-panel[style*="flex"] { display: flex; }
-  .sb-list { flex: 1; overflow: auto; padding: 10px;
-             display: flex; flex-direction: column; gap: 12px; }
-  .sb-card { border: 1px solid var(--line); border-radius: 10px;
-             background: var(--panel2); overflow: hidden; }
-  .sb-card.sel { border-color: var(--acc);
-                 background: rgba(109, 139, 255, .10); }
-  .sb-head { display: flex; align-items: center; gap: 8px;
-             padding: 8px 10px 0; font-variant-numeric: tabular-nums; }
+/* ---------- Storyboard 共享视觉单元（中央网格与空白兜底共用） ---------- */
   .sb-tc { font: 11px ui-monospace, Menlo, monospace; color: var(--dim); }
   .sb-type { margin-left: auto; font-size: 10.5px; color: var(--dim);
              text-transform: uppercase; letter-spacing: .8px; }
@@ -84,28 +74,7 @@
                   line-height: 1.5; text-align: center;
                   overflow: hidden; display: -webkit-box;
                   -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-  .sb-foot { display: flex; align-items: center; gap: 8px;
-             padding: 0 10px 10px; }
-  .sb-text { flex: 1; min-width: 0; font-size: 11.5px; color: var(--dim);
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sb-empty { padding: 24px; text-align: center; color: var(--dim); }
-  /* 分镜卡片内联编辑：文案 + 时长 + 应用 */
-  .sb-editor { padding: 0 10px 10px; display: flex;
-               flex-direction: column; gap: 7px; }
-  .sb-edit-text { width: 100%; background: var(--panel2); color: var(--ink);
-                  border: 1px solid var(--line); border-radius: 7px;
-                  padding: 7px 9px; font-size: 11.5px; line-height: 1.5;
-                  resize: vertical; outline: none; }
-  .sb-edit-text:focus { border-color: var(--acc); }
-  .sb-edit-text:disabled { opacity: .5; }
-  .sb-edit-row { display: flex; align-items: center; gap: 7px;
-                 font-size: 11px; color: var(--dim); }
-  .sb-edit-row .sp { flex: 1; }
-  .sb-edit-dur { width: 62px; background: var(--panel2); color: var(--ink);
-                 border: 1px solid var(--line); border-radius: 6px;
-                 padding: 4px 6px; font-size: 11px; outline: none; }
-  .sb-apply { font-size: 11px; padding: 4px 12px; }
-  .sb-edit-note { font-size: 10.5px; color: var(--dim); line-height: 1.5; }
   /* 叙事徽标（spec.storyboard.frames：type/persuasion/beat） */
   .sb-narrative { display: flex; flex-wrap: wrap; gap: 5px;
                   padding: 0 10px 4px; }
@@ -171,7 +140,7 @@ body.docking .center { animation: dock-in .6s .1s cubic-bezier(.2, .8, .3, 1) ba
 .pj-nav-card .pj-thumb img { height: 72px; }
 .pj-nname { font-size: 12.5px; font-weight: 700; }
 .pj-nmeta { font-size: 10.5px; color: var(--dim); margin-top: 3px; }
-/* 8 tab 宽度适配：压缩 padding/字号 */
+/* 7 tab 宽度适配：压缩 padding/字号 */
 .tabs { gap: 1px; }
 .tab { padding: 7px 0 !important; font-size: 11px !important;
   letter-spacing: -0.01em; }
