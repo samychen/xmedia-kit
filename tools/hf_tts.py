@@ -30,6 +30,7 @@
 # TTS_ENDPOINT（也读 OMNIVOICE_ENDPOINT，对齐参考项目）。
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -41,6 +42,34 @@ import urllib.request
 # 复用 hf_compose 的 ffprobe 时长探测（不重复实现）。
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hf_compose import _probe_audio_duration, tts_text
+
+_AUDIO_EXTS = (".wav", ".mp3", ".m4a", ".aac", ".ogg", ".flac")
+
+
+def _has_edge_tts():
+    return importlib.util.find_spec("edge_tts") is not None
+
+
+def _is_audio_file(val, spec_dir):
+    if not isinstance(val, str):
+        return False
+    low = val.strip().lower()
+    if not low.endswith(_AUDIO_EXTS):
+        return False
+    p = val if os.path.isabs(val) else os.path.join(spec_dir, val)
+    return os.path.isfile(p)
+
+
+def edge_tts_gen(text, out_path, voice, rate):
+    """Edge-TTS 自然人声合成（免费神经网络语音），产出 mp3。"""
+    if not voice:
+        has_zh = bool(re.search(r"[\u4e00-\u9fff]", text))
+        voice = "zh-CN-XiaoxiaoNeural" if has_zh else "en-US-AriaNeural"
+    cmd = [sys.executable, "-m", "edge_tts", "--voice", str(voice),
+           "--text", text, "--write-media", out_path]
+    if rate and isinstance(rate, str) and (rate.startswith("+") or rate.startswith("-")):
+        cmd += ["--rate", rate]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
 
 
 def say_tts(text, out_path, voice, rate):
@@ -70,12 +99,22 @@ def http_tts(text, out_path, voice, rate, endpoint):
 
 
 def tts_one(provider, text, out_path, voice, rate, endpoint):
-    if provider == "say":
+    if provider == "edge":
+        try:
+            edge_tts_gen(text, out_path, voice, rate)
+        except Exception:
+            if sys.platform == "darwin":
+                wav_fallback = os.path.splitext(out_path)[0] + ".wav"
+                say_tts(text, wav_fallback, None, None)
+                return wav_fallback
+            raise
+    elif provider == "say":
         say_tts(text, out_path, voice, rate)
     else:
         http_tts(text, out_path, voice, rate, endpoint)
     if _probe_audio_duration(out_path) is None:
         raise RuntimeError(f"TTS 产物无法探测时长：{out_path}")
+    return out_path
 
 
 def main():
@@ -83,7 +122,7 @@ def main():
     parser.add_argument("spec", help="spec JSON 文件路径")
     parser.add_argument("-o", "--output", default=None,
                         help="输出 narrated spec（默认 <stem>.narrated.json）")
-    parser.add_argument("--provider", default=None, choices=["say", "http"])
+    parser.add_argument("--provider", default=None, choices=["edge", "say", "http"])
     parser.add_argument("--voice", default=None)
     parser.add_argument("--rate", type=int, default=None)
     parser.add_argument("--endpoint", default=None)
@@ -109,9 +148,11 @@ def main():
     # 优先级：CLI > spec > 环境变量 > 默认（spec 是文件契约，环境是
     # 机器级兜底——环境压过 spec 会 surprises：全局 TTS_* 让该 spec 的
     # provider 选择失效）。
+    default_provider = ("edge" if _has_edge_tts()
+                        else ("say" if sys.platform == "darwin" else "http"))
     provider = (args.provider or tts.get("provider")
                 or os.environ.get("TTS_PROVIDER")
-                or ("say" if sys.platform == "darwin" else "http"))
+                or default_provider)
     endpoint = (args.endpoint or tts.get("endpoint")
                 or os.environ.get("TTS_ENDPOINT")
                 or os.environ.get("OMNIVOICE_ENDPOINT")
@@ -127,36 +168,35 @@ def main():
     ext = "wav" if provider == "say" else "mp3"
     generated = skipped = kept = 0
     for idx, scene in enumerate(scenes):
-        text = tts_text(scene)
+        narration = scene.get("narration")
+        raw_text = (narration.strip() if isinstance(narration, str) and not _is_audio_file(narration, spec_dir) else "")
+        text = raw_text or scene.get("narration_text") or tts_text(scene)
         if not text:
             continue
         # 文件名带文本短哈希：词变了自动重生成；跨 spec 的同目录不串音
-        # （同一 voice/ 下两个 spec 的 scene-N 不再按序号误复用）。
         text_hash = hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
         out_path = os.path.join(abs_out_dir,
                                 f"scene-{idx}-{text_hash}.{ext}")
         rel = f"{out_dir}/{os.path.basename(out_path)}"
-        narration = scene.get("narration")
-        # 保留判定：用户自备旁白（非本工具命名 scene-N-<hash>）一律保留；
-        # 本工具命名但哈希不匹配 = 词已变 → 重生成。
-        stale = False
-        if narration:
+        if narration and _is_audio_file(narration, spec_dir):
             m2 = re.match(rf"scene-{idx}-([0-9a-f]{{8}})\.",
                           os.path.basename(narration))
             stale = bool(m2 and m2.group(1) != text_hash)
-        if narration and not stale:
-            kept += 1
-            continue
+            if not stale:
+                kept += 1
+                continue
+        if raw_text and not scene.get("narration_text"):
+            scene["narration_text"] = raw_text
         if os.path.isfile(out_path) and _probe_audio_duration(out_path) is not None:
             scene["narration"] = rel  # 幂等：已生成则直接挂路径
             skipped += 1
             continue
         try:
-            tts_one(provider, text, out_path, voice, rate, endpoint)
+            actual_out = tts_one(provider, text, out_path, voice, rate, endpoint)
         except (subprocess.CalledProcessError, RuntimeError, OSError) as e:
             print(f"hf_tts: scene-{idx} 失败：{e}", file=sys.stderr)
             sys.exit(1)
-        scene["narration"] = rel
+        scene["narration"] = f"{out_dir}/{os.path.basename(actual_out)}"
         generated += 1
 
     if args.output:

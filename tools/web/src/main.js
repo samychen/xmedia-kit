@@ -29,7 +29,6 @@ import "./timeline/trim.js";
 import "./panels/status.js";
 import "./panels/export.js";
 import "./bindings.js";
-import "./panels/script.js";
 import "./shortcuts.js";
 import "./agent/ask.js";
 import "./agent/pending.js";

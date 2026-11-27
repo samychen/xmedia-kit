@@ -1,5 +1,6 @@
 import { expOpen } from "./export.js";
 import { renderInspector } from "./inspector.js";
+import { renderLayersPanel, renderFilesPanel, renderSettingsPanel, renderPvSceneTabs } from "./layers.js";
 import { renderSceneList, renderPresetSelect } from "./scenes.js";
 import { stopPhAnim } from "../preview/playhead.js";
 import { fitPreview } from "../preview/zoom.js";
@@ -8,7 +9,6 @@ import { escHtml, log, $ } from "../shared/dom.js";
 import { fps } from "../shared/time.js";
 import { rangeClamp, rangeOpen } from "../timeline/range.js";
 import { renderTimeline } from "../timeline/render.js";
-import { sbGridIsOn, sbGridRender } from "../preview/sbgrid.js";
 
 /* ---------------- 校验 / 状态 ---------------- */
 export function renderFindings(f) {
@@ -64,13 +64,13 @@ export function refresh(keepSpec) {
     $("dims").textContent = s.width + "×" + s.height + " · " +
         (comp.fps || 30) + "fps";
     fitPreview(); renderPresetSelect(); renderSceneList(); renderTimeline(); renderInspector();
+    renderLayersPanel(); renderFilesPanel(); renderSettingsPanel(); renderPvSceneTabs();
     var mediaDl = $("insp-media-list");
     if (mediaDl) {
       mediaDl.innerHTML = (s.media_files || []).map(function (m) {
         return '<option value="' + escHtml(m) + '"></option>';
       }).join("");
     }
-    if (sbGridIsOn()) sbGridRender();
     renderFindings(s.findings);
     pendingSeek = lastTime;
     pendingApplied = false;

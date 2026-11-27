@@ -23,6 +23,7 @@ export var FIELD_DEFS = {
                ["左列条目（每行一条）", "left_items", "textarea"],
                ["右列条目（每行一条）", "right_items", "textarea"]],
   outro: [["文本", "text"]],
+  html: [["HTML 内容", "html", "textarea"], ["CSS 样式", "css", "textarea"]],
 };
 export var SCENE_DEFAULTS = {
   title: { type: "title", kicker: "OVERVIEW", text: "核心主题标题",
@@ -44,6 +45,9 @@ export var SCENE_DEFAULTS = {
            quote: "让每一帧构图与节奏都有清晰表达。", author: "创作团队",
            duration: 3.5, animation: "fade_in" },
   outro: { type: "outro", text: "立即开始体验", duration: 2.8, animation: "fade_in" },
+  html: { type: "html", bg: "#0F1117", duration: 4.0,
+          html: "<div class=\"anim\" style=\"display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#fff;font-family:sans-serif\"><h1 style=\"font-size:72px;margin:0\">自由 HTML 场景</h1><p style=\"font-size:28px;opacity:.75\">支持任意 Flex/Grid/SVG 与 CSS 动效</p></div>",
+          css: "", animation: "fade_in" },
 };
 export function sceneFields(sc) {
   var def = FIELD_DEFS[sc.type];
@@ -67,6 +71,7 @@ export function sceneSummary(sc) {
 }
 export function renderSceneList() {
   var list = $("scene-list");
+  if (!list) return;
   var scenes = (state.spec && state.spec.scenes) || [];
   var html = "";
   for (var i = 0; i < scenes.length; i++) {

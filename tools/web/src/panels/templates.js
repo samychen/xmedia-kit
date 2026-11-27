@@ -7,6 +7,37 @@ import { api } from "../shared/api-client.js";
 import { $, escHtml, log } from "../shared/dom.js";
 import { refresh } from "./status.js";
 
+function makeTplThumb(t) {
+  var box = document.createElement("div");
+  box.className = "tpl-thumb";
+  if (!t.preview_html) return box;
+  var ifr = document.createElement("iframe");
+  ifr.className = "comp-mini-frame";
+  ifr.setAttribute("tabindex", "-1");
+  ifr.onload = function () {
+    try {
+      var idoc = ifr.contentDocument;
+      if (!idoc || !idoc.head || !idoc.body) return;
+      var st = idoc.createElement("style");
+      st.textContent =
+        "html,body{margin:0;padding:0;overflow:hidden;background:#0f1117;}" +
+        "#scene-0{width:1920px;height:1080px;position:relative;transform:scale(0.142);transform-origin:top left;}" +
+        "#scene-0 *{opacity:1!important;visibility:visible!important;}" +
+        (t.preview_css || "");
+      idoc.head.appendChild(st);
+      var sc = idoc.createElement("div");
+      sc.id = "scene-0";
+      sc.className = "clip scene scene-custom";
+      sc.innerHTML = t.preview_html;
+      idoc.body.appendChild(sc);
+    } catch (e) {
+      if (e) return;
+    }
+  };
+  box.appendChild(ifr);
+  return box;
+}
+
 export function tplRender() {
   var list = $("tpl-list");
   if (!list) return;
@@ -49,6 +80,7 @@ export function tplRender() {
             log("插入失败：" + e.message, "err");
           });
       };
+      card.appendChild(makeTplThumb(t));
       card.appendChild(head); card.appendChild(desc);
       card.appendChild(slots); card.appendChild(ins);
       list.appendChild(card);

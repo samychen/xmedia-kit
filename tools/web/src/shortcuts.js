@@ -58,7 +58,7 @@ export function shortcut(code, shift, meta, ctrl, editable) {
 }
 document.addEventListener("keydown", function (ev) {
   var tag = (ev.target.tagName || "").toLowerCase();
-  var editable = tag === "input" || tag === "textarea" || tag === "select";
+  var editable = tag === "input" || tag === "textarea" || tag === "select" || !!ev.target.isContentEditable;
   if (shortcut(ev.code, ev.shiftKey, ev.metaKey, ev.ctrlKey, editable)) {
     ev.preventDefault();
   }

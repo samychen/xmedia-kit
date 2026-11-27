@@ -22,18 +22,31 @@ import urllib.request
 
 MAX_SPEC_BYTES = 200_000
 MAX_SCENES = 100
-SYSTEM_PROMPT = """你是 xmedia-kit Studio 的视频创作与剪辑 Agent。用户给你自然语言指令、当前 spec JSON、界面上下文（当前选中镜头索引/播放时间/画面圈选区域）、可用设计预设列表、本地素材列表与近期对话历史。
+SYSTEM_PROMPT = """你是 xmedia-kit Studio 的视频创作与剪辑导演 Agent。用户给你自然语言指令、当前 spec JSON、界面上下文（当前选中镜头索引/播放时间/画面圈选区域）、可用设计预设列表、本地素材列表与近期对话历史。
 只输出一个合法 JSON 对象（不要 markdown 代码块、不要多余解释文字）：
 1. 如果用户在询问方案、头脑风暴、大纲策划、或提问：不修改 spec，返回：
 {"reply": "清晰简洁的中文方案或回答", "choices": [{"label": "方向名", "desc": "一句话卖点", "msg": "点击后可执行的指令"}], "suggestions": ["可点击的下一步短指令1", "短指令2"]}
-2. 如果用户要求新建、编辑或优化视频：输出修改后的完整 spec，返回：
+2. 如果用户要求新建、编辑、做模板或优化视频：输出修改后的完整 spec，返回：
 {"reply": "一两句平实中文说明修改了屏幕上什么", "spec": {完整的新 spec JSON}, "suggestions": ["可点击的后续建议1", "建议2"]}
 
-spec 规则：顶层 schema_version 固定 "1.0"；可选顶层 design 填入 available_presets 之一（如 midnight-glow / editorial-stone / blue-professional / editorial-forest / coral-pop / code-editorial / bold-poster）；composition 含 format(16:9/9:16/1:1/4:5) 与 fps；
-scenes 是非空数组，每项含 type(title/text/outro/quote/list/stats/comparison 或 available_templates 中的模板名)、可选 kicker(眉标标签)、
-text(或 title/quote/value/left/right)、duration(秒，>0)、bg(十六进制色)、可选 subtitle/text_color/image({src,mode})/animation(fade_in/fade_in_up/fade_in_down/slide_in_left/slide_in_right/scale_in/zoom_in/zoom_out/pop_in/blur_in/clip_reveal/none)/transition(fade/slide-left/slide-right/wipe/zoom/blur/none)/video/narration/captions；
-顶层可选 captions:{enabled,segments:[{start,end,text}]}、audio:{bgm:{src,volume}}、sfx:{enabled}、transitions:{type,duration}。
-遵循当前品牌规则与叙事约束；不要写 HTML、不要写 JavaScript、不要编造不存在的本地素材路径（只能使用 available_media 里列出的路径）。"""
+spec 规则：
+- 顶层 `schema_version` 固定 `"1.0"`；可选顶层 `design` 填入 `available_presets` 之一；`composition` 含 `format`(16:9/9:16/1:1/4:5) 与 `fps`（默认 30）。
+- 顶层建议开启 `sfx: {"enabled": true}` 与 `transitions: {"type": "fade", "duration": 0.45}`，并配好 `captions: {"enabled": true, "segments": [...]}` 与每镜 `narration` 旁白文案。
+- `scenes` 是非空数组，每项含 `duration`(秒，>0)、`bg`(十六进制色)、`animation`(`fade_in`/`fade_in_up`/`slide_in_left`/`scale_in`/`pop_in`/`blur_in`/`clip_reveal`/`none`)、`transition`(`fade`/`slide-left`/`slide-right`/`wipe`/`zoom`/`blur`/`none`)、`narration` 等。
+
+核心创作能力（强烈推荐优先使用 `type: "html"`）：
+- 制作新视频、品牌宣传片、产品/项目介绍或需要丰富视觉表现时，**优先使用 `type: "html"` 自由排版**：
+  - 在 `html` 字段直接写高质量 HTML + 内联 SVG 图形（图标、终端窗口、数据卡片、进度条、流程图、浏览器框、对比矩阵等），在 `css` 字段直接写 `.wrap`/`.card` 等类选择器（不要手写 `#scene-N` 前缀，引擎会自动隔离到当前镜头，支持 `@keyframes`）。
+  - 给需要错峰依次浮现的卡片/块加上 `class="anim"`，引擎会自动用 GSAP 时间线驱动它们错峰入场，支持任意时间点 seek 与导出。
+  - 严禁写 `<script>` 或 `on*` 事件；不要写 `http(s)://` 外部图/字体链接。
+  - 严格按视频大画布（16:9 为 1920x1080，9:16 为 1080x1920）设计字号与排版：主标题 60-92px、副标题/正文 24-34px、卡片与边距充足留白、强视觉层次、紧扣目标品牌配色（如 bilibili 粉 `#FB7299` / 蓝 `#00AEEC` 等），绝不要做成单调的白底黑字纯文字大纲。
+- 若使用基础内置类型：
+  - `title`: `kicker`, `text`, `subtitle`
+  - `stats`: `kicker`, `value`（大数字）, `description`
+  - `list`: `kicker`, `text`, `items`（字符串数组）
+  - `comparison`: `kicker`, `text`, `left`, `right`, `left_items`（数组）, `right_items`（数组）
+  - `quote`: `kicker`, `quote`, `author`; `outro`: `text`
+遵循当前品牌规则与叙事约束；不要编造不存在的本地素材路径（只能使用 `available_media` 里列出的路径）。"""
 
 
 class AgentRejected(RuntimeError):
@@ -122,8 +135,8 @@ def _list_media_files(spec_dir):
     return out
 
 
-def _llm_complete(message, spec, context=None, history=None, templates=None,
-                  spec_dir="", llm_config=None, timeout=60):
+def _call_llm_json(messages, llm_config=None, timeout=90, temperature=0.35, max_tokens=4096):
+    """通用 OpenAI 兼容 /chat/completions JSON 请求。"""
     cfg = llm_config if isinstance(llm_config, dict) else {}
     endpoint = str(cfg.get("endpoint") or os.environ.get(
         "XMEDIA_LLM_ENDPOINT", "")).strip()
@@ -133,26 +146,12 @@ def _llm_complete(message, spec, context=None, history=None, templates=None,
         "XMEDIA_LLM_API_KEY", "")).strip()
     model = str(cfg.get("model") or os.environ.get(
         "XMEDIA_LLM_MODEL", "gpt-4o-mini")).strip() or "gpt-4o-mini"
-    presets_info = []
-    try:
-        import hf_compose
-        for k, v in sorted(hf_compose._design_presets().items()):
-            presets_info.append({"name": k, "desc": v.get("description", "")})
-    except Exception:
-        pass
-    user_obj = {
-        "instruction": message,
-        "current_spec": spec,
-        "context": context or {},
-        "available_templates": templates or [],
-        "available_presets": presets_info,
-        "available_media": _list_media_files(spec_dir),
-        "recent_history": (history or [])[-5:],
+    payload = {
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "messages": messages,
     }
-    payload = {"model": model, "temperature": 0.2, "messages": [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": json.dumps(
-            user_obj, ensure_ascii=False)}]}
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = "Bearer " + key
@@ -170,13 +169,224 @@ def _llm_complete(message, spec, context=None, history=None, templates=None,
         raise LlmUnavailable("LLM 响应缺少 choices[0].message.content")
     content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip())
     try:
-        data = json.loads(content)
+        return json.loads(content)
     except json.JSONDecodeError as e:
         raise LlmUnavailable(f"LLM 未返回合法 JSON：{e}")
-    if not isinstance(data, dict) or ("spec" not in data and
-                                      "reply" not in data):
+
+
+def _llm_complete(message, spec, context=None, history=None, templates=None,
+                  spec_dir="", llm_config=None, timeout=120):
+    presets_info = []
+    try:
+        import hf_compose
+        for k, v in sorted(hf_compose._design_presets().items()):
+            presets_info.append({"name": k, "desc": v.get("description", "")})
+    except Exception:
+        pass
+    user_obj = {
+        "instruction": message,
+        "current_spec": spec,
+        "context": context or {},
+        "available_templates": templates or [],
+        "available_presets": presets_info,
+        "available_media": _list_media_files(spec_dir),
+        "recent_history": (history or [])[-5:],
+    }
+    data = _call_llm_json(
+        [{"role": "system", "content": SYSTEM_PROMPT},
+         {"role": "user", "content": json.dumps(user_obj, ensure_ascii=False)}],
+        llm_config=llm_config, timeout=timeout, temperature=0.35, max_tokens=8192)
+    if not isinstance(data, dict) or ("spec" not in data and "reply" not in data):
         raise LlmUnavailable("LLM 响应缺少 reply/spec 字段")
     return data
+
+
+_PLAN_PROMPT = """你是顶级视频导演与视觉设计师。根据用户需求规划一套高质量短视频分镜与品牌视觉方案。
+只输出合法 JSON 对象（不要 markdown 代码块）：
+{
+  "reply": "一句话中文概括本片创意与视觉方案",
+  "format": "16:9",
+  "design": "从 available_presets 选最匹配的一个或留空",
+  "brand": {
+    "name": "品牌/主题名",
+    "primary": "#主品牌色",
+    "accent": "#辅助强调色",
+    "bg_light": "#浅色背景",
+    "bg_dark": "#深色背景",
+    "ink_dark": "#深色字",
+    "ink_light": "#浅色字",
+    "logo_svg": "一段简洁精致的 inline <svg viewBox='0 0 64 64'>...</svg> 品牌徽标（不含 script）"
+  },
+  "scenes": [
+    {
+      "role": "hook | concept | terminal | architecture | features | stats | comparison | outro",
+      "title": "本镜核心标题",
+      "points": ["要点1", "要点2"],
+      "visual_idea": "画面构图、卡片/终端/流程图/数据可视化设计描述",
+      "narration": "自然口语化的中文配音旁白（15~35字，适合真人播报节奏）",
+      "bg": "#十六进制背景色（深浅交替更有节奏）",
+      "duration": 4.2,
+      "animation": "fade_in_up | fade_in | scale_in | slide_in_left | pop_in",
+      "transition": "fade | wipe | slide-left | zoom",
+      "sfx": "whoosh | pop | ding | success | transition"
+    }
+  ]
+}
+要求：规划 6~7 个镜头，节奏张弛有度；如果有终端/命令行/代码/架构内容，务必安排专门的 terminal 或 architecture 镜头。"""
+
+_SCENE_PROMPT = """你是资深前端动效视觉设计师。根据给定的视频品牌规范和单个镜头策划，生成这**一个镜头**的高精度 HTML + SVG + CSS。
+只输出合法 JSON 对象（不要 markdown 代码块）：
+{"html": "<div class=\\"wrap\\">...</div>", "css": ".wrap{...}"}
+
+严格要求：
+1. 画布尺寸为 {dims}（16:9 推荐 1920x1080 视口，9:16 推荐 1080x1920 视口）。最外层容器设置 `width:100%;height:100%;box-sizing:border-box;position:relative;overflow:hidden;`。
+2. 字号大气醒目：主标题 56~96px、副标题/正文 24~34px、标签/角标 18~24px；留白充足，绝不拥挤或溢出边缘。
+3. **充分利用视觉元素**：
+   - 如果是 terminal/命令行场景：画一个逼真的 macOS 深色终端窗口（红黄绿三圆点、命令行 `$ ffmpeg ...` 语法高亮、输出进度条或参数标签）；
+   - 如果是 architecture/流程场景：用内联 `<svg>` 绘制带箭头的节点连线（可加 `class="anim-draw"` 实现线条描边动画）+ 玻璃拟态/高对比卡片；
+   - 如果是 stats 场景：超大数字（80~120px）+ 对比色渐变条（`class="anim-bar"`）+ 说明；
+   - 如果是 hook/outro 场景：嵌入提供的 `logo_svg` 徽标 + 强视觉焦点构图。
+4. **声明式 GSAP 动效类**（引擎会自动按时间线错峰驱动，支持精确 seek 与 MP4 导出）：
+   - `anim`：卡片/文本依次上浮淡入
+   - `anim-pop`：徽标/数字/标签弹性弹出
+   - `anim-left` / `anim-right`：左右滑入
+   - `anim-bar`：进度条/分割线横向展开
+   - `anim-draw`：SVG `<path>` / `<line>` 描边动画
+5. `css` 直接写 `.wrap` / `.card` 等类选择器，**不要写 `#scene-N` 前缀**（引擎会自动隔离），可使用 `@keyframes` 做微动效循环（如呼吸光晕/光标闪烁）。
+6. 严禁 `<script>`、`on*` 事件属性或 `http(s)://` 外部资源链接。"""
+
+
+def _is_full_creation_intent(msg, spec):
+    scenes = (spec or {}).get("scenes") or []
+    if len(scenes) <= 1 and len(msg) >= 6 and not re.search(r"^(?:第\s*\d|删|改|加个|加一|播放|导出|撤销|暂停)", msg):
+        return True
+    return bool(re.search(
+        r"(?:做一个|做个|制作|生成.*视频|重做|重新生成|重新做|做一条|帮我做|写一个).*(?:视频|短片|模版|模板|宣传片|介绍)",
+        msg, re.I))
+
+
+def generate_multistep(message, base, spec_dir="", llm_config=None, on_step=None):
+    """多步导演流水线：1) 策划大纲与品牌 SVG → 2) 并发精雕每镜 HTML+CSS → 3) 组装与校验。"""
+    import concurrent.futures
+
+    def _emit(step_idx, label, status="running"):
+        if callable(on_step):
+            try:
+                on_step(step_idx, label, status)
+            except Exception:
+                pass
+
+    presets_info = []
+    try:
+        import hf_compose
+        for k, v in sorted(hf_compose._design_presets().items()):
+            presets_info.append({"name": k, "desc": v.get("description", "")})
+    except Exception:
+        pass
+
+    _emit(1, "策划分镜大纲与品牌视觉规范", "running")
+    plan_user = {
+        "instruction": message,
+        "current_format": (base.get("composition") or {}).get("format", "16:9"),
+        "available_presets": presets_info,
+    }
+    plan = _call_llm_json(
+        [{"role": "system", "content": _PLAN_PROMPT},
+         {"role": "user", "content": json.dumps(plan_user, ensure_ascii=False)}],
+        llm_config=llm_config, timeout=60, temperature=0.35, max_tokens=4096)
+    scenes_plan = plan.get("scenes") or []
+    if not isinstance(scenes_plan, list) or not scenes_plan:
+        raise LlmUnavailable("导演策划未返回有效分镜列表")
+
+    fmt = str(plan.get("format") or (base.get("composition") or {}).get("format") or "16:9")
+    dims = "1080x1920 (竖屏 9:16)" if fmt == "9:16" else "1920x1080 (横屏 16:9)"
+    brand = plan.get("brand") or {}
+    _emit(1, f"已规划 {len(scenes_plan)} 镜分镜与品牌视觉规范", "done")
+
+    _emit(2, f"并发精雕 {len(scenes_plan)} 个 HTML + SVG 镜头", "running")
+    sys_scene = _SCENE_PROMPT.replace("{dims}", dims)
+
+    def _craft_one(idx, sc_plan):
+        user_payload = {
+            "scene_index": idx + 1,
+            "total_scenes": len(scenes_plan),
+            "brand": brand,
+            "scene_plan": sc_plan,
+        }
+        try:
+            res = _call_llm_json(
+                [{"role": "system", "content": sys_scene},
+                 {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
+                llm_config=llm_config, timeout=75, temperature=0.4, max_tokens=4096)
+            html_str = str(res.get("html") or "").strip()
+            css_str = str(res.get("css") or "").strip()
+            if not html_str:
+                raise ValueError("empty html")
+            sc_obj = {
+                "type": "html",
+                "name": str(sc_plan.get("role") or sc_plan.get("title") or f"scene-{idx+1}")[:18],
+                "html": html_str,
+                "css": css_str,
+                "bg": str(sc_plan.get("bg") or brand.get("bg_light") or "#0F1117"),
+                "duration": max(2.0, float(sc_plan.get("duration") or 4.0)),
+                "animation": str(sc_plan.get("animation") or "fade_in_up"),
+                "transition": str(sc_plan.get("transition") or "fade"),
+                "sfx": str(sc_plan.get("sfx") or "whoosh"),
+            }
+            if sc_plan.get("narration"):
+                sc_obj["narration"] = str(sc_plan["narration"]).strip()
+            return idx, sc_obj
+        except Exception:
+            fallback = {
+                "type": "title" if idx == 0 else "text",
+                "kicker": str(sc_plan.get("role") or "").upper(),
+                "text": str(sc_plan.get("title") or "场景"),
+                "subtitle": " · ".join(str(p) for p in (sc_plan.get("points") or [])[:3]),
+                "bg": str(sc_plan.get("bg") or "#111318"),
+                "duration": max(2.5, float(sc_plan.get("duration") or 4.0)),
+                "animation": "fade_in_up",
+                "transition": "fade",
+            }
+            if sc_plan.get("narration"):
+                fallback["narration"] = str(sc_plan["narration"]).strip()
+            return idx, fallback
+
+    crafted = [None] * len(scenes_plan)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futs = [pool.submit(_craft_one, i, sp) for i, sp in enumerate(scenes_plan)]
+        for fut in concurrent.futures.as_completed(futs):
+            idx, sc_obj = fut.result()
+            crafted[idx] = sc_obj
+
+    _emit(2, f"已完成 {len(crafted)} 个 HTML + SVG 镜头精雕", "done")
+
+    new_spec = {
+        "schema_version": "1.0",
+        "composition": {
+            "id": (base.get("composition") or {}).get("id", "main"),
+            "format": fmt,
+            "fps": int((base.get("composition") or {}).get("fps") or 30),
+        },
+        "sfx": {"enabled": True},
+        "transitions": {"type": "fade", "duration": 0.45},
+        "scenes": crafted,
+    }
+    if plan.get("design"):
+        new_spec["design"] = str(plan["design"])
+    # 生成初始分段字幕（后续若跑 TTS 会由 hf_compose/hf_tts 对齐时间轴）
+    segs = []
+    cur = 0.0
+    for sc in crafted:
+        d = float(sc.get("duration") or 3.5)
+        if sc.get("narration"):
+            segs.append({"start": round(cur, 2), "end": round(cur + d, 2), "text": sc["narration"]})
+        cur += max(0.5, d - 0.45)
+    if segs:
+        new_spec["captions"] = {"enabled": True, "segments": segs}
+
+    validate_spec(new_spec, spec_dir)
+    reply = str(plan.get("reply") or f"已按「{message}」多步精雕完成 {len(crafted)} 镜自由排版视频。")
+    return new_spec, reply
 
 
 HELP = ("可用指令：导入 <目录> / 扫描 <网址> 做成品牌 / 应用品牌 <名> / "
@@ -470,7 +680,7 @@ def _build_zero_config_video(topic, fmt="16:9", preset_name="midnight-glow",
 
 
 def handle(message, spec, spec_dir="", context=None, history=None,
-           llm_config=None):
+           llm_config=None, on_step=None):
     """→ {reply, spec?, action?, args?, mode, suggestions?, choices?}。"""
     raw_msg = str(message or "").strip()
     base = copy.deepcopy(spec) if isinstance(spec, dict) else {}
@@ -1075,6 +1285,12 @@ def handle(message, spec, spec_dir="", context=None, history=None,
         except Exception:
             tpl_names = []
         try:
+            if _is_full_creation_intent(raw_msg, base):
+                candidate, ms_reply = generate_multistep(
+                    raw_msg, base, spec_dir=spec_dir, llm_config=llm_config,
+                    on_step=on_step)
+                return out(ms_reply, candidate, mode="llm-multistep",
+                           suggestions=["生成自然人声旁白", "换成竖屏 9:16", "导出 MP4"])
             data = _llm_complete(
                 raw_msg, base, context=context, history=history,
                 templates=tpl_names, spec_dir=spec_dir, llm_config=llm_config)

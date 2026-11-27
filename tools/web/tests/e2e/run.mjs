@@ -138,31 +138,24 @@ try {
   await page.screenshot({ path: join(outDir, "e2e-05-import.png") });
   await page.mouse.click(10, 10); // dialog ::backdrop 点击关闭
 
-  // 5. Storyboard 全局网格（预览区 Main/Storyboard 双 tab）
-  await page.click("#pv-tab-sb");
+  // 5. 右侧文件 Tab → compositions 目录（替代原 Storyboard 网格）
+  await page.click("#rtab-files");
+  await page.waitForTimeout(300);
+  await page.locator("#files-grid .file-card", { hasText: "compositions" }).click();
   await page.waitForTimeout(400);
-  const sbCards = await page.locator("#sbgrid-view .sbgrid-card").count();
+  const compCards = await page.locator("#files-grid .file-card").count();
   const apiSceneCount = await page.evaluate(async () => {
     const st = await (await fetch("/api/state")).json();
     return (st.scenes || []).length;
   });
-  if (sbCards !== apiSceneCount) fail(`storyboard 卡数 ${sbCards} ≠ 场景数 ${apiSceneCount}`);
-  else ok(`storyboard 全局网格 ${sbCards} 张（与 /api/state 一致）`);
-  await page.screenshot({ path: join(outDir, "e2e-06-storyboard.png") });
-  // 点卡 = 选中该镜（Inspector + 场景列表联动）
-  await page.locator("#sbgrid-view .sbgrid-card").first().click();
-  await page.waitForTimeout(300);
-  const shotSel = await page.locator("#sbgrid-view .sbgrid-card.sel").count() &&
-      (await page.locator(".sc-card.sel").count());
-  if (!shotSel) fail("点网格卡后分镜卡/场景卡未选中");
-  else ok("点网格卡选中该镜（Inspector 联动）");
-  // 切回 Main 预览
-  await page.click("#pv-tab-main");
-  await page.waitForTimeout(300);
-  const sbHidden = await page.locator("#sbgrid-view")
-    .evaluate((el) => el.style.display === "none");
-  if (!sbHidden) fail("切回 Main 后 sbgrid-view 未隐藏");
-  else ok("Storyboard ↔ Main 预览切换正常");
+  if (compCards !== apiSceneCount) fail(`compositions 卡数 ${compCards} ≠ 场景数 ${apiSceneCount}`);
+  else ok(`compositions 目录网格 ${compCards} 张（与 /api/state 一致）`);
+  await page.screenshot({ path: join(outDir, "e2e-06-compositions.png") });
+  await page.locator("#files-grid .file-card").first().click();
+  await page.waitForTimeout(250);
+  const cardSel = await page.locator("#files-grid .file-card.playing").count();
+  if (!cardSel) fail("点 compositions 卡片后未选中");
+  else ok("点 compositions 卡片选中该镜（Inspector 联动）");
 
   // 6. /api/state 可用
   const state = await page.evaluate(async () => {

@@ -6,10 +6,13 @@ import { fps } from "../shared/time.js";
 export var expJob = -1, expPolling = false;
 function handleBakeDone(j) {
   expSetBusy(false);
+  $("exp-progress").classList.add("on");
   $("exp-bar").style.width = "100%";
   if (j.cancelled) {
     $("exp-progress-text").textContent = "已取消";
+    $("exp-progress-text").classList.remove("err");
   } else if (j.rc === 0) {
+    $("exp-progress-text").classList.remove("err");
     $("exp-progress-text").textContent = "导出完成：" + j.out;
     var rv = document.createElement("button");
     rv.className = "btn"; rv.style.marginLeft = "8px";
@@ -25,7 +28,9 @@ function handleBakeDone(j) {
     log("导出完成：" + j.out, "ok");
     log("验源：ffprobe -show_format \"" + j.out + "\" | grep comment", "ok");
   } else {
-    $("exp-progress-text").textContent = "导出失败 rc=" + j.rc;
+    $("exp-progress-text").classList.add("err");
+    $("exp-progress-text").textContent = "导出失败 rc=" + j.rc +
+        (j.tail ? "：" + j.tail.split("\n").pop() : "");
     log("导出失败 rc=" + j.rc + "：" + j.tail, "err");
   }
   expPolling = false;
@@ -33,6 +38,8 @@ function handleBakeDone(j) {
 function handleBakeError(e) {
   expSetBusy(false);
   expPolling = false;
+  $("exp-progress").classList.add("on");
+  $("exp-progress-text").classList.add("err");
   $("exp-progress-text").textContent = "导出失败：" + e.message;
   log("导出失败：" + e.message, "err");
 }
@@ -101,6 +108,7 @@ $("exp-go").onclick = function () {
   var fps = parseInt($("exp-fps").value, 10);
   expSetBusy(true);
   expPolling = true;
+  $("exp-progress-text").classList.remove("err");
   $("exp-progress-text").textContent = "准备中…";
   log("导出开始：" + quality + " / " + fmt + " / " + fps + "fps");
   api("/api/bake", { quality: quality, fmt: fmt, fps: fps })

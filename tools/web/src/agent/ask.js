@@ -25,8 +25,9 @@ export function askModeLabel() {
   var modeEl = $("ask-mode");
   if (!b || !modeEl) return;
   if (askBackend === "agent") {
-    modeEl.textContent = m.cli ? "本地 agent：" + m.cli :
-                                 "本地 agent（未检测到 CLI）";
+    modeEl.textContent = m.llm ? ("API Agent：" + (m.llm_model || "API")) :
+                       (m.cli ? "本地 agent：" + m.cli :
+                                "本地 agent（未检测到 CLI）");
     b.textContent = "→ 规则引擎";
   } else {
     var via = m.llm ? ("大模型 " + (m.llm_model || "API")) : "规则引擎";
@@ -47,14 +48,12 @@ export function askMarkBackendPicked() { backendPickedByUser = true; }
 /* chat 常驻左栏「对话」面板：开 = 切到对话 tab；关 = 回场景 tab。 */
 export function askOpen(on) {
   var tabs = { projects: "tab-projects", chat: "tab-chat",
-               scenes: "tab-scenes", script: "tab-script",
                templates: "tab-templates",
-               brand: "tab-brand", source: "tab-source" };
+               brand: "tab-brand" };
   var panels = { projects: "projects-panel", chat: "chat-panel",
-                 scenes: "scenes-panel", script: "script-panel",
                  templates: "templates-panel",
-                 brand: "brand-panel", source: "source-panel" };
-  var name = on ? "chat" : "scenes";
+                 brand: "brand-panel" };
+  var name = on ? "chat" : "projects";
   for (var k in tabs) {
     var t = $(tabs[k]);
     if (t) t.classList.toggle("active", k === name);

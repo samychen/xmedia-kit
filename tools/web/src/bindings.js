@@ -1,5 +1,4 @@
 import { $ } from "./shared/dom.js";
-import { scriptRender } from "./panels/script.js";
 import { pvCmd, renderAudioBtn, seekTo, unlockPreviewAudio } from "./preview/driver.js";
 import { phFrame } from "./preview/playhead.js";
 import { fitPreview } from "./preview/zoom.js";
@@ -11,8 +10,8 @@ import { splitAtPlayhead } from "./timeline/trim.js";
 import { tplRender } from "./panels/templates.js";
 import { brandRender } from "./panels/brand.js";
 import { projectsRender } from "./panels/projects.js";
-import { sbGridShow } from "./preview/sbgrid.js";
 import { drawInit } from "./preview/draw.js";
+import { bindRightTabs } from "./panels/layers.js";
 
 /* ---------------- 交互绑定 ---------------- */
 $("btn-play").innerHTML = ICON.play;
@@ -117,23 +116,18 @@ $("btn-log").onclick = function () {
   el.classList.toggle("open");
   this.classList.toggle("on", el.classList.contains("open"));
 };
-/* 左栏七面板统一切换（项目/对话/场景/脚本/模板/品牌/源码）：tab 高亮 + 面板互斥。
+/* 左栏四面板统一切换（项目/对话/模板/品牌）：tab 高亮 + 面板互斥。
    对话（chat）是主面板——HF 的 chat 左栏形态。 */
 function switchLeftPanel(name) {
   var tabs = { projects: "tab-projects", chat: "tab-chat",
-               scenes: "tab-scenes", script: "tab-script",
                templates: "tab-templates",
-               brand: "tab-brand", source: "tab-source" };
+               brand: "tab-brand" };
   var panels = { projects: "projects-panel", chat: "chat-panel",
-                 scenes: "scenes-panel",
-                 script: "script-panel",
-                 templates: "templates-panel", brand: "brand-panel",
-                 source: "source-panel" };
+                 templates: "templates-panel", brand: "brand-panel" };
   for (var k in tabs) {
     $(tabs[k]).classList.toggle("active", k === name);
     $(panels[k]).style.display = k === name ? "flex" : "none";
   }
-  if (name === "script") scriptRender();
   if (name === "templates") tplRender();
   if (name === "brand") brandRender();
   if (name === "projects") projectsRender();
@@ -149,22 +143,8 @@ if (pc) pc.onclick = function () {
   }
 };
 drawInit();
+bindRightTabs();
 $("tab-chat").onclick = function () { switchLeftPanel("chat"); };
 $("tab-projects").onclick = function () { switchLeftPanel("projects"); };
-$("tab-scenes").onclick = function () { switchLeftPanel("scenes"); };
-$("tab-script").onclick = function () { switchLeftPanel("script"); };
 $("tab-templates").onclick = function () { switchLeftPanel("templates"); };
 $("tab-brand").onclick = function () { switchLeftPanel("brand"); };
-$("tab-source").onclick = function () { switchLeftPanel("source"); };
-/* 预览区 Main/Storyboard 双 tab（HF 编辑器形态）：Main=成片预览，
-   Storyboard=全镜网格总览。 */
-$("pv-tab-main").onclick = function () {
-  $("pv-tab-main").classList.add("active");
-  $("pv-tab-sb").classList.remove("active");
-  sbGridShow(false);
-};
-$("pv-tab-sb").onclick = function () {
-  $("pv-tab-sb").classList.add("active");
-  $("pv-tab-main").classList.remove("active");
-  sbGridShow(true);
-};

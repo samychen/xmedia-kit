@@ -32,7 +32,7 @@
     },
     "scenes": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "description": "非空（compose() 对空 scenes raise）。顺序即时序。",
       "items": {
         "type": "object",
@@ -40,7 +40,7 @@
           "type": {
             "type": "string",
             "description": "内置类型见 x-supported；templates/<name>.json 自定义模板会动态扩展合法类型（未知类型 raise）。",
-            "x-supported": ["title", "text", "outro", "quote", "list", "stats", "comparison"]
+            "x-supported": ["title", "text", "outro", "quote", "list", "stats", "comparison", "html"]
           },
           "text": { "type": "string" },
           "subtitle": { "type": "string" },

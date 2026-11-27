@@ -55,7 +55,7 @@ ANIMATIONS = {
 DEFAULT_ANIMATION = "fade_in"
 SUPPORTED_SCHEMA = "1.0"  # spec schema_version；不匹配 → 拒绝并提示
 SUPPORTED_TYPES = ("title", "text", "outro",
-                   "quote", "list", "stats", "comparison")
+                   "quote", "list", "stats", "comparison", "html")
 
 # 自定义模板协议（对齐参考项目 slots 模式）：templates 目录（spec 目录
 # 优先、内置 templates/ 兜底）下的 <name>.json = {name, description,
@@ -309,6 +309,75 @@ def esc(s):
              .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+_SCRIPT_TAG_RE = re.compile(r"<\s*script\b[^>]*>[\s\S]*?<\s*/\s*script\s*>", re.I)
+_EVENT_ATTR_RE = re.compile(r"""\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.I)
+_JS_URI_RE = re.compile(r"""(href|src|xlink:href)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*')""", re.I)
+
+
+def _sanitize_scene_html(raw):
+    """清理自由 HTML 场景中的脚本/事件处理器，保留全部排版、SVG 与内联样式能力。"""
+    s = str(raw or "")
+    s = _SCRIPT_TAG_RE.sub("", s)
+    s = _EVENT_ATTR_RE.sub("", s)
+    s = _JS_URI_RE.sub(r'\1="#"', s)
+    return s
+
+
+def _scope_scene_css(css, scope_id):
+    """将场景级 CSS 隔离到 #<scope_id>，保留 @keyframes / @font-face 等顶层规则。"""
+    raw = re.sub(r"expression\s*\([^)]*\)", "", str(css or ""), flags=re.I)
+    raw = re.sub(r"@import\b[^;]*;", "", raw, flags=re.I)
+    out = []
+    i = 0
+    n = len(raw)
+    prefix = f"#{scope_id}"
+    while i < n:
+        while i < n and raw[i] in " \t\r\n":
+            i += 1
+        if i >= n:
+            break
+        if raw.startswith("/*", i):
+            end = raw.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        brace = raw.find("{", i)
+        if brace < 0:
+            break
+        header = raw[i:brace].strip()
+        depth = 1
+        j = brace + 1
+        while j < n and depth > 0:
+            if raw[j] == "{":
+                depth += 1
+            elif raw[j] == "}":
+                depth -= 1
+            j += 1
+        block = raw[brace + 1:j - 1] if depth == 0 else raw[brace + 1:]
+        i = j
+        if header.startswith("@"):
+            low = header.lower()
+            if low.startswith("@media") or low.startswith("@supports"):
+                out.append(f"{header} {{\n{_scope_scene_css(block, scope_id)}\n}}")
+            else:
+                out.append(f"{header} {{{block}}}")
+            continue
+        scoped_sels = []
+        for sel in header.split(","):
+            s = sel.strip()
+            if not s:
+                continue
+            s_norm = re.sub(r"^#scene-\d+\b", prefix, s)
+            if s in ("body", "html", ":root", "*"):
+                scoped_sels.append(prefix)
+            elif s_norm.startswith(prefix):
+                scoped_sels.append(s_norm)
+            else:
+                scoped_sels.append(f"{prefix} {s}")
+        if scoped_sels:
+            out.append(f"{', '.join(scoped_sels)} {{{block}}}")
+    return "\n".join(out)
+
+
 def tts_text(scene):
     """场景的可朗读/字幕文本：text 优先；缺失时按类型聚合专有字段
     （stats 取 value/description，quote 取 quote/author，list 取
@@ -475,9 +544,21 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         for c in right_items:
             inner += f'<li>{esc(c)}</li>'
         inner += '</ul></div></div></div>'
-    else:  # outro：反转强调拍——ink 实块擦入后文字反白（GSAP 编排）
-        inner = (f'<i class="invert-block"></i>'
-                 f'<h1 class="scene-title scene-inv">{text}</h1>')
+    else:  # html 或 outro
+        if typ == "html":
+            raw_html = _sanitize_scene_html(scene.get("html") or "")
+            raw_css = scene.get("css") or ""
+            base_css = (
+                f"#scene-{idx} {{ background: {bg}; color: {color}; }}\n"
+                f"#scene-{idx} .scene-html-root {{ width: 100%; height: 100%; position: relative; z-index: 2; overflow: hidden; box-sizing: border-box; }}"
+            )
+            scoped_css = _scope_scene_css(raw_css, f"scene-{idx}") if raw_css else ""
+            if css_out is not None:
+                css_out.append(base_css + ("\n" + scoped_css if scoped_css else ""))
+            inner = f'<div class="scene-html-root">{raw_html}</div>'
+        else:  # outro：反转强调拍——ink 实块擦入后文字反白（GSAP 编排）
+            inner = (f'<i class="invert-block"></i>'
+                     f'<h1 class="scene-title scene-inv">{text}</h1>')
 
     # 视频背景元素（场景级 video 字段）：铺满场景层，文本浮在其上；
     # data-start/duration 供烘焙侧逐帧对位（video.currentTime 同步）与
@@ -573,6 +654,37 @@ def _element_anim_js(idx, typ, base):
             f'  tl.fromTo("{t} {sel}", {{y: 26, opacity: 0}}, '
             f'{{y: 0, opacity: 1, duration: 0.4, ease: "power2.out"}}, '
             f'{round(base + 0.5 + j * 0.14, 3)});')
+    if typ == "html":
+        L.append(
+            f'  if (document.querySelector("{t} .anim")) {{ '
+            f'tl.fromTo("{t} .anim", {{y: 28, opacity: 0}}, '
+            f'{{y: 0, opacity: 1, duration: 0.45, stagger: 0.11, ease: "power2.out"}}, '
+            f'{round(base + 0.15, 3)}); }}')
+        L.append(
+            f'  if (document.querySelector("{t} .anim-pop")) {{ '
+            f'tl.fromTo("{t} .anim-pop", {{scale: 0.72, opacity: 0}}, '
+            f'{{scale: 1, opacity: 1, duration: 0.48, stagger: 0.1, ease: "back.out(1.6)"}}, '
+            f'{round(base + 0.18, 3)}); }}')
+        L.append(
+            f'  if (document.querySelector("{t} .anim-left")) {{ '
+            f'tl.fromTo("{t} .anim-left", {{x: -48, opacity: 0}}, '
+            f'{{x: 0, opacity: 1, duration: 0.45, stagger: 0.1, ease: "power2.out"}}, '
+            f'{round(base + 0.15, 3)}); }}')
+        L.append(
+            f'  if (document.querySelector("{t} .anim-right")) {{ '
+            f'tl.fromTo("{t} .anim-right", {{x: 48, opacity: 0}}, '
+            f'{{x: 0, opacity: 1, duration: 0.45, stagger: 0.1, ease: "power2.out"}}, '
+            f'{round(base + 0.15, 3)}); }}')
+        L.append(
+            f'  if (document.querySelector("{t} .anim-bar")) {{ '
+            f'tl.fromTo("{t} .anim-bar", {{scaleX: 0, transformOrigin: "left center"}}, '
+            f'{{scaleX: 1, duration: 0.55, stagger: 0.12, ease: "power2.out"}}, '
+            f'{round(base + 0.22, 3)}); }}')
+        L.append(
+            f'  if (document.querySelector("{t} .anim-draw")) {{ '
+            f'tl.fromTo("{t} .anim-draw", {{strokeDasharray: 1000, strokeDashoffset: 1000}}, '
+            f'{{strokeDashoffset: 0, duration: 0.85, stagger: 0.15, ease: "power2.inOut"}}, '
+            f'{round(base + 0.2, 3)}); }}')
     return L
 
 
@@ -767,9 +879,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
         height = int(comp.get("height", 1080))
     fps = int(comp.get("fps", 30))
     bg = esc(spec.get("background", "#000000"))
-    scenes = spec.get("scenes", [])
-    if not scenes:
-        raise ValueError("spec.scenes 不能为空")
+    scenes = spec.get("scenes") or []
 
     # 场景计划（含转场重叠）：全局 transitions 段为默认，场景级
     # transition 字段覆盖；重叠窗内下一场景提前进入、上一场景按类型

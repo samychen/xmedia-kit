@@ -85,10 +85,10 @@
   /* ---------- Main / Storyboard 双 tab（HF 预览区形态） ---------- */
   .pv-tabs { height: 34px; flex: none; display: flex; align-items: stretch;
              gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line);
-             background: var(--panel); }
+             background: var(--panel); overflow-x: auto; scrollbar-width: none; }
   .pv-tab { background: none; border: 0; border-bottom: 2px solid
             transparent; color: var(--dim); font-size: 12px; font-weight: 600;
-            padding: 0 14px; cursor: pointer; }
+            padding: 0 12px; cursor: pointer; white-space: nowrap; flex: none; }
   .pv-tab:hover { color: var(--ink); }
   .pv-tab.active { color: var(--ink); border-bottom-color: var(--acc); }
 

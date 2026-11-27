@@ -118,6 +118,12 @@ $("ask-form").addEventListener("submit", function (ev) {
   ev.preventDefault();
   askSend($("ask-input").value);
 });
+$("ask-input").addEventListener("keydown", function (ev) {
+  if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
+    ev.preventDefault();
+    askSend($("ask-input").value);
+  }
+});
 [].forEach.call(document.querySelectorAll("#ask-quick button"), function (b) {
   b.onclick = function () {
     if (b.getAttribute("data-open") === "import") {

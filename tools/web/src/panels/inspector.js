@@ -173,12 +173,43 @@ $("insp-dup").onclick = function () {
   recompose();
 };
 $("insp-del").onclick = function () {
-  if (selIdx < 0) return;
-  state.spec.scenes.splice(selIdx, 1);
-  selIdx = -1;
+  if (selIdx < 0 || !state.spec || !Array.isArray(state.spec.scenes)) return;
+  var delIdx = selIdx;
+  var delScene = state.spec.scenes[delIdx] || {};
+  var meta = (state.scenes || [])[delIdx] || {};
+  var sStart = typeof meta.start === "number" ? meta.start : 0;
+  var sDur = typeof meta.duration === "number" ? meta.duration : Number(delScene.duration || 3);
+  var sEnd = sStart + sDur;
+  var isOverlay = delScene.start !== undefined && delScene.start !== null;
+
+  state.spec.scenes.splice(delIdx, 1);
+
+  if (state.spec.captions && Array.isArray(state.spec.captions.segments)) {
+    state.spec.captions.segments = state.spec.captions.segments.filter(function (seg) {
+      var a = Number(seg.start || 0), b = Number(seg.end || 0);
+      var mid = (a + b) / 2;
+      return !(mid >= sStart - 0.05 && mid <= sEnd + 0.05);
+    }).map(function (seg) {
+      if (!isOverlay && Number(seg.start || 0) >= sEnd - 0.05) {
+        return Object.assign({}, seg, {
+          start: Math.max(0, Number((Number(seg.start) - sDur).toFixed(3))),
+          end: Math.max(0, Number((Number(seg.end) - sDur).toFixed(3)))
+        });
+      }
+      return seg;
+    });
+  }
+
+  if (state.spec.scenes.length === 0) {
+    if (state.spec.captions) state.spec.captions.segments = [];
+    selIdx = -1;
+    log("已清空全部场景与字幕轨，重组合成…");
+  } else {
+    selIdx = Math.min(delIdx, state.spec.scenes.length - 1);
+    log("场景已删除（已同步清理字幕轨），重组合成…");
+  }
   $("spec").value = JSON.stringify(state.spec, null, 2);
   renderSceneList(); renderTimeline(); renderInspector();
-  log("场景已删除，重组合成…");
   recompose();
 };
 

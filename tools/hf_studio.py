@@ -237,13 +237,13 @@ def build_chrome(total_s, scenes, mix_url=""):
         var p = el.play();
         var ok = function () {{
           try {{ el.pause(); el.currentTime = 0; }} catch (e) {{}}
-          el.muted = !audioOn;
+          if (playing) {{ el.muted = !audioOn; }}
           a.warming = false; a.warmed = true;
           setAudioAttr(a, "idle");
         }};
         var fail = function () {{
           try {{ el.pause(); el.currentTime = 0; }} catch (e) {{}}
-          el.muted = !audioOn;
+          if (playing) {{ el.muted = !audioOn; }}
           a.warming = false;
         }};
         if (p && p.then) {{ p.then(ok, fail); }} else {{ ok(); }}
@@ -251,12 +251,13 @@ def build_chrome(total_s, scenes, mix_url=""):
         // a.warming 永远为 true 而把这条音轨从 syncAudio 里排除掉。
         setTimeout(function () {{ if (a.warming) {{ fail(); }} }}, 800);
       }} catch (e) {{
-        el.muted = !audioOn;
+        if (playing) {{ el.muted = !audioOn; }}
         a.warming = false;
       }}
     }});
   }}
-  warmAudio();
+  // 仅预加载元数据，不在页面刚加载未播放时抢播所有音轨，避免 Safari 刷新瞬间漏出声。
+  AUDIOS.forEach(function (a) {{ try {{ a.el.muted = true; }} catch (e) {{}} }});
   // 音频参考时钟：取「与当前播放时间最接近」且确实在推进的音轨，换算回
   // 全局时间轴（秒）。无可用轨（静音 / 纯画面段 / 素材间隙 / 起播缓冲）
   // 时返回 -1，此时仍由 rAF 计时。
@@ -332,6 +333,7 @@ def build_chrome(total_s, scenes, mix_url=""):
       }}
       // 素材实长可能短于 data-duration（SFX 常见）：播完后停手，避免
       // 同一音效在窗口内被每帧重新 play() 反复重播。
+      el.muted = !audioOn;
       if (!forceSeek && (el.ended ||
           (isFinite(el.duration) && el.duration > 0 &&
            el.currentTime >= el.duration - 0.03))) {{
@@ -686,6 +688,10 @@ def build_chrome(total_s, scenes, mix_url=""):
     }}
   }}, true);
   document.addEventListener("keydown", function (ev) {{
+    if (ev.target && (ev.target.isContentEditable ||
+        /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName || ""))) {{
+      return;
+    }}
     // 嵌入模式：快捷键统一交给父页预览区处理，避免两套逻辑抢焦点。
     if (EMBED) {{
       if (ev.code === "Space" || ev.code.indexOf("Arrow") === 0) {{
@@ -1289,18 +1295,29 @@ class StudioServer:
             out = os.path.join(os.path.dirname(self.contract_path),
                                f"{stem} {stamp}.{fmt}")
             url = "file://" + urllib.parse.quote(self.contract_path)
+            if total <= 0:
+                raise RuntimeError("视频总时长为 0s，请至少保留 1 个场景后再导出")
             import xmedia
             bake = xmedia.bake_bin()
-            if not bake:
-                raise RuntimeError(
-                    "找不到 html_bake——先构建（cmake --build build --target "
-                    "html_bake；需要 XMEDIA_ENABLE_CEF=ON + CEF distro）")
-            cmd = [
-                bake,
-                "--url", url, "--out", out,
-                "--seconds", f"{total:.2f}", "--fps", str(fps),
-                "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500",
-            ]
+            if bake:
+                cmd = [
+                    bake,
+                    "--url", url, "--out", out,
+                    "--seconds", f"{total:.2f}", "--fps", str(fps),
+                    "--width", str(w), "--height", str(h), "--clock", "seek", "--paint-wait", "1500",
+                ]
+            else:
+                pw_bake = os.path.join(TOOLS_DIR, "hf_pw_bake.mjs")
+                node_bin = shutil.which("node")
+                if not (node_bin and os.path.isfile(pw_bake)):
+                    raise RuntimeError(
+                        "找不到 html_bake 或 Playwright 导出脚本（请构建 html_bake 或安装 node）")
+                cmd = [
+                    node_bin, pw_bake,
+                    "--url", url, "--out", out,
+                    "--seconds", f"{total:.2f}", "--fps", str(fps),
+                    "--width", str(w), "--height", str(h),
+                ]
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, text=True)
             self.job = {"id": self.job_seq, "proc": proc, "out": out,
@@ -2162,8 +2179,10 @@ class StudioServer:
         """撤销第 idx 轮（0-based）：恢复该轮之前的状态，丢弃该轮及之后
         的所有轮（时间线一致性）。"""
         runs = self._load_runs()
-        if not (0 <= idx < len(runs)):
-            raise RuntimeError(f"run {idx} 不存在（共 {len(runs)} 轮）")
+        if not runs:
+            raise RuntimeError("当前没有可撤销的历史记录")
+        if idx is None or not (0 <= idx < len(runs)):
+            idx = len(runs) - 1
         run = runs[idx]
         spec_before = run.get("spec_before")
         if not isinstance(spec_before, dict) or not spec_before.get("scenes"):
@@ -2651,13 +2670,15 @@ class StudioServer:
         return {"ok": True, "name": cand, "url": "/project/" + cand,
                 "scenes": len(scenes), "errors": errors}
 
-    def _scan_media_files(self, root_dir):
+    def _scan_media_files(self, root_dir, extra_exts=None):
         """扫描项目目录下可用本地图片/音视频相对路径（排除缓存）。"""
         out = []
         if not root_dir or not os.path.isdir(root_dir):
             return out
         exts = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif",
                 ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a"}
+        if extra_exts:
+            exts = exts | set(extra_exts)
         base_depth = root_dir.rstrip(os.sep).count(os.sep)
         for cur, dirs, files in os.walk(root_dir):
             dirs[:] = sorted(d for d in dirs if not d.startswith(".")
@@ -2666,11 +2687,21 @@ class StudioServer:
                 dirs[:] = []
                 continue
             for fn in sorted(files):
+                if fn.startswith("."):
+                    continue
                 if os.path.splitext(fn)[1].lower() in exts:
                     rel = os.path.relpath(os.path.join(cur, fn), root_dir)
                     out.append(rel)
-                    if len(out) >= 60:
+                    if len(out) >= 80:
                         return out
+        return out
+
+    def _scan_project_files(self, root_dir):
+        """扫描项目目录下所有工程文件与媒体资产（含 json/html/md/jsonl 等）。"""
+        return self._scan_media_files(
+            root_dir,
+            extra_exts={".json", ".html", ".md", ".txt", ".jsonl", ".css", ".js", ".srt", ".vtt"},
+        )
         return out
 
     def _effective_llm_config(self):
@@ -2685,7 +2716,7 @@ class StudioServer:
         return {"endpoint": ep, "api_key": key, "model": model,
                 "configured": bool(ep)}
 
-    def _run_agent(self, message, context=None):
+    def _run_agent(self, message, context=None, on_step=None):
         import hf_agent
         with self._lock:
             before_scenes = copy.deepcopy(
@@ -2696,12 +2727,13 @@ class StudioServer:
             hist = self._chat_history_tail()
         result = hf_agent.handle(
             message, cur_spec, spec_root, context=context,
-            history=hist, llm_config=llm_cfg)
+            history=hist, llm_config=llm_cfg, on_step=on_step)
         out = {"reply": result.get("reply", ""), "mode": result.get("mode"),
                "action": result.get("action"),
                "suggestions": result.get("suggestions") or [],
                "choices": result.get("choices") or []}
         if "spec" in result:
+            self._record_run(message, result.get("mode") or "api")
             out["composed"] = self._apply_spec(result["spec"])
             out["spec"] = self.current_spec
             out["diff"] = self._spec_diff_summary(
@@ -2985,7 +3017,29 @@ class StudioServer:
         return out[:10]
 
     def _start_agent_chat(self, message, context=None):
-        """agent chat job 化：后台线程驱动 CLI，前端轮询 steps/tail。"""
+        """agent chat job 化：已配置 API 模型时优先由 API 模型驱动；否则驱动本地 CLI。"""
+        llm_cfg = self._effective_llm_config()
+        if llm_cfg.get("configured"):
+            model_name = llm_cfg.get("model") or "API"
+            with self._lock:
+                job_id = self.agent_chat_seq
+                self.agent_chat_seq += 1
+                job = {"id": job_id, "message": message, "agent": model_name,
+                       "running": True, "tail": f"正在调用 {model_name} 生成方案与画面…",
+                       "reply": "",
+                       "steps": [
+                           {"kind": "think", "label": f"接入 {model_name}", "status": "done"},
+                           {"kind": "edit", "label": "构思分镜与自由 HTML 排版", "status": "running"}
+                       ],
+                       "spec_updated": False, "error": None, "done": False,
+                       "cancelled": False, "proc": None, "diff": []}
+                self.agent_jobs[job_id] = job
+            th = threading.Thread(
+                target=self._llm_agent_chat_thread,
+                args=(job, message, model_name, context),
+                daemon=True)
+            th.start()
+            return {"job": job_id, "agent": model_name}
         probe = self._agent_probe()
         if not probe["cli"]:
             return {"job": None, "agent": "none", "mode": "help",
@@ -3013,6 +3067,67 @@ class StudioServer:
             daemon=True)
         th.start()
         return {"job": job_id, "agent": probe["cli"]}
+
+    def _llm_agent_chat_thread(self, job, message, model_name, context=None):
+        """后台线程调用已配置的 OpenAI 兼容 API 模型（如 DeepSeek）完成多步创作、TTS 合成与热重组。"""
+        def _on_step(step_idx, label, status):
+            with self._lock:
+                steps = job["steps"]
+                while len(steps) <= step_idx:
+                    steps.append({"kind": "edit", "label": label, "status": "running"})
+                steps[step_idx] = {
+                    "kind": "edit" if step_idx in (1, 2) else "check",
+                    "label": label,
+                    "status": status,
+                }
+                job["tail"] = label + ("…" if status == "running" else "")
+
+        try:
+            out = self._run_agent(message, context=context, on_step=_on_step)
+            has_spec = "spec" in out
+            tts_note = ""
+            if has_spec and out.get("mode") == "llm-multistep":
+                scenes = (self.current_spec or {}).get("scenes") or []
+                if any(isinstance(s.get("narration"), str) and not s["narration"].lower().endswith((".wav", ".mp3", ".m4a")) for s in scenes):
+                    _on_step(3, "合成自然人声旁白 (Edge-TTS) 并对齐时长", "running")
+                    try:
+                        tts_res = self._run_tts()
+                        self._compose()
+                        _on_step(3, "已合成自然人声旁白并对齐时间轴", "done")
+                        if tts_res and tts_res.get("generated"):
+                            tts_note = f"（已自动合成 {tts_res['generated']} 段自然人声旁白并拟合时长）"
+                    except Exception:
+                        _on_step(3, "旁白合成跳过，已保留文字字幕与默认节奏", "done")
+
+            with self._lock:
+                if job.get("cancelled"):
+                    for st in job["steps"]:
+                        st["status"] = "done"
+                    job["steps"].append({"kind": "stop", "label": "已手动中止", "status": "done"})
+                    job["reply"] = "已取消本轮 Agent 执行。"
+                    job["error"] = "cancelled"
+                    return
+                for st in job["steps"]:
+                    st["status"] = "done"
+                if has_spec:
+                    job["steps"].append({"kind": "check", "label": "校验 spec 并热重组预览", "status": "done"})
+                job["spec_updated"] = has_spec
+                job["diff"] = out.get("diff") or []
+                job["reply"] = (out.get("reply") or "已完成") + tts_note
+                job["error"] = out.get("error")
+                job["tail"] = job["reply"][:120]
+            self._chat_log(message, job["reply"], model_name)
+        except Exception as e:
+            with self._lock:
+                for st in job["steps"]:
+                    st["status"] = "done"
+                job["reply"] = f"调用 {model_name} 失败：{e}"
+                job["error"] = str(e)
+                job["tail"] = job["reply"][:120]
+        finally:
+            with self._lock:
+                job["running"] = False
+                job["done"] = True
 
     def _cancel_agent_chat(self, job_id):
         with self._lock:
@@ -3278,12 +3393,21 @@ def make_handler(server_ref):
                 import hf_compose
                 registry = hf_compose.load_custom_templates(
                     srv._spec_root())
-                self._json({"templates": [
-                    {"name": d.get("name", ""),
-                     "description": d.get("description", ""),
-                     "slots": d.get("slots", [])}
-                    for d in sorted(registry.values(),
-                                    key=lambda x: x.get("name", ""))]})
+                items = []
+                for d in sorted(registry.values(),
+                                key=lambda x: x.get("name", "")):
+                    sample = dict(d.get("defaults") or {})
+                    for s in (d.get("slots") or []):
+                        sample.setdefault(s, s.replace("_", " ").title())
+                    inner, css = hf_compose.render_custom_template(d, sample, 0)
+                    items.append({
+                        "name": d.get("name", ""),
+                        "description": d.get("description", ""),
+                        "slots": d.get("slots", []),
+                        "preview_html": inner,
+                        "preview_css": css,
+                    })
+                self._json({"templates": items})
             elif path == "/api/inspirations":
                 # 灵感库（HF Inspirations 的本地对应）：内置示例 brief
                 # 一键新建——冷启动不用从零想 brief。
@@ -3452,6 +3576,7 @@ def make_handler(server_ref):
                 except Exception:
                     pass
                 media_files = srv._scan_media_files(spec_root)
+                project_files = srv._scan_project_files(spec_root)
                 self._json({"spec": cur_spec,
                             "spec_path": cur_spec_path,
                             "duration": total, "scenes": scenes,
@@ -3460,6 +3585,7 @@ def make_handler(server_ref):
                             "errors": errors,
                             "presets": presets,
                             "media_files": media_files,
+                            "project_files": project_files,
                             "agent": {"llm": llm_cfg["configured"],
                                       "llm_model": llm_cfg["model"],
                                       "llm_endpoint": llm_cfg["endpoint"],
