@@ -1,0 +1,27 @@
+{
+  "name": "editorial-forest",
+  "description": "文艺森林编辑风：浅灰绿纸感底 + 深森墨绿文字 + 洋红细节点缀，适合设计/文化/品牌故事",
+  "source": "灵感源自 HyperFrames Editorial Light / Sage 美学方向（本地确定性重制）",
+  "colors": {
+    "bg_primary": "#EAECE4",
+    "bg_secondary": "#DCE2D5",
+    "text_primary": "#14261C",
+    "text_secondary": "#4A5D52",
+    "accent": "#D9468F",
+    "line": "#B5C0AC"
+  },
+  "typography": {
+    "display": {"family": "Georgia, \"Playfair Display\", serif", "size_vh": 8.0, "weight": 700, "line_height": 1.08, "tracking": "-0.015em"},
+    "h1": {"family": "Georgia, \"Playfair Display\", serif", "size_vh": 5.4, "weight": 700, "line_height": 1.15},
+    "h2": {"family": "Inter, system-ui, sans-serif", "size_vh": 3.5, "weight": 600, "line_height": 1.25},
+    "stat_figure": {"family": "Georgia, serif", "size_vh": 13.5, "weight": 700, "line_height": 1.0},
+    "label": {"family": "ui-monospace, Menlo, monospace", "px": 13, "weight": 500, "tracking": "2.6px", "upper": true, "color": "accent"},
+    "body": {"family": "Inter, system-ui, sans-serif", "size_vh": 2.8, "weight": 400, "line_height": 1.65, "color": "text_secondary"}
+  },
+  "spacing": {"pad_x": "7cqw", "pad_y": "5cqw"},
+  "components": {
+    "hairline": "0.14vh solid {colors.line}",
+    "kicker_pill": false
+  },
+  "layout": "editorial serif headlines, organic sage ground, restrained accent"
+}

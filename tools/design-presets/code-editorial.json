@@ -1,0 +1,27 @@
+{
+  "name": "code-editorial",
+  "description": "暖纸工程出版风：暖米纸底色 + 炭黑文字 + 橙红工程标牌，适合架构拆解/技术发布/播客",
+  "source": "灵感源自 HyperFrames Editorial Technical 美学方向（本地确定性重制）",
+  "colors": {
+    "bg_primary": "#F5F2EB",
+    "bg_secondary": "#EAE4D8",
+    "text_primary": "#1C1917",
+    "text_secondary": "#57534E",
+    "accent": "#EA580C",
+    "line": "#D6CFC2"
+  },
+  "typography": {
+    "display": {"family": "Inter, system-ui, sans-serif", "size_vh": 8.2, "weight": 800, "line_height": 1.08, "tracking": "-0.02em"},
+    "h1": {"family": "Inter, system-ui, sans-serif", "size_vh": 5.4, "weight": 800, "line_height": 1.14},
+    "h2": {"family": "Inter, system-ui, sans-serif", "size_vh": 3.6, "weight": 700, "line_height": 1.2},
+    "stat_figure": {"family": "ui-monospace, Menlo, monospace", "size_vh": 13.5, "weight": 800, "line_height": 1.0},
+    "label": {"family": "ui-monospace, Menlo, monospace", "px": 13, "weight": 600, "tracking": "2px", "upper": true, "color": "accent"},
+    "body": {"family": "Inter, system-ui, sans-serif", "size_vh": 2.9, "weight": 400, "line_height": 1.6, "color": "text_secondary"}
+  },
+  "spacing": {"pad_x": "8cqw", "pad_y": "6cqw"},
+  "components": {
+    "hairline": "0.16vh solid {colors.line}",
+    "kicker_pill": true
+  },
+  "layout": "warm archival paper with technical monospace accents"
+}

@@ -1,10 +1,10 @@
 import { expOpen } from "./export.js";
 import { renderInspector } from "./inspector.js";
-import { renderSceneList } from "./scenes.js";
+import { renderSceneList, renderPresetSelect } from "./scenes.js";
 import { stopPhAnim } from "../preview/playhead.js";
 import { fitPreview } from "../preview/zoom.js";
 import { api } from "../shared/api-client.js";
-import { log, $ } from "../shared/dom.js";
+import { escHtml, log, $ } from "../shared/dom.js";
 import { fps } from "../shared/time.js";
 import { rangeClamp, rangeOpen } from "../timeline/range.js";
 import { renderTimeline } from "../timeline/render.js";
@@ -63,7 +63,13 @@ export function refresh(keepSpec) {
         ((s.spec.scenes || []).length) + " 场景";
     $("dims").textContent = s.width + "×" + s.height + " · " +
         (comp.fps || 30) + "fps";
-    fitPreview(); renderSceneList(); renderTimeline(); renderInspector();
+    fitPreview(); renderPresetSelect(); renderSceneList(); renderTimeline(); renderInspector();
+    var mediaDl = $("insp-media-list");
+    if (mediaDl) {
+      mediaDl.innerHTML = (s.media_files || []).map(function (m) {
+        return '<option value="' + escHtml(m) + '"></option>';
+      }).join("");
+    }
     if (storyboardIsOpen()) storyboardRender();
     renderFindings(s.findings);
     pendingSeek = lastTime;
@@ -150,13 +156,27 @@ $("crumb-name").onclick = function () {
   inp.onblur = function () { done(true); };
 };
 
+export function refreshBrandChip() {
+  var chip = $("ask-brand-chip");
+  if (!chip) return;
+  while (chip.options.length > 1) chip.remove(1);
+  api("/api/brands").then(function (r) {
+    (r.brands || []).forEach(function (b) {
+      var o = document.createElement("option");
+      o.value = b.name;
+      o.textContent = "🏷 " + b.name + (b._default ? "（默认）" : "");
+      chip.appendChild(o);
+    });
+  }).catch(function () {});
+}
+
 /* 品牌 chip（HF 输入区 "No brand kit" 同款）：/api/brands 填充下拉，
    选择即发「应用品牌」对话（走现有编辑链，消息在 chat 里可见）。 */
 (function () {
   var chip = $("ask-brand-chip");
   if (!chip) return;
   chip.onchange = function () {
-    var v = this.value;
+    var v = chip.value;
     if (!v) return;
     var form = document.getElementById("ask-form");
     var input = document.getElementById("ask-input");
@@ -167,14 +187,7 @@ $("crumb-name").onclick = function () {
       form.dispatchEvent(new Event("submit",
         { cancelable: true, bubbles: true }));
     }
-    this.value = "";   // 回到 No brand kit（品牌应用是一次性动作）
+    chip.value = "";   // 回到 No brand kit（品牌应用是一次性动作）
   };
-  api("/api/brands").then(function (r) {
-    (r.brands || []).forEach(function (b) {
-      var o = document.createElement("option");
-      o.value = b.name;
-      o.textContent = "🏷 " + b.name + (b._default ? "（默认）" : "");
-      chip.appendChild(o);
-    });
-  }).catch(function () {});
+  refreshBrandChip();
 })();

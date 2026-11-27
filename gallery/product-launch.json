@@ -7,7 +7,7 @@
     {"type": "title", "text": "xmedia-kit 发布",
      "subtitle": "确定性 AI 视频生成管线", "bg": "#1a1a2e",
      "animation": "fade_in_up", "transition": "wipe"},
-    {"type": "lower-third", "title": "张三", "subtitle": "首席渲染官",
+    {"type": "hf-brand-assemble", "companion": "核心呈现", "brand": "张三", "tagline": "首席渲染官",
      "duration": 3, "transition": "wipe"},
     {"type": "stats", "value": "1029", "description": "回归测试全部通过",
      "bg": "#16213e", "animation": "scale_in"},

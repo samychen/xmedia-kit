@@ -1,0 +1,28 @@
+{
+  "name": "coral-pop",
+  "description": "高对比珊瑚撞色风：墨黑底色 + 炽热珊瑚红主强调 + 米白文字，适合消费品/活动宣传与短视频",
+  "source": "灵感源自 HyperFrames Vibrant Coral Pop 美学方向（本地确定性重制）",
+  "colors": {
+    "bg_primary": "#111111",
+    "bg_secondary": "#1E1E1E",
+    "text_primary": "#FAF8F5",
+    "text_secondary": "#C4BEB5",
+    "accent": "#FF4D5A",
+    "line": "#FF4D5A",
+    "glow": "rgba(255, 77, 90, 0.16)"
+  },
+  "typography": {
+    "display": {"family": "Inter, system-ui, sans-serif", "size_vh": 9.0, "weight": 900, "line_height": 1.04, "tracking": "-0.03em"},
+    "h1": {"family": "Inter, system-ui, sans-serif", "size_vh": 6.0, "weight": 800, "line_height": 1.1},
+    "h2": {"family": "Inter, system-ui, sans-serif", "size_vh": 3.8, "weight": 800, "line_height": 1.15},
+    "stat_figure": {"family": "Inter, system-ui, sans-serif", "size_vh": 15.0, "weight": 900, "line_height": 0.98},
+    "label": {"family": "Inter, system-ui, sans-serif", "px": 14, "weight": 700, "tracking": "2.2px", "upper": true, "color": "accent"},
+    "body": {"family": "Inter, system-ui, sans-serif", "size_vh": 3.0, "weight": 500, "line_height": 1.5, "color": "text_secondary"}
+  },
+  "spacing": {"pad_x": "8cqw", "pad_y": "6cqw"},
+  "components": {
+    "hairline": "0.22vh solid {colors.accent}",
+    "kicker_pill": true
+  },
+  "layout": "bold dark poster contrast with energetic coral accents"
+}

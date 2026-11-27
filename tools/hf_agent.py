@@ -22,16 +22,18 @@ import urllib.request
 
 MAX_SPEC_BYTES = 200_000
 MAX_SCENES = 100
-SYSTEM_PROMPT = """你是 xmedia-kit 的视频编辑 Agent。用户给你一句自然语言指令和当前 spec JSON。
-只输出一个 JSON 对象（不要 markdown 代码块、不要解释文字）：
-{"reply": "一句中文说明你做了什么", "spec": {完整的新 spec JSON}}
-spec 规则：顶层 schema_version 固定 "1.0"；composition 含 format(16:9/9:16/1:1/4:5) 与 fps；
-scenes 是非空数组，每项含 type(title/text/outro/quote/list/stats/comparison 或自定义模板名)、
-text、duration(秒)、bg(十六进制色)、可选 animation、video(本地素材路径)、
-narration(旁白音频路径)、captions(场景相对字幕段 [{start,end,text}])；
-顶层可选 captions:{enabled,segments:[{start,end,text}]}(全局时间轴绝对秒)、
-audio:{src,volume,fade_in,fade_out}、sfx:{enabled}、transitions:{type,duration}。
-不要写 HTML、不要写 JavaScript、不要编造不存在的素材路径。"""
+SYSTEM_PROMPT = """你是 xmedia-kit Studio 的视频创作与剪辑 Agent。用户给你自然语言指令、当前 spec JSON、界面上下文（当前选中镜头索引/播放时间/画面圈选区域）、可用设计预设列表、本地素材列表与近期对话历史。
+只输出一个合法 JSON 对象（不要 markdown 代码块、不要多余解释文字）：
+1. 如果用户在询问方案、头脑风暴、大纲策划、或提问：不修改 spec，返回：
+{"reply": "清晰简洁的中文方案或回答", "choices": [{"label": "方向名", "desc": "一句话卖点", "msg": "点击后可执行的指令"}], "suggestions": ["可点击的下一步短指令1", "短指令2"]}
+2. 如果用户要求新建、编辑或优化视频：输出修改后的完整 spec，返回：
+{"reply": "一两句平实中文说明修改了屏幕上什么", "spec": {完整的新 spec JSON}, "suggestions": ["可点击的后续建议1", "建议2"]}
+
+spec 规则：顶层 schema_version 固定 "1.0"；可选顶层 design 填入 available_presets 之一（如 midnight-glow / editorial-stone / blue-professional / editorial-forest / coral-pop / code-editorial / bold-poster）；composition 含 format(16:9/9:16/1:1/4:5) 与 fps；
+scenes 是非空数组，每项含 type(title/text/outro/quote/list/stats/comparison 或 available_templates 中的模板名)、可选 kicker(眉标标签)、
+text(或 title/quote/value/left/right)、duration(秒，>0)、bg(十六进制色)、可选 subtitle/text_color/image({src,mode})/animation(fade_in/fade_in_up/fade_in_down/slide_in_left/slide_in_right/scale_in/zoom_in/zoom_out/pop_in/blur_in/clip_reveal/none)/transition(fade/slide-left/slide-right/wipe/zoom/blur/none)/video/narration/captions；
+顶层可选 captions:{enabled,segments:[{start,end,text}]}、audio:{bgm:{src,volume}}、sfx:{enabled}、transitions:{type,duration}。
+遵循当前品牌规则与叙事约束；不要写 HTML、不要写 JavaScript、不要编造不存在的本地素材路径（只能使用 available_media 里列出的路径）。"""
 
 
 class AgentRejected(RuntimeError):
@@ -99,17 +101,58 @@ def validate_spec(spec, spec_dir=""):
     return True
 
 
-def _llm_complete(message, spec, timeout=60):
-    endpoint = os.environ.get("XMEDIA_LLM_ENDPOINT", "").strip()
+def _list_media_files(spec_dir):
+    out = []
+    if not spec_dir or not os.path.isdir(spec_dir):
+        return out
+    exts = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif",
+            ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a"}
+    base_depth = spec_dir.rstrip(os.sep).count(os.sep)
+    for cur, dirs, files in os.walk(spec_dir):
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".")
+                         and d not in ("__thumbs__", "node_modules"))
+        if cur.count(os.sep) - base_depth > 2:
+            dirs[:] = []
+            continue
+        for fn in sorted(files):
+            if os.path.splitext(fn)[1].lower() in exts:
+                out.append(os.path.relpath(os.path.join(cur, fn), spec_dir))
+                if len(out) >= 40:
+                    return out
+    return out
+
+
+def _llm_complete(message, spec, context=None, history=None, templates=None,
+                  spec_dir="", llm_config=None, timeout=60):
+    cfg = llm_config if isinstance(llm_config, dict) else {}
+    endpoint = str(cfg.get("endpoint") or os.environ.get(
+        "XMEDIA_LLM_ENDPOINT", "")).strip()
     if not endpoint:
-        raise LlmUnavailable("未配置 XMEDIA_LLM_ENDPOINT")
-    key = os.environ.get("XMEDIA_LLM_API_KEY", "")
-    model = os.environ.get("XMEDIA_LLM_MODEL", "gpt-4o-mini")
-    payload = {"model": model, "temperature": 0, "messages": [
+        raise LlmUnavailable("未配置大模型接口地址")
+    key = str(cfg.get("api_key") or os.environ.get(
+        "XMEDIA_LLM_API_KEY", "")).strip()
+    model = str(cfg.get("model") or os.environ.get(
+        "XMEDIA_LLM_MODEL", "gpt-4o-mini")).strip() or "gpt-4o-mini"
+    presets_info = []
+    try:
+        import hf_compose
+        for k, v in sorted(hf_compose._design_presets().items()):
+            presets_info.append({"name": k, "desc": v.get("description", "")})
+    except Exception:
+        pass
+    user_obj = {
+        "instruction": message,
+        "current_spec": spec,
+        "context": context or {},
+        "available_templates": templates or [],
+        "available_presets": presets_info,
+        "available_media": _list_media_files(spec_dir),
+        "recent_history": (history or [])[-5:],
+    }
+    payload = {"model": model, "temperature": 0.2, "messages": [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": json.dumps(
-            {"instruction": message, "current_spec": spec},
-            ensure_ascii=False)}]}
+            user_obj, ensure_ascii=False)}]}
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = "Bearer " + key
@@ -130,8 +173,9 @@ def _llm_complete(message, spec, timeout=60):
         data = json.loads(content)
     except json.JSONDecodeError as e:
         raise LlmUnavailable(f"LLM 未返回合法 JSON：{e}")
-    if not isinstance(data, dict) or "spec" not in data:
-        raise LlmUnavailable("LLM 响应缺少 spec 字段")
+    if not isinstance(data, dict) or ("spec" not in data and
+                                      "reply" not in data):
+        raise LlmUnavailable("LLM 响应缺少 reply/spec 字段")
     return data
 
 
@@ -218,12 +262,15 @@ def apply_brand(spec, brand):
             if colors:
                 sc["bg"] = colors[i % len(colors)]
             if text:
+                sc.setdefault("text_color", text)
                 sc.setdefault("color", text)
             n += 1
     if spec.get("background"):
         spec["background"] = brand.get("background", spec["background"])
-    if brand.get("voice"):
-        spec.setdefault("tts", {})["voice"] = brand["voice"]
+    tts_v = brand.get("tts_voice") or (
+        brand["voice"] if isinstance(brand.get("voice"), str) else "")
+    if tts_v:
+        spec.setdefault("tts", {})["voice"] = tts_v
     # 字体：v2 fonts.body.family；v1（brand save --font-family /
     # brand scan 产物）fonts 是 font-family 字符串数组，取首个。
     fonts = brand.get("fonts") or {}
@@ -269,21 +316,185 @@ def _int(s, default=0):
     return cn.get(s, default)
 
 
-def handle(message, spec, spec_dir=""):
-    """→ {reply, spec?, action?, args?, mode}。spec 为 None 表示不改 spec。"""
-    msg = str(message or "").strip()
+def _default_suggestions(spec):
+    """根据当前 spec 缺口推荐最多 3 个下一步快捷建议。"""
+    if not isinstance(spec, dict):
+        return []
+    scenes = spec.get("scenes") or []
+    sugs = []
+    has_video = any(sc.get("video") for sc in scenes)
+    has_narration = any(sc.get("narration") for sc in scenes)
+    has_caps = bool((spec.get("captions") or {}).get("segments"))
+    has_outro = any(str(sc.get("type")) in ("outro", "outro-brand")
+                    for sc in scenes)
+    if has_video and not has_caps:
+        sugs.append("自动字幕")
+    if scenes and not has_narration:
+        sugs.append("生成旁白")
+    if scenes and not has_outro:
+        sugs.append("加一个片尾卡")
+    if len(scenes) >= 2 and not any(sc.get("transition") for sc in scenes[1:]):
+        sugs.append("全部转场改成 fade")
+    return sugs[:3]
+
+
+def _resolve_deictic(msg, scenes, context):
+    """将「这镜/当前场景/这里」等指代词替换为明确的「第 N 个场景」。"""
+    if not isinstance(context, dict):
+        return msg, None
+    idx = context.get("scene_index")
+    if isinstance(idx, bool) or not isinstance(idx, int):
+        return msg, None
+    if idx < 0 or idx >= len(scenes):
+        return msg, None
+    if re.search(r"第\s*[一二三四五六七八九十\d]+\s*个?\s*(?:场景|镜)", msg):
+        return msg, idx
+    replaced = re.sub(
+        r"(?:当前|这|本|该)\s*(?:一\s*)?(?:个\s*)?(?:场景|镜|幕)",
+        f"第 {idx + 1} 个场景",
+        msg,
+    )
+    return replaced, idx
+
+
+def _apply_design_preset(spec, preset_name):
+    """套用内置设计预设到 spec（支持 7 套 presets）。"""
+    import hf_compose
+    presets = hf_compose._design_presets()
+    p = presets.get(preset_name)
+    if not p:
+        return None
+    colors = p.get("colors") or {}
+    bg1 = colors.get("bg_primary") or "#0a0a1a"
+    bg2 = colors.get("bg_secondary") or bg1
+    ink = colors.get("text_primary") or "#ffffff"
+    spec["design"] = preset_name
+    spec["background"] = bg1
+    for i, sc in enumerate(spec.get("scenes") or []):
+        if not sc.get("video"):
+            sc["bg"] = bg1 if (i % 2 == 0) else bg2
+            sc["text_color"] = ink
+    return p
+
+
+def _match_preset_name(msg):
+    import hf_compose
+    presets = sorted(hf_compose._design_presets().keys())
+    low = msg.lower()
+    for name in presets:
+        if name in low:
+            return name
+    aliases = [
+        (r"暖石|米色|极简|serif|编辑风|浅色|亮色|太暗|看不清", "editorial-stone"),
+        (r"蓝白|专业|商务|企业|钴蓝", "blue-professional"),
+        (r"霓虹|暗夜|科技感|赛博|极客|saas", "midnight-glow"),
+        (r"森林|绿|文艺|自然|有机", "editorial-forest"),
+        (r"珊瑚|撞色|活力|潮流|红黑", "coral-pop"),
+        (r"工程|代码|暖纸|出版", "code-editorial"),
+        (r"海报|反白|黑底白字|冲击", "bold-poster"),
+    ]
+    for pat, target in aliases:
+        if target in presets and re.search(pat, msg, re.I):
+            return target
+    return None
+
+
+def _build_zero_config_video(topic, fmt="16:9", preset_name="midnight-glow",
+                            arc="launch"):
+    import hf_compose
+    import hf_storyboard
+    presets = hf_compose._design_presets()
+    if preset_name not in presets:
+        preset_name = "midnight-glow" if "midnight-glow" in presets else (
+            next(iter(presets), ""))
+    spec = hf_storyboard.build(arc, topic, fmt=fmt, voice="Tingting")
+    if arc == "comparison":
+        scenes = [
+            {"type": "title", "kicker": "COMPARISON", "text": topic[:48],
+             "subtitle": "新旧方案核心差异一眼看清", "duration": 3.2,
+             "animation": "fade_in_up"},
+            {"type": "comparison", "kicker": "SIDE BY SIDE",
+             "text": f"{topic[:18]} 前后对比",
+             "left": "传统方式", "right": "全新方案",
+             "left_items": ["流程繁琐耗时", "手工重复校对", "效果难以复现"],
+             "right_items": ["秒级自动生成", "统一视觉规范", "确定性稳定出片"],
+             "duration": 4.2, "animation": "slide_in_left", "transition": "fade"},
+            {"type": "stats", "kicker": "EFFICIENCY", "value": "10×",
+             "description": f"{topic[:20]} 整体效率显著提升",
+             "duration": 3.0, "animation": "pop_in", "transition": "wipe"},
+            {"type": "outro", "text": f"立即体验 {topic[:20]}",
+             "duration": 2.6, "animation": "fade_in", "transition": "fade"},
+        ]
+    elif arc == "listicle":
+        scenes = [
+            {"type": "title", "kicker": "TOP PICKS", "text": topic[:48],
+             "subtitle": "最值得关注的三个核心亮点", "duration": 3.2,
+             "animation": "fade_in_up"},
+            {"type": "list", "kicker": "HIGHLIGHTS", "text": "核心亮点速览",
+             "items": [f"亮点 01 · {topic[:14]} 极速上手",
+                       "亮点 02 · 结构化高质感视觉",
+                       "亮点 03 · 实时预览即改即出"],
+             "duration": 4.2, "animation": "slide_in_left", "transition": "fade"},
+            {"type": "stats", "kicker": "RESULT", "value": "100%",
+             "description": "所见即所得，全流程本地可控",
+             "duration": 3.0, "animation": "zoom_in", "transition": "slide-left"},
+            {"type": "outro", "text": f"开启你的 {topic[:18]}",
+             "duration": 2.6, "animation": "fade_in", "transition": "fade"},
+        ]
+    else:
+        scenes = [
+            {"type": "title", "kicker": "INTRODUCING", "text": topic[:48],
+             "subtitle": "重新定义高效创作与确定性体验", "duration": 3.5,
+             "animation": "fade_in_up"},
+            {"type": "text", "kicker": "THE CHALLENGE",
+             "text": f"为什么你需要 {topic[:22]}？",
+             "content": [{"text": "告别繁琐手工搭建与样式失控"},
+                         {"text": "让每个想法直接落地成高质感成片"}],
+             "duration": 3.6, "animation": "fade_in", "transition": "fade"},
+            {"type": "list", "kicker": "KEY FEATURES", "text": "核心能力一览",
+             "items": ["开箱即用 · 语义直接驱动画面结构",
+                       "品牌一致 · 网站扫码直连视觉规范",
+                       "毫秒响应 · 随时改镜重排无等待"],
+             "duration": 4.0, "animation": "slide_in_left", "transition": "wipe"},
+            {"type": "stats", "kicker": "BY THE NUMBERS", "value": "10×",
+             "description": f"用 {topic[:16]} 让创意到交付快人十倍",
+             "duration": 3.0, "animation": "pop_in", "transition": "slide-left"},
+            {"type": "outro", "text": f"立即尝试 {topic[:22]}",
+             "duration": 2.8, "animation": "fade_in", "transition": "fade"},
+        ]
+    spec["scenes"] = scenes
+    spec["transitions"] = {"type": "fade", "duration": 0.45}
+    if preset_name:
+        _apply_design_preset(spec, preset_name)
+    return spec
+
+
+def handle(message, spec, spec_dir="", context=None, history=None,
+           llm_config=None):
+    """→ {reply, spec?, action?, args?, mode, suggestions?, choices?}。"""
+    raw_msg = str(message or "").strip()
     base = copy.deepcopy(spec) if isinstance(spec, dict) else {}
     if not base.get("scenes"):
         base = {"schema_version": "1.0",
                 "composition": {"id": "main", "format": "16:9", "fps": 30},
                 "scenes": [{"type": "text", "text": "", "duration": 3}]}
+    msg, ctx_idx = _resolve_deictic(raw_msg, base["scenes"], context)
 
-    def out(reply, new_spec=None, action=None, args=None, mode="rule"):
+    def out(reply, new_spec=None, action=None, args=None, mode="rule",
+            suggestions=None, choices=None):
         payload = {"reply": reply, "mode": mode}
         if new_spec is not None:
             new_spec = copy.deepcopy(new_spec)
             new_spec["schema_version"] = "1.0"
             payload["spec"] = new_spec
+            sugs = (suggestions if suggestions is not None
+                    else _default_suggestions(new_spec))
+            if sugs:
+                payload["suggestions"] = sugs
+        elif suggestions:
+            payload["suggestions"] = suggestions
+        if choices:
+            payload["choices"] = choices[:4]
         if action:
             payload["action"] = action
             payload["args"] = args or {}
@@ -329,8 +540,10 @@ def handle(message, spec, spec_dir=""):
                     sc.setdefault("color", text)
         if base.get("background"):
             base["background"] = brand.get("background", base["background"])
-        if brand.get("voice"):
-            base.setdefault("tts", {})["voice"] = brand["voice"]
+        tts_v = brand.get("tts_voice") or (
+            brand["voice"] if isinstance(brand.get("voice"), str) else "")
+        if tts_v:
+            base.setdefault("tts", {})["voice"] = tts_v
         for sc in base.get("scenes", []):
             if sc.get("type") == "outro":
                 if brand.get("outro_text"):
@@ -339,7 +552,7 @@ def handle(message, spec, spec_dir=""):
                     sc["subtitle"] = brand["logo_text"]
         return out(f"品牌「{m.group(1)}」已应用（色板 {len(palette)} 色、"
                    f"文字 {text or '不变'}、音色 "
-                   f"{brand.get('voice') or '不变'}）", base)
+                   f"{tts_v or '不变'}）", base)
 
     # 0b-2. 扫描网站 → 品牌（HF brand kits 的「输入网址生成 kit」形态）：
     #     消息带 URL + 品牌词 → xmedia brand scan（抓页面 + 至多 3 个同源
@@ -461,6 +674,17 @@ def handle(message, spec, spec_dir=""):
 
     # 4. 改场景文字
     # 8b. 副标题 / 单场景背景 / 单场景文字色（高频字段逐场景编辑）
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}(?:眉标|kicker|标签)\s*(?:改成|改为|设为|清空)\s*[:：]?\s*(.*)", msg, re.I)
+    if m:
+        idx = _int(m.group(1), 0) - 1
+        if 0 <= idx < len(base["scenes"]):
+            val = m.group(2).strip().strip("\"'“”")
+            if val:
+                base["scenes"][idx]["kicker"] = val
+            else:
+                base["scenes"][idx].pop("kicker", None)
+            return out(f"第 {idx+1} 个场景眉标已更新为「{val or '无'}」", base)
+
     m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}副标题.{0,6}(?:改成|改为|设为|清空)\s*[:：]?\s*(.*)", msg, re.I)
     if m:
         idx = _int(m.group(1), 0) - 1
@@ -549,7 +773,7 @@ def handle(message, spec, spec_dir=""):
     m = re.search(r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}转场\s*(?:改成|改为|设为)?\s*[:：]?\s*(\S+)", msg, re.I)
     if m:
         idx, val = _int(m.group(1), 0) - 1, m.group(2).strip().lower()
-        if val in ("fade", "slide-left", "slide-right", "wipe", "none"):
+        if val in ("fade", "slide-left", "slide-right", "wipe", "zoom", "blur", "none"):
             if 0 <= idx < len(base["scenes"]):
                 base["scenes"][idx]["transition"] = val
                 return out(f"第 {idx+1} 个场景转场已改为 {val}", base)
@@ -557,7 +781,9 @@ def handle(message, spec, spec_dir=""):
     if m:
         idx, val = _int(m.group(1), 0) - 1, m.group(2).strip()
         if val in ("fade_in", "fade_in_up", "fade_in_down", "scale_in",
-                   "slide_in", "none"):
+                   "slide_in", "slide_in_left", "slide_in_right",
+                   "zoom_in", "zoom_out", "pop_in", "blur_in", "clip_reveal",
+                   "none"):
             if 0 <= idx < len(base["scenes"]):
                 base["scenes"][idx]["animation"] = val
                 return out(f"第 {idx+1} 个场景入场动画已改为 {val}", base)
@@ -604,6 +830,230 @@ def handle(message, spec, spec_dir=""):
         audio["bgm"] = bgm
         return out(f"BGM 音量已设为 {vol}", base)
 
+    # 8g. 扩展高频本地编辑：单镜复制 / 移动 / 交换 / 加减时长 / 全局节奏 / 统一转场动画 / 内置卡片
+    if re.search(r"(?:复制|拷贝|duplicate).{0,6}第\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜)", msg, re.I) or (
+            ctx_idx is not None and re.search(r"(?:复制|拷贝).{0,4}(?:这|当前)", raw_msg)):
+        m_dup = re.search(r"第\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜)", msg)
+        idx = (_int(m_dup.group(1), 0) - 1) if m_dup else ctx_idx
+        if idx is not None and 0 <= idx < len(base["scenes"]):
+            dup = copy.deepcopy(base["scenes"][idx])
+            base["scenes"].insert(idx + 1, dup)
+            return out(f"已复制第 {idx + 1} 镜并插到第 {idx + 2} 位", base)
+
+    m_swap = re.search(
+        r"(?:交换|互换|对调)\s*第?\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜)?\s*(?:和|与|跟)\s*第?\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜)?",
+        msg)
+    if m_swap:
+        a, b = _int(m_swap.group(1), 0) - 1, _int(m_swap.group(2), 0) - 1
+        n_sc = len(base["scenes"])
+        if 0 <= a < n_sc and 0 <= b < n_sc and a != b:
+            base["scenes"][a], base["scenes"][b] = base["scenes"][b], base["scenes"][a]
+            return out(f"已交换第 {a + 1} 镜与第 {b + 1} 镜的顺序", base)
+
+    m_mv = re.search(
+        r"(?:把\s*)?第\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜)\s*(?:向|往)?(前|上|后|下)\s*(?:移动|挪|移)",
+        msg)
+    if m_mv:
+        idx = _int(m_mv.group(1), 0) - 1
+        delta = -1 if m_mv.group(2) in ("前", "上") else 1
+        nxt = idx + delta
+        if 0 <= idx < len(base["scenes"]) and 0 <= nxt < len(base["scenes"]):
+            sc = base["scenes"].pop(idx)
+            base["scenes"].insert(nxt, sc)
+            return out(f"已将第 {idx + 1} 镜移至第 {nxt + 1} 位", base)
+
+    m_delta = re.search(
+        r"第\s*([一二三四五六七八九十\d]+)\s*个?\s*(?:场景|镜).{0,4}(加长|延长|增加|缩短|减少|减短)\s*([\d.]+)\s*秒",
+        msg)
+    if m_delta:
+        idx = _int(m_delta.group(1), 0) - 1
+        delta = float(m_delta.group(3))
+        if m_delta.group(2) in ("缩短", "减少", "减短"):
+            delta = -delta
+        if 0 <= idx < len(base["scenes"]):
+            cur_d = float(base["scenes"][idx].get("duration", 3))
+            new_d = round(max(0.5, min(3600.0, cur_d + delta)), 2)
+            base["scenes"][idx]["duration"] = new_d
+            return out(f"第 {idx + 1} 镜时长已调整为 {new_d}s", base)
+
+    if re.search(r"^(?:整体|全片)?(?:加快节奏|节奏快一点|紧凑一点|提速|太慢了)$", raw_msg):
+        for sc in base["scenes"]:
+            cur_d = float(sc.get("duration", 3))
+            sc["duration"] = round(max(1.2, cur_d * 0.8), 2)
+        return out("已整体提速，所有场景时长压缩至约 80%", base)
+
+    if re.search(r"^(?:整体|全片)?(?:放慢节奏|节奏慢一点|留出呼吸感|舒缓一点|太快了)$", raw_msg):
+        for sc in base["scenes"]:
+            cur_d = float(sc.get("duration", 3))
+            sc["duration"] = round(min(15.0, cur_d * 1.25), 2)
+        return out("已整体放慢节奏，各镜时长增加约 25%", base)
+
+    m_all_tr = re.search(r"(?:全部|所有场景|统一|全局)\s*转场\s*(?:改成|改为|设为)?\s*[:：]?\s*(\S+)", msg, re.I)
+    if m_all_tr:
+        val = m_all_tr.group(1).strip().lower()
+        if val in ("fade", "slide-left", "slide-right", "wipe", "zoom", "blur", "none"):
+            for i, sc in enumerate(base["scenes"]):
+                if i > 0:
+                    sc["transition"] = val
+            base["transitions"] = {"type": val, "duration": 0.4}
+            return out(f"已将全片转场统一设置为 {val}", base)
+
+    # 8h. 场景类型转换（把第 N 镜改成统计卡 / 对比卡 / 金句 / 清单 / 标题）
+    m_conv = re.search(
+        r"第?\s*([一二三四五六七八九十\d]+)\s*个?场景.{0,6}(?:改成|改为|变成|换成|转为)\s*(标题|title|统计|数据|stats|对比|comparison|金句|引用|quote|列表|清单|list|正文|text|片尾|outro)",
+        msg, re.I)
+    if m_conv:
+        idx = _int(m_conv.group(1), 0) - 1
+        tmap = {"标题": "title", "title": "title",
+                "统计": "stats", "数据": "stats", "stats": "stats",
+                "对比": "comparison", "comparison": "comparison",
+                "金句": "quote", "引用": "quote", "quote": "quote",
+                "列表": "list", "清单": "list", "list": "list",
+                "正文": "text", "text": "text",
+                "片尾": "outro", "outro": "outro"}
+        nt = tmap.get(m_conv.group(2).lower())
+        if nt and 0 <= idx < len(base["scenes"]):
+            sc = base["scenes"][idx]
+            sc["type"] = nt
+            if nt == "stats":
+                sc.setdefault("value", "10×")
+                sc.setdefault("description", sc.get("text") or "关键指标提升")
+            elif nt == "comparison":
+                sc.setdefault("text", sc.get("text") or "方案对比")
+                sc.setdefault("left", "改进前")
+                sc.setdefault("right", "改进后")
+                sc.setdefault("left_items", ["手工操作", "耗时较长"])
+                sc.setdefault("right_items", ["一键自动", "稳定可控"])
+            elif nt == "quote":
+                sc.setdefault("quote", sc.get("text") or "少即是多，让内容自己说话。")
+                sc.setdefault("author", "产品团队")
+            elif nt == "list":
+                sc.setdefault("text", sc.get("text") or "核心要点")
+                sc.setdefault("items", ["要点一", "要点二", "要点三"])
+            return out(f"第 {idx + 1} 个场景已切换为「{nt}」类型", base)
+
+    # 8i. 视觉预设切换（切换全局 design preset）
+    if re.search(r"风格|预设|preset|配色|皮肤|主题|太暗|亮色|暖石|霓虹|森|珊瑚|海报|暖纸", msg, re.I):
+        pname = _match_preset_name(msg)
+        if pname and not re.search(r"生成|制作|做一?个|做一?条|新建|创建", msg):
+            pobj = _apply_design_preset(base, pname)
+            if pobj:
+                desc = (pobj.get("description") or "").split("：")[0]
+                return out(
+                    f"已将全片视觉切换为「{pname}」（{desc}）",
+                    base,
+                    suggestions=["全部转场改成 wipe", "节奏慢一点", "换成 editorial-stone 风格" if pname != "editorial-stone" else "换成 midnight-glow 风格"],
+                )
+
+    # 8j. 零配置自然语言 0-to-1 生成整条视频
+    if re.search(r"(?:帮我)?(?:生成|制作|做|写|创建)(?:一个|一条|份)?.*?(?:视频|短片|宣传片|介绍片|演示)", msg, re.I) \
+            and not re.search(r"模板|片尾|launch|四段", msg, re.I):
+        pname = _match_preset_name(msg) or "midnight-glow"
+        fmt = ("9:16" if re.search(r"竖屏|9:16|抖音|小红书|视频号", msg, re.I)
+               else "1:1" if re.search(r"1:1|方形", msg) else "16:9")
+        arc = ("comparison" if re.search(r"对比|vs|pk", msg, re.I)
+               else "listicle" if re.search(r"盘点|亮点|清单|步骤", msg)
+               else "launch")
+        topic_m = re.search(
+            r"(?:关于|介绍|宣传|讲解|做(?:一个|一条)?)\s*([^，,。；;！？\n]{2,36}?)(?:的)?(?:15秒|30秒)?(?:产品|品牌)?(?:宣传片|介绍片|短视频|演示视频|短片|视频|介绍)",
+            msg, re.I)
+        topic = topic_m.group(1).strip() if topic_m else re.sub(
+            r"(?:帮我|请|生成|制作|创建|一个|一条|关于|视频|短片|宣传片|采用|风格|竖屏|横屏|16:9|9:16|"
+            + r"midnight-glow|editorial-stone|blue-professional|editorial-forest|coral-pop|code-editorial|bold-poster)",
+            " ", msg, flags=re.I).strip(" ：:，,。")
+        if len(topic) < 2:
+            topic = "智能效率工作流"
+        gen_spec = _build_zero_config_video(topic, fmt=fmt, preset_name=pname, arc=arc)
+        total_dur = sum(float(s.get("duration", 3)) for s in gen_spec["scenes"])
+        return out(
+            f"已为你生成「{topic}」{len(gen_spec['scenes'])} 镜成片"
+            f"（{fmt} · {pname} 视觉预设，约 {total_dur:.1f}s）。你可以继续点选下方建议或选中任意一镜微调。",
+            gen_spec,
+            suggestions=["换成 editorial-stone 风格", "全部转场改成 wipe", "改成竖屏 9:16", "生成旁白"],
+        )
+
+    # 8k. Framey 式宽泛意图方向卡片（选项先于开放式追问）
+    has_llm_early = bool((llm_config or {}).get("endpoint") or
+                         os.environ.get("XMEDIA_LLM_ENDPOINT", "").strip())
+    if not has_llm_early and re.search(
+            r"^(?:帮我)?(?:想|策划|构思|怎么拍).{0,8}(?:视频|短片)?|"
+            r"^(?:我想做|打算做|要做)(?:一个|个)?(?:产品)?(?:视频|短片|宣传片)$|"
+            r"(?:有什么|给点).{0,4}(?:创意|灵感|方向)|"
+            r"(?:太单调|没质感|不够高级|怎么改|如何优化)", msg, re.I):
+        cur_p = base.get("design") or "default"
+        return out(
+            f"我整理了 3 个可直接落地的视觉与结构方向（当前预设 `{cur_p}`），点选一张卡片即可立即应用：",
+            mode="guide",
+            choices=[
+                {"label": "🚀 暗夜霓虹科技风（midnight-glow）",
+                 "desc": "深靛夜空 + 冰蓝发光标牌，适合 SaaS/AI 工具发布片",
+                 "msg": "切换成 midnight-glow 风格"},
+                {"label": "📜 暖石极简画报风（editorial-stone）",
+                 "desc": "米暖底色 + 衬线大字 + 慷慨留白，质感沉稳高级",
+                 "msg": "切换成 editorial-stone 风格"},
+                {"label": "⚡ 珊瑚高对比冲击风（coral-pop）",
+                 "desc": "高反差珊瑚红强调 + 紧实节奏，适合社交传播短片",
+                 "msg": "切换成 coral-pop 风格"},
+            ],
+            suggestions=["把第 1 个场景改成 stats", "全部转场改成 wipe", "帮我做一个 AI 助手介绍视频"],
+        )
+
+    m_card = re.search(
+        r"(?:加|追加|新增)一?个?\s*(标题|title|统计|数据|stats|引用|金句|quote|对比|comparison|列表|清单|list)\s*(?:场景|卡|页)?(?:[:：]\s*(.+))?$",
+        raw_msg, re.I)
+    if m_card:
+        kind_raw = m_card.group(1).lower()
+        txt = (m_card.group(2) or "").strip().strip("\"'“”")
+        card_map = {
+            "标题": ("title", {"type": "title", "text": txt or "核心主题标题",
+                               "subtitle": "一句话说明核心价值", "duration": 3,
+                               "bg": "#1a1a2e"}),
+            "title": ("title", {"type": "title", "text": txt or "核心主题标题",
+                                "subtitle": "一句话说明核心价值", "duration": 3,
+                                "bg": "#1a1a2e"}),
+            "统计": ("stats", {"type": "stats", "value": txt or "99%",
+                               "description": "关键指标对比提升", "duration": 3,
+                               "bg": "#16213e"}),
+            "数据": ("stats", {"type": "stats", "value": txt or "99%",
+                               "description": "关键指标对比提升", "duration": 3,
+                               "bg": "#16213e"}),
+            "stats": ("stats", {"type": "stats", "value": txt or "99%",
+                                "description": "关键指标对比提升", "duration": 3,
+                                "bg": "#16213e"}),
+            "引用": ("quote", {"type": "quote", "quote": txt or "少即是多，让画面自己说话。",
+                               "author": "— 设计笔记", "duration": 3.5,
+                               "bg": "#111827"}),
+            "金句": ("quote", {"type": "quote", "quote": txt or "少即是多，让画面自己说话。",
+                               "author": "— 设计笔记", "duration": 3.5,
+                               "bg": "#111827"}),
+            "quote": ("quote", {"type": "quote", "quote": txt or "少即是多，让画面自己说话。",
+                                "author": "— 设计笔记", "duration": 3.5,
+                                "bg": "#111827"}),
+            "对比": ("comparison", {"type": "comparison", "left": "传统流程",
+                                    "right": "确定性新方案",
+                                    "left_items": ["耗时手工调整", "结果不稳定"],
+                                    "right_items": ["一句话驱动生成", "逐帧可复现"],
+                                    "duration": 4, "bg": "#16213e"}),
+            "comparison": ("comparison", {"type": "comparison", "left": "传统流程",
+                                          "right": "确定性新方案",
+                                          "left_items": ["耗时手工调整", "结果不稳定"],
+                                          "right_items": ["一句话驱动生成", "逐帧可复现"],
+                                          "duration": 4, "bg": "#16213e"}),
+            "列表": ("list", {"type": "list", "text": txt or "三大核心亮点",
+                              "items": ["要点一", "要点二", "要点三"],
+                              "duration": 3.5, "bg": "#1a1a2e"}),
+            "清单": ("list", {"type": "list", "text": txt or "三大核心亮点",
+                              "items": ["要点一", "要点二", "要点三"],
+                              "duration": 3.5, "bg": "#1a1a2e"}),
+            "list": ("list", {"type": "list", "text": txt or "三大核心亮点",
+                              "items": ["要点一", "要点二", "要点三"],
+                              "duration": 3.5, "bg": "#1a1a2e"}),
+        }
+        if kind_raw in card_map:
+            tname, card_obj = card_map[kind_raw]
+            base["scenes"].append(card_obj)
+            return out(f"已追加「{tname}」场景卡片（共 {len(base['scenes'])} 镜）", base)
+
     # 9. 管线动作
     if re.search(r"生成旁白|配音|tts|朗读", msg, re.I):
         return out("开始生成全场景旁白 …", action="tts")
@@ -614,17 +1064,35 @@ def handle(message, spec, spec_dir=""):
     if re.search(r"重组合成|刷新预览|recompose", msg, re.I):
         return out("已重组合成", action="recompose")
 
-    # 10. 可选 LLM 兜底
-    if os.environ.get("XMEDIA_LLM_ENDPOINT", "").strip():
+    # 10. 可选 LLM 兜底（环境变量或 Studio 运行时配置的 OpenAI 兼容 API）
+    has_llm = bool((llm_config or {}).get("endpoint") or
+                   os.environ.get("XMEDIA_LLM_ENDPOINT", "").strip())
+    if has_llm:
         try:
-            data = _llm_complete(msg, spec)
-            candidate = data["spec"]
-            validate_spec(candidate, spec_dir)
-            return out(str(data.get("reply") or "已按指令更新 spec"),
-                       candidate, mode="llm")
+            import hf_compose
+            tpl_names = sorted(hf_compose.load_custom_templates(
+                spec_dir or ".").keys())
+        except Exception:
+            tpl_names = []
+        try:
+            data = _llm_complete(
+                raw_msg, base, context=context, history=history,
+                templates=tpl_names, spec_dir=spec_dir, llm_config=llm_config)
+            sugs = data.get("suggestions") if isinstance(
+                data.get("suggestions"), list) else None
+            chs = data.get("choices") if isinstance(
+                data.get("choices"), list) else None
+            if "spec" in data and data["spec"] is not None:
+                candidate = data["spec"]
+                validate_spec(candidate, spec_dir)
+                return out(str(data.get("reply") or "已按指令更新 spec"),
+                           candidate, mode="llm", suggestions=sugs, choices=chs)
+            return out(str(data.get("reply") or "已收到"),
+                       None, mode="llm", suggestions=sugs, choices=chs)
         except (LlmUnavailable, AgentRejected) as e:
             return out(f"LLM 未能应用（{e}）。{HELP}", mode="help")
-    return out("我不确定这条指令要改什么。" + HELP, mode="help")
+    return out("我不确定这条指令要改什么。" + HELP, mode="help",
+               suggestions=["加一个标题卡", "全部转场改成 fade", "整体加快节奏"])
 
 
 def main():

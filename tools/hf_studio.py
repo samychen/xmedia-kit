@@ -837,6 +837,7 @@ class StudioServer:
         self.job_seq = 0
         self.agent_jobs = {}       # agent chat job 表（id → 状态）
         self.agent_chat_seq = 0
+        self._llm_config = {}      # 运行期 OpenAI 兼容 API 配置（仅存内存）
         self.current_html = ""
         if self.contract_path:
             with open(self.contract_path, "r", encoding="utf-8") as f:
@@ -1609,30 +1610,362 @@ class StudioServer:
             shutil.rmtree(d)
         return {"ok": True, "name": name}
 
-    def _brand_delete(self, body):
-        """品牌 kit 删除：JSON + 专属 logo/截图文件；default pin 指向
-        该 kit 时一并清除。"""
-        import shutil
-        name = str(body.get("name") or "").strip()
-        if not re.fullmatch(r"[\w\-]+", name or ""):
+    def _resolve_brand_stem(self, raw):
+        raw = str(raw or "").strip()
+        if not raw or "/" in raw or "\\" in raw or ".." in raw:
             raise RuntimeError("品牌名不合法")
-        d = os.path.expanduser(os.environ.get(
-            "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
-        d = os.path.realpath(d)
+        d = os.path.realpath(self._brands_dir())
+        if os.path.isfile(os.path.join(d, raw + ".json")):
+            return d, raw
+        if os.path.isdir(d):
+            for fn in sorted(os.listdir(d)):
+                if fn.endswith(".json"):
+                    try:
+                        b = json.load(open(os.path.join(d, fn), encoding="utf-8"))
+                        if str(b.get("name") or "") == raw:
+                            return d, fn[:-5]
+                    except (OSError, json.JSONDecodeError):
+                        pass
+        return d, raw
+
+    def _brand_delete(self, body):
+        """品牌 kit 删除：JSON + 专属 logo/截图/多页面图/上下文文档；清理 default pin。"""
+        raw = str(body.get("name") or "").strip()
+        d, stem = self._resolve_brand_stem(raw)
+        rels = {stem + ".json",
+                "assets/" + stem + "-logo.png",
+                "assets/" + stem + "-logo.jpg",
+                "assets/" + stem + "-logo.svg",
+                "assets/" + stem + "-logo.webp",
+                "assets/" + stem + "-logo.ico",
+                "shots/" + stem + "-home.jpg",
+                "shots/" + stem + "-mid.jpg",
+                "shots/" + stem + "-low.jpg"}
+        jpath = os.path.realpath(os.path.join(d, stem + ".json"))
+        if jpath.startswith(d + os.sep) and os.path.isfile(jpath):
+            try:
+                bdata = json.load(open(jpath, encoding="utf-8"))
+                for k in ("logo_image", "screenshot"):
+                    val = str(bdata.get(k) or "").strip()
+                    if val and not os.path.isabs(val):
+                        rels.add(val)
+                for sf in (bdata.get("product_surfaces") or []):
+                    sp = str((sf or {}).get("path") or "").strip()
+                    if sp and not os.path.isabs(sp):
+                        rels.add(sp)
+                for cf in (bdata.get("context_files") or []):
+                    cp = str((cf or {}).get("path") or "").strip()
+                    if cp and not os.path.isabs(cp):
+                        rels.add(cp)
+                        rels.add(cp + ".txt")
+                for ff in (bdata.get("font_files") or []):
+                    fp_ = str((ff or {}).get("path") or "").strip()
+                    if fp_ and not os.path.isabs(fp_):
+                        rels.add(fp_)
+                for af in (bdata.get("audio_files") or []):
+                    ap = str((af or {}).get("path") or "").strip()
+                    if ap and not os.path.isabs(ap):
+                        rels.add(ap)
+            except (OSError, json.JSONDecodeError):
+                pass
         removed = []
-        for rel in (name + ".json", "assets/" + name + "-logo.png",
-                    "assets/" + name + "-logo.jpg",
-                    "assets/" + name + "-logo.svg",
-                    "assets/" + name + "-logo.webp",
-                    "shots/" + name + "-home.jpg"):
+        for rel in sorted(rels):
             fp = os.path.realpath(os.path.join(d, rel))
             if fp.startswith(d + os.sep) and os.path.isfile(fp):
                 os.remove(fp)
                 removed.append(rel)
         pin = os.path.join(d, ".default")
-        if os.path.isfile(pin) and open(pin, encoding="utf-8").read().strip() == name:
+        if os.path.isfile(pin) and open(pin, encoding="utf-8").read().strip() in (stem, raw):
             os.remove(pin)
-        return {"ok": True, "name": name, "removed": removed}
+        return {"ok": True, "name": raw, "removed": removed}
+
+    def _brand_update(self, body):
+        """在线编辑 Brand Kit：颜色与角色/描述/Voice/规则/Logo/产品截图/参考文档。"""
+        import base64
+        d, stem = self._resolve_brand_stem(body.get("name"))
+        jpath = os.path.realpath(os.path.join(d, stem + ".json"))
+        if not (jpath.startswith(d + os.sep) and os.path.isfile(jpath)):
+            raise RuntimeError("品牌 kit 不存在")
+        brand = json.load(open(jpath, encoding="utf-8"))
+
+        if "colors" in body and isinstance(body["colors"], list):
+            clean = []
+            for item in body["colors"][:20]:
+                if not isinstance(item, dict):
+                    continue
+                hx = str(item.get("hex") or "").strip().lower()
+                if not re.fullmatch(r"#[0-9a-f]{6}", hx):
+                    continue
+                clean.append({
+                    "hex": hx,
+                    "role": str(item.get("role") or "").strip()[:24],
+                    "var": str(item.get("var") or "").strip()[:48],
+                })
+            brand["colors"] = clean
+            pri = [c["hex"] for c in clean if c.get("role") in ("primary", "secondary", "accent")]
+            rest = [c["hex"] for c in clean if c["hex"] not in pri]
+            if pri or rest:
+                brand["palette"] = (pri + rest)[:4]
+        if "background" in body and re.fullmatch(r"#[0-9a-fA-F]{6}", str(body["background"]).strip()):
+            brand["background"] = str(body["background"]).strip().lower()
+        if "text_color" in body and re.fullmatch(r"#[0-9a-fA-F]{6}", str(body["text_color"]).strip()):
+            brand["text_color"] = str(body["text_color"]).strip().lower()
+        if "description" in body:
+            brand["description"] = str(body["description"] or "").strip()[:1000]
+        if "voice" in body and isinstance(body["voice"], dict):
+            v = brand.get("voice") if isinstance(brand.get("voice"), dict) else {}
+            nv = body["voice"]
+            for k in ("tone", "tagline", "positioning"):
+                if k in nv:
+                    v[k] = str(nv[k] or "").strip()[:300]
+            for k in ("say", "never_say"):
+                if k in nv and isinstance(nv[k], list):
+                    v[k] = [str(x).strip()[:160] for x in nv[k] if str(x).strip()][:20]
+            brand["voice"] = v
+        if "rules" in body and isinstance(body["rules"], dict):
+            dos = [str(x).strip()[:200] for x in (body["rules"].get("dos") or []) if str(x).strip()][:20]
+            donts = [str(x).strip()[:200] for x in (body["rules"].get("donts") or []) if str(x).strip()][:20]
+            brand["rules"] = {"dos": dos, "donts": donts}
+            brand["rules_txt"] = dos + donts
+
+        def _decode_data_url(data_url, max_bytes=4_000_000):
+            s = str(data_url or "")
+            if "," not in s or not s.startswith("data:"):
+                raise ValueError("上传内容须为 base64 data URL")
+            raw_b = base64.b64decode(s.split(",", 1)[1], validate=True)
+            if len(raw_b) > max_bytes:
+                raise ValueError("文件超过 4MB 上限")
+            return raw_b
+
+        if isinstance(body.get("upload_logo"), dict):
+            up = body["upload_logo"]
+            ext = os.path.splitext(str(up.get("filename") or "logo.png"))[1].lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico"):
+                raise ValueError("不支持的 Logo 格式")
+            data_bytes = _decode_data_url(up.get("data_url"))
+            os.makedirs(os.path.join(d, "assets"), exist_ok=True)
+            dest = os.path.join(d, "assets", f"{stem}-logo{ext}")
+            with open(dest, "wb") as f:
+                f.write(data_bytes)
+            brand["logo_image"] = os.path.relpath(dest, d)
+
+        if isinstance(body.get("add_surface"), dict):
+            up = body["add_surface"]
+            ext = os.path.splitext(str(up.get("filename") or "surface.jpg"))[1].lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+                raise ValueError("截图仅支持 png/jpg/webp")
+            data_bytes = _decode_data_url(up.get("data_url"))
+            os.makedirs(os.path.join(d, "shots"), exist_ok=True)
+            tag = f"{stem}-surf-{int(time.time() * 1000) % 1000000}{ext}"
+            dest = os.path.join(d, "shots", tag)
+            with open(dest, "wb") as f:
+                f.write(data_bytes)
+            rel = "shots/" + tag
+            surfs = brand.setdefault("product_surfaces", [])
+            surfs.append({
+                "path": rel,
+                "label": str(up.get("label") or up.get("filename") or "产品界面截图")[:60],
+            })
+            if not brand.get("screenshot"):
+                brand["screenshot"] = rel
+
+        if body.get("remove_surface"):
+            rp = str(body["remove_surface"]).strip()
+            brand["product_surfaces"] = [
+                s for s in (brand.get("product_surfaces") or [])
+                if (s or {}).get("path") != rp
+            ]
+            fp = os.path.realpath(os.path.join(d, rp))
+            shots_root = os.path.realpath(os.path.join(d, "shots"))
+            if fp.startswith(shots_root + os.sep) and os.path.isfile(fp):
+                os.remove(fp)
+            if brand.get("screenshot") == rp:
+                surfs = brand.get("product_surfaces") or []
+                brand["screenshot"] = surfs[0]["path"] if surfs else ""
+
+        if isinstance(body.get("text_styles"), list):
+            clean_ts = []
+            for item in body["text_styles"][:16]:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    sz = max(8, min(200, int(item.get("size") or 16)))
+                    fw = max(100, min(950, int(item.get("weight") or 400)))
+                    lh = max(0.8, min(3.0, float(item.get("line_height") or 1.4)))
+                except (TypeError, ValueError):
+                    continue
+                clean_ts.append({
+                    "role": str(item.get("role") or "body")[:24],
+                    "font_family": str(item.get("font_family") or "")[:80],
+                    "size": sz,
+                    "weight": fw,
+                    "line_height": round(lh, 2),
+                    "sample": str(item.get("sample") or "")[:60],
+                    "count": int(item.get("count") or 1),
+                })
+            brand["text_styles"] = clean_ts
+
+        if isinstance(body.get("components"), list):
+            clean_cp = []
+            for item in body["components"][:20]:
+                if not isinstance(item, dict):
+                    continue
+                clean_cp.append({
+                    "kind": str(item.get("kind") or "button")[:24],
+                    "selector": str(item.get("selector") or ".custom")[:60],
+                    "label": str(item.get("label") or "")[:32],
+                    "bg": str(item.get("bg") or "")[:40],
+                    "bg_image": str(item.get("bg_image") or "")[:140],
+                    "color": str(item.get("color") or "")[:40],
+                    "border": str(item.get("border") or "")[:60],
+                    "shadow": str(item.get("shadow") or "")[:90],
+                    "radius": str(item.get("radius") or "")[:24],
+                    "padding": str(item.get("padding") or "")[:32],
+                    "font_size": int(item.get("font_size") or 14),
+                    "font_weight": int(item.get("font_weight") or 400),
+                })
+            brand["components"] = clean_cp
+
+        def _extract_pdf_text(raw_b):
+            import zlib
+            chunks = []
+            for sm in re.finditer(rb"stream\r?\n(.*?)\r?\n?endstream", raw_b, re.S):
+                part = sm.group(1)
+                for candidate in (part,):
+                    try:
+                        candidate = zlib.decompress(part)
+                    except Exception:
+                        pass
+                    for tm in re.finditer(rb"\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*Tj", candidate):
+                        raw_s = tm.group(1).replace(rb"\(", b"(").replace(rb"\)", b")").replace(rb"\\", b"\\")
+                        txt_s = (raw_s[2:].decode("utf-16-be", "ignore")
+                                 if raw_s.startswith(b"\xfe\xff")
+                                 else raw_s.decode("utf-8", "ignore"))
+                        txt_s = txt_s.strip()
+                        if txt_s:
+                            chunks.append(txt_s)
+            out_txt = " ".join(chunks).strip()
+            if not out_txt:
+                ascii_runs = re.findall(rb"[A-Za-z0-9\u4e00-\u9fff ,.;:!?%()/_-]{6,}", raw_b)
+                out_txt = " ".join(r.decode("utf-8", "ignore") for r in ascii_runs[:120]).strip()
+            return out_txt[:40_000]
+
+        if isinstance(body.get("upload_font"), dict):
+            up = body["upload_font"]
+            fname = os.path.basename(str(up.get("filename") or "font.woff2")).strip()
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in (".woff2", ".woff", ".ttf", ".otf"):
+                raise ValueError("字体仅支持 woff2/woff/ttf/otf")
+            data_bytes = _decode_data_url(up.get("data_url"), max_bytes=8_000_000)
+            safe_n = re.sub(r"[^\w.\-]", "_", fname)[:48] or ("font" + ext)
+            fdir = os.path.join(d, "fonts", stem)
+            os.makedirs(fdir, exist_ok=True)
+            dest = os.path.join(fdir, safe_n)
+            with open(dest, "wb") as f:
+                f.write(data_bytes)
+            rel = os.path.relpath(dest, d)
+            fam = str(up.get("family") or os.path.splitext(safe_n)[0]).strip()[:80]
+            wt = max(100, min(950, int(up.get("weight") or 400)))
+            ffs = [x for x in (brand.get("font_files") or []) if (x or {}).get("path") != rel]
+            ffs.append({"path": rel, "family": fam, "weight": wt, "bytes": len(data_bytes)})
+            brand["font_files"] = ffs
+            fams = list(brand.get("fonts") or [])
+            if fam and fam not in fams:
+                fams.insert(0, fam)
+                brand["fonts"] = fams[:8]
+
+        if body.get("remove_font"):
+            rp = str(body["remove_font"]).strip()
+            brand["font_files"] = [
+                x for x in (brand.get("font_files") or []) if (x or {}).get("path") != rp
+            ]
+            fp = os.path.realpath(os.path.join(d, rp))
+            fonts_root = os.path.realpath(os.path.join(d, "fonts"))
+            if fp.startswith(fonts_root + os.sep) and os.path.isfile(fp):
+                os.remove(fp)
+
+        if isinstance(body.get("upload_audio"), dict):
+            up = body["upload_audio"]
+            fname = os.path.basename(str(up.get("filename") or "audio.mp3")).strip()
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in (".mp3", ".wav", ".m4a", ".aac", ".ogg"):
+                raise ValueError("音频仅支持 mp3/wav/m4a/aac/ogg")
+            data_bytes = _decode_data_url(up.get("data_url"), max_bytes=8_000_000)
+            safe_n = re.sub(r"[^\w.\-]", "_", fname)[:40] or ("audio" + ext)
+            os.makedirs(os.path.join(d, "assets"), exist_ok=True)
+            dest = os.path.join(d, "assets", f"{stem}-audio-{safe_n}")
+            with open(dest, "wb") as f:
+                f.write(data_bytes)
+            rel = os.path.relpath(dest, d)
+            afs = [x for x in (brand.get("audio_files") or []) if (x or {}).get("path") != rel]
+            afs.append({
+                "path": rel,
+                "name": safe_n,
+                "kind": str(up.get("kind") or "sting")[:24],
+                "bytes": len(data_bytes),
+            })
+            brand["audio_files"] = afs
+
+        if body.get("remove_audio"):
+            rp = str(body["remove_audio"]).strip()
+            brand["audio_files"] = [
+                x for x in (brand.get("audio_files") or []) if (x or {}).get("path") != rp
+            ]
+            fp = os.path.realpath(os.path.join(d, rp))
+            assets_root = os.path.realpath(os.path.join(d, "assets"))
+            if fp.startswith(assets_root + os.sep) and os.path.isfile(fp):
+                os.remove(fp)
+
+        if isinstance(body.get("add_context_file"), dict):
+            cf = body["add_context_file"]
+            fname = os.path.basename(str(cf.get("filename") or "notes.md")).strip()
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in (".md", ".txt", ".json", ".csv", ".yaml", ".yml", ".pdf"):
+                raise ValueError("参考文档仅支持 md/txt/json/csv/yaml/pdf")
+            safe_n = re.sub(r"[^\w.\-]", "_", fname)[:48] or ("note" + ext)
+            cdir = os.path.join(d, "context", stem)
+            os.makedirs(cdir, exist_ok=True)
+            dest = os.path.join(cdir, safe_n)
+            if ext == ".pdf" and cf.get("data_url"):
+                pdf_bytes = _decode_data_url(cf.get("data_url"), max_bytes=8_000_000)
+                with open(dest, "wb") as f:
+                    f.write(pdf_bytes)
+                txt = _extract_pdf_text(pdf_bytes)
+                with open(dest + ".txt", "w", encoding="utf-8") as tf:
+                    tf.write(txt)
+                size_b = len(pdf_bytes)
+            else:
+                txt = str(cf.get("content") or "")[:40_000]
+                with open(dest, "w", encoding="utf-8") as f:
+                    f.write(txt)
+                size_b = len(txt.encode("utf-8"))
+            rel = os.path.relpath(dest, d)
+            cfs = [x for x in (brand.get("context_files") or []) if (x or {}).get("path") != rel]
+            cfs.append({
+                "path": rel,
+                "name": safe_n,
+                "bytes": size_b,
+                "excerpt": re.sub(r"\s+", " ", txt).strip()[:280] or "（PDF 已存盘，待查阅）",
+            })
+            brand["context_files"] = cfs
+
+        if body.get("remove_context_file"):
+            rp = str(body["remove_context_file"]).strip()
+            brand["context_files"] = [
+                x for x in (brand.get("context_files") or [])
+                if (x or {}).get("path") != rp
+            ]
+            fp = os.path.realpath(os.path.join(d, rp))
+            ctx_root = os.path.realpath(os.path.join(d, "context"))
+            if fp.startswith(ctx_root + os.sep) and os.path.isfile(fp):
+                os.remove(fp)
+            if os.path.isfile(fp + ".txt") and fp.startswith(ctx_root + os.sep):
+                os.remove(fp + ".txt")
+
+        with open(jpath, "w", encoding="utf-8") as f:
+            json.dump(brand, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        return {"ok": True, "brand": brand}
 
     def open_project(self, name):
         """Home → 编辑视图：重绑到项目目录的契约页/spec（单用户本地
@@ -2071,20 +2404,30 @@ class StudioServer:
                                        encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     continue
-                b["_default"] = (f[:-5] == pinned)
+                base_name = f[:-5]
+                b["_id"] = base_name
+                b["_default"] = (base_name == pinned)
                 # Files 清单（HF kit 的 Files 分类）：该 kit 专属的
                 # 落盘文件（JSON/logo/截图），相对路径+大小。
-                base_name = f[:-5]
                 files = []
                 for rel in (f, "assets/" + base_name + "-logo.png",
                             "assets/" + base_name + "-logo.jpg",
                             "assets/" + base_name + "-logo.svg",
                             "assets/" + base_name + "-logo.webp",
-                            "shots/" + base_name + "-home.jpg"):
+                            "shots/" + base_name + "-home.jpg",
+                            "shots/" + base_name + "-mid.jpg",
+                            "shots/" + base_name + "-low.jpg"):
                     fp = os.path.join(d, rel)
                     if os.path.isfile(fp):
                         files.append({"path": rel,
                                       "bytes": os.path.getsize(fp)})
+                seen_f = {x["path"] for x in files}
+                for extra in ((b.get("product_surfaces") or []) + (b.get("context_files") or []) +
+                              (b.get("font_files") or []) + (b.get("audio_files") or [])):
+                    rp = str((extra or {}).get("path") or "").strip()
+                    if rp and rp not in seen_f and os.path.isfile(os.path.join(d, rp)):
+                        seen_f.add(rp)
+                        files.append({"path": rp, "bytes": os.path.getsize(os.path.join(d, rp))})
                 b["_files"] = files
                 kits.append(b)
         return {"brands": kits}
@@ -2140,14 +2483,220 @@ class StudioServer:
             fh.write(name + "\n")
         return {"ok": True, "default": name}
 
-    def _run_agent(self, message):
+    def _brand_create_video(self, body):
+        """基于已扫描品牌（站点核心文案 + 截图 + Logo + 色板）一键创建宣传视频项目。"""
         import hf_agent
-        result = hf_agent.handle(message, self.current_spec, self._spec_root())
+        import hf_storyboard
+        import hf_validate
+        name = str(body.get("name") or "").strip()
+        if not name or not re.fullmatch(r"[\w\-]+", name):
+            raise ValueError("品牌名不合法")
+        bdir = self._brands_dir()
+        bfile = os.path.join(bdir, name + ".json")
+        if not os.path.isfile(bfile):
+            raise ValueError(f"品牌 {name} 不存在")
+        brand = json.load(open(bfile, encoding="utf-8"))
+        summary = brand.get("site_summary") or {}
+        vdict = brand.get("voice") if isinstance(brand.get("voice"), dict) else {}
+        hero = str(summary.get("hero_title") or brand.get("logo_text") or name).strip()
+        sub = str(vdict.get("tagline") or summary.get("hero_subtitle") or summary.get("description") or brand.get("description") or "品牌官网核心亮点").strip()
+        bullets = [str(b).strip() for b in (summary.get("bullets") or vdict.get("say") or []) if str(b).strip()]
+        host = str(brand.get("source_url") or "").split("//")[-1].split("/")[0]
+
+        fmt = str(body.get("format") or "16:9")
+        if fmt not in ("16:9", "9:16", "1:1", "4:5"):
+            fmt = "16:9"
+        slug = re.sub(r"[^\w\-]", "-", f"{name}-launch").strip("-")[:28]
+        proj_dir = self._projects_root()
+        os.makedirs(proj_dir, exist_ok=True)
+        cand = slug
+        n = 2
+        while os.path.exists(os.path.join(proj_dir, cand)):
+            cand = f"{slug}-{n}"
+            n += 1
+        d = os.path.join(proj_dir, cand)
+        os.makedirs(os.path.join(d, "assets"), exist_ok=True)
+
+        # 把品牌 logo 和网站首屏截图拷贝进项目 assets/，确保离线沙箱播放与导出可用
+        logo_rel = ""
+        li = brand.get("logo_image") or ""
+        if li:
+            src_logo = os.path.join(bdir, li) if not os.path.isabs(li) else li
+            if os.path.isfile(src_logo):
+                dst_logo = os.path.join(d, "assets", os.path.basename(src_logo))
+                shutil.copy2(src_logo, dst_logo)
+                logo_rel = "assets/" + os.path.basename(src_logo)
+                brand["logo_src"] = logo_rel
+        surf_cands = []
+        if brand.get("screenshot"):
+            surf_cands.append((brand["screenshot"], "首页首屏概览"))
+        for sf in (brand.get("product_surfaces") or []):
+            sp = (sf or {}).get("path")
+            if sp and all(sp != x[0] for x in surf_cands):
+                surf_cands.append((sp, (sf or {}).get("label") or "核心界面"))
+        surface_rels = []
+        for sp, slbl in surf_cands[:3]:
+            src_shot = os.path.join(bdir, sp) if not os.path.isabs(sp) else sp
+            if os.path.isfile(src_shot):
+                dst_shot = os.path.join(d, "assets", "brand-" + os.path.basename(src_shot))
+                shutil.copy2(src_shot, dst_shot)
+                surface_rels.append(("assets/" + os.path.basename(dst_shot), slbl))
+        shot_rel = surface_rels[0][0] if surface_rels else ""
+
+        pal = brand.get("palette") or ["#1a1a2e", "#16213e", "#0f3460"]
+        bg_c = brand.get("background") or pal[0]
+        ink_c = brand.get("text_color") or "#f0f0f5"
+        tts_v = brand.get("tts_voice") or (brand.get("voice") if isinstance(brand.get("voice"), str) else "Tingting")
+        spec = hf_storyboard.build("launch", hero, fmt=fmt, voice=tts_v)
+        scenes = [
+            {
+                "type": "title",
+                "kicker": host.upper() if host else name.upper(),
+                "text": hero[:60],
+                "subtitle": sub[:100],
+                "duration": 3.5,
+                "bg": bg_c,
+                "text_color": ink_c,
+                "animation": "fade_in_up",
+            },
+            {
+                "type": "list",
+                "kicker": "CORE HIGHLIGHTS",
+                "text": "为什么选择 " + (brand.get("logo_text") or name),
+                "items": bullets[:3] if bullets else [
+                    sub[:32] or "更简洁直观的使用体验",
+                    "开箱即用，效率大幅提升",
+                    "全流程确定性品质交付",
+                ],
+                "duration": 4.0,
+                "bg": pal[0],
+                "text_color": "#ffffff",
+                "animation": "slide_in_left",
+                "transition": "fade",
+            },
+        ]
+        if shot_rel:
+            scenes.append({
+                "type": "text",
+                "kicker": "LIVE PREVIEW",
+                "text": (hero[:36] + " · 真实界面一览") if hero else "官网实景概览",
+                "content": [{"text": (summary.get("description") or sub)[:70]}],
+                "image": {"src": shot_rel, "mode": "backdrop"},
+                "duration": 3.8,
+                "bg": bg_c,
+                "text_color": "#ffffff",
+                "animation": "zoom_in",
+                "transition": "wipe",
+            })
+        if len(surface_rels) >= 2:
+            scenes.append({
+                "type": "text",
+                "kicker": "FEATURE TOUR",
+                "text": surface_rels[1][1],
+                "content": [{"text": (bullets[1] if len(bullets) > 1 else sub)[:70]}],
+                "image": {"src": surface_rels[1][0], "mode": "backdrop"},
+                "duration": 3.5,
+                "bg": bg_c,
+                "text_color": "#ffffff",
+                "animation": "fade_in_up",
+                "transition": "slide-left",
+            })
+        scenes.append({
+            "type": "stats",
+            "kicker": "BY THE NUMBERS",
+            "value": (bullets[0][:12] if bullets and re.search(r"\d", bullets[0]) else "10×"),
+            "description": bullets[-1][:48] if bullets else "全面提速工作流程",
+            "duration": 3.2,
+            "bg": pal[min(1, len(pal) - 1)],
+            "text_color": "#ffffff",
+            "animation": "pop_in",
+            "transition": "slide-left",
+        })
+        scenes.append({
+            "type": "outro",
+            "text": brand.get("outro_text") or (f"立即访问 {host}" if host else f"探索 {name}"),
+            "duration": 2.8,
+            "bg": pal[min(2, len(pal) - 1)],
+            "text_color": "#ffffff",
+            "animation": "fade_in",
+            "transition": "fade",
+        })
+        spec["scenes"] = scenes
+        spec["background"] = bg_c
+        spec["composition"]["id"] = cand
+        spec["transitions"] = {"type": "fade", "duration": 0.45}
+        spec, _ = hf_agent.apply_brand(spec, brand)
+
+        spec_file = os.path.join(d, "spec.json")
+        with open(spec_file, "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        with self._lock:
+            self.contract_path = os.path.join(d, "contract.html")
+            self.spec_path = spec_file
+            self.spec_dir = d
+            self.current_spec = spec
+            self._register_spec_paths(spec)
+            self._compose()
+            _, errors, _, _ = hf_validate.validate(self.current_html)
+        return {"ok": True, "name": cand, "url": "/project/" + cand,
+                "scenes": len(scenes), "errors": errors}
+
+    def _scan_media_files(self, root_dir):
+        """扫描项目目录下可用本地图片/音视频相对路径（排除缓存）。"""
+        out = []
+        if not root_dir or not os.path.isdir(root_dir):
+            return out
+        exts = {".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif",
+                ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a"}
+        base_depth = root_dir.rstrip(os.sep).count(os.sep)
+        for cur, dirs, files in os.walk(root_dir):
+            dirs[:] = sorted(d for d in dirs if not d.startswith(".")
+                             and d not in ("__thumbs__", "node_modules"))
+            if cur.count(os.sep) - base_depth > 2:
+                dirs[:] = []
+                continue
+            for fn in sorted(files):
+                if os.path.splitext(fn)[1].lower() in exts:
+                    rel = os.path.relpath(os.path.join(cur, fn), root_dir)
+                    out.append(rel)
+                    if len(out) >= 60:
+                        return out
+        return out
+
+    def _effective_llm_config(self):
+        with self._lock:
+            cfg = dict(self._llm_config)
+        ep = str(cfg.get("endpoint") or os.environ.get(
+            "XMEDIA_LLM_ENDPOINT", "")).strip()
+        key = str(cfg.get("api_key") or os.environ.get(
+            "XMEDIA_LLM_API_KEY", "")).strip()
+        model = str(cfg.get("model") or os.environ.get(
+            "XMEDIA_LLM_MODEL", "gpt-4o-mini")).strip() or "gpt-4o-mini"
+        return {"endpoint": ep, "api_key": key, "model": model,
+                "configured": bool(ep)}
+
+    def _run_agent(self, message, context=None):
+        import hf_agent
+        with self._lock:
+            before_scenes = copy.deepcopy(
+                (self.current_spec or {}).get("scenes") or [])
+            cur_spec = copy.deepcopy(self.current_spec)
+            spec_root = self._spec_root()
+            llm_cfg = self._effective_llm_config()
+            hist = self._chat_history_tail()
+        result = hf_agent.handle(
+            message, cur_spec, spec_root, context=context,
+            history=hist, llm_config=llm_cfg)
         out = {"reply": result.get("reply", ""), "mode": result.get("mode"),
-               "action": result.get("action")}
+               "action": result.get("action"),
+               "suggestions": result.get("suggestions") or [],
+               "choices": result.get("choices") or []}
         if "spec" in result:
             out["composed"] = self._apply_spec(result["spec"])
             out["spec"] = self.current_spec
+            out["diff"] = self._spec_diff_summary(
+                before_scenes, (self.current_spec or {}).get("scenes") or [])
         action, args = result.get("action"), result.get("args") or {}
         try:
             if action == "tts":
@@ -2165,8 +2714,6 @@ class StudioServer:
                 out["composed"] = self._compose()
         except Exception as e:
             emsg = str(e)
-            # 目录不存在属于「用户输入问题」，回成普通助手提示，避免前端弹出
-            # 红色「请求失败」；其余（compose 失败等）仍作为 error 上报。
             if action == "import" and emsg.startswith("素材目录不存在"):
                 out["reply"] = emsg
                 out["mode"] = "help"
@@ -2174,6 +2721,9 @@ class StudioServer:
                 out["error"] = emsg
                 out.setdefault("reply", "")
                 out["reply"] += f"（动作执行失败：{emsg}）"
+        self._chat_log(message, out.get("reply", ""), out.get("mode") or "rule",
+                       diff=out.get("diff"), suggestions=out.get("suggestions"),
+                       choices=out.get("choices"))
         return out
 
     AGENT_CHAT_TIMEOUT_S = 900
@@ -2217,8 +2767,8 @@ class StudioServer:
                 return {"cli": name, "cmd": cmd, "path": path}
         return {"cli": None}
 
-    def _chat_history_tail(self):
-        path = os.path.join(self._spec_root(), "chat.jsonl")
+    def _chat_history_tail(self, limit=None):
+        path = os.path.join(self._spec_root() or ".", "chat.jsonl")
         rounds = []
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -2231,21 +2781,68 @@ class StudioServer:
                             pass
         except OSError:
             pass
-        return rounds[-self.AGENT_HISTORY_ROUNDS:]
+        n = self.AGENT_HISTORY_ROUNDS if limit is None else limit
+        return rounds[-n:]
 
-    def _chat_log(self, message, reply, backend):
+    def _clear_chat_history(self):
+        root = self._spec_root()
+        if not root:
+            return {"ok": True}
+        path = os.path.join(root, "chat.jsonl")
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except OSError:
+            pass
+        return {"ok": True}
+
+    def _chat_log(self, message, reply, backend, diff=None, steps=None,
+                  suggestions=None, choices=None):
         """对话历史持久化：<spec 根>/chat.jsonl 逐行追加（失败不阻塞）。"""
-        path = os.path.join(self._spec_root(), "chat.jsonl")
+        root = self._spec_root()
+        if not root or not os.path.isdir(root):
+            return
+        path = os.path.join(root, "chat.jsonl")
+        rec = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+               "backend": backend, "user": message, "assistant": reply}
+        if diff:
+            rec["diff"] = diff
+        if steps:
+            rec["steps"] = steps[-8:]
+        if suggestions:
+            rec["suggestions"] = suggestions[:4]
+        if choices:
+            rec["choices"] = choices[:4]
         try:
             with open(path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(
-                    {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                     "backend": backend, "user": message,
-                     "assistant": reply}, ensure_ascii=False) + "\n")
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         except OSError:
             pass
 
-    def _agent_chat_body(self, message, probe):
+    @staticmethod
+    def _format_context_block(context):
+        if not isinstance(context, dict) or not context:
+            return ""
+        parts = []
+        idx = context.get("scene_index")
+        if isinstance(idx, int) and not isinstance(idx, bool) and idx >= 0:
+            parts.append(f"- 当前选中镜头：第 {idx + 1} 镜（spec.scenes[{idx}]）")
+        t = context.get("current_time")
+        if isinstance(t, (int, float)) and not isinstance(t, bool) and t >= 0:
+            parts.append(f"- 当前播放头位置：{t:.2f}s")
+        cap = context.get("selected_caption_idx")
+        if isinstance(cap, int) and not isinstance(cap, bool) and cap >= 0:
+            parts.append(f"- 当前选中字幕段：第 {cap + 1} 段（captions.segments[{cap}]）")
+        box = context.get("draw_bounds")
+        if isinstance(box, (list, tuple)) and len(box) == 4:
+            parts.append(
+                f"- 用户在预览画面圈选了归一化区域（左上→右下比例）："
+                f"x={box[0]:.0%}~{box[2]:.0%}, y={box[1]:.0%}~{box[3]:.0%}")
+        if not parts:
+            return ""
+        return "\n【当前界面焦点上下文（代词如「这里/这镜」默认指此位置）】\n" + "\n".join(parts) + "\n"
+
+    def _agent_chat_body(self, message, probe, context=None):
         """agent prompt 构造（路径/skill 工作流/叙事纪律/历史）。"""
         spec_path = self.spec_path or ""
         root = self._spec_root()
@@ -2269,11 +2866,19 @@ class StudioServer:
                     rules = brand.get("rules") or {}
                     dos = rules.get("dos") or []
                     donts = rules.get("donts") or []
-                    if dos or donts:
+                    vdict = brand.get("voice") if isinstance(brand.get("voice"), dict) else {}
+                    bdesc = brand.get("description") or ""
+                    cfs = brand.get("context_files") or []
+                    if dos or donts or vdict or bdesc or cfs:
                         brand_rules = (
                             "\n【品牌规则（brand kit，必须遵守）】\n"
+                            + (f"- 品牌描述：{bdesc}\n" if bdesc else "")
+                            + (f"- 表达语调：{vdict.get('tone')}\n" if vdict.get("tone") else "")
+                            + (f"- 推荐口号/用词：{'、'.join(vdict.get('say') or [])}\n" if vdict.get("say") else "")
+                            + (f"- 禁止表达：{'、'.join(vdict.get('never_say') or [])}\n" if vdict.get("never_say") else "")
                             + ("".join(f"- 应该：{d}\n" for d in dos))
-                            + ("".join(f"- 禁止：{d}\n" for d in donts)))
+                            + ("".join(f"- 禁止：{d}\n" for d in donts))
+                            + ("".join(f"- 参考文档[{c.get('name')}]: {c.get('excerpt', '')[:200]}\n" for c in cfs[:3])))
         except (OSError, json.JSONDecodeError, ValueError):
             pass
         # 叙事纪律注入：spec.storyboard.direction 存在时（HF Storyboard
@@ -2307,6 +2912,21 @@ class StudioServer:
                              "agent）改过的话，在那些改动之上继续，永不撤销"
                              "人的修改\n")
                 break
+        ctx_block = self._format_context_block(context)
+        presets_hint = ""
+        try:
+            import hf_compose
+            presets = hf_compose._design_presets()
+            if presets:
+                presets_hint = "\n【可用设计预设（spec.design 可填预设名）】" + "、".join(
+                    f"{k}({(v.get('description') or '').split('：')[0]})"
+                    for k, v in sorted(presets.items()))
+        except Exception:
+            pass
+        media_hint = ""
+        media_files = self._scan_media_files(root)
+        if media_files:
+            media_hint = "\n【项目可用本地素材】" + "、".join(media_files[:20])
         return (
             "你在 xmedia-kit Studio 的 agent 模式里，与用户一起编辑这个"
             "文件夹里的视频项目。像终端里的编码 agent 一样读用户消息。\n"
@@ -2317,6 +2937,7 @@ class StudioServer:
             "【文件白名单】只编辑 spec.json 与 contract.html（以及你自己"
             "创建的临时文件）；chat.jsonl / project.json / __thumbs__/ 是"
             "应用自己的，读可以、永不删除或改动。\n"
+            f"{hist_note}"
             "【历史感知】改一个已存在的项目前，看 project.json 的 runs："
             "你上一次编辑之后由人或其他 agent 做的改动，要在那些改动之上"
             "继续，永不撤销它们。\n"
@@ -2337,7 +2958,7 @@ class StudioServer:
             f"- 【skill 工作流】大改动（新项目/多场景结构）先读 "
             f"{ROOT_DIR}/skills/launch/SKILL.md 按其 Order 执行；技能"
             "清单里没有的技能，看 skills/ 目录下有没有对应的 SKILL.md\n"
-            f"{brand_rules}{discipline}\n"
+            f"{presets_hint}{media_hint}{brand_rules}{discipline}{ctx_block}\n"
             f"最近对话（供参考）：\n{hist_txt}\n\n用户请求：{message}\n")
 
     def _spec_diff_summary(self, before_scenes, after_scenes):
@@ -2354,158 +2975,232 @@ class StudioServer:
                     out.append(f"镜{i+1}.{k}: {sb_} → {sa_}")
         return out[:10]
 
-    def _start_agent_chat(self, message):
-        """agent chat job 化：后台线程驱动 CLI，前端轮询 tail——
-        HF 的 agent 过程可视化（"正在改第 2 镜…"实时可见）。"""
+    def _start_agent_chat(self, message, context=None):
+        """agent chat job 化：后台线程驱动 CLI，前端轮询 steps/tail。"""
         probe = self._agent_probe()
         if not probe["cli"]:
             return {"job": None, "agent": "none", "mode": "help",
-                    "reply": "本机未检测到可用的 agent CLI（claude / codex）。\n"
-                             "接入方式二选一：\n"
-                             "1. 安装 Claude Code / CodeBuddy 后重启 Studio\n"
-                             "2. 外部 agent + skill 驱动：.agents/skills/"
-                             "xmedia-ai-video/SKILL.md\n"
-                             "3. 继续用「规则引擎」模式"}
-        job_id = self.agent_chat_seq
-        self.agent_chat_seq += 1
-        spec_path = self.spec_path or ""
-        before_scenes = json.loads(json.dumps(
-            (self.current_spec or {}).get("scenes") or []))
-        job = {"id": job_id, "message": message, "agent": probe["cli"],
-               "running": True, "tail": "（启动 agent…）", "reply": "",
-               "spec_updated": False, "error": None, "done": False,
-               "diff": []}
-        self.agent_jobs[job_id] = job
+                    "reply": "本机未检测到可用的 agent CLI（claude / codebuddy / codex）。\n"
+                             "接入方式三选一：\n"
+                             "1. 点击对话框右上角「⚙ API」配置兼容大模型接口即刻使用\n"
+                             "2. 安装 Claude Code / CodeBuddy / Codex CLI 后重启 Studio\n"
+                             "3. 切回「规则引擎」使用内置快捷指令与上下文改镜"}
+        with self._lock:
+            job_id = self.agent_chat_seq
+            self.agent_chat_seq += 1
+            spec_path = self.spec_path or ""
+            before_scenes = copy.deepcopy(
+                (self.current_spec or {}).get("scenes") or [])
+            job = {"id": job_id, "message": message, "agent": probe["cli"],
+                   "running": True, "tail": "正在启动本地 Agent…", "reply": "",
+                   "steps": [{"kind": "think", "label": f"启动 {probe['cli']}",
+                              "status": "running"}],
+                   "spec_updated": False, "error": None, "done": False,
+                   "cancelled": False, "proc": None, "diff": []}
+            self.agent_jobs[job_id] = job
         th = threading.Thread(
             target=self._agent_chat_thread,
-            args=(job, message, probe, spec_path, before_scenes),
+            args=(job, message, probe, spec_path, before_scenes, context),
             daemon=True)
         th.start()
         return {"job": job_id, "agent": probe["cli"]}
 
+    def _cancel_agent_chat(self, job_id):
+        with self._lock:
+            job = self.agent_jobs.get(job_id)
+            if job is None:
+                raise RuntimeError("无此 agent 任务")
+            job["cancelled"] = True
+            proc = job.get("proc")
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+            except OSError:
+                pass
+        return {"cancelled": True, "id": job_id}
+
+    @staticmethod
+    def _classify_tool_step(name):
+        low = str(name or "").lower()
+        if any(k in low for k in ("read", "glob", "grep", "ls", "list", "view")):
+            return "read", f"读取/检索 ({name})"
+        if any(k in low for k in ("write", "edit", "replace", "patch")):
+            return "edit", f"编辑项目文件 ({name})"
+        if any(k in low for k in ("bash", "shell", "cmd", "run", "exec")):
+            return "check", f"执行命令与校验 ({name})"
+        return "tool", f"调用工具 {name}"
+
     def _agent_chat_thread(self, job, message, probe, spec_path,
-                           before_scenes):
+                           before_scenes, context=None):
         cli = probe["cli"]
         root = self._spec_root()
-        prompt = self._agent_chat_body(message, probe)
+        prompt = self._agent_chat_body(message, probe, context=context)
         spec_mtime_before = (os.path.getmtime(spec_path)
                              if spec_path and os.path.exists(spec_path)
                              else 0)
         self._record_run(message, cli)   # agent 改文件前压快照
+        proc = None
+        parsed = False
+        raw_lines = []
+        texts = []
+        tool_steps = []
+        is_error = False
+        import selectors
+        sel = None
         try:
             proc = subprocess.Popen(
                 probe["cmd"] + [prompt], stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, cwd=root or ".")
-        except OSError as e:
-            job.update({"running": False, "done": True,
-                        "reply": f"agent 启动失败：{e}", "error": "spawn"})
-            self._chat_log(message, job["reply"], cli)
-            return
-        tail_lines = []
-        texts = []          # assistant text 块累积（= 回复）
-        tool_steps = []     # 工具步骤（tail 显示）
-        is_error = False
-        import selectors
-        sel = selectors.DefaultSelector()
-        sel.register(proc.stdout, selectors.EVENT_READ)
-        deadline = time.time() + self.AGENT_CHAT_TIMEOUT_S
-        buf = ""
-        idle = 0   # 无新输出的轮询计数（0.5s/轮，挂起兜底用）
-        while True:
-            if time.time() > deadline:
-                proc.kill()
-                job.update({"running": False, "done": True,
-                            "reply": f"agent 运行超时"
-                                     f"（{self.AGENT_CHAT_TIMEOUT_S}s）",
-                            "error": "timeout"})
-                self._chat_log(message, "（agent 运行超时）", cli)
-                return
-            events = sel.select(timeout=0.5)
-            eof = False
-            for key, _ in events:
-                line = key.fileobj.readline()
-                if line == "":
-                    eof = True   # stdout 关闭 = agent 输出完成
+            with self._lock:
+                job["proc"] = proc
+                if job.get("cancelled"):
+                    proc.terminate()
+            sel = selectors.DefaultSelector()
+            sel.register(proc.stdout, selectors.EVENT_READ)
+            deadline = time.time() + self.AGENT_CHAT_TIMEOUT_S
+            last_out_at = time.time()
+            while True:
+                with self._lock:
+                    if job.get("cancelled"):
+                        if proc.poll() is None:
+                            proc.terminate()
+                        break
+                if time.time() > deadline:
+                    proc.kill()
+                    with self._lock:
+                        job["error"] = "timeout"
+                        job["reply"] = f"agent 运行超时（{self.AGENT_CHAT_TIMEOUT_S}s）"
+                    self._chat_log(message, job["reply"], cli)
+                    return
+                events = sel.select(timeout=0.5)
+                eof = False
+                for key, _ in events:
+                    line = key.fileobj.readline()
+                    if line == "":
+                        eof = True
+                        break
+                    last_out_at = time.time()
+                    line = line.strip()
+                    if not line:
+                        continue
+                    raw_lines.append(line[:240])
+                    obj = None
+                    try:
+                        obj = json.loads(line)
+                    except (json.JSONDecodeError, ValueError):
+                        with self._lock:
+                            job["tail"] = "\n".join(raw_lines[-6:])
+                        continue
+                    etype = obj.get("type")
+                    if etype == "assistant":
+                        msg_obj = obj.get("message") or {}
+                        for c in (msg_obj.get("content") or []):
+                            ctype = c.get("type")
+                            if ctype == "text" and c.get("text"):
+                                texts.append(c["text"])
+                                with self._lock:
+                                    for st in job["steps"]:
+                                        st["status"] = "done"
+                                    job["tail"] = c["text"][:300]
+                            elif ctype == "tool_use":
+                                tname = c.get("name", "?")
+                                kind, label = self._classify_tool_step(tname)
+                                tool_steps.append(label)
+                                with self._lock:
+                                    for st in job["steps"]:
+                                        st["status"] = "done"
+                                    job["steps"].append(
+                                        {"kind": kind, "label": label,
+                                         "status": "running"})
+                                    job["tail"] = label
+                    elif etype == "result":
+                        if obj.get("result"):
+                            texts.append(str(obj.get("result") or ""))
+                        is_error = bool(obj.get("is_error"))
+                        parsed = True
+                if eof or proc.poll() is not None:
                     break
-                line = line.strip()
-                if not line:
-                    continue
-                # stream-json 事件流（claude/codebuddy 同构）：逐行 JSON，
-                # assistant 的 text 块实时进 tail（HF 过程可视化）、
-                # tool_use 显示工具步骤、result 是最终回复。
-                obj = None
-                try:
-                    obj = json.loads(line)
-                except (json.JSONDecodeError, ValueError):
-                    tail_lines.append(line[:120])
-                    job["tail"] = "\n".join(tail_lines[-6:])
-                    continue
-                etype = obj.get("type")
-                if etype == "assistant":
-                    msg = obj.get("message") or {}
-                    for c in (msg.get("content") or []):
-                        ctype = c.get("type")
-                        if ctype == "text" and c.get("text"):
-                            texts.append(c["text"])
-                            job["tail"] = c["text"][:300]
-                        elif ctype == "tool_use":
-                            step = "[工具] " + c.get("name", "?")
-                            tool_steps.append(step)
-                            job["tail"] = step
-                elif etype == "result":
-                    texts.append(str(obj.get("result") or ""))
-                    is_error = bool(obj.get("is_error"))
-                    parsed = True
-            if eof or proc.poll() is not None:
-                break
-            if not events:
-                idle += 1
-            # 挂起兜底：stdout 长时间无新行且进程未退（agent 完成后偶发
-            # 挂住，实测）——40s 无新行视为完成，收 tail。
-            if buf and idle >= 80:
-                proc.kill()
-                break
-        proc.wait()
-        # stream-json 收集的 texts 最后一条 = agent 的最终回复；
-        # is_error 已在事件流里提取。
-        reply = (texts[-1] if texts else "").strip() or \
-            ("\n".join(tool_steps[-3:]) or "（agent 无文本输出）")
-        spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
-                        os.path.getmtime(spec_path) > spec_mtime_before)
-        job["spec_updated"] = spec_changed
-        if proc.returncode != 0 and not parsed:
-            job.update({"running": False, "done": True,
-                        "reply": (proc.stderr or reply_raw)[-600:]
-                                  or "agent 非零退出",
-                        "error": f"exit {proc.returncode}"})
+                # 兜底：若已收到文本或结果事件且超过 40s 再无任何输出，视作结束
+                if (texts or parsed) and time.time() - last_out_at >= 40:
+                    proc.kill()
+                    break
+            proc.wait()
+            with self._lock:
+                was_cancelled = bool(job.get("cancelled"))
+            if was_cancelled:
+                with self._lock:
+                    for st in job["steps"]:
+                        st["status"] = "done"
+                    job["steps"].append({"kind": "stop", "label": "已手动中止",
+                                         "status": "done"})
+                    job["reply"] = "已取消本轮 Agent 执行。"
+                    job["error"] = "cancelled"
+                self._chat_log(message, "已取消本轮 Agent 执行。", cli)
+                return
+            reply = (texts[-1] if texts else "").strip() or (
+                "\n".join(tool_steps[-3:]) or "（agent 无文本输出）")
+            spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
+                            os.path.getmtime(spec_path) > spec_mtime_before)
+            if proc.returncode != 0 and not parsed:
+                err_tail = "\n".join(raw_lines[-8:]) or reply
+                with self._lock:
+                    job["spec_updated"] = spec_changed
+                    job["reply"] = err_tail[-800:] or "agent 非零退出"
+                    job["error"] = f"exit {proc.returncode}"
+                self._chat_log(message, job["reply"], cli)
+                return
+            diff = []
+            if spec_changed:
+                with self._lock:
+                    self.current_spec = self._load_spec()
+                    self._compose()
+                    diff = self._spec_diff_summary(
+                        before_scenes,
+                        (self.current_spec or {}).get("scenes") or [])
+            with self._lock:
+                for st in job["steps"]:
+                    st["status"] = "done"
+                job["spec_updated"] = spec_changed
+                if is_error:
+                    job["error"] = ("agent 上报错误（常见为 CLI 配置的模型不可用："
+                                    "请检查模型或登录态）")
+                job["reply"] = reply[-2000:] or "（agent 无输出）"
+                job["diff"] = diff
+            self._chat_log(message, job["reply"], cli, diff=diff,
+                           steps=job.get("steps"))
+        except Exception as e:
+            with self._lock:
+                job["error"] = str(e)
+                job["reply"] = f"agent 执行异常：{e}"
             self._chat_log(message, job["reply"], cli)
-            return
-        if is_error:
-            job["error"] = ("agent 上报错误（常见为 CLI 配置的模型不可用："
-                            "claude --model 换可用模型）")
-        job["reply"] = reply[-1500:] or "（agent 无输出）"
-        job["done"] = True
-        # spec 被改 → 重载重组 + diff 摘要（线程内完成，前端轮询到 done）
-        if spec_changed:
-            self.current_spec = self._load_spec()
-            self._compose()
-            job["diff"] = self._spec_diff_summary(before_scenes,
-                                                  self.current_spec.get(
-                                                      "scenes") or [])
-        self._chat_log(message, job["reply"], cli)
+        finally:
+            if sel is not None:
+                try:
+                    sel.close()
+                except Exception:
+                    pass
+            with self._lock:
+                job["proc"] = None
+                job["running"] = False
+                job["done"] = True
+                for st in job["steps"]:
+                    st["status"] = "done"
 
     def _agent_chat_status(self, job_id):
-        job = self.agent_jobs.get(job_id)
-        if job is None:
-            raise RuntimeError("无此 agent 任务")
-        return {"running": job.get("running", False),
-                "done": job.get("done", False),
-                "agent": job.get("agent"),
-                "tail": job.get("tail", ""),
-                "reply": job.get("reply", ""),
-                "spec_updated": job.get("spec_updated", False),
-                "diff": job.get("diff", []),
-                "error": job.get("error")}
+        with self._lock:
+            job = self.agent_jobs.get(job_id)
+            if job is None:
+                raise RuntimeError("无此 agent 任务")
+            return {"running": bool(job.get("running", False)),
+                    "done": bool(job.get("done", False)),
+                    "cancelled": bool(job.get("cancelled", False)),
+                    "agent": job.get("agent"),
+                    "tail": job.get("tail", ""),
+                    "steps": list(job.get("steps") or []),
+                    "reply": job.get("reply", ""),
+                    "spec_updated": bool(job.get("spec_updated", False)),
+                    "diff": list(job.get("diff") or []),
+                    "error": job.get("error")}
 
 
 def make_handler(server_ref):
@@ -2584,19 +3279,65 @@ def make_handler(server_ref):
             elif path == "/api/brands":
                 self._json(srv._brands_list())
             elif path.startswith("/api/brand-shot/"):
-                # 品牌网页截图（scan 时 html_bake 烘的首屏视觉证据）
-                nm = path[len("/api/brand-shot/"):]
-                if not re.fullmatch(r"[\w\-]+", nm or ""):
+                # 品牌网页截图 / 多区域 product_surfaces
+                nm = urllib.parse.unquote(path[len("/api/brand-shot/"):])
+                if not re.fullmatch(r"[\w.\-]+", nm or ""):
                     self._send(404, "not found", "text/plain")
                     return
-                broot = os.path.expanduser(os.environ.get(
-                    "XMEDIA_BRAND_DIR", "~/.xmedia/brands"))
-                jpg = os.path.join(broot, "shots", nm + "-home.jpg")
-                if not os.path.isfile(jpg):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                broot = os.path.realpath(srv._brands_dir())
+                shots_root = os.path.realpath(os.path.join(broot, "shots"))
+                req_file = (q.get("file") or [""])[0].strip()
+                if req_file:
+                    target = os.path.realpath(os.path.join(broot, req_file))
+                    if not (target.startswith(shots_root + os.sep) and os.path.isfile(target)):
+                        self._send(404, "not found", "text/plain")
+                        return
+                else:
+                    target = os.path.join(shots_root, nm + "-home.jpg")
+                    if not os.path.isfile(target):
+                        jpath = os.path.join(broot, nm + ".json")
+                        if os.path.isfile(jpath):
+                            try:
+                                sh = str(json.load(open(jpath, encoding="utf-8")).get("screenshot") or "")
+                                if sh:
+                                    cand = os.path.realpath(os.path.join(broot, sh))
+                                    if cand.startswith(shots_root + os.sep):
+                                        target = cand
+                            except Exception:
+                                pass
+                if not os.path.isfile(target):
                     self._send(404, "not found", "text/plain")
                     return
-                with open(jpg, "rb") as fh:
-                    self._send(200, fh.read(), "image/jpeg")
+                ext = os.path.splitext(target)[1].lower()
+                ctype = {".png": "image/png", ".webp": "image/webp"}.get(ext, "image/jpeg")
+                with open(target, "rb") as fh:
+                    self._send(200, fh.read(), ctype)
+            elif path.startswith("/api/brand-file/"):
+                nm = urllib.parse.unquote(path[len("/api/brand-file/"):])
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                rel = (q.get("path") or [""])[0].strip()
+                raw_mode = (q.get("raw") or [""])[0] == "1"
+                broot, _stem = srv._resolve_brand_stem(nm)
+                fp = os.path.realpath(os.path.join(broot, rel))
+                if not (rel and fp.startswith(broot + os.sep) and os.path.isfile(fp)):
+                    self._send(404, "not found", "text/plain")
+                    return
+                ext = os.path.splitext(fp)[1].lower()
+                if raw_mode:
+                    mime = {
+                        ".woff2": "font/woff2", ".woff": "font/woff",
+                        ".ttf": "font/ttf", ".otf": "font/otf",
+                        ".mp3": "audio/mpeg", ".wav": "audio/wav",
+                        ".m4a": "audio/mp4", ".aac": "audio/aac",
+                        ".ogg": "audio/ogg", ".pdf": "application/pdf",
+                    }.get(ext, "application/octet-stream")
+                    with open(fp, "rb") as fh:
+                        self._send(200, fh.read(), mime)
+                    return
+                txt_src = fp + ".txt" if (ext == ".pdf" and os.path.isfile(fp + ".txt")) else fp
+                with open(txt_src, "r", encoding="utf-8", errors="replace") as fh:
+                    self._json({"ok": True, "path": rel, "text": fh.read(40_000)})
             elif path.startswith("/api/brand-logo/"):
                 self._serve_brand_logo(path[len("/api/brand-logo/"):])
             elif path.startswith("/api/project-thumb/"):
@@ -2632,6 +3373,13 @@ def make_handler(server_ref):
                     self.path).query)
                 self._json(srv._agent_chat_status(
                     int((q.get("id") or ["0"])[0])))
+            elif path == "/api/agent/history":
+                self._json({"history": srv._chat_history_tail(limit=40)})
+            elif path == "/api/agent/config":
+                cfg = srv._effective_llm_config()
+                self._json({"endpoint": cfg["endpoint"],
+                            "model": cfg["model"],
+                            "configured": cfg["configured"]})
             elif path == "/api/projects":
                 self._json({"projects": srv._projects_list()})
             elif path == "/api/state":
@@ -2652,15 +3400,35 @@ def make_handler(server_ref):
                 audios = parse_audio_tracks(cur_html)
                 total = parse_total(cur_html, scenes)
                 w, h = srv._dims(cur_spec or {})
+                llm_cfg = srv._effective_llm_config()
+                presets = []
+                try:
+                    import hf_compose
+                    for k, v in sorted(hf_compose._design_presets().items()):
+                        c = v.get("colors") or {}
+                        presets.append({
+                            "name": k,
+                            "description": v.get("description", ""),
+                            "bg": c.get("bg_primary", ""),
+                            "ink": c.get("text_primary", ""),
+                            "accent": c.get("accent", ""),
+                        })
+                except Exception:
+                    pass
+                media_files = srv._scan_media_files(spec_root)
                 self._json({"spec": cur_spec,
                             "spec_path": cur_spec_path,
                             "duration": total, "scenes": scenes,
                             "audios": audios,
                             "width": w, "height": h,
                             "errors": errors,
-                            "agent": {"llm": bool(os.environ.get(
-                                "XMEDIA_LLM_ENDPOINT")), "mcp": True,
-                                "cli": srv._agent_probe()["cli"]},
+                            "presets": presets,
+                            "media_files": media_files,
+                            "agent": {"llm": llm_cfg["configured"],
+                                      "llm_model": llm_cfg["model"],
+                                      "llm_endpoint": llm_cfg["endpoint"],
+                                      "mcp": True,
+                                      "cli": srv._agent_probe()["cli"]},
                             "ref_video": (EXTERNAL_ASSET_PREFIX +
                                           ref_video)
                                           if ref_video else None,
@@ -2912,11 +3680,39 @@ def make_handler(server_ref):
                     self._json(srv._brand_scan_api(body))
                 elif path == "/api/brand/default":
                     self._json(srv._brand_default(body))
+                elif path == "/api/brand/update":
+                    self._json(srv._brand_update(body))
+                elif path == "/api/brand/create-video":
+                    self._json(srv._brand_create_video(body))
                 elif path == "/api/agent":
-                    self._json(srv._run_agent(str(body.get("message") or "")))
+                    ctx = body.get("context") if isinstance(
+                        body.get("context"), dict) else None
+                    self._json(srv._run_agent(
+                        str(body.get("message") or ""), context=ctx))
                 elif path == "/api/agent/chat":
+                    ctx = body.get("context") if isinstance(
+                        body.get("context"), dict) else None
                     self._json(srv._start_agent_chat(
-                        str(body.get("message") or "")))
+                        str(body.get("message") or ""), context=ctx))
+                elif path == "/api/agent/chat/cancel":
+                    self._json(srv._cancel_agent_chat(
+                        int(body.get("id") or 0)))
+                elif path == "/api/agent/history/clear":
+                    self._json(srv._clear_chat_history())
+                elif path == "/api/agent/config":
+                    ep = str(body.get("endpoint") or "").strip()
+                    if ep and not ep.lower().startswith(("http://", "https://")):
+                        raise ValueError("LLM 接口地址须以 http:// 或 https:// 开头")
+                    with srv._lock:
+                        srv._llm_config = {
+                            "endpoint": ep,
+                            "api_key": str(body.get("api_key") or "").strip(),
+                            "model": str(body.get("model") or "").strip(),
+                        }
+                    cfg = srv._effective_llm_config()
+                    self._json({"ok": True, "configured": cfg["configured"],
+                                "endpoint": cfg["endpoint"],
+                                "model": cfg["model"]})
                 else:
                     self._json({"error": "unknown endpoint"}, 404)
             except (RuntimeError, ValueError, OSError, KeyError) as e:

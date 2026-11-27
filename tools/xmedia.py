@@ -210,7 +210,7 @@ def md_to_html(md):
 WORKS_INFO = {
     "product-launch": (
         "产品发布会",
-        "16:9 横屏：自定义 lower-third 人名条、stats 场景与 wipe / fade 转场。",
+        "16:9 横屏：自定义 hf-brand-assemble 模板、stats 场景与 wipe / fade 转场。",
         ("16:9", "自定义模板", "转场")),
     "knowledge-cards": (
         "竖屏知识卡片",
@@ -627,33 +627,54 @@ def cmd_brand(args):
         if not args.name or not args.url:
             print("xmedia: brand scan 需要 <名> --url <网站>", file=sys.stderr)
             sys.exit(1)
-        draft = _brand_scan(args.url)
+        d = _brand_dir()
+        os.makedirs(d, exist_ok=True)
+        shots = os.path.join(d, "shots")
+        os.makedirs(shots, exist_ok=True)
+        shot_jpg = os.path.join(shots, args.name + "-home.jpg")
+        draft = _brand_scan(args.url, shot_path=shot_jpg,
+                            surfaces_dir=shots, brand_name=args.name)
         brand = {
             "name": args.name,
             "background": draft["background"],
             "palette": draft["palette"],
             "text_color": draft["text_color"] or "#f0f0f5",
-            "voice": args.voice or "Tingting",
+            "voice": draft.get("voice") or {},
+            "description": draft.get("description", ""),
             "outro_text": "",
             "logo_text": (draft["site_title"] or args.name)[:24],
             "fonts": draft["fonts"],
+            "typography_roles": draft.get("typography_roles") or {},
             "logo_image_url": draft["logo_image_url"],
             "source_url": draft["source_url"],
-            # v2 capture 增量（colors with roles / text styles /
-            # backgrounds / shapes / components / logos 集合）
+            "site_summary": draft.get("site_summary", {}),
             "colors": draft.get("colors", []),
             "text_styles": draft.get("text_styles", []),
             "backgrounds": draft.get("backgrounds", []),
             "shapes": draft.get("shapes", {}),
             "components": draft.get("components", []),
             "logos": draft.get("logos", []),
+            "logo_marks": draft.get("logo_marks", []),
+            "product_surfaces": draft.get("product_surfaces", []),
             "capture": draft.get("capture", {}),
-            "screenshot": "",
+            "screenshot": (os.path.relpath(shot_jpg, d)
+                           if os.path.isfile(shot_jpg) and
+                           os.path.getsize(shot_jpg) > 4000 else ""),
             "context": "",
         }
-        d = _brand_dir()
-        os.makedirs(d, exist_ok=True)
         path = os.path.join(d, args.name + ".json")
+        assets = os.path.join(d, "assets")
+        os.makedirs(assets, exist_ok=True)
+        if draft.get("logo_svg"):
+            svg_dest = os.path.join(assets, args.name + "-logo.svg")
+            with open(svg_dest, "w", encoding="utf-8") as sf:
+                sf.write(draft["logo_svg"])
+            brand["logo_image"] = os.path.relpath(svg_dest, d)
+            svg_cols = list(dict.fromkeys(
+                c.lower() for c in re.findall(r"#[0-9a-fA-F]{6}", draft["logo_svg"])
+                if c.lower() not in ("#ffffff", "#000000")))
+            if svg_cols:
+                brand["logo_colors"] = svg_cols[:3]
         with open(path, "w", encoding="utf-8") as f:
             json.dump(brand, f, ensure_ascii=False, indent=1)
             f.write("\n")
@@ -662,11 +683,12 @@ def cmd_brand(args):
               f"（背景 {brand['background']}，文字 {brand['text_color']}）")
         if brand["fonts"]:
             print(f"  字体   {', '.join(brand['fonts'])}")
-        if brand["logo_image_url"]:
+        if brand.get("logo_image"):
+            print(f"  logo   {brand['logo_image']} (内联 SVG)")
+        elif brand["logo_image_url"]:
             print(f"  logo   {brand['logo_image_url']}")
-        logo_local = ""
-        if brand["logo_image_url"] and brand["logo_image_url"].startswith(
-                ("http://", "https://")):
+        if not brand.get("logo_image") and brand["logo_image_url"] and \
+                brand["logo_image_url"].startswith(("http://", "https://")):
             try:
                 import urllib.request
                 req = urllib.request.Request(
@@ -677,16 +699,10 @@ def cmd_brand(args):
                 ext = os.path.splitext(
                     urllib.parse.urlparse(brand["logo_image_url"]).path)[1] \
                     or ".png"
-                assets = os.path.join(_brand_dir(), "assets")
-                os.makedirs(assets, exist_ok=True)
                 dest = os.path.join(assets, args.name + "-logo" + ext)
                 with open(dest, "wb") as f:
                     f.write(data)
-                logo_local = os.path.relpath(dest, _brand_dir())
-                brand["logo_image"] = logo_local
-                # logo 主色提取（ffmpeg 8×8 像素采样）：logo 是品牌色
-                # 最强载体（bilibili 粉 #fb7299 就藏在 logo 里，CSS 抓
-                # 不到）——top3 进 logo_colors（role="logo" 入 colors）。
+                brand["logo_image"] = os.path.relpath(dest, d)
                 try:
                     pal = subprocess.run(
                         ["ffmpeg", "-y", "-i", dest, "-vf", "scale=8:8",
@@ -695,94 +711,88 @@ def cmd_brand(args):
                     px = pal.stdout
                     freq = {}
                     for k in range(0, len(px) - 2, 3):
-                        r, g, b = px[k], px[k + 1], px[k + 2]
-                        if r + g + b > 720 or r + g + b < 60:
+                        r_, g_, b_ = px[k], px[k + 1], px[k + 2]
+                        if r_ + g_ + b_ > 720 or r_ + g_ + b_ < 60:
                             continue
                         hit = next((kk for kk in freq
-                                    if max(abs(kk[0] - r), abs(kk[1] - g),
-                                           abs(kk[2] - b)) < 24), None)
+                                    if max(abs(kk[0] - r_), abs(kk[1] - g_),
+                                           abs(kk[2] - b_)) < 24), None)
                         if hit:
                             freq[hit] += 1
                         else:
-                            freq[(r, g, b)] = 1
+                            freq[(r_, g_, b_)] = 1
                     logo_cols = sorted(freq.items(), key=lambda kv: -kv[1])[:3]
-                    brand["logo_colors"] = [f"#{r:02x}{g:02x}{b:02x}"
-                                            for (r, g, b), _ in logo_cols]
+                    brand["logo_colors"] = [f"#{r_:02x}{g_:02x}{b_:02x}"
+                                            for (r_, g_, b_), _ in logo_cols]
                 except Exception as e:
                     print(f"  logo 主色提取失败：{e}", file=sys.stderr)
-                # 网页首屏截图（HF Screenshots 的单张视觉证据）：
-                # html_bake 烘 URL 首屏 → ffmpeg 抽帧。
-                try:
-                    shots = os.path.join(_brand_dir(), "shots")
-                    os.makedirs(shots, exist_ok=True)
-                    shot_jpg = os.path.join(shots, args.name + "-home.jpg")
-                    bake = bake_bin()
-                    if bake:
-                        bake_url = args.url if args.url.startswith(
-                            ("http://", "https://", "file://")) \
-                            else "https://" + args.url
-                        mp4 = shot_jpg + ".mp4"
-                        subprocess.run(
-                            [bake, "--url", bake_url, "--out", mp4,
-                             "--seconds", "2.5", "--fps", "2",
-                             "--width", "1280", "--height", "720",
-                             "--clock", "seek", "--paint-wait", "1500"],
-                            capture_output=True, timeout=180)
-                        subprocess.run(
-                            ["ffmpeg", "-y", "-ss", "1.5", "-i", mp4,
-                             "-frames:v", "1", shot_jpg],
-                            capture_output=True, timeout=60)
-                        if os.path.isfile(shot_jpg) and \
-                                os.path.getsize(shot_jpg) > 8000:
-                            brand["screenshot"] = os.path.relpath(
-                                shot_jpg, _brand_dir())
-                            print(f"  截图   {shot_jpg}")
-                        else:
-                            print("  截图   未产出（网站反爬或超时）",
-                                  file=sys.stderr)
-                except Exception as e:
-                    print(f"  网页截图失败：{e}", file=sys.stderr)
-                with open(path, "w", encoding="utf-8") as f:
-                    json.dump(brand, f, ensure_ascii=False, indent=1)
-                    f.write("\n")
             except Exception as e:
                 print(f"  logo 下载失败（保留 URL）：{e}", file=sys.stderr)
-        # Context 描述（HF 的 design system 总结行）+ colors 吃 logo
-        # 主色（role="logo" 前插——logo 是品牌色最强证据）。
+        if not brand.get("screenshot") and not draft.get("capture", {}).get("blocked_reason"):
+            try:
+                bake = bake_bin()
+                if bake:
+                    bake_url = args.url if args.url.startswith(
+                        ("http://", "https://", "file://")) \
+                        else "https://" + args.url
+                    mp4 = shot_jpg + ".mp4"
+                    subprocess.run(
+                        [bake, "--url", bake_url, "--out", mp4,
+                         "--seconds", "2.5", "--fps", "2",
+                         "--width", "1280", "--height", "720",
+                         "--clock", "seek", "--paint-wait", "1500"],
+                        capture_output=True, timeout=180)
+                    subprocess.run(
+                        ["ffmpeg", "-y", "-ss", "1.5", "-i", mp4,
+                         "-frames:v", "1", shot_jpg],
+                        capture_output=True, timeout=60)
+                    if os.path.isfile(shot_jpg) and \
+                            os.path.getsize(shot_jpg) > 8000:
+                        brand["screenshot"] = os.path.relpath(shot_jpg, d)
+            except Exception:
+                pass
+        if brand.get("screenshot"):
+            print(f"  截图   {brand['screenshot']}")
+        # Context 描述 + 机器可读 rules {dos, donts} + colors 吃 logo 主色
         try:
             host = brand["source_url"].split("//")[-1].split("/")[0]
+            mode_tag = draft.get("capture", {}).get("engine", "static")
             brand["context"] = (
-                f"Brand system scanned from {host} on "
+                f"Brand system scanned from {host} ({mode_tag}) on "
                 f"{time.strftime('%Y-%m-%d')} — "
                 f"{len(brand.get('colors', []))} colors with roles, "
                 f"{len(brand.get('fonts', []))} font families, "
                 f"{len(brand.get('components', []))} components, "
-                f"{len(brand.get('shapes', {}).get('radii', []))} radii. "
-                f"brandkit-v2 capture.")
-            # Rules（自动生成，两色纪律 + 主色/字体/禁用——HF 的
-            # "Rules and sources" 分类的本地对应）
+                f"{len(brand.get('shapes', {}).get('radii', []))} radii.")
             pal = brand.get("palette", [])
-            rules = [
-                "主色板按序循环使用，不引入色板外的第三色",
-                "强调只用反转/放大/密度，禁止渐变横幅与投影卡片",
+            dos = [
+                "主色板按序循环使用，保持视觉风格与网站一致",
+                "正文文字色 " + (brand.get("text_color") or "#f0f0f5")
+                + "（确保高对比度可读）",
             ]
             if pal:
-                rules.insert(0, "主色 " + pal[0] + " 用于钩子与 CTA 反白")
+                dos.insert(0, f"主强调色 {pal[0]} 用于开场钩子、数字与行动号召反白")
             if brand.get("fonts"):
-                rules.insert(1, "标题/正文字体族用 "
-                                + (brand["fonts"][0] or "系统默认")
-                                + "，跨平台以系统回退")
-            if brand.get("text_color"):
-                rules.append("正文文字色 " + brand["text_color"]
-                             + "（与背景对比 ≥ 4.5:1）")
-            brand["rules_txt"] = rules
+                dos.append(f"优先使用品牌字体 {brand['fonts'][0]}（无本地文件时回退系统族）")
+            vobj = brand.get("voice") if isinstance(brand.get("voice"), dict) else {}
+            if vobj.get("tone"):
+                dos.append(f"文案语调保持：{vobj['tone']}")
+            donts = [
+                "禁止引入色板之外的杂色或高饱和渐变背景条",
+                "强调优先用大小对比或反白，避免堆砌多余边框投影",
+            ]
+            if vobj.get("never_say"):
+                donts.append("避免表达：" + "、".join(vobj["never_say"][:3]))
+            brand["tts_voice"] = args.voice or "Tingting"
+            brand["rules"] = {"dos": dos, "donts": donts}
+            brand["rules_txt"] = dos + donts
             brand["sources"] = [
-                {"what": "HTML + 至多 8 个样式表（CSS 变量/颜色/字体/圆角统计）",
+                {"what": f"页面渲染与样式采集（{mode_tag}）",
                  "url": brand.get("source_url", "")},
-                {"what": "og:image / apple-touch-icon / favicon（logo 集）",
+                {"what": "页头 SVG / logo / icon 集合",
                  "url": (brand.get("logos") or [""])[0]},
-                {"what": "theme-color meta / logo 像素采样（主色证据）",
-                 "url": brand.get("logo_image_url", "")},
+                {"what": "首屏截图与核心产品文案提取",
+                 "url": brand.get("screenshot") or brand.get("logo_image_url", "")},
             ]
             for c in reversed(brand.get("logo_colors", [])):
                 if not any(x.get("hex", "").lower() == c.lower()
@@ -794,8 +804,8 @@ def cmd_brand(args):
                 f.write("\n")
         except Exception as e:
             print(f"  context 生成失败：{e}", file=sys.stderr)
-        if logo_local:
-            print(f"  logo   {brand['logo_image_url']} → {logo_local}")
+        if brand.get("logo_image"):
+            print(f"  logo   {brand.get('logo_image_url') or 'inline-svg'} → {brand['logo_image']}")
         print(f"  已保存 {path} —— brand apply {args.name} --spec <spec> 生效")
         return
     if args.action == "save":
@@ -896,26 +906,123 @@ def cmd_brand(args):
         print(f"  {n}")
 
 
-def _brand_scan(url):
-    """读网站 → 品牌草稿 v2（brandkit-v2 capture + 证据）。
+def _looks_like_challenge(title, html_text=""):
+    t = str(title or "")
+    if re.search(r"验证码|安全验证|人机验证|访问验证|Just a moment|Access Denied|"
+                 r"Attention Required|Robot or human|Security Check", t, re.I):
+        return True
+    if html_text and len(html_text) < 4000 and re.search(
+            r"滑块验证|请完成验证|cf-browser-verification|turnstile",
+            html_text, re.I):
+        return True
+    return False
 
-    纯本地解析（对齐 HF brand-kits 的"输入网站自动读品牌"）：抓页面 +
-    至多 8 个样式表。v2 深度：
-    - CSS 变量表 → 语义色角色（--brand-pink → primary，…）
-    - 颜色频次全量统计 → 色板扩到 10 色（饱和优先 + 高频补充）
-    - text styles：font-size × font-weight 组合 top5
-    - backgrounds：background 声明 top2
-    - shapes：border-radius / gap 频次 top
-    - components：.btn/.card/.tag 类规则的真实样式抽取 top5
-    - logos：og:image + apple-touch-icon + favicon 集
-    返回 dict 兼容 v1 字段（palette/background/text_color/fonts/
-    logo_image_url/site_title/source_url），v2 增量字段
-    （colors/text_styles/backgrounds/shapes/components/logos）。
-    读不到就用默认值——扫描是草稿，brand save 的参数永远可以覆盖。
-    """
+
+def _synthesize_brand_voice(site_title, site_summary, background, fonts, shapes, url):
+    """基于页面摘要、视觉极性与排版圆角确定性提炼品牌 Voice 与定位描述。"""
+    hero = str((site_summary or {}).get("hero_title") or site_title or "").strip()
+    sub = str((site_summary or {}).get("hero_subtitle") or "").strip()
+    desc = str((site_summary or {}).get("description") or sub or hero).strip()
+    bullets = [str(x).strip() for x in ((site_summary or {}).get("bullets") or []) if str(x).strip()]
+    hx = (background or "#0a0a1a").lstrip("#")
+    light_bg = False
+    if len(hx) == 6:
+        try:
+            r_, g_, b_ = int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16)
+            light_bg = (r_ * 299 + g_ * 587 + b_ * 114) / 1000 > 135
+        except ValueError:
+            pass
+    radii = (shapes or {}).get("radii") or []
+    avg_rad = 0.0
+    if radii:
+        m_r = re.match(r"([\d.]+)", str(radii[0].get("value") or "0"))
+        if m_r:
+            avg_rad = float(m_r.group(1))
+    font_str = " ".join(fonts or []).lower()
+    is_serif = any(k in font_str for k in ("serif", "georgia", "playfair", "song", "ming"))
+    is_mono = any(k in font_str for k in ("mono", "menlo", "consolas", "code", "jetbrains"))
+
+    tone_parts = []
+    tone_parts.append("明亮清晰、亲和直给" if light_bg else "深邃沉浸、科技质感")
+    if is_serif:
+        tone_parts.append("编辑出版与人文叙事感")
+    elif is_mono:
+        tone_parts.append("工程师克制理性")
+    elif avg_rad >= 10:
+        tone_parts.append("年轻友好、轻快节奏")
+    else:
+        tone_parts.append("高效利落、重点突出")
+    tone = " · ".join(tone_parts)
+
+    tagline = (sub or hero)[:120]
+    host = url.split("//")[-1].split("/")[0] if url else ""
+    positioning = desc[:180] or f"源自 {host or '站点'} 的视觉与内容表达规范"
+    say = []
+    if bullets:
+        say.extend(b[:36] for b in bullets[:3])
+    elif hero and hero != site_title:
+        say.append(hero[:36])
+    if not say:
+        say = ["直观表达核心价值", "句式短促有记忆点"]
+    never_say = [
+        "堆砌空洞大词与无重点长句",
+        "脱离品牌色板的廉价荧光渐变与杂乱特效",
+    ]
+    return desc[:240], {
+        "tone": tone,
+        "tagline": tagline,
+        "positioning": positioning,
+        "say": say[:4],
+        "never_say": never_say,
+    }
+
+
+def _browser_brand_capture(url, shot_path=None, surfaces_dir=None, brand_name="site"):
+    """优先使用无头浏览器（Playwright）渲染目标网站并捕获计算样式/SVG/文案/截图。"""
+    cap_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "hf_brand_capture.mjs")
+    node_bin = shutil.which("node")
+    if not node_bin or not os.path.isfile(cap_script):
+        return None
+    if not url.startswith(("http://", "https://", "file://")):
+        url = "https://" + url
+    cmd = [node_bin, cap_script, "--url", url, "--name", brand_name]
+    if shot_path:
+        cmd += ["--shot", shot_path]
+    if surfaces_dir:
+        cmd += ["--surfaces-dir", surfaces_dir]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return None
+        data = json.loads(proc.stdout.strip().splitlines()[-1])
+        return data
+    except Exception:
+        return None
+
+
+def _brand_scan(url, shot_path=None, surfaces_dir=None, brand_name="site"):
+    """读网站 → 品牌草稿 v2（静动态融合：风控验证页绝不污染真实 CSS Token）。"""
     import urllib.request
     import urllib.parse
     import html as _html
+
+    if not url.startswith(("http://", "https://", "file://")):
+        url = "https://" + url
+    browser_raw = _browser_brand_capture(
+        url, shot_path=shot_path, surfaces_dir=surfaces_dir, brand_name=brand_name)
+    blocked_reason = ""
+    browser_data = None
+    if isinstance(browser_raw, dict):
+        if browser_raw.get("blocked"):
+            blocked_reason = str(browser_raw.get("reason") or "anti_bot_challenge")
+            if shot_path and os.path.isfile(shot_path):
+                try:
+                    os.remove(shot_path)
+                except OSError:
+                    pass
+        elif browser_raw.get("ok"):
+            browser_data = browser_raw
 
     def _fetch(u, timeout=10):
         req = urllib.request.Request(
@@ -926,14 +1033,13 @@ def _brand_scan(url):
     def _abs(u, base):
         return urllib.parse.urljoin(base, u)
 
-    if url.startswith("file://"):
+    html_src = ""
+    base = url
+    try:
         html_src = _fetch(url)
-        base = url
-    else:
-        if not url.startswith(("http://", "https://")):
-            url = "https://" + url
-        html_src = _fetch(url)
-        base = url
+    except Exception:
+        if not browser_data:
+            raise
 
     def _tag_attr(pattern):
         m = re.search(pattern, html_src, re.I)
@@ -1123,11 +1229,14 @@ def _brand_scan(url):
         key = (round(float(fs.group(1))),
                int(fw.group(1)) if fw else 400)
         ts_freq[key] = ts_freq.get(key, 0) + 1
-    text_styles = [{"size": s, "weight": w, "count": c}
-                   for (s, w), c in sorted(ts_freq.items(),
-                                           key=lambda kv: (-kv[0][1],
-                                                           -kv[0][0],
-                                                           -kv[1]))[:5]]
+    text_styles = []
+    for i, ((s, w), c) in enumerate(sorted(ts_freq.items(),
+                                           key=lambda kv: (-kv[0][0], -kv[0][1], -kv[1]))[:6]):
+        role = ("display" if s >= 32 else "heading" if s >= 20 else "body" if s >= 14 else "label")
+        text_styles.append({
+            "role": role, "size": s, "weight": w, "line_height": 1.35 if s >= 24 else 1.5,
+            "font_family": "", "count": c,
+        })
 
     # ---- backgrounds：background 声明频次 top2（非透明）----
     bg_freq = {}
@@ -1192,20 +1301,139 @@ def _brand_scan(url):
                 fonts.append(fam)
     fonts = fonts[:5]
 
+    if browser_data:
+        b_pal = browser_data.get("palette") or []
+        if b_pal:
+            palette = (b_pal + palette)[:3] if len(b_pal) < 3 else b_pal[:3]
+        if browser_data.get("background"):
+            bg = browser_data["background"]
+        if browser_data.get("text_color"):
+            text = browser_data["text_color"]
+        b_fonts = browser_data.get("fonts") or []
+        fonts = list(dict.fromkeys(b_fonts + fonts))[:6]
+        if browser_data.get("text_styles"):
+            text_styles = browser_data["text_styles"]
+        elif fonts:
+            for ts in text_styles:
+                if not ts.get("font_family"):
+                    ts["font_family"] = fonts[0]
+        if browser_data.get("backgrounds"):
+            backgrounds = browser_data["backgrounds"]
+        b_shapes = browser_data.get("shapes") or {}
+        if b_shapes.get("radii"):
+            shapes["radii"] = b_shapes["radii"]
+        if b_shapes.get("gaps"):
+            shapes["gaps"] = b_shapes["gaps"]
+        if browser_data.get("components"):
+            components = browser_data["components"]
+        if browser_data.get("logos"):
+            logos = list(dict.fromkeys(browser_data["logos"] + logos))
+            logo_url = logos[0] if logos else logo_url
+        if browser_data.get("site_title"):
+            site_title = browser_data["site_title"]
+        for vc in (browser_data.get("css_var_colors") or []):
+            hx = vc.get("hex")
+            if hx:
+                _push_color(hx, vc.get("role") or "", vc.get("var") or "", 0 if vc.get("role") in ("primary", "accent") else 2)
+        for ac in (browser_data.get("all_colors") or [])[:6]:
+            hx = ac.get("hex")
+            if hx and not any(c["hex"] == hx for c in colors):
+                colors.append({"hex": hx, "role": "", "var": "computed"})
+        if browser_data.get("css_var_colors"):
+            # 若真实采集到了语义 CSS 变量色/高饱和色板，替换掉静默占位三色 (#1a1a2e 等)
+            colors = [c for c in colors if c.get("hex") not in ("#1a1a2e", "#16213e", "#0f3460") or c.get("var")]
+        if browser_data.get("css_var_colors") and len(colors) >= 1:
+            for c in colors:
+                if len(palette) >= 3:
+                    break
+                if c.get("role") in ("primary", "accent", "secondary") and c["hex"] not in palette:
+                    palette.insert(0, c["hex"])
+            palette = list(dict.fromkeys(palette))[:3]
+
+    site_summary = (browser_data or {}).get("site_summary") or {}
+    if not site_summary.get("hero_title") or _looks_like_challenge(site_summary.get("hero_title"), html_src):
+        h1_m = re.search(r"<h1[^>]*>(.*?)</h1>", html_src, re.I | re.S)
+        h1_txt = re.sub(r"<[^>]+>", "", _html.unescape(h1_m.group(1))).strip() if h1_m else ""
+        desc_txt = _tag_attr(r'<meta\s+name="description"\s+content="([^"]*)"')
+        if not desc_txt:
+            desc_txt = _tag_attr(r'<meta\s+property="og:description"\s+content="([^"]*)"')
+        bullets_st = []
+        for hm in re.finditer(r"<h[23][^>]*>(.*?)</h[23]>", html_src, re.I | re.S):
+            tx = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", _html.unescape(hm.group(1)))).strip()
+            if 6 <= len(tx) <= 64 and tx not in bullets_st:
+                bullets_st.append(tx)
+                if len(bullets_st) >= 5:
+                    break
+        site_summary = {
+            "hero_title": (h1_txt or site_title)[:90],
+            "hero_subtitle": desc_txt[:140],
+            "description": desc_txt[:160],
+            "bullets": bullets_st,
+        }
+
+    if blocked_reason and _looks_like_challenge(site_title, html_src):
+        blocked_reason = blocked_reason + "+static_challenge"
+
+    desc_out, voice_obj = _synthesize_brand_voice(
+        site_title, site_summary, bg or "#0a0a1a", fonts, shapes, url)
+    typography_roles = (browser_data or {}).get("typography_roles") or {}
+    if not typography_roles and fonts:
+        typography_roles = {
+            "display": {"family": fonts[0], "weight": 700, "size": 48},
+            "body": {"family": fonts[min(1, len(fonts) - 1)], "weight": 400, "size": 16},
+        }
+    logo_marks = (browser_data or {}).get("logo_marks") or []
+    if not logo_marks and logos:
+        for i, lu in enumerate(logos[:4]):
+            logo_marks.append({
+                "kind": "lockup" if i == 0 else "favicon",
+                "label": "Meta / Icon" if i == 0 else "Site Favicon",
+                "url": lu,
+            })
+
+    product_surfaces = []
+    if shot_path and os.path.isfile(shot_path) and os.path.getsize(shot_path) > 4000:
+        product_surfaces.append({
+            "path": "shots/" + os.path.basename(shot_path),
+            "label": "首页首屏概览",
+        })
+    for ex in ((browser_data or {}).get("extra_shots") or []):
+        fn = ex.get("filename")
+        if fn and surfaces_dir and os.path.isfile(os.path.join(surfaces_dir, fn)):
+            product_surfaces.append({
+                "path": "shots/" + fn,
+                "label": ex.get("label") or "页面区块",
+            })
+
+    if browser_data and blocked_reason == "":
+        engine_label = "playwright+static" if css_vars else "playwright"
+    elif blocked_reason:
+        engine_label = f"static (无头触发验证: {blocked_reason})"
+    else:
+        engine_label = "static"
+
     return {"palette": palette, "background": bg or "#0a0a1a",
             "text_color": text or "", "fonts": fonts,
+            "typography_roles": typography_roles,
             "logo_image_url": logo_url, "site_title": site_title,
+            "logo_svg": (browser_data or {}).get("logo_svg", ""),
+            "logo_marks": logo_marks,
+            "product_surfaces": product_surfaces,
+            "site_summary": site_summary,
+            "description": desc_out,
+            "voice": voice_obj,
             "source_url": url,
             "colors": colors[:10], "text_styles": text_styles,
             "backgrounds": backgrounds, "shapes": shapes,
-            "components": components, "logos": logos[:3],
-            # capture 证据（HF 的 "Read from bilibili.com · 10 colors ·
-            # 5 text styles · 54 files" 行）：抓了什么、多深、何时
+            "components": components, "logos": logos[:4],
             "capture": {
-                "stylesheets": len(css_chunks),
-                "css_vars": len(css_vars),
-                "colors_seen": len(freq),
-                "bytes": len(hay),
+                "engine": engine_label,
+                "blocked_reason": blocked_reason,
+                "stylesheets": max(len(css_chunks), int((browser_data or {}).get("stylesheet_count") or 0)),
+                "css_vars": max(len(css_vars), int((browser_data or {}).get("css_vars_count") or 0)),
+                "colors_seen": max(len(freq) + len((browser_data or {}).get("all_colors") or []),
+                                   int((browser_data or {}).get("colors_seen") or 0)),
+                "bytes": max(len(hay), int((browser_data or {}).get("raw_css_bytes") or 0)),
                 "at": time.strftime("%Y-%m-%d"),
             }}
 

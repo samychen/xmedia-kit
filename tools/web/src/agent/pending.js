@@ -1,5 +1,6 @@
 import { $ } from "../shared/dom.js";
-import { askAdd, askModeLabel, askOpen, askRun, askSend } from "./ask.js";
+import { askAdd, askContextSnapshot, askMarkBackendPicked, askModeLabel, askOpen,
+         askRun, askSend } from "./ask.js";
 import { impOpen } from "../panels/import.js";
 import { refresh } from "../panels/status.js";
 
@@ -49,6 +50,27 @@ export function askApplyPending() {
   askBusy = true;
   $("ask-send").disabled = true;
   pendingRender();
+  var ctx = askContextSnapshot();
+  var canBatchAi = askBackend === "agent" ||
+      (state.agent && state.agent.llm && pendingEdits.length >= 2);
+  if (canBatchAi) {
+    var list = pendingEdits.slice();
+    var merged = "请按以下待应用修改列表一次性调整当前项目：\n" +
+        list.map(function (t, i) { return (i + 1) + ". " + t; }).join("\n");
+    askAdd(merged, "user");
+    pendingEdits = [];
+    pendingRender();
+    return askRun(merged, { context: ctx }).then(function (res) {
+      if (res && res.error) pendingEdits = list;
+    }).catch(function () {
+      pendingEdits = list;
+    }).then(function () {
+      pendingBusy = false; askBusy = false;
+      $("ask-send").disabled = false;
+      pendingRender();
+      return refresh(false).then(function () { askModeLabel(); });
+    });
+  }
   var done = 0, failed = -1;
   var next = function () {
     if (done >= pendingEdits.length || failed >= 0) {
@@ -67,7 +89,7 @@ export function askApplyPending() {
     }
     var msg = pendingEdits.shift();
     askAdd(msg, "user");
-    return askRun(msg).then(function () {
+    return askRun(msg, { context: ctx }).then(function () {
       ++done;
       return next();
     }).catch(function () {
@@ -79,12 +101,13 @@ export function askApplyPending() {
   return next();
 }
 $("ask-backend").onclick = function () {
+  askMarkBackendPicked();
   askBackend = askBackend === "agent" ? "rule" : "agent";
   askModeLabel();
   askAdd(askBackend === "agent"
       ? "已切换到 agent 模式：本地 LLM 子进程自主改 spec/重跑 compose"
-          + "（每次请求可能耗时数分钟）"
-      : "已切换到规则引擎模式：预置指令即时生效", "bot");
+          + "（可在气泡下方随时点击停止）"
+      : "已切换到规则引擎模式：预置指令与上下文即时生效（或走已配 API）", "bot");
 };
 $("ask-stage").onclick = function () { askStage($("ask-input").value); };
 $("ask-pending-clear").onclick = function () {
@@ -104,7 +127,6 @@ $("ask-form").addEventListener("submit", function (ev) {
   };
 });
 document.addEventListener("keydown", function (ev) {
-  var tag = (ev.target.tagName || "").toLowerCase();
   if ((ev.metaKey || ev.ctrlKey) && ev.code === "KeyK") {
     ev.preventDefault();
     // chat 常驻左栏：Ctrl/⌘+K = 聚焦对话输入（切到对话 tab）
@@ -115,4 +137,3 @@ document.addEventListener("keydown", function (ev) {
     }
   }
 });
-askAdd("我可以直接改这个合成。试试「加一个片尾卡」「导入 ~/Downloads 并加字幕和片尾卡」，或点「导入素材」用面板选文件。", "bot");

@@ -1,4 +1,4 @@
-import { renderSceneList, sceneFields } from "./scenes.js";
+import { renderSceneList, sceneFields, SCENE_DEFAULTS } from "./scenes.js";
 import { recompose } from "./status.js";
 import { escHtml, log, $ } from "../shared/dom.js";
 import { api } from "../shared/api-client.js";
@@ -12,7 +12,17 @@ export function renderInspector() {
   $("insp-body").style.display = sc ? "block" : "none";
   if (!sc) { $("insp-title").textContent = ""; return; }
   var locked = !!sc.narration;
-  $("insp-title").textContent = "scene-" + selIdx + " · " + (sc.type || "text");
+  var typ = sc.type || "text";
+  $("insp-title").textContent = "scene-" + selIdx + " · " + typ;
+  var typeSel = $("insp-type");
+  if (typeSel) {
+    if (!Array.from(typeSel.options).some(function (o) { return o.value === typ; })) {
+      var opt = document.createElement("option");
+      opt.value = typ; opt.textContent = typ + "（自定义模板）";
+      typeSel.appendChild(opt);
+    }
+    typeSel.value = typ;
+  }
   var metaDur = (state.scenes[selIdx] && state.scenes[selIdx].dur) || 0;
   $("insp-dur").value = (locked ? metaDur : (sc.duration || metaDur)).toFixed(2);
   $("insp-dur").disabled = locked;
@@ -24,6 +34,11 @@ export function renderInspector() {
       sc.text_color : "#ffffff";
   $("insp-anim").value = sc.animation || "fade_in";
   $("insp-trans").value = sc.transition || "";
+  if ($("insp-img")) {
+    var im = sc.image;
+    $("insp-img").value = typeof im === "string" ? im : (im && im.src) || "";
+    $("insp-img-mode").value = (typeof im === "object" && im && im.mode) || "backdrop";
+  }
   /* 片段评论（HF Comment 同款）：元数据随 spec 保存，不进契约页 */
   $("insp-comment").value = sc.comment || "";
   $("insp-cmt-badge").textContent = sc.comment ? "· 已留" : "";
@@ -82,6 +97,11 @@ export function applyInspector() {
     if (vf > 0) sc.video_from = Math.round(vf * 1000) / 1000;
     else delete sc.video_from;
   }
+  if ($("insp-img")) {
+    var isrc = $("insp-img").value.trim();
+    if (isrc) sc.image = { src: isrc, mode: $("insp-img-mode").value || "backdrop" };
+    else delete sc.image;
+  }
   for (var i = 0; i < curFields.length; i++) {
     var key = curFields[i][1], el = $("insp-f-" + key);
     if (!el) continue;
@@ -93,6 +113,9 @@ export function applyInspector() {
                key === "right_items" || curFields[i][2] === "textarea") {
       sc[key] = raw.split("\n").filter(function (l) { return l.trim(); })
                    .map(function (l) { return l.trim(); });
+    } else if (key === "kicker") {
+      if (raw.trim()) sc.kicker = raw.trim();
+      else delete sc.kicker;
     } else {
       sc[key] = raw.trim();
     }
@@ -100,6 +123,26 @@ export function applyInspector() {
   $("spec").value = JSON.stringify(state.spec, null, 2);
   log("inspector → scene-" + selIdx + "，重组合成…");
   recompose();
+}
+var inspType = $("insp-type");
+if (inspType) {
+  inspType.onchange = function () {
+    if (selIdx < 0 || !state.spec.scenes[selIdx]) return;
+    var sc = state.spec.scenes[selIdx];
+    var newType = inspType.value;
+    if (!newType || sc.type === newType) return;
+    sc.type = newType;
+    var def = SCENE_DEFAULTS[newType] || {};
+    for (var k in def) {
+      if (k !== "type" && k !== "animation" && k !== "duration" && sc[k] == null) {
+        sc[k] = structuredClone(def[k]);
+      }
+    }
+    $("spec").value = JSON.stringify(state.spec, null, 2);
+    renderInspector();
+    log("切换场景类型 → " + newType + "，重组合成…");
+    recompose();
+  };
 }
 $("insp-apply").onclick = applyInspector;
 /* 转场 / 入场动画改成「选完即生效」，不再要求再点一次「应用到场景」：

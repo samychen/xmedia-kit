@@ -1,0 +1,28 @@
+{
+  "name": "blue-professional",
+  "description": "专业科技蓝白风：纯净冷白底 + 钴蓝主强调 + 清晰排版层级，适合企业软件与数据汇报",
+  "source": "灵感源自 HyperFrames Blue Professional 美学方向（本地确定性重制）",
+  "colors": {
+    "bg_primary": "#F8FAFC",
+    "bg_secondary": "#EFF6FF",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569",
+    "accent": "#0055FF",
+    "line": "#CBD5E1",
+    "glow": "rgba(0, 85, 255, 0.08)"
+  },
+  "typography": {
+    "display": {"family": "Inter, system-ui, sans-serif", "size_vh": 8.2, "weight": 800, "line_height": 1.08, "tracking": "-0.025em"},
+    "h1": {"family": "Inter, system-ui, sans-serif", "size_vh": 5.4, "weight": 800, "line_height": 1.14},
+    "h2": {"family": "Inter, system-ui, sans-serif", "size_vh": 3.6, "weight": 700, "line_height": 1.2},
+    "stat_figure": {"family": "Inter, system-ui, sans-serif", "size_vh": 14.5, "weight": 900, "line_height": 1.0},
+    "label": {"family": "Inter, system-ui, sans-serif", "px": 14, "weight": 600, "tracking": "2px", "upper": true, "color": "accent"},
+    "body": {"family": "Inter, system-ui, sans-serif", "size_vh": 2.9, "weight": 400, "line_height": 1.6, "color": "text_secondary"}
+  },
+  "spacing": {"pad_x": "8cqw", "pad_y": "6cqw"},
+  "components": {
+    "hairline": "0.18vh solid {colors.accent}",
+    "kicker_pill": true
+  },
+  "layout": "crisp light editorial grid, cobalt accent, high readability"
+}

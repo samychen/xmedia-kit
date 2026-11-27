@@ -109,12 +109,12 @@ def main():
 
     # ---------- 7. 模板场景插入（templates/ 热加载） ----------
     repo_templates = os.path.join(os.path.dirname(TOOLS), "templates")
-    r = run("加一个 countdown 模板场景", spec_dir=repo_templates)
+    r = run("加一个 hf-counter-burst 模板场景", spec_dir=repo_templates)
     spec = r.get("spec") or {}
     last = (spec.get("scenes") or [{}])[-1]
     check("7a. 模板场景追加（type + slot 占位）",
           len(spec.get("scenes", [])) == 4 and
-          last.get("type") == "countdown" and
+          last.get("type") == "hf-counter-burst" and
           any(str(v).startswith("[") for k, v in last.items()
               if k not in ("type", "duration")),
           json.dumps(last, ensure_ascii=False)[:80])

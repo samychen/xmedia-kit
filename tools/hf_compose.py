@@ -39,12 +39,17 @@ _gsap_src = ''
 
 # 入场动画预设 → GSAP fromTo 片段（duration 秒由调用方传入）。
 ANIMATIONS = {
-    "fade_in":      ("{opacity: 0}", "{opacity: 1}"),
-    "fade_in_up":   ("{opacity: 0, y: 60}", "{opacity: 1, y: 0}"),
-    "fade_in_down": ("{opacity: 0, y: -60}", "{opacity: 1, y: 0}"),
+    "fade_in":       ("{opacity: 0}", "{opacity: 1}"),
+    "fade_in_up":    ("{opacity: 0, y: 60}", "{opacity: 1, y: 0}"),
+    "fade_in_down":  ("{opacity: 0, y: -60}", "{opacity: 1, y: 0}"),
     "slide_in_left":  ("{opacity: 0, x: -200}", "{opacity: 1, x: 0}"),
     "slide_in_right": ("{opacity: 0, x: 200}", "{opacity: 1, x: 0}"),
-    "scale_in":     ("{opacity: 0, scale: 0.8}", "{opacity: 1, scale: 1}"),
+    "scale_in":      ("{opacity: 0, scale: 0.8}", "{opacity: 1, scale: 1}"),
+    "zoom_in":       ("{opacity: 0, scale: 1.15}", "{opacity: 1, scale: 1}"),
+    "zoom_out":      ("{opacity: 0, scale: 0.9}", "{opacity: 1, scale: 1}"),
+    "pop_in":        ("{opacity: 0, scale: 0.65, y: 24}", "{opacity: 1, scale: 1, y: 0}"),
+    "blur_in":       ('{opacity: 0, filter: "blur(10px)"}', '{opacity: 1, filter: "blur(0px)"}'),
+    "clip_reveal":   ('{clipPath: "inset(0% 0% 100% 0%)"}', '{clipPath: "inset(0% 0% 0% 0%)"}'),
 }
 
 DEFAULT_ANIMATION = "fade_in"
@@ -177,13 +182,21 @@ def _probe_audio_duration(path):
     return None
 
 
+def _resolve_design_dict(spec):
+    """解析 spec.design：支持内联 dict 或 tools/design-presets/*.json 预设名。"""
+    design = spec.get("design") or {}
+    if isinstance(design, str):
+        return _design_presets().get(design) or {}
+    return design if isinstance(design, dict) else {}
+
+
 def _design_css(spec, bg_default):
     """spec.design 段（设计系统）→ (root CSS 变量, 场景类覆盖)。
 
     对齐 HF frame.md 设计系统层（frame-presets 的 YAML 规格）：colors
     带角色、typography ramp（display/h1/stat_figure/body/label）、
-    components（hairline/invert_block）。场景显式 bg/color 仍优先。"""
-    design = spec.get("design") or {}
+    components（hairline/invert_block/kicker_pill）。场景显式 bg/color 仍优先。"""
+    design = _resolve_design_dict(spec)
     if not design:
         return "", ""
     colors = design.get("colors") or {}
@@ -199,6 +212,8 @@ def _design_css(spec, bg_default):
         root_lines.append("    --accent-d: " + colors["accent"])
     if colors.get("line"):
         root_lines.append("    --line-d: " + colors["line"])
+    if colors.get("glow"):
+        root_lines.append("    --glow: " + colors["glow"])
 
     def tvar(name, family, size, unit, weight, lh):
         if not family:
@@ -244,6 +259,16 @@ def _design_css(spec, bg_default):
             "  .scene-heading { border-bottom: "
             + hl.replace("{colors.line}", colors["line"])
             + "; padding-bottom: 12px; }")
+    if colors.get("glow"):
+        scene_ov.append(
+            "  .scene::after { content: \"\"; position: absolute; inset: 0; "
+            "pointer-events: none; background: radial-gradient(circle at 82% 18%, "
+            + colors["glow"] + ", transparent 56%); z-index: 0; }")
+    if comps.get("kicker_pill") and colors.get("accent"):
+        scene_ov.append(
+            "  .scene-kicker { padding: 4px 12px; border-radius: 999px; "
+            "border: 1px solid " + colors["accent"] + "; color: " + colors["accent"]
+            + "; background: rgba(255,255,255,0.04); }")
     root_css = "\n".join(root_lines)
     scene_css = "\n".join(scene_ov)
     return root_css, scene_css
@@ -392,14 +417,16 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     # 发丝线分隔、编号等宽小标、outro 反转强调拍（ink 实块擦入反白）。
     # 两色纪律：强调只用反转/放大/密度，不引入第三色。
     HAIRLINE = '<i class="hairline"></i>'
+    kicker = esc(scene.get("kicker", ""))
+    KICKER = (f'<span class="scene-kicker">{kicker}</span>' if kicker else "")
     if typ == "title":
-        inner = (f'<div class="scene-stack">{HAIRLINE}'
+        inner = (f'<div class="scene-stack">{KICKER}{HAIRLINE}'
                  f'<h1 class="scene-title">{text}</h1>')
         if subtitle:
             inner += f'<p class="scene-subtitle">{subtitle}</p>'
         inner += '</div>'
     elif typ == "text":
-        inner = f'<div class="scene-stack">{HAIRLINE}'
+        inner = f'<div class="scene-stack">{KICKER}{HAIRLINE}'
         inner += f'<p class="scene-body">{text}</p>'
         for c in content:
             cc = esc(c.get("text", ""))
@@ -408,7 +435,7 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     elif typ == "quote":
         quote = esc(scene.get("quote", text))
         author = esc(scene.get("author", ""))
-        inner = (f'<div class="scene-stack">{HAIRLINE}'
+        inner = (f'<div class="scene-stack">{KICKER}{HAIRLINE}'
                  f'<p class="scene-quote"><span class="qmark">&ldquo;</span>'
                  f'{quote}&rdquo;</p>')
         if author:
@@ -416,7 +443,7 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         inner += '</div>'
     elif typ == "list":
         items = content if content else [{"text": t} for t in scene.get("items", [])]
-        inner = (f'<div class="scene-stack">{HAIRLINE}'
+        inner = (f'<div class="scene-stack">{KICKER}{HAIRLINE}'
                  f'<h2 class="scene-heading">{text}</h2>')
         inner += '<ul class="scene-list">'
         for j, c in enumerate(items):
@@ -427,7 +454,7 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
     elif typ == "stats":
         stat_value = esc(scene.get("value", ""))
         stat_desc = esc(scene.get("description", ""))
-        inner = (f'<div class="scene-stack">{HAIRLINE}'
+        inner = (f'<div class="scene-stack">{KICKER}{HAIRLINE}'
                  f'<div class="scene-stat-value">{stat_value}</div>')
         if stat_desc:
             inner += f'<p class="scene-stat-desc">{stat_desc}</p>'
@@ -437,7 +464,7 @@ def gen_scene_html(scene, start_sec, idx, caption=None, registry=None,
         right_col = esc(scene.get("right", ""))
         left_items = scene.get("left_items", [])
         right_items = scene.get("right_items", [])
-        inner = (f'<div class="scene-stack">{HAIRLINE}'
+        inner = (f'<div class="scene-stack">{KICKER}{HAIRLINE}'
                  f'<h2 class="scene-heading">{text}</h2>')
         inner += '<div class="scene-comparison">'
         inner += f'<div class="comp-col"><h3>{left_col}</h3><ul>'
@@ -651,6 +678,14 @@ def gen_timeline_js(scenes, starts, durs, trans, trans_durs,
                 lines.append(
                     f'  tl.to("{prev}", {{x: 120, opacity: 0, duration: {ov}, '
                     f'ease: "power1.in"}}, {starts[idx]});')
+            elif trans[idx] == "zoom":
+                lines.append(
+                    f'  tl.to("{prev}", {{scale: 1.08, opacity: 0, duration: {ov}, '
+                    f'ease: "power1.in"}}, {starts[idx]});')
+            elif trans[idx] == "blur":
+                lines.append(
+                    f'  tl.to("{prev}", {{filter: "blur(8px)", opacity: 0, '
+                    f'duration: {ov}, ease: "power1.in"}}, {starts[idx]});')
             else:  # fade
                 lines.append(
                     f'  tl.to("{prev}", {{opacity: 0, duration: {ov}, '
@@ -761,7 +796,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     tpl_css = []
     for idx, scene in enumerate(scenes):
         ttype = (str(scene.get("transition") or trans_default) or "none")
-        if ttype not in ("fade", "slide-left", "slide-right", "wipe", "none"):
+        if ttype not in ("fade", "slide-left", "slide-right", "wipe", "zoom", "blur", "none"):
             ttype = "none"
         # 场景级转场的窗口：全局 transitions.duration 是默认值，但它为 0
         # 时场景级 transition 会连窗口都没有——类型有了、重叠窗是 0，
@@ -923,13 +958,17 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     # （画面由烘焙侧原生视频层供给，光栅只承载文字），video 元素本身
     # visibility:hidden 不进光栅——CEF OSR 的 <video> 合成不随 seek
     # 重绘（实测冻结），像素走 FFmpeg 原生解码。
+    design_dict = _resolve_design_dict(spec)
+    design_colors = design_dict.get("colors") or {}
+    spec_bg_default = design_colors.get("bg_primary") or spec.get("background", "#000000")
+    spec_ink_default = design_colors.get("text_primary") or "#ffffff"
     has_video = any(scene.get("video") for scene in scenes)
     body_bg = "transparent" if has_video else "var(--ground)"
     scene_styles = []
     for idx, scene in enumerate(scenes):
-        bg = esc(scene.get("bg", "#000000"))
-        color = esc(scene.get("text_color", "#ffffff"))
-        bg_style = "transparent" if scene.get("video") else bg
+        s_bg = esc(scene.get("bg", spec_bg_default))
+        color = esc(scene.get("text_color", spec_ink_default))
+        bg_style = "transparent" if scene.get("video") else s_bg
         scene_styles.append(
             f'  #scene-{idx} {{ background: {bg_style}; color: {color}; }}')
 
@@ -982,7 +1021,7 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
     right: 4%; bottom: 5%; max-width: 18%; max-height: 12%;
     opacity: .92;
   }}
-  .scene > :not(.scene-video) {{
+  .scene > :not(.scene-video):not(.scene-image) {{
     position: relative; z-index: 1;
   }}
   .scene > .scene-caption {{
@@ -1004,8 +1043,13 @@ def compose(spec, spec_sha=None, no_sfx=False, spec_name=None):
   }}
   .hairline {{
     display: block; width: 64px; height: 2px;
-    background: currentColor; opacity: .85;
+    background: var(--accent-d, currentColor); opacity: .85;
     transform-origin: left center; margin-bottom: 3.2vh;
+  }}
+  .scene-kicker {{
+    display: inline-block; font-size: 1.5vh; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    opacity: 0.85; margin-bottom: 1.6vh;
   }}
   .scene-title {{
     font-size: 8vh; font-weight: 800; line-height: 1.14;

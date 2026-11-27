@@ -6,12 +6,30 @@
 import { $, log } from "../shared/dom.js";
 import { api } from "../shared/api-client.js";
 import { refresh } from "../panels/status.js";
+import { askAttachDraw } from "../agent/ask.js";
 
 let cv = null, ctx = null, drawing = false, on = false;
 let last = null;
 let curStroke = null;          // 当前笔划（归一化点数组）
 let pendingStrokes = [];       // 待提交笔划
 let commitTimer = null;
+
+function computeBounds(strokes) {
+  let x1 = 1, y1 = 1, x2 = 0, y2 = 0, count = 0;
+  for (let s of strokes) {
+    for (let pt of (s.points || [])) {
+      x1 = Math.min(x1, pt[0]); y1 = Math.min(y1, pt[1]);
+      x2 = Math.max(x2, pt[0]); y2 = Math.max(y2, pt[1]);
+      ++count;
+    }
+  }
+  return count ? [x1, y1, x2, y2] : null;
+}
+
+function showAiBtn(visible) {
+  var b = $("pvtool-draw-ai");
+  if (b) b.style.display = visible ? "" : "none";
+}
 
 function frameRect() {
   var f = document.querySelector("#pvframe");
@@ -52,6 +70,7 @@ function ensureCanvas() {
     cv.addEventListener(ev, function () {
       if (drawing && curStroke && curStroke.points.length > 1) {
         pendingStrokes.push(curStroke);
+        showAiBtn(true);
         scheduleCommit();
       }
       drawing = false;
@@ -71,8 +90,8 @@ function norm(e) {
   ];
 }
 
-/* 笔划提交：防抖 1.2s 合并多笔划 → spec.annotations → recompose
-   （契约页 SVG 接管显示）→ 画布清空。 */
+/* 笔划提交：防抖 2.4s 合并多笔划 → spec.annotations → recompose
+   （其间点「🎯 问AI」会拦截为 AI 圈选意图，不烧入视频）。 */
 function scheduleCommit() {
   if (commitTimer) clearTimeout(commitTimer);
   commitTimer = setTimeout(function () {
@@ -80,6 +99,7 @@ function scheduleCommit() {
     if (!pendingStrokes.length) return;
     var strokes = pendingStrokes;
     pendingStrokes = [];
+    showAiBtn(false);
     /* 服务端原子 append：连续快速笔划不再互相覆盖丢笔划 */
     api("/api/annotation/add", { strokes: strokes })
       .then(function (r) {
@@ -91,7 +111,7 @@ function scheduleCommit() {
       .catch(function (e) {
         log("标注提交失败：" + e.message, "err");
       });
-  }, 1200);
+  }, 2400);
 }
 
 function resize() {
@@ -137,6 +157,27 @@ export function drawInit() {
     drawToggle(on);
     var clr = $("pvtool-clear");
     if (clr) clr.style.display = on ? "" : "none";
+    if (!on) showAiBtn(false);
+  };
+  var aiBtn = $("pvtool-draw-ai");
+  if (aiBtn) aiBtn.onclick = function () {
+    if (commitTimer) {
+      clearTimeout(commitTimer);
+      commitTimer = null;
+    }
+    var bounds = computeBounds(pendingStrokes);
+    pendingStrokes = [];
+    drawClear();
+    showAiBtn(false);
+    on = false;
+    btn.classList.remove("on");
+    drawToggle(false);
+    var clr = $("pvtool-clear");
+    if (clr) clr.style.display = "none";
+    if (bounds) {
+      askAttachDraw(bounds);
+      log("已将画布圈选区域附着到 Ask AI 上下文", "ok");
+    }
   };
   var clearBtn = $("pvtool-clear");
   if (clearBtn) clearBtn.onclick = function () {
@@ -145,6 +186,7 @@ export function drawInit() {
       commitTimer = null;
     }
     pendingStrokes = [];
+    showAiBtn(false);
     drawClear();
     api("/api/annotation/clear", {}).then(function () {
       return refresh().then(function () {
