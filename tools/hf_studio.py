@@ -17,6 +17,7 @@
 
 import argparse
 import copy
+import base64
 import hashlib
 import shutil
 import json
@@ -786,6 +787,14 @@ STUDIO_UI_PATH = os.path.join(TOOLS_DIR, "studio_ui.html")
 # LD_LIBRARY_PATH 指向自带库，与系统 ffmpeg 的插件依赖
 # （rubberband/zimg 等的 GLIBCXX 版本）冲突——实测抽帧/波形全数失败。
 # 统一剥掉该变量再 spawn（THUMB/waveform/bake 探测共用）。
+# 1x1 透明占位 PNG：Home 预览图（arc-preview/project-thumb）缺失时
+# 返回它而非 404——前端有色块兜底，但浏览器对 <img> 的 404 一定会刷
+# console 红字；透明图让兜底色块透出来，console 保持干净。
+_TRANSPARENT_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR4nGNg"
+    "YGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==")
+
+
 def _ff_env():
     env = os.environ.copy()
     env.pop("LD_LIBRARY_PATH", None)
@@ -3141,6 +3150,26 @@ class StudioServer:
                 "\n".join(tool_steps[-3:]) or "（agent 无文本输出）")
             spec_changed = (bool(spec_path) and os.path.exists(spec_path) and
                             os.path.getmtime(spec_path) > spec_mtime_before)
+            # CLI 启动/登录失败且 LLM 已配置（⚙ API / 环境变量）→ 自动
+            # 回退到规则引擎 + 已配置的大模型，而不是把错误甩给用户。
+            cli_broken = ((proc.returncode != 0 and not parsed) or is_error or
+                          bool(re.search(r"not logged in|please run /login|"
+                                         r"authentication required",
+                                         reply, re.I)))
+            if cli_broken and self._effective_llm_config().get("configured"):
+                rule_out = self._run_agent(message)
+                with self._lock:
+                    job["spec_updated"] = "spec" in rule_out
+                    job["reply"] = (
+                        f"（{cli} 启动失败：{str(reply)[:80]}——"
+                        "已回退到规则引擎 + 已配置的大模型）\n"
+                        + str(rule_out.get("reply", "")))[:2000]
+                    job["diff"] = self._spec_diff_summary(
+                        before_scenes,
+                        (self.current_spec or {}).get("scenes") or [])
+                    job["error"] = None
+                self._chat_log(message, job["reply"], cli + "+fallback")
+                return
             if proc.returncode != 0 and not parsed:
                 err_tail = "\n".join(raw_lines[-8:]) or reply
                 with self._lock:
@@ -3231,6 +3260,11 @@ def make_handler(server_ref):
                                "text/html; charset=utf-8")
                 else:
                     self._send(200, studio_ui(), "text/html; charset=utf-8")
+            elif path == "/home":
+                # 双模式通用的项目列表页：编辑器顶栏「‹ Home」的落点——
+                # contract 模式下 "/" 是编辑器本身，面包屑需要独立路由。
+                self._send(200, home_html(srv._projects_list()),
+                           "text/html; charset=utf-8")
             elif path.startswith("/project/"):
                 name = urllib.parse.unquote(
                     path[len("/project/"):]).strip("/")
@@ -3355,7 +3389,8 @@ def make_handler(server_ref):
                         with open(jpg, "rb") as fh:
                             self._send(200, fh.read(), "image/jpeg")
                         return
-                self._send(404, "not found", "text/plain")
+                # 无分镜帧产物（html_bake 未跑）→ 透明占位，前端色块兜底
+                self._send(200, _TRANSPARENT_PNG, "image/png")
             elif path.startswith("/api/arc-preview/"):
                 arc = path[len("/api/arc-preview/"):]
                 if not re.fullmatch(r"[\w\-]+", arc or ""):
@@ -3364,7 +3399,8 @@ def make_handler(server_ref):
                 jpg = os.path.expanduser(
                     f"~/.xmedia/arc-previews/{arc}.jpg")
                 if not os.path.isfile(jpg):
-                    self._send(404, "not found", "text/plain")
+                    # 无预览产物 → 透明占位（Arc 卡自带渐变条兜底）
+                    self._send(200, _TRANSPARENT_PNG, "image/png")
                     return
                 with open(jpg, "rb") as f:
                     self._send(200, f.read(), "image/jpeg")

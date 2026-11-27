@@ -467,8 +467,12 @@ watch("selIdx", function () {
 });
 
 watch("state", function (s) {
-  if (!backendPickedByUser && s && s.agent && s.agent.cli) {
-    askBackend = "agent";
+  if (!backendPickedByUser && s) {
+    /* 后端默认值：LLM 已配置（⚙ API / 环境变量）→ 规则引擎（miss 时
+     * 升级到已配置的大模型——本地/云端皆可）；否则默认 agent CLI
+     * （PATH 上的 claude 可能未登录/不可用，CLI 失败服务端还会再兜底）。 */
+    var a = s.agent || {};
+    askBackend = a.llm ? "rule" : (a.cli ? "agent" : "rule");
   }
   askModeLabel();
   renderCtxBar();
