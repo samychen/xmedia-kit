@@ -121,7 +121,8 @@ try {
   await page.click("#tab-templates");
   await page.waitForTimeout(400);
   const tplCards = await page.locator("#templates-panel .tpl-card").count();
-  if (tplCards < 19) fail(`模板库卡片 ${tplCards} < 19`);
+  // 模板目录随项目演进重构（19 → 8 个 hf-* 编排模板），断言目录非空即可
+  if (tplCards < 8) fail(`模板库卡片 ${tplCards} < 8（模板目录被清空？）`);
   else ok(`模板库 tab：${tplCards} 个模板卡片可浏览/可插入`);
 
   await page.click("#btn-bake");
