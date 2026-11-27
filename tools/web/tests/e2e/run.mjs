@@ -39,15 +39,16 @@ async function homePhase(browser) {
   page.on("pageerror", (e) => errs.push(String(e)));
   try {
     await page.goto(HOME_URL, { waitUntil: "networkidle" });
-    const hasForm = await page.locator("#message").count() &&
-        (await page.locator("#arc").count()) &&
+    // Home 三步向导（做个东西）：1 选 Arc 卡片 → 2 填一句话 → 3 合成首剪
+    const hasWizard = await page.locator(".mk-arc").count() &&
+        (await page.locator("#message").count()) &&
         (await page.locator("#create").count());
-    if (!hasForm) fail("Home 页缺建片表单（message/arc/create）");
-    else ok("Home 项目管理页加载（message/arc/create 表单）");
+    if (!hasWizard) fail("Home 页缺三步向导（mk-arc/message/create）");
+    else ok("Home 项目管理页加载（三步向导：Arc 卡 + 一句话 + 合成首剪）");
     await page.screenshot({ path: join(outDir, "e2e-07-home.png") });
 
+    await page.locator('.mk-arc[data-arc="problem-solution"]').click();
     await page.fill("#message", "e2e Home 冒烟：一句话建片");
-    await page.selectOption("#arc", "problem-solution");
     await page.click("#create");
     await page.waitForURL("**/project/**", { timeout: 15000 });
     ok("创建成功 → " + page.url().split("/").slice(-1)[0]);
